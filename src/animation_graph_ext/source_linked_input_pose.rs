@@ -48,7 +48,8 @@ impl NodeLike for SourceLinkedInputPoseNode {
             .into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
-        let mut state = crate::extensions::animation_context::linked_input_context(&ctx.graph_context, &input);
+        let mut state =
+            crate::extensions::animation_context::linked_input_context(&ctx.graph_context, &input);
         if !self.context_curve_names.is_empty() {
             for curve in &self.context_curve_names {
                 let key = format!("{}{}", self.context_curve_prefix, curve);
@@ -100,10 +101,13 @@ mod tests {
     impl NodeLike for ContextPose {
         fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
             let source_pose = Arc::new(SourcePose {
-                bones: vec![(EntityPath::from_slashed_string("root".to_owned()).id(), RigTransform {
-                    translation: DVec3::X * translation(self.value),
-                    ..default()
-                })],
+                bones: vec![(
+                    EntityPath::from_slashed_string("root".to_owned()).id(),
+                    RigTransform {
+                        translation: DVec3::X * translation(self.value),
+                        ..default()
+                    },
+                )],
                 length_scale: 0.01,
             });
             let mut pose = Pose::default();
@@ -186,11 +190,18 @@ mod tests {
                     .unwrap();
                     let pose = output["Pose"].clone().into_pose().unwrap();
                     let exact = state.source_pose_for(&pose).unwrap();
-                    let snapshot = state.reflect_clone().unwrap().take::<AnimationContextState>().unwrap();
+                    let snapshot = state
+                        .reflect_clone()
+                        .unwrap()
+                        .take::<AnimationContextState>()
+                        .unwrap();
                     assert!(Arc::ptr_eq(exact, snapshot.source_pose_for(&pose).unwrap()));
                     assert_eq!(pose.bones[0].translation.unwrap().x, 0.01);
-                    (state.curves[&crate::extensions::SourceCurveName::from("Selected")],
-                        state.sync_players[0].phase, exact.bones[0].1.translation.x)
+                    (
+                        state.curves[&crate::extensions::SourceCurveName::from("Selected")],
+                        state.sync_players[0].phase,
+                        exact.bones[0].1.translation.x,
+                    )
                 })
                 .collect()
         }
@@ -231,11 +242,15 @@ mod tests {
         parent.add_node(link.clone());
         for (input, value) in [("A", 0.25), ("B", 0.75)] {
             let node = AnimationNode::new(input, ContextPose { value });
-            let save = AnimationNode::new(format!("Save {input}"), SourceCachedPoseSaveNode::default());
-            let cached = AnimationNode::new(format!("Use {input}"), SourceScopedCachedPoseUseNode {
-                cache_node: save.name.clone(),
-                ..default()
-            });
+            let save =
+                AnimationNode::new(format!("Save {input}"), SourceCachedPoseSaveNode::default());
+            let cached = AnimationNode::new(
+                format!("Use {input}"),
+                SourceScopedCachedPoseUseNode {
+                    cache_node: save.name.clone(),
+                    ..default()
+                },
+            );
             for node in [&node, &save, &cached] {
                 parent.add_node(node.clone());
             }
@@ -258,9 +273,17 @@ mod tests {
             vec![
                 (0.75, 0.75, translation(0.75)),
                 (0.25, 0.25, translation(0.25)),
-                (0.5, 0.25, translation(0.75).mul_add(0.5, translation(0.25) * 0.5)),
-                (0.25 + 0.5 * second, 0.25,
-                    translation(0.75).mul_add(f64::from(second), translation(0.25) * f64::from(first))),
+                (
+                    0.5,
+                    0.25,
+                    translation(0.75).mul_add(0.5, translation(0.25) * 0.5)
+                ),
+                (
+                    0.25 + 0.5 * second,
+                    0.25,
+                    translation(0.75)
+                        .mul_add(f64::from(second), translation(0.25) * f64::from(first))
+                ),
                 (0.75, 0.75, translation(0.75)),
                 (0.25, 0.25, translation(0.25))
             ]

@@ -11,12 +11,12 @@ use crate::extensions::{
     source_compression::{sample_prepared_pose, sample_prepared_root},
     source_sequence_player::sample_pose,
 };
+#[cfg(test)]
+use avian3d::prelude::CollisionLayers;
 use avian3d::prelude::{
     ColliderOf, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity, LockedAxes,
     PhysicsSystems, Position, RigidBody, Rotation,
 };
-#[cfg(test)]
-use avian3d::prelude::CollisionLayers;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -173,7 +173,8 @@ fn sample_mantle_pose(
     settings: &MantleMontageSettings,
     time: f32,
 ) -> Option<(Pose, crate::extensions::AnimationContextState)> {
-    let mut pose = sample_prepared_pose(clip, time).map_or_else(|| sample_pose(clip, time), |(pose, _)| pose);
+    let mut pose =
+        sample_prepared_pose(clip, time).map_or_else(|| sample_pose(clip, time), |(pose, _)| pose);
     crate::extensions::source_sequence_player::apply_source_root_lock(
         &mut pose,
         clip,
@@ -181,7 +182,8 @@ fn sample_mantle_pose(
         crate::extensions::source_sequence_player::SourceRootLock::RefPose,
         false,
     )?;
-    let mut context = crate::get_up::sampled_curve_context(Some(clip), &settings.sequence_curves, time);
+    let mut context =
+        crate::get_up::sampled_curve_context(Some(clip), &settings.sequence_curves, time);
     context.curves.extend(
         settings
             .montage_curves
@@ -192,15 +194,23 @@ fn sample_mantle_pose(
     Some((pose, context))
 }
 
-pub(crate) fn sample_mantle_root(clip: &GraphClip, skeleton: &Skeleton, time: f32) -> Option<Transform> {
-    let root = crate::extensions::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
+pub(crate) fn sample_mantle_root(
+    clip: &GraphClip,
+    skeleton: &Skeleton,
+    time: f32,
+) -> Option<Transform> {
+    let root =
+        crate::extensions::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
     let (translation, rotation) = if let Some(root) = sample_prepared_root(clip, root, time) {
         (root.translation, root.rotation)
     } else {
         let pose = sample_pose(clip, time);
         let bone = pose.get_bone(root)?;
         let reference = skeleton.default_transforms(root)?.local;
-        (bone.translation.unwrap_or(reference.translation), bone.rotation.unwrap_or(reference.rotation))
+        (
+            bone.translation.unwrap_or(reference.translation),
+            bone.rotation.unwrap_or(reference.rotation),
+        )
     };
     let basis = mesh_to_entity_yaw();
     Some(Transform {
@@ -284,7 +294,8 @@ fn prepare_mantle_montages(
     for (character, mut mantle, mut current, locomotion, roll, mut get_up, action) in
         &mut characters
     {
-        let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
+        let delta =
+            time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         if mantle.active
             && !mantle.root_motion_ready
             && (action == Some(&AlsNotifyLocomotionAction::Ragdolling)
@@ -303,7 +314,12 @@ fn prepare_mantle_montages(
         let mut added = AlsMantleMontages::default();
         let montages = current.as_deref_mut().unwrap_or(&mut added);
         if starting {
-            commit_state(character, locomotion, LocomotionState::Custom, &mut transitions);
+            commit_state(
+                character,
+                locomotion,
+                LocomotionState::Custom,
+                &mut transitions,
+            );
             montages.begin(&mantle);
             let duration = mantle.kind.action_settings().blend_in_seconds;
             if let Some(roll) = roll.filter(|roll| roll.active) {
@@ -424,16 +440,24 @@ fn publish_mantle_slot(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (character, mut montages, get_up, roll, assembly) in &mut characters {
-        let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
-        let selected = assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
+        let delta =
+            time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
+        let selected = assembly
+            .and_then(|assembly| avatars.get(assembly.avatar).ok())
             .filter(|(avatar, _)| avatar.character == character)
-            .map(|(_, instance)| instance.player_entity()).filter(|entity| players.contains(*entity));
+            .map(|(_, instance)| instance.player_entity())
+            .filter(|entity| players.contains(*entity));
         if montages.published_player != selected {
             if let Some(previous) = montages.published_player
-                && !avatars.iter().any(|(avatar, instance)| avatar.character != character && instance.player_entity() == previous)
+                && !avatars.iter().any(|(avatar, instance)| {
+                    avatar.character != character && instance.player_entity() == previous
+                })
             {
                 if let Ok(mut player) = players.get_mut(previous) {
-                    player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(bevy_animation_graph::core::pose::Pose::default()));
+                    player.set_global_input_data(
+                        POST_LOCOMOTION_POSE,
+                        DataValue::Pose(bevy_animation_graph::core::pose::Pose::default()),
+                    );
                     player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
                     player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
                 }
@@ -444,7 +468,9 @@ fn publish_mantle_slot(
             montages.published_player = selected;
         }
         let Some(player_entity) = selected else {
-            for entry in &mut montages.entries { entry.pose_ready = false; }
+            for entry in &mut montages.entries {
+                entry.pose_ready = false;
+            }
             continue;
         };
         let Ok(mut player) = players.get_mut(player_entity) else {
@@ -480,9 +506,16 @@ fn publish_mantle_slot(
             });
             let mut clock = context.relevant_asset.clone().unwrap();
             clock.weight = entry.weight;
-            context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
-                identity: format!("mantle:{}", entry.id), clip: assets.clip(entry.kind).clone(), clock, montage: true, interrupted: entry.interrupted, ..default()
-            });
+            context
+                .asset_samples
+                .push(crate::extensions::animation_context::SourceAssetSample {
+                    identity: format!("mantle:{}", entry.id),
+                    clip: assets.clip(entry.kind).clone(),
+                    clock,
+                    montage: true,
+                    interrupted: entry.interrupted,
+                    ..default()
+                });
             poses.push((pose, entry.weight));
             contexts.push((context, entry.weight));
             entry.pose_ready = true;
@@ -500,7 +533,11 @@ fn publish_mantle_slot(
                     .and_then(|value| value.as_pose().ok())
             {
                 poses.push((pose.clone(), weight));
-                if let Some(context) = source_inputs.get(player_entity).ok().and_then(|inputs| inputs.slot_input_context(POST_LOCOMOTION_POSE)) {
+                if let Some(context) = source_inputs
+                    .get(player_entity)
+                    .ok()
+                    .and_then(|inputs| inputs.slot_input_context(POST_LOCOMOTION_POSE))
+                {
                     contexts.push((context, weight));
                 }
             }
@@ -515,19 +552,30 @@ fn publish_mantle_slot(
             }
             player.set_global_input_data(
                 POST_LOCOMOTION_POSE,
-                DataValue::Pose(poses.iter().map(|(pose, weight)| pose.scalar_mult(*weight))
-                    .reduce(|accumulator, pose| accumulator.linear_add(&pose)).unwrap()),
+                DataValue::Pose(
+                    poses
+                        .iter()
+                        .map(|(pose, weight)| pose.scalar_mult(*weight))
+                        .reduce(|accumulator, pose| accumulator.linear_add(&pose))
+                        .unwrap(),
+                ),
             );
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, total.min(1.0));
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 1.0_f32);
-            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE,
-                Some(crate::extensions::source_pose_nodes::blend_animation_contexts(
-                    contexts,
-                )),);
+            source_inputs
+                .get_mut(player_entity)
+                .unwrap()
+                .set_slot_input_context(
+                    POST_LOCOMOTION_POSE,
+                    Some(crate::extensions::source_pose_nodes::blend_animation_contexts(contexts)),
+                );
         } else {
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
-            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, None);
+            source_inputs
+                .get_mut(player_entity)
+                .unwrap()
+                .set_slot_input_context(POST_LOCOMOTION_POSE, None);
         }
         if montages.entries.is_empty() {
             commands.entity(character).remove::<AlsMantleMontages>();
@@ -569,7 +617,9 @@ fn mantle_pose_system(
         With<AlsCharacter>,
     >,
 ) {
-    if time.is_paused() { return; }
+    if time.is_paused() {
+        return;
+    }
     for (entity, mut m, mut locomotion, mut vel, action, montages, runtime) in &mut q {
         if !m.active && !m.root_motion_ready {
             continue;
@@ -586,9 +636,9 @@ fn mantle_pose_system(
             *vel = LinearVelocity(Vec3::ZERO);
         }
         if action_ended || mode_changed || !target_valid {
-            let start_ragdoll =
-                !target_valid && MANTLE_SETTINGS.start_ragdoll_on_target_destruction
-                    && ragdoll_eligibility.allows(entity);
+            let start_ragdoll = !target_valid
+                && MANTLE_SETTINGS.start_ragdoll_on_target_destruction
+                && ragdoll_eligibility.allows(entity);
             if !action_ended && let Some(mut montages) = montages {
                 for entry in &mut montages.entries {
                     if entry.kind.action_settings().montage_index
@@ -608,10 +658,19 @@ fn mantle_pose_system(
             m.active = false;
             m.root_motion_ready = false;
             if *locomotion != LocomotionState::Grounded {
-                if *locomotion == LocomotionState::Custom && !start_ragdoll
-                    && let Some(mut runtime) = runtime { runtime.mantle_exit_grounded = true; }
+                if *locomotion == LocomotionState::Custom
+                    && !start_ragdoll
+                    && let Some(mut runtime) = runtime
+                {
+                    runtime.mantle_exit_grounded = true;
+                }
                 vel.y = 0.0;
-                commit_state(entity, locomotion.reborrow(), LocomotionState::Grounded, &mut transitions);
+                commit_state(
+                    entity,
+                    locomotion.reborrow(),
+                    LocomotionState::Grounded,
+                    &mut transitions,
+                );
             }
             if start_ragdoll {
                 commit_state(entity, locomotion, LocomotionState::None, &mut transitions);
@@ -679,7 +738,8 @@ fn mantle_drive_system(
             continue;
         }
         if let Some(result) = cmc.as_deref_mut()
-            && let Some(velocity) = result.grounded_collision_velocity {
+            && let Some(velocity) = result.grounded_collision_velocity
+        {
             result.grounded_collision_velocity = None;
             vel.0 = velocity;
         }
@@ -695,19 +755,40 @@ fn mantle_drive_system(
         ));
         if actor_delta <= 1e-8 && m.root_motion_ready {
             m.time += actor_delta;
-            if m.previous_root_rotation_delta.abs_diff_eq(Quat::IDENTITY, 1e-8)
-                || m.previous_root_rotation_delta.abs_diff_eq(-Quat::IDENTITY, 1e-8) { continue; }
-            let Ok(actor_world) = transforms.p0().compute_global_transform(entity) else { continue; };
-            let Ok(parent_world) = parents.get(entity).ok()
-                .map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
-            let world_rotation = (m.previous_root_rotation_delta * actor_world.rotation()).normalize();
+            if m.previous_root_rotation_delta
+                .abs_diff_eq(Quat::IDENTITY, 1e-8)
+                || m.previous_root_rotation_delta
+                    .abs_diff_eq(-Quat::IDENTITY, 1e-8)
+            {
+                continue;
+            }
+            let Ok(actor_world) = transforms.p0().compute_global_transform(entity) else {
+                continue;
+            };
+            let Ok(parent_world) = parents
+                .get(entity)
+                .ok()
+                .map(|parent| transforms.p0().compute_global_transform(parent.parent()))
+                .transpose()
+            else {
+                continue;
+            };
+            let world_rotation =
+                (m.previous_root_rotation_delta * actor_world.rotation()).normalize();
             let mut query = transforms.p1();
-            let Ok(mut transform) = query.get_mut(entity) else { continue; };
-            transform.rotation = parent_world.map_or(world_rotation, |parent| parent.rotation().inverse() * world_rotation);
-            if let Some(mut rotation) = rotation { rotation.0 = world_rotation; }
+            let Ok(mut transform) = query.get_mut(entity) else {
+                continue;
+            };
+            transform.rotation = parent_world.map_or(world_rotation, |parent| {
+                parent.rotation().inverse() * world_rotation
+            });
+            if let Some(mut rotation) = rotation {
+                rotation.0 = world_rotation;
+            }
             continue;
         }
-        let target_base = mantle_target_base(&m, &target_transforms, &target_bodies, &target_colliders);
+        let target_base =
+            mantle_target_base(&m, &target_transforms, &target_bodies, &target_colliders);
         if !m.active || (m.target_base.is_some() && target_base.is_none()) {
             *vel = LinearVelocity(Vec3::ZERO);
             continue;
@@ -729,7 +810,9 @@ fn mantle_drive_system(
         }
         m.refresh_target_base(target_base);
         if auto_pending {
-            commands.entity(entity).remove::<crate::als::motion::AlsAutoMantlePending>();
+            commands
+                .entity(entity)
+                .remove::<crate::als::motion::AlsAutoMantlePending>();
             continue;
         }
         let current_time = (m.time + actor_delta).min(m.action_end());
@@ -737,25 +820,40 @@ fn mantle_drive_system(
             continue;
         };
         let target_actor_transform = m.target_actor_transform_at(current_time, root);
-        let Ok(actor_world) = transforms.p0().compute_global_transform(entity) else { continue; };
-        let Ok(parent_world) = parents.get(entity).ok()
-            .map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
+        let Ok(actor_world) = transforms.p0().compute_global_transform(entity) else {
+            continue;
+        };
+        let Ok(parent_world) = parents
+            .get(entity)
+            .ok()
+            .map(|parent| transforms.p0().compute_global_transform(parent.parent()))
+            .transpose()
+        else {
+            continue;
+        };
         let mut query = transforms.p1();
         let mut transform = query.get_mut(entity).unwrap();
         let translation = target_actor_transform.translation - actor_world.translation();
-        m.previous_root_rotation_delta = (target_actor_transform.rotation * actor_world.rotation().conjugate()).normalize();
+        m.previous_root_rotation_delta =
+            (target_actor_transform.rotation * actor_world.rotation().conjugate()).normalize();
         if actor_delta > 1e-8 {
             *vel = LinearVelocity(translation / actor_delta);
         }
         if actor_delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
-            transform.translation = parent_world.map_or(target_actor_transform.translation,
-                |parent| parent.affine().inverse().transform_point3(target_actor_transform.translation));
+            transform.translation =
+                parent_world.map_or(target_actor_transform.translation, |parent| {
+                    parent
+                        .affine()
+                        .inverse()
+                        .transform_point3(target_actor_transform.translation)
+                });
             if let Some(mut position) = position {
                 position.0 = target_actor_transform.translation;
             }
         }
-        transform.rotation = parent_world.map_or(target_actor_transform.rotation,
-            |parent| parent.rotation().inverse() * target_actor_transform.rotation);
+        transform.rotation = parent_world.map_or(target_actor_transform.rotation, |parent| {
+            parent.rotation().inverse() * target_actor_transform.rotation
+        });
         if let Some(mut rotation) = rotation {
             rotation.0 = target_actor_transform.rotation;
         }
@@ -793,13 +891,17 @@ fn mantle_target_base(
 ) -> Option<AlsMantleTargetBase> {
     let base = state.target_base?;
     let transform = transforms.get(base.entity).ok()?;
-    let owner = colliders.get(base.entity).map_or(base.entity, |collider| collider.body);
+    let owner = colliders
+        .get(base.entity)
+        .map_or(base.entity, |collider| collider.body);
     Some(AlsMantleTargetBase {
         entity: base.entity,
         translation: transform.translation(),
         rotation: transform.rotation(),
         scale: transform.scale(),
-        relative_location: bodies.get(owner).map_or(base.relative_location, |body| *body != RigidBody::Static),
+        relative_location: bodies
+            .get(owner)
+            .map_or(base.relative_location, |body| *body != RigidBody::Static),
     })
 }
 
@@ -1257,30 +1359,59 @@ pub(crate) mod tests {
         mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
         mantle.root_motion_ready = true;
         mantle.target_base = Some(AlsMantleTargetBase {
-            entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
-            scale: Vec3::ONE, relative_location: false,
+            entity: target,
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+            relative_location: false,
         });
         let mut montages = AlsMantleMontages::default();
         montages.begin(&mantle);
         montages.entries[0].advance(0.3, None);
-        let actor = world.spawn((AlsCharacter, mantle, montages, LocomotionState::Custom,
-            AlsNotifyLocomotionAction::Mantling, LinearVelocity(Vec3::Y))).id();
+        let actor = world
+            .spawn((
+                AlsCharacter,
+                mantle,
+                montages,
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                LinearVelocity(Vec3::Y),
+            ))
+            .id();
         world.run_system_once(mantle_pose_system).unwrap();
         assert!(world.get::<AlsMantleState>(actor).unwrap().active);
         world.resource_mut::<Time<Virtual>>().pause();
         world.despawn(target);
         world.run_system_once(mantle_pose_system).unwrap();
-        assert!(world.get::<AlsMantleState>(actor).unwrap().active,
-            "Source paused Character must retain its active mantle after target destruction");
-        assert_eq!(world.get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
-        assert!(world.get::<AlsMantleMontages>(actor).unwrap().entries[0].stop.is_none());
+        assert!(
+            world.get::<AlsMantleState>(actor).unwrap().active,
+            "Source paused Character must retain its active mantle after target destruction"
+        );
+        assert_eq!(
+            world.get::<LocomotionState>(actor),
+            Some(&LocomotionState::Custom)
+        );
+        assert_eq!(
+            world.get::<AlsNotifyLocomotionAction>(actor),
+            Some(&AlsNotifyLocomotionAction::Mantling)
+        );
+        assert!(
+            world.get::<AlsMantleMontages>(actor).unwrap().entries[0]
+                .stop
+                .is_none()
+        );
         world.resource_mut::<Time<Virtual>>().unpause();
         world.run_system_once(mantle_pose_system).unwrap();
         assert!(!world.get::<AlsMantleState>(actor).unwrap().active);
         assert!(world.get::<AlsMantleState>(actor).unwrap().target_invalid);
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
-        assert_eq!(world.get::<LocomotionState>(actor), Some(&LocomotionState::Grounded));
+        assert_eq!(
+            world.get::<AlsNotifyLocomotionAction>(actor),
+            Some(&AlsNotifyLocomotionAction::Mantling)
+        );
+        assert_eq!(
+            world.get::<LocomotionState>(actor),
+            Some(&LocomotionState::Grounded)
+        );
     }
 
     #[test]
@@ -1380,10 +1511,7 @@ pub(crate) mod tests {
                 .id();
             world.run_system_once(mantle_pose_system).unwrap();
             assert_eq!(world.get::<LocomotionState>(actor), Some(&expected));
-            assert_eq!(
-                world.get::<AlsNotifyLocomotionAction>(actor),
-                Some(&action)
-            );
+            assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&action));
             assert_eq!(
                 world.get::<AlsMantleState>(actor).unwrap().active,
                 expected == LocomotionState::Custom
@@ -1412,18 +1540,12 @@ pub(crate) mod tests {
                 .resource_mut::<Messages<StateTransitionEvent>>()
                 .drain()
                 .collect();
-            assert_eq!(
-                events.len(),
-                usize::from(mode != expected)
-            );
+            assert_eq!(events.len(), usize::from(mode != expected));
             if let Some(event) = events.first() {
                 assert_eq!(event.entity, actor);
                 assert_eq!(event.dimension, Dimension::LocomotionState);
                 assert_eq!(event.from, StateValue::LocomotionState(mode));
-                assert_eq!(
-                    event.to,
-                    StateValue::LocomotionState(expected)
-                );
+                assert_eq!(event.to, StateValue::LocomotionState(expected));
             }
             world.run_system_once(mantle_pose_system).unwrap();
             assert_eq!(
@@ -1436,52 +1558,108 @@ pub(crate) mod tests {
         }
     }
 
-
     pub(crate) fn current_post_locomotion_base(app: &App, player: Entity) -> Pose {
-        use bevy_animation_graph::core::{animation_graph::{AnimationGraph, SourcePin, TargetPin},
-            context::node_states::StateKey};
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, SourcePin, TargetPin},
+            context::node_states::StateKey,
+        };
         let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
         let arena = player.get_context_arena().unwrap();
         let graphs = app.world().resource::<Assets<AnimationGraph>>();
-        let poses = arena.iter_context_ids().filter_map(|id| {
-            let context = arena.get_context(id)?;
-            let graph = graphs.get(context.get_graph_id())?;
-            let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
-            let SourcePin::NodeData(node, pin) = graph.edges_inverted.get(&TargetPin::NodeData(slot.id, "Source".into()))? else { return None; };
-            context.node_caches.get_output_data(*node, StateKey::Default, pin.clone())?.into_pose().ok()
-        }).collect::<Vec<_>>();
-        assert_eq!(poses.len(), 1, "Actual PostLocomotion source pose must be unique");
+        let poses = arena
+            .iter_context_ids()
+            .filter_map(|id| {
+                let context = arena.get_context(id)?;
+                let graph = graphs.get(context.get_graph_id())?;
+                let slot = graph
+                    .nodes
+                    .values()
+                    .find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
+                let SourcePin::NodeData(node, pin) = graph
+                    .edges_inverted
+                    .get(&TargetPin::NodeData(slot.id, "Source".into()))?
+                else {
+                    return None;
+                };
+                context
+                    .node_caches
+                    .get_output_data(*node, StateKey::Default, pin.clone())?
+                    .into_pose()
+                    .ok()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            poses.len(),
+            1,
+            "Actual PostLocomotion source pose must be unique"
+        );
         poses.into_iter().next().unwrap()
     }
 
     #[test]
     fn current_mantle_slot_uses_native_weighted_quaternion_blending() {
         let (app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let base = current_post_locomotion_base(&app, player_entity);
-        let handle = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
+        let handle = app
+            .world()
+            .resource::<MantleAssets>()
+            .clip(MantleKind::Low)
+            .clone();
         let clips = app.world().resource::<Assets<GraphClip>>();
         let clip = clips.get(&handle).unwrap();
-        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-        let overlay = sample_mantle_pose(clip, skeleton, mantle_montage_settings(MantleKind::Low), 0.35).unwrap().0;
+        let skeleton = app
+            .world()
+            .resource::<Assets<Skeleton>>()
+            .get(&clip.skeleton)
+            .unwrap();
+        let overlay = sample_mantle_pose(
+            clip,
+            skeleton,
+            mantle_montage_settings(MantleKind::Low),
+            0.35,
+        )
+        .unwrap()
+        .0;
         let weight = 0.15625;
-        let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay), Some(weight));
-        let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[(overlay, weight), (base, 1.0 - weight)]);
+        let actual = crate::extensions::slot_node::blend_slot_pose(
+            base.clone(),
+            Some(&overlay),
+            Some(weight),
+        );
+        let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[
+            (overlay, weight),
+            (base, 1.0 - weight),
+        ]);
         assert_eq!(actual.skeleton, expected.skeleton);
         assert_eq!(actual.paths.len(), expected.paths.len());
         let mut maximum = 0.0_f32;
         for bone in actual.paths.keys() {
-            if let (Some(a), Some(b)) = (actual.get_bone(*bone).unwrap().rotation, expected.get_bone(*bone).unwrap().rotation) {
+            if let (Some(a), Some(b)) = (
+                actual.get_bone(*bone).unwrap().rotation,
+                expected.get_bone(*bone).unwrap().rotation,
+            ) {
                 maximum = maximum.max((a - b).length().min((a + b).length()));
             }
         }
-        assert!(maximum < 1e-6, "Current Mantle slot used spherical instead of native weighted blending: error={maximum}");
+        assert!(
+            maximum < 1e-6,
+            "Current Mantle slot used spherical instead of native weighted blending: error={maximum}"
+        );
     }
 
     #[test]
     fn overlapping_current_mantles_keep_the_native_slot_base_quaternion_weight() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let base = current_post_locomotion_base(&app, player_entity);
         let mut old = AlsMantleState::default();
         old.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
@@ -1492,33 +1670,76 @@ pub(crate) mod tests {
         let mut new = AlsMantleState::default();
         new.begin(MantleKind::LowLeft, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
         montages.begin(&new);
-        for entry in &mut montages.entries { entry.advance(0.05, None); }
+        for entry in &mut montages.entries {
+            entry.advance(0.05, None);
+        }
         let total: f32 = montages.entries.iter().map(|entry| entry.weight).sum();
         assert!(total > 0.0 && total < 1.0);
         let mut samples = Vec::new();
         for entry in &montages.entries {
-            let handle = app.world().resource::<MantleAssets>().clip(entry.kind).clone();
+            let handle = app
+                .world()
+                .resource::<MantleAssets>()
+                .clip(entry.kind)
+                .clone();
             let clips = app.world().resource::<Assets<GraphClip>>();
             let clip = clips.get(&handle).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-            samples.push((sample_mantle_pose(clip, skeleton, mantle_montage_settings(entry.kind), entry.clip_time).unwrap().0, entry.weight));
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
+            samples.push((
+                sample_mantle_pose(
+                    clip,
+                    skeleton,
+                    mantle_montage_settings(entry.kind),
+                    entry.clip_time,
+                )
+                .unwrap()
+                .0,
+                entry.weight,
+            ));
         }
         app.world_mut().entity_mut(character).insert(montages);
-        app.world_mut().run_system_once(publish_mantle_slot).unwrap();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        let overlay = player.get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap();
-        let weight = player.get_global_input_data(POST_LOCOMOTION_WEIGHT).unwrap().as_f32().unwrap();
-        let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(overlay), Some(weight));
+        app.world_mut()
+            .run_system_once(publish_mantle_slot)
+            .unwrap();
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        let overlay = player
+            .get_global_input_data(POST_LOCOMOTION_POSE)
+            .unwrap()
+            .as_pose()
+            .unwrap();
+        let weight = player
+            .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+            .unwrap()
+            .as_f32()
+            .unwrap();
+        let actual = crate::extensions::slot_node::blend_slot_pose(
+            base.clone(),
+            Some(overlay),
+            Some(weight),
+        );
         let mut native_inputs = samples;
         native_inputs.push((base, 1.0 - total));
         let expected = crate::extensions::source_pose_nodes::blend_source_poses(&native_inputs);
         let mut maximum = 0.0_f32;
         for bone in actual.paths.keys() {
-            if let (Some(a), Some(b)) = (actual.get_bone(*bone).unwrap().rotation, expected.get_bone(*bone).unwrap().rotation) {
+            if let (Some(a), Some(b)) = (
+                actual.get_bone(*bone).unwrap().rotation,
+                expected.get_bone(*bone).unwrap().rotation,
+            ) {
                 maximum = maximum.max((a - b).length().min((a + b).length()));
             }
         }
-        assert!(maximum < 1e-6, "Current Mantle slot normalized before adding its base: error={maximum}");
+        assert!(
+            maximum < 1e-6,
+            "Current Mantle slot normalized before adding its base: error={maximum}"
+        );
     }
 
     #[test]
@@ -1575,8 +1796,18 @@ pub(crate) mod tests {
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
         let mut app = mantle_clip_test_app();
-        let clip = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
-        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        let clip = app
+            .world()
+            .resource::<MantleAssets>()
+            .clip(MantleKind::High)
+            .clone();
+        let skeleton = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(&clip)
+            .unwrap()
+            .skeleton
+            .clone();
         let mut failures = Vec::new();
         for dilation in [0.0_f32, 0.5, 1.0, 2.0] {
             let mut mantle = AlsMantleState::default();
@@ -1601,32 +1832,86 @@ pub(crate) mod tests {
             let delta = 0.05 * dilation;
             let expected_current = (mantle.clip_time_at(0.2 + delta) - delta).max(0.0)
                 + delta * mantle_montage_settings(MantleKind::High).play_rate;
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, montages,
-                LocomotionState::Custom, crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
-            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
-                AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
-            let player = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()),
-                Transform::IDENTITY, ChildOf(avatar))).id();
-            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    montages,
+                    LocomotionState::Custom,
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                ))
+                .id();
+            let avatar = app
+                .world_mut()
+                .spawn((
+                    AlsCharacterAvatar { character: actor },
+                    AnimatedSceneHandle::default(),
+                    Transform::IDENTITY,
+                    ChildOf(actor),
+                ))
+                .id();
+            let player = app
+                .world_mut()
+                .spawn((
+                    AnimationGraphPlayer::new(skeleton.clone()),
+                    Transform::IDENTITY,
+                    ChildOf(avatar),
+                ))
+                .id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
             app.world_mut().flush();
-            app.world_mut().entity_mut(actor).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
-            app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
-            app.world_mut().run_system_once(publish_mantle_slot).unwrap();
+            app.world_mut().entity_mut(actor).insert(
+                crate::character_assembly::AlsCharacterAssembly {
+                    avatar,
+                    camera: None,
+                },
+            );
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut()
+                .run_system_once(prepare_mantle_montages)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(publish_mantle_slot)
+                .unwrap();
             let entries = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries;
-            let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
-                .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+            let context = app
+                .world()
+                .get::<crate::extensions::SourceAnimationInputs>(player)
+                .unwrap()
+                .slot_input_context(POST_LOCOMOTION_POSE)
+                .unwrap();
             let correct = (entries[0].elapsed - 0.2 - delta).abs() < 1e-6
                 && (entries[1].elapsed - 0.2 - delta).abs() < 1e-6
                 && (entries[0].clip_time - previous - delta * 1.2).abs() < 1e-6
                 && (entries[1].clip_time - expected_current).abs() < 1e-6
-                && context.asset_samples.iter().all(|sample| (sample.clock.delta_seconds - delta).abs() < 1e-6);
-            if !correct { failures.push((dilation, entries[0].elapsed, entries[1].clip_time,
-                context.asset_samples.iter().map(|sample| sample.clock.delta_seconds).collect::<Vec<_>>())); }
+                && context
+                    .asset_samples
+                    .iter()
+                    .all(|sample| (sample.clock.delta_seconds - delta).abs() < 1e-6);
+            if !correct {
+                failures.push((
+                    dilation,
+                    entries[0].elapsed,
+                    entries[1].clip_time,
+                    context
+                        .asset_samples
+                        .iter()
+                        .map(|sample| sample.clock.delta_seconds)
+                        .collect::<Vec<_>>(),
+                ));
+            }
             app.world_mut().despawn(actor);
         }
-        assert!(failures.is_empty(), "Mantle montage and slot clocks ignored owner time: {failures:?}");
+        assert!(
+            failures.is_empty(),
+            "Mantle montage and slot clocks ignored owner time: {failures:?}"
+        );
     }
 
     #[test]
@@ -1635,75 +1920,159 @@ pub(crate) mod tests {
         let origin = app.world().get::<Position>(actor).unwrap().0;
         let source_velocity = Vec3::new(0.7, 0.0, -0.4);
         let mut mantle = AlsMantleState::default();
-        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
-        app.world_mut().entity_mut(actor).insert((mantle, LinearVelocity(source_velocity),
-            crate::als_camera::AlsCameraCustomTimeDilation(0.0)));
+        mantle.begin(
+            MantleKind::High,
+            origin,
+            origin + Vec3::new(0.0, 1.5, -0.8),
+            1.5,
+            0.0,
+            0.0,
+        );
+        app.world_mut().entity_mut(actor).insert((
+            mantle,
+            LinearVelocity(source_velocity),
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0),
+        ));
         for _ in 0..3 {
             app.update();
-            let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap().world_velocity;
-            assert!(actual.abs_diff_eq(source_velocity, 0.005),
-                "Source zero-delta RMS entry retains pending CMC velocity instead of the physical bridge: actual={actual:?}");
-            assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(origin, 1e-5));
+            let actual = app
+                .world()
+                .get::<crate::actual_motion::AlsActualMotion>(actor)
+                .unwrap()
+                .world_velocity;
+            assert!(
+                actual.abs_diff_eq(source_velocity, 0.005),
+                "Source zero-delta RMS entry retains pending CMC velocity instead of the physical bridge: actual={actual:?}"
+            );
+            assert!(
+                app.world()
+                    .get::<Position>(actor)
+                    .unwrap()
+                    .0
+                    .abs_diff_eq(origin, 1e-5)
+            );
             assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, 0.0);
         }
     }
 
     #[test]
     fn loaded_mantle_keeps_queries_and_restores_physics_axes() {
-        use avian3d::prelude::{PhysicsSystems, SpatialQueryFilter};
         use crate::als::character::AlsCollisionLayer;
         use crate::extensions::RagdollSpatialQuery;
+        use avian3d::prelude::{PhysicsSystems, SpatialQueryFilter};
         use std::sync::{Arc, Mutex};
         let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
         let origin = app.world().get::<Position>(actor).unwrap().0;
         let original_layers = *app.world().get::<CollisionLayers>(actor).unwrap();
-        let original_axes = app.world().get::<LockedAxes>(actor).map(LockedAxes::to_bits);
+        let original_axes = app
+            .world()
+            .get::<LockedAxes>(actor)
+            .map(LockedAxes::to_bits);
         let samples = Arc::new(Mutex::new(Vec::new()));
         let captured = samples.clone();
-        app.add_systems(PostUpdate, (move |spatial: RagdollSpatialQuery,
-            actors: Query<(&Position, &CollisionLayers, &LockedAxes), With<AlsMantlePhysicsFrame>>| {
-            let Ok((position, layers, axes)) = actors.get(actor) else { return };
-            let hit = spatial.cast_ray_predicate(position.0 + Vec3::X, Dir3::NEG_X, 2.0, true,
-                &SpatialQueryFilter::from_mask(AlsCollisionLayer::Default), &|entity| entity == actor).is_some();
-            captured.lock().unwrap().push((hit, *layers, axes.to_bits(), position.0));
-        }).after(PhysicsSystems::StepSimulation).before(PhysicsSystems::Writeback));
+        app.add_systems(
+            PostUpdate,
+            (move |spatial: RagdollSpatialQuery,
+                   actors: Query<
+                (&Position, &CollisionLayers, &LockedAxes),
+                With<AlsMantlePhysicsFrame>,
+            >| {
+                let Ok((position, layers, axes)) = actors.get(actor) else {
+                    return;
+                };
+                let hit = spatial
+                    .cast_ray_predicate(
+                        position.0 + Vec3::X,
+                        Dir3::NEG_X,
+                        2.0,
+                        true,
+                        &SpatialQueryFilter::from_mask(AlsCollisionLayer::Default),
+                        &|entity| entity == actor,
+                    )
+                    .is_some();
+                captured
+                    .lock()
+                    .unwrap()
+                    .push((hit, *layers, axes.to_bits(), position.0));
+            })
+            .after(PhysicsSystems::StepSimulation)
+            .before(PhysicsSystems::Writeback),
+        );
         let mut mantle = AlsMantleState::default();
-        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        mantle.begin(
+            MantleKind::High,
+            origin,
+            origin + Vec3::new(0.0, 1.5, -0.8),
+            1.5,
+            0.0,
+            0.0,
+        );
         app.world_mut().entity_mut(actor).insert(mantle);
         for _ in 0..10 {
             app.update();
-            if !samples.lock().unwrap().is_empty() { break; }
+            if !samples.lock().unwrap().is_empty() {
+                break;
+            }
         }
         let samples = samples.lock().unwrap();
-        let (hit, layers, axes, position) = samples.last().copied().expect("Mantle physics did not run");
-        assert!(hit, "The character capsule must remain queryable during Mantle physics");
+        let (hit, layers, axes, position) =
+            samples.last().copied().expect("Mantle physics did not run");
+        assert!(
+            hit,
+            "The character capsule must remain queryable during Mantle physics"
+        );
         assert_eq!(layers, original_layers);
         assert_eq!(axes, LockedAxes::ALL_LOCKED.to_bits());
-        assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-4));
-        assert_eq!(app.world().get::<LockedAxes>(actor).map(LockedAxes::to_bits), original_axes);
-        assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), original_layers);
+        assert!(
+            app.world()
+                .get::<Position>(actor)
+                .unwrap()
+                .0
+                .abs_diff_eq(position, 1e-4)
+        );
+        assert_eq!(
+            app.world()
+                .get::<LockedAxes>(actor)
+                .map(LockedAxes::to_bits),
+            original_axes
+        );
+        assert_eq!(
+            *app.world().get::<CollisionLayers>(actor).unwrap(),
+            original_layers
+        );
     }
 
     #[test]
     fn loaded_auto_mantle_starts_after_movement_and_defers_root_time() {
+        use crate::als::character::AlsCollisionLayer;
         use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
         use bevy::time::TimeUpdateStrategy;
-        use crate::als::character::AlsCollisionLayer;
         for (automatic, dilation) in [(true, 0.0_f32), (true, 1.0), (true, 2.0), (false, 1.0)] {
             let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
-            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
+            app.world_mut().spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.4, 0.8, 1.2),
                 Transform::from_xyz(0.0, 0.4, -1.4),
-                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+                CollisionLayers::new(
+                    [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                    LayerMask::ALL,
+                ),
+            ));
             let mut ready = false;
             for _ in 0..600 {
                 ready = {
                     let assets = app.world().resource::<MantleAssets>();
                     let clips = app.world().resource::<Assets<GraphClip>>();
                     let skeletons = app.world().resource::<Assets<Skeleton>>();
-                    assets.0.iter().all(|handle| clips.get(handle)
-                        .is_some_and(|clip| skeletons.contains(&clip.skeleton)))
+                    assets.0.iter().all(|handle| {
+                        clips
+                            .get(handle)
+                            .is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                    })
                 };
-                if ready { break; }
+                if ready {
+                    break;
+                }
                 app.update();
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
@@ -1711,32 +2080,54 @@ pub(crate) mod tests {
             app.update();
             app.update();
             let start = Vec3::new(0.0, 1.1, 0.0);
-            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
-                LocomotionState::Air, LinearVelocity::ZERO, bevy_tnua::TnuaMotor::default(),
+            app.world_mut().entity_mut(actor).insert((
+                Position(start),
+                Transform::from_translation(start),
+                LocomotionState::Air,
+                LinearVelocity::ZERO,
+                bevy_tnua::TnuaMotor::default(),
                 crate::als::dynamics::AlsMovementBase::default(),
                 crate::als::dynamics::AlsMovementBaseDynamicsState::default(),
                 crate::als::character::AlsCmcAdapterRuntime::default(),
                 crate::als_camera::AlsCameraCustomTimeDilation(dilation),
-                crate::als::state::AlsNotifyLocomotionAction::None));
-            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = !automatic;
+                crate::als::state::AlsNotifyLocomotionAction::None,
+            ));
+            app.world_mut()
+                .get_mut::<crate::als::input::AlsInputCommand>(actor)
+                .unwrap()
+                .jump_pressed = !automatic;
             let delta = 1.0_f32 / 60.0;
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
             app.update();
             let state = app.world().get::<AlsMantleState>(actor).unwrap();
-            assert!(state.active && state.root_motion_ready, "automatic={automatic} dilation={dilation}");
+            assert!(
+                state.active && state.root_motion_ready,
+                "automatic={automatic} dilation={dilation}"
+            );
             let expected_time = if automatic { 0.0 } else { delta * dilation };
-            assert!((state.time - expected_time).abs() < 1e-5,
-                "automatic={automatic} dilation={dilation} time={}", state.time);
+            assert!(
+                (state.time - expected_time).abs() < 1e-5,
+                "automatic={automatic} dilation={dilation} time={}",
+                state.time
+            );
             if automatic {
                 let position = app.world().get::<Position>(actor).unwrap().0;
                 let expected_y = start.y - 0.5 * 9.81 * (delta * dilation).powi(2);
-                assert!((position.y - expected_y).abs() < 0.0001 && position.with_y(0.0) == start.with_y(0.0),
-                    "dilation={dilation} position={position:?} expected_y={expected_y}");
+                assert!(
+                    (position.y - expected_y).abs() < 0.0001
+                        && position.with_y(0.0) == start.with_y(0.0),
+                    "dilation={dilation} position={position:?} expected_y={expected_y}"
+                );
                 assert!(state.start.abs_diff_eq(position, 0.0001));
                 app.update();
                 let state = app.world().get::<AlsMantleState>(actor).unwrap();
-                assert!((state.time - delta * dilation).abs() < 1e-5,
-                    "dilation={dilation} next_time={}", state.time);
+                assert!(
+                    (state.time - delta * dilation).abs() < 1e-5,
+                    "dilation={dilation} next_time={}",
+                    state.time
+                );
             }
         }
     }
@@ -1749,21 +2140,40 @@ pub(crate) mod tests {
         use crate::als::state::{Gait, RotationMode, Stance};
         use crate::animation_events::{AlsAnimationEvent, AlsAnimationEventSet};
         let mut app = mantle_clip_test_app();
-        app.add_message::<AimStateChanged>().add_systems(PostUpdate,
-            aim_rotation_mode_system.after(crate::als::gait::refresh_gait_system));
+        app.add_message::<AimStateChanged>().add_systems(
+            PostUpdate,
+            aim_rotation_mode_system.after(crate::als::gait::refresh_gait_system),
+        );
         let mut cases = Vec::new();
         let mut events = Vec::new();
-        for (kind, duration, expected_weight) in [(MantleKind::Low, 0.35, 0.8017493),
-            (MantleKind::High, 0.4, 0.84375)] {
+        for (kind, duration, expected_weight) in [
+            (MantleKind::Low, 0.35, 0.8017493),
+            (MantleKind::High, 0.4, 0.84375),
+        ] {
             for aiming in [false, true] {
                 let mantle = AlsMantleState { kind, ..default() };
                 let mut montages = AlsMantleMontages::default();
                 montages.begin(&mantle);
                 montages.entries[0].elapsed = 1.0;
                 montages.entries[0].weight = 1.0;
-                let actor = app.world_mut().spawn((AlsCharacter, mantle, montages, LocomotionState::Grounded,
-                    Stance::Standing, Gait::Running, RotationMode::ViewDirection, AlsMaxAllowedGait(Gait::Running),
-                    AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsInputCommand { aim_held: aiming, ..default() })).id();
+                let actor = app
+                    .world_mut()
+                    .spawn((
+                        AlsCharacter,
+                        mantle,
+                        montages,
+                        LocomotionState::Grounded,
+                        Stance::Standing,
+                        Gait::Running,
+                        RotationMode::ViewDirection,
+                        AlsMaxAllowedGait(Gait::Running),
+                        AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                        AlsInputCommand {
+                            aim_held: aiming,
+                            ..default()
+                        },
+                    ))
+                    .id();
                 events.push(AlsAnimationEvent { character: actor, source: None, instance_id: 1,
                     source_asset: mantle_montage_settings(kind).source_montage.clone(), graph_clip: String::new(),
                     event_id: String::new(), class_name: "AlsAnimNotifyState_EarlyBlendOut".to_owned(),
@@ -1776,12 +2186,18 @@ pub(crate) mod tests {
                 cases.push((actor, aiming, duration, expected_weight));
             }
         }
-        app.add_systems(PostUpdate, (move |mut writer: MessageWriter<AlsAnimationEvent>, mut sent: Local<bool>| {
-            if !*sent {
-                for event in &events { writer.write(event.clone()); }
-                *sent = true;
-            }
-        }).in_set(AlsAnimationEventSet::Dispatch));
+        app.add_systems(
+            PostUpdate,
+            (move |mut writer: MessageWriter<AlsAnimationEvent>, mut sent: Local<bool>| {
+                if !*sent {
+                    for event in &events {
+                        writer.write(event.clone());
+                    }
+                    *sent = true;
+                }
+            })
+            .in_set(AlsAnimationEventSet::Dispatch),
+        );
         app.update();
         for (actor, aiming, duration, expected_weight) in cases {
             let rotation = *app.world().get::<RotationMode>(actor).unwrap();
@@ -1792,21 +2208,26 @@ pub(crate) mod tests {
             if aiming {
                 assert!((entry.stop.unwrap().1 - duration).abs() < 1e-6);
                 entry.advance(0.1, None);
-                assert!((entry.weight - expected_weight).abs() < 1e-5,
-                    "duration={duration} weight={} expected={expected_weight}", entry.weight);
+                assert!(
+                    (entry.weight - expected_weight).abs() < 1e-5,
+                    "duration={duration} weight={} expected={expected_weight}",
+                    entry.weight
+                );
             }
         }
     }
 
     #[test]
     fn loaded_mantle_tail_uses_current_consumed_input_and_aim() {
-        use bevy::time::TimeUpdateStrategy;
         use crate::als::input::AlsInputCommand;
         use crate::als::motion::AlsMovementInputBlocked;
         use crate::als::state::RotationMode;
-        use crate::animation_events::{AlsNotifyManifest, ALS_NOTIFY_MANIFEST_PATH};
-        for (kind, clip_time, expected_weight) in [(MantleKind::Low, 1.1, 0.8017493),
-            (MantleKind::High, 2.2, 0.84375)] {
+        use crate::animation_events::{ALS_NOTIFY_MANIFEST_PATH, AlsNotifyManifest};
+        use bevy::time::TimeUpdateStrategy;
+        for (kind, clip_time, expected_weight) in [
+            (MantleKind::Low, 1.1, 0.8017493),
+            (MantleKind::High, 2.2, 0.84375),
+        ] {
             for (aiming, move_dir, blocked) in [
                 (true, Vec2::ZERO, false),
                 (false, Vec2::Y, false),
@@ -1814,17 +2235,26 @@ pub(crate) mod tests {
             ] {
                 let should_interrupt = aiming || (!blocked && move_dir != Vec2::ZERO);
                 let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-                let manifest = app.world().resource::<AssetServer>().load::<AlsNotifyManifest>(ALS_NOTIFY_MANIFEST_PATH);
+                let manifest = app
+                    .world()
+                    .resource::<AssetServer>()
+                    .load::<AlsNotifyManifest>(ALS_NOTIFY_MANIFEST_PATH);
                 let mut ready = false;
                 for _ in 0..600 {
                     ready = {
                         let assets = app.world().resource::<MantleAssets>();
                         let clips = app.world().resource::<Assets<GraphClip>>();
                         let skeletons = app.world().resource::<Assets<Skeleton>>();
-                        app.world().resource::<Assets<AlsNotifyManifest>>().contains(&manifest)
-                            && clips.get(assets.clip(kind)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                        app.world()
+                            .resource::<Assets<AlsNotifyManifest>>()
+                            .contains(&manifest)
+                            && clips
+                                .get(assets.clip(kind))
+                                .is_some_and(|clip| skeletons.contains(&clip.skeleton))
                     };
-                    if ready { break; }
+                    if ready {
+                        break;
+                    }
                     app.update();
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
@@ -1836,68 +2266,157 @@ pub(crate) mod tests {
                 montages.entries[0].clip_time = clip_time;
                 montages.entries[0].previous_clip_time = clip_time;
                 montages.entries[0].weight = 1.0;
-                app.world_mut().entity_mut(actor).remove::<crate::get_up::AlsGetUpState>().insert((mantle, montages,
-                    RotationMode::ViewDirection, crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
-                    AlsInputCommand { aim_held: aiming, move_dir, ..default() }));
+                app.world_mut()
+                    .entity_mut(actor)
+                    .remove::<crate::get_up::AlsGetUpState>()
+                    .insert((
+                        mantle,
+                        montages,
+                        RotationMode::ViewDirection,
+                        crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                        AlsInputCommand {
+                            aim_held: aiming,
+                            move_dir,
+                            ..default()
+                        },
+                    ));
                 if blocked {
-                    app.world_mut().entity_mut(actor).insert(AlsMovementInputBlocked);
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsMovementInputBlocked);
                 }
-                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                    std::time::Duration::from_secs_f32(1.0 / 60.0),
+                ));
                 app.update();
                 let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
-                let consumed = app.world().get::<TnuaController<AlsControlScheme>>(actor)
-                    .unwrap().basis.desired_motion;
+                let consumed = app
+                    .world()
+                    .get::<TnuaController<AlsControlScheme>>(actor)
+                    .unwrap()
+                    .basis
+                    .desired_motion;
                 assert_eq!(consumed == Vec3::ZERO, aiming || blocked);
-                assert_eq!(*app.world().get::<RotationMode>(actor).unwrap() == RotationMode::Aiming, aiming);
-                assert_eq!(entry.interrupted, should_interrupt, "kind={kind:?} aiming={aiming} blocked={blocked}");
-                let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
-                    .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
-                assert!(context.asset_samples.iter().any(|sample| sample.identity == "mantle:1" && sample.interrupted == should_interrupt));
+                assert_eq!(
+                    *app.world().get::<RotationMode>(actor).unwrap() == RotationMode::Aiming,
+                    aiming
+                );
+                assert_eq!(
+                    entry.interrupted, should_interrupt,
+                    "kind={kind:?} aiming={aiming} blocked={blocked}"
+                );
+                let player = app
+                    .world()
+                    .get::<AnimatedSceneInstance>(avatar)
+                    .unwrap()
+                    .player_entity();
+                let context = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .unwrap();
+                assert!(
+                    context
+                        .asset_samples
+                        .iter()
+                        .any(|sample| sample.identity == "mantle:1"
+                            && sample.interrupted == should_interrupt)
+                );
                 if blocked {
-                    app.world_mut().entity_mut(actor).insert(AlsMovementInputBlocked);
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsMovementInputBlocked);
                 }
-                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                    std::time::Duration::from_secs_f32(0.1),
+                ));
                 app.update();
                 let weight = app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0].weight;
-                let expected_weight = if should_interrupt { expected_weight } else { 1.0 };
-                assert!((weight - expected_weight).abs() < 1e-5,
-                    "kind={kind:?} blocked={blocked} weight={weight} expected={expected_weight}");
+                let expected_weight = if should_interrupt {
+                    expected_weight
+                } else {
+                    1.0
+                };
+                assert!(
+                    (weight - expected_weight).abs() < 1e-5,
+                    "kind={kind:?} blocked={blocked} weight={weight} expected={expected_weight}"
+                );
             }
         }
     }
 
     #[test]
     fn unsupported_mantle_exit_publishes_grounded_until_the_next_movement_tick() {
-        use avian3d::prelude::RigidBody;
         use crate::als::state::LocomotionState;
+        use avian3d::prelude::RigidBody;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let start = Vec3::new(0.0, 10.0, 0.0);
         let mut mantle = AlsMantleState::default();
-        mantle.begin(MantleKind::Low, start, start + Vec3::new(0.0, 0.8, -0.6), 0.8, 0.0, 0.0);
-        app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, Position(start),
-            Transform::from_translation(start), GlobalTransform::from_translation(start), LinearVelocity::ZERO,
-            RigidBody::Dynamic, AlsNotifyLocomotionAction::Mantling));
+        mantle.begin(
+            MantleKind::Low,
+            start,
+            start + Vec3::new(0.0, 0.8, -0.6),
+            0.8,
+            0.0,
+            0.0,
+        );
+        app.world_mut().entity_mut(actor).insert((
+            mantle,
+            LocomotionState::Custom,
+            Position(start),
+            Transform::from_translation(start),
+            GlobalTransform::from_translation(start),
+            LinearVelocity::ZERO,
+            RigidBody::Dynamic,
+            AlsNotifyLocomotionAction::Mantling,
+        ));
         let mut ready = false;
         for _ in 0..600 {
             app.update();
             let state = app.world().get::<AlsMantleState>(actor).unwrap();
-            if state.root_motion_ready && state.time > 0.1 { ready = true; break; }
+            if state.root_motion_ready && state.time > 0.1 {
+                ready = true;
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        assert!(ready, "Mantle did not enter its active interval within 600 frames");
-        app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+        assert!(
+            ready,
+            "Mantle did not enter its active interval within 600 frames"
+        );
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(AlsNotifyLocomotionAction::None);
         app.update();
-        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+        assert_eq!(
+            *app.world().get::<LocomotionState>(actor).unwrap(),
+            LocomotionState::Grounded
+        );
         assert!(app.world().get::<LinearVelocity>(actor).unwrap().y.abs() < 1e-5);
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let mode = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
-            .gameplay_tag_input("locomotion_mode").unwrap();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let mode = app
+            .world()
+            .get::<crate::extensions::SourceAnimationInputs>(player)
+            .unwrap()
+            .gameplay_tag_input("locomotion_mode")
+            .unwrap();
         assert_eq!(mode.as_str(), "Als.LocomotionMode.Grounded");
         app.update();
-        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
-        let mode = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
-            .gameplay_tag_input("locomotion_mode").unwrap();
+        assert_eq!(
+            *app.world().get::<LocomotionState>(actor).unwrap(),
+            LocomotionState::Air
+        );
+        let mode = app
+            .world()
+            .get::<crate::extensions::SourceAnimationInputs>(player)
+            .unwrap()
+            .gameplay_tag_input("locomotion_mode")
+            .unwrap();
         assert_eq!(mode.as_str(), "Als.LocomotionMode.InAir");
     }
 
@@ -1907,36 +2426,94 @@ pub(crate) mod tests {
         for missing in [None, Some("pelvis")] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (_, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
-            if let Some(label) = missing { crate::ragdoll_link::tests::remove_ragdoll_body(&mut app, &bodies, label); }
-            let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+            if let Some(label) = missing {
+                crate::ragdoll_link::tests::remove_ragdoll_body(&mut app, &bodies, label);
+            }
+            let target = app
+                .world_mut()
+                .spawn((Transform::IDENTITY, GlobalTransform::IDENTITY))
+                .id();
             let start = Vec3::Y * 10.0;
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, start, start + Vec3::Y, 1.5, 0.0, 0.0,
-                AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
-                    scale: Vec3::ONE, relative_location: false });
+            mantle.begin_with_target_base(
+                MantleKind::High,
+                start,
+                start + Vec3::Y,
+                1.5,
+                0.0,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: target,
+                    translation: Vec3::ZERO,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: false,
+                },
+            );
             mantle.root_motion_ready = true;
-            app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom,
-                AlsNotifyLocomotionAction::Mantling, Position(start), Transform::from_translation(start),
-                LinearVelocity(Vec3::new(1.0, 2.0, 0.0)), crate::als::character::AlsCmcAdapterRuntime::default()));
+            app.world_mut().entity_mut(actor).insert((
+                mantle,
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                Position(start),
+                Transform::from_translation(start),
+                LinearVelocity(Vec3::new(1.0, 2.0, 0.0)),
+                crate::als::character::AlsCmcAdapterRuntime::default(),
+            ));
             app.world_mut().despawn(target);
-            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().clear();
+            app.world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .clear();
             app.world_mut().run_system_once(mantle_pose_system).unwrap();
-            let expected = if missing.is_none() { LocomotionState::None } else { LocomotionState::Grounded };
-            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), expected, "missing={missing:?}");
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling),
-                missing.is_none());
-            let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
-                .filter(|event| event.entity == actor && event.dimension == Dimension::LocomotionState)
-                .map(|event| (event.from, event.to)).collect();
-            let mut expected = vec![(LocomotionState::Custom.into(), LocomotionState::Grounded.into())];
+            let expected = if missing.is_none() {
+                LocomotionState::None
+            } else {
+                LocomotionState::Grounded
+            };
+            assert_eq!(
+                *app.world().get::<LocomotionState>(actor).unwrap(),
+                expected,
+                "missing={missing:?}"
+            );
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor)
+                    == Some(&AlsNotifyLocomotionAction::Ragdolling),
+                missing.is_none()
+            );
+            let events: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .filter(|event| {
+                    event.entity == actor && event.dimension == Dimension::LocomotionState
+                })
+                .map(|event| (event.from, event.to))
+                .collect();
+            let mut expected = vec![(
+                LocomotionState::Custom.into(),
+                LocomotionState::Grounded.into(),
+            )];
             if missing.is_none() {
-                expected.push((LocomotionState::Grounded.into(), LocomotionState::None.into()));
+                expected.push((
+                    LocomotionState::Grounded.into(),
+                    LocomotionState::None.into(),
+                ));
             }
             assert_eq!(events, expected);
             if missing.is_some() {
-                app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
-                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
-                assert!(!app.world().get::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().mantle_exit_grounded);
+                app.world_mut()
+                    .run_system_once(crate::als::motion::locomotion_state_sync_system)
+                    .unwrap();
+                assert_eq!(
+                    *app.world().get::<LocomotionState>(actor).unwrap(),
+                    LocomotionState::Grounded
+                );
+                assert!(
+                    !app.world()
+                        .get::<crate::als::motion::AlsCmcFrameResult>(actor)
+                        .unwrap()
+                        .mantle_exit_grounded
+                );
             }
         }
     }
@@ -1950,61 +2527,133 @@ pub(crate) mod tests {
                 let origin = app.world().get::<Position>(actor).unwrap().0;
                 if parented {
                     let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
-                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, 0.15, -0.1)).with_scale(Vec3::splat(2.0));
-                    let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
-                    let local = GlobalTransform::from(*app.world().get::<Transform>(actor).unwrap())
-                        .reparented_to(&GlobalTransform::from(parent_transform));
-                    app.world_mut().entity_mut(actor).insert((local, ChildOf(parent)));
+                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, 0.15, -0.1))
+                        .with_scale(Vec3::splat(2.0));
+                    let parent = app
+                        .world_mut()
+                        .spawn((parent_transform, GlobalTransform::from(parent_transform)))
+                        .id();
+                    let local =
+                        GlobalTransform::from(*app.world().get::<Transform>(actor).unwrap())
+                            .reparented_to(&GlobalTransform::from(parent_transform));
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert((local, ChildOf(parent)));
                 }
                 let target = origin + Vec3::new(0.0, 1.5, -0.8);
                 let mut mantle = AlsMantleState::default();
                 if moving_base {
-                    let base = app.world_mut().spawn((avian3d::prelude::RigidBody::Kinematic,
-                        Transform::from_translation(target), GlobalTransform::from_translation(target),
-                        LinearVelocity(Vec3::X * 0.75))).id();
-                    mantle.begin_with_target_base(MantleKind::High, origin, target, 1.5, 0.0, 0.0,
-                        AlsMantleTargetBase { entity: base, translation: target, rotation: Quat::IDENTITY,
-                            scale: Vec3::ONE, relative_location: true });
+                    let base = app
+                        .world_mut()
+                        .spawn((
+                            avian3d::prelude::RigidBody::Kinematic,
+                            Transform::from_translation(target),
+                            GlobalTransform::from_translation(target),
+                            LinearVelocity(Vec3::X * 0.75),
+                        ))
+                        .id();
+                    mantle.begin_with_target_base(
+                        MantleKind::High,
+                        origin,
+                        target,
+                        1.5,
+                        0.0,
+                        0.0,
+                        AlsMantleTargetBase {
+                            entity: base,
+                            translation: target,
+                            rotation: Quat::IDENTITY,
+                            scale: Vec3::ONE,
+                            relative_location: true,
+                        },
+                    );
                 } else {
                     mantle.begin(MantleKind::High, origin, target, 1.5, 0.0, 0.0);
                 }
-                app.world_mut().entity_mut(actor).insert((mantle, crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+                app.world_mut().entity_mut(actor).insert((
+                    mantle,
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                ));
                 let trace = std::sync::Arc::new(std::sync::Mutex::new([Vec3::ZERO; 3]));
                 let before = trace.clone();
-                app.add_systems(PostUpdate, (move |helper: bevy::transform::helper::TransformHelper| {
-                    before.lock().unwrap()[0] = helper.compute_global_transform(actor).unwrap().translation();
-                }).before(AlsMantleDriveSet));
+                app.add_systems(
+                    PostUpdate,
+                    (move |helper: bevy::transform::helper::TransformHelper| {
+                        before.lock().unwrap()[0] = helper
+                            .compute_global_transform(actor)
+                            .unwrap()
+                            .translation();
+                    })
+                    .before(AlsMantleDriveSet),
+                );
                 let after = trace.clone();
-                app.add_systems(PostUpdate, (move |actors: Query<(&Position, &LinearVelocity)>| {
-                    let (position, velocity) = actors.get(actor).unwrap();
-                    let mut values = after.lock().unwrap();
-                    values[1] = position.0;
-                    values[2] = velocity.0;
-                }).after(AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+                app.add_systems(
+                    PostUpdate,
+                    (move |actors: Query<(&Position, &LinearVelocity)>| {
+                        let (position, velocity) = actors.get(actor).unwrap();
+                        let mut values = after.lock().unwrap();
+                        values[1] = position.0;
+                        values[2] = velocity.0;
+                    })
+                    .after(AlsMantleDriveSet)
+                    .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp),
+                );
                 let mut samples = 0;
                 for frame in 0..12 {
                     app.update();
                     let state = app.world().get::<AlsMantleState>(actor).unwrap();
-                    if !state.active || !state.root_motion_ready { continue; }
+                    if !state.active || !state.root_motion_ready {
+                        continue;
+                    }
                     let values = *trace.lock().unwrap();
                     let world_delta = app.world().resource::<Time<Virtual>>().delta_secs();
                     let expected = (values[1] - values[0]) / (world_delta * dilation);
-                    assert!(values[2].abs_diff_eq(expected, 0.005), "Source RMS publishes owner velocity before Custom physics");
-                    let actual = app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity;
-                    assert!(actual.abs_diff_eq(expected, 0.005),
-                        "Source RMS velocity divides the consumed world delta by owner time: parented={parented} base={moving_base} dilation={dilation} frame={frame} actual={actual:?} expected={expected:?}");
+                    assert!(
+                        values[2].abs_diff_eq(expected, 0.005),
+                        "Source RMS publishes owner velocity before Custom physics"
+                    );
+                    let actual = app
+                        .world()
+                        .get::<AlsActualMotion>(actor)
+                        .unwrap()
+                        .world_velocity;
+                    assert!(
+                        actual.abs_diff_eq(expected, 0.005),
+                        "Source RMS velocity divides the consumed world delta by owner time: parented={parented} base={moving_base} dilation={dilation} frame={frame} actual={actual:?} expected={expected:?}"
+                    );
                     samples += 1;
                 }
-                assert!(samples >= 6, "Loaded Mantle did not produce enough source velocity samples");
-                let velocity = app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity;
+                assert!(
+                    samples >= 6,
+                    "Loaded Mantle did not produce enough source velocity samples"
+                );
+                let velocity = app
+                    .world()
+                    .get::<AlsActualMotion>(actor)
+                    .unwrap()
+                    .world_velocity;
                 let clip_time = app.world().get::<AlsMantleState>(actor).unwrap().time;
-                app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
                 app.update();
-                assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, clip_time);
-                assert!(app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity.abs_diff_eq(velocity, 0.005),
-                    "Source zero-delta RMS clears its override and retains current velocity");
+                assert_eq!(
+                    app.world().get::<AlsMantleState>(actor).unwrap().time,
+                    clip_time
+                );
+                assert!(
+                    app.world()
+                        .get::<AlsActualMotion>(actor)
+                        .unwrap()
+                        .world_velocity
+                        .abs_diff_eq(velocity, 0.005),
+                    "Source zero-delta RMS clears its override and retains current velocity"
+                );
                 let values = *trace.lock().unwrap();
-                assert!(values[1].abs_diff_eq(values[0], 1e-5), "Frozen Mantle must not integrate its retained source velocity");
+                assert!(
+                    values[1].abs_diff_eq(values[0], 1e-5),
+                    "Frozen Mantle must not integrate its retained source velocity"
+                );
             }
         }
     }
@@ -2012,66 +2661,182 @@ pub(crate) mod tests {
     #[test]
     fn mantle_root_and_physics_keep_current_actor_parent_space() {
         let mut app = mantle_clip_test_app();
-        let handle = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
-        for parent_transform in [Transform::IDENTITY, Transform::from_xyz(5.0, 2.0, -3.0),
-            Transform::from_xyz(5.0, 2.0, -3.0).with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, 0.15, -0.1))
-                .with_scale(Vec3::splat(2.0))] {
-            let parent = app.world_mut().spawn((parent_transform, GlobalTransform::IDENTITY)).id();
-            for (dilation, near_end) in [0.0_f32, 0.5, 1.0, 2.0].into_iter()
-                .flat_map(|dilation| [false, true].map(move |near_end| (dilation, near_end))) {
-                let clip = app.world().resource::<Assets<GraphClip>>().get(&handle).unwrap();
-                let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        let handle = app
+            .world()
+            .resource::<MantleAssets>()
+            .clip(MantleKind::High)
+            .clone();
+        for parent_transform in [
+            Transform::IDENTITY,
+            Transform::from_xyz(5.0, 2.0, -3.0),
+            Transform::from_xyz(5.0, 2.0, -3.0)
+                .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, 0.15, -0.1))
+                .with_scale(Vec3::splat(2.0)),
+        ] {
+            let parent = app
+                .world_mut()
+                .spawn((parent_transform, GlobalTransform::IDENTITY))
+                .id();
+            for (dilation, near_end) in [0.0_f32, 0.5, 1.0, 2.0]
+                .into_iter()
+                .flat_map(|dilation| [false, true].map(move |near_end| (dilation, near_end)))
+            {
+                let clip = app
+                    .world()
+                    .resource::<Assets<GraphClip>>()
+                    .get(&handle)
+                    .unwrap();
+                let skeleton = app
+                    .world()
+                    .resource::<Assets<Skeleton>>()
+                    .get(&clip.skeleton)
+                    .unwrap();
                 let mut mantle = AlsMantleState::default();
                 mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
-                mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                    sample_mantle_root(clip, skeleton, clip.duration).unwrap());
-                mantle.time = if near_end { mantle.action_end() - 0.075 } else { 0.2 };
-                let before = mantle.target_actor_transform_at(mantle.time,
-                    sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+                mantle.prepare_root_motion(
+                    sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                    sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+                );
+                mantle.time = if near_end {
+                    mantle.action_end() - 0.075
+                } else {
+                    0.2
+                };
+                let before = mantle.target_actor_transform_at(
+                    mantle.time,
+                    sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+                );
                 let next_time = (mantle.time + 0.05 * dilation).min(mantle.action_end());
-                let expected = mantle.target_actor_transform_at(next_time,
-                    sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap());
-                let local = GlobalTransform::from(before).reparented_to(&GlobalTransform::from(parent_transform));
+                let expected = mantle.target_actor_transform_at(
+                    next_time,
+                    sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap(),
+                );
+                let local = GlobalTransform::from(before)
+                    .reparented_to(&GlobalTransform::from(parent_transform));
                 let source_initial_velocity = Vec3::new(0.7, 0.2, -0.4);
-                let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                    LinearVelocity(source_initial_velocity), local, ChildOf(parent), GlobalTransform::IDENTITY,
-                    Position(before.translation), Rotation(before.rotation), AlsCollisionLayerOwnership::default(),
-                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
-                    crate::als::character::AlsCmcAdapterRuntime { grounded_move_start: Some(before.translation), ..default() },
-                    crate::als::motion::AlsCmcFrameResult { grounded_collision_velocity: Some(source_initial_velocity), ..default() })).id();
-                let before_world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
-                    helper.compute_global_transform(actor).unwrap()
-                }).unwrap();
+                let actor = app
+                    .world_mut()
+                    .spawn((
+                        AlsCharacter,
+                        mantle,
+                        LocomotionState::Custom,
+                        LinearVelocity(source_initial_velocity),
+                        local,
+                        ChildOf(parent),
+                        GlobalTransform::IDENTITY,
+                        Position(before.translation),
+                        Rotation(before.rotation),
+                        AlsCollisionLayerOwnership::default(),
+                        crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                        crate::als::character::AlsCmcAdapterRuntime {
+                            grounded_move_start: Some(before.translation),
+                            ..default()
+                        },
+                        crate::als::motion::AlsCmcFrameResult {
+                            grounded_collision_velocity: Some(source_initial_velocity),
+                            ..default()
+                        },
+                    ))
+                    .id();
+                let before_world = app
+                    .world_mut()
+                    .run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                        helper.compute_global_transform(actor).unwrap()
+                    })
+                    .unwrap();
                 assert!(before_world.translation().distance(before.translation) < 1e-5);
-                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
-                app.world_mut().run_system_once(mantle_drive_system).unwrap();
-                let actual = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
-                    helper.compute_global_transform(actor).unwrap()
-                }).unwrap();
+                app.world_mut()
+                    .resource_mut::<Time>()
+                    .advance_by(std::time::Duration::from_secs_f32(0.05));
+                app.world_mut()
+                    .run_system_once(mantle_drive_system)
+                    .unwrap();
+                let actual = app
+                    .world_mut()
+                    .run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                        helper.compute_global_transform(actor).unwrap()
+                    })
+                    .unwrap();
                 let current = app.world().get::<AlsMantleState>(actor).unwrap();
-                assert!((current.time - next_time).abs() < 1e-6 && current.active == (next_time < current.action_end()));
-                assert!(actual.translation().distance(expected.translation) < 1e-5,
-                    "Mantle wrote a world location into actor local space: parent={parent_transform:?} actual={actual:?} expected={expected:?}");
+                assert!(
+                    (current.time - next_time).abs() < 1e-6
+                        && current.active == (next_time < current.action_end())
+                );
+                assert!(
+                    actual.translation().distance(expected.translation) < 1e-5,
+                    "Mantle wrote a world location into actor local space: parent={parent_transform:?} actual={actual:?} expected={expected:?}"
+                );
                 let rotation = actual.rotation();
-                assert!(rotation.abs_diff_eq(expected.rotation, 1e-5) || rotation.abs_diff_eq(-expected.rotation, 1e-5));
-                assert!(app.world().get::<Transform>(actor).unwrap().scale.abs_diff_eq(local.scale, 1e-6));
-                assert!(app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) < 1e-5);
-                assert!(app.world().get::<Rotation>(actor).unwrap().0.abs_diff_eq(expected.rotation, 1e-5));
-                let expected_velocity = if dilation == 0.0 { source_initial_velocity }
-                    else { (expected.translation - before_world.translation()) / (0.05 * dilation) };
+                assert!(
+                    rotation.abs_diff_eq(expected.rotation, 1e-5)
+                        || rotation.abs_diff_eq(-expected.rotation, 1e-5)
+                );
+                assert!(
+                    app.world()
+                        .get::<Transform>(actor)
+                        .unwrap()
+                        .scale
+                        .abs_diff_eq(local.scale, 1e-6)
+                );
+                assert!(
+                    app.world()
+                        .get::<Position>(actor)
+                        .unwrap()
+                        .0
+                        .distance(expected.translation)
+                        < 1e-5
+                );
+                assert!(
+                    app.world()
+                        .get::<Rotation>(actor)
+                        .unwrap()
+                        .0
+                        .abs_diff_eq(expected.rotation, 1e-5)
+                );
+                let expected_velocity = if dilation == 0.0 {
+                    source_initial_velocity
+                } else {
+                    (expected.translation - before_world.translation()) / (0.05 * dilation)
+                };
                 let actual_velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
-                assert!(actual_velocity.distance(expected_velocity) < 1e-5,
-                    "Source RMS must use the consumed actor world location and owner clock: parent={parent_transform:?} dilation={dilation} near_end={near_end} actual={actual_velocity:?} expected={expected_velocity:?}");
+                assert!(
+                    actual_velocity.distance(expected_velocity) < 1e-5,
+                    "Source RMS must use the consumed actor world location and owner clock: parent={parent_transform:?} dilation={dilation} near_end={near_end} actual={actual_velocity:?} expected={expected_velocity:?}"
+                );
                 if !current.active {
-                    app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsNotifyLocomotionAction::None);
                     app.world_mut().run_system_once(mantle_pose_system).unwrap();
-                    app.world_mut().run_system_once(release_mantle_physics).unwrap();
-                    assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Grounded));
-                    assert!(app.world().get::<LinearVelocity>(actor).unwrap().0.abs_diff_eq(actual_velocity.with_y(0.0), 1e-6),
-                        "Source Walking handoff must preserve world horizontal root velocity");
-                    assert_eq!(app.world().get::<Position>(actor).unwrap().0, expected.translation);
-                    assert!(app.world().get::<CustomPositionIntegration>(actor).is_none());
-                    assert!(app.world().get::<CustomVelocityIntegration>(actor).is_none());
+                    app.world_mut()
+                        .run_system_once(release_mantle_physics)
+                        .unwrap();
+                    assert_eq!(
+                        app.world().get::<LocomotionState>(actor),
+                        Some(&LocomotionState::Grounded)
+                    );
+                    assert!(
+                        app.world()
+                            .get::<LinearVelocity>(actor)
+                            .unwrap()
+                            .0
+                            .abs_diff_eq(actual_velocity.with_y(0.0), 1e-6),
+                        "Source Walking handoff must preserve world horizontal root velocity"
+                    );
+                    assert_eq!(
+                        app.world().get::<Position>(actor).unwrap().0,
+                        expected.translation
+                    );
+                    assert!(
+                        app.world()
+                            .get::<CustomPositionIntegration>(actor)
+                            .is_none()
+                    );
+                    assert!(
+                        app.world()
+                            .get::<CustomVelocityIntegration>(actor)
+                            .is_none()
+                    );
                 }
                 app.world_mut().despawn(actor);
             }
@@ -2082,34 +2847,103 @@ pub(crate) mod tests {
     #[test]
     fn mantle_initial_root_is_prepared_before_the_base_refresh() {
         let mut app = mantle_clip_test_app();
-        let initial_base = AlsMantleTargetBase { entity: Entity::PLACEHOLDER, translation: Vec3::new(0.0, 1.0, -1.0),
-            rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: true };
-        let target_entity = app.world_mut().spawn((Transform::from_translation(initial_base.translation),
-            GlobalTransform::from_translation(initial_base.translation))).id();
-        let initial_base = AlsMantleTargetBase { entity: target_entity, ..initial_base };
-        let moved = AlsMantleTargetBase { translation: initial_base.translation + Vec3::X * 0.2,
-            rotation: Quat::from_rotation_y(0.3), scale: Vec3::new(1.2, 0.8, 1.1), ..initial_base };
+        let initial_base = AlsMantleTargetBase {
+            entity: Entity::PLACEHOLDER,
+            translation: Vec3::new(0.0, 1.0, -1.0),
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+            relative_location: true,
+        };
+        let target_entity = app
+            .world_mut()
+            .spawn((
+                Transform::from_translation(initial_base.translation),
+                GlobalTransform::from_translation(initial_base.translation),
+            ))
+            .id();
+        let initial_base = AlsMantleTargetBase {
+            entity: target_entity,
+            ..initial_base
+        };
+        let moved = AlsMantleTargetBase {
+            translation: initial_base.translation + Vec3::X * 0.2,
+            rotation: Quat::from_rotation_y(0.3),
+            scale: Vec3::new(1.2, 0.8, 1.1),
+            ..initial_base
+        };
         let actor_start = Transform::from_xyz(0.0, 1.0, 0.0)
-            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.1, 0.2, -0.2)).with_scale(Vec3::splat(1.5));
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.1, 0.2, -0.2))
+            .with_scale(Vec3::splat(1.5));
         let mut mantle = AlsMantleState::default();
-        mantle.begin_with_target_base_and_start_time(MantleKind::High, actor_start, Vec3::new(0.0, 2.0, -1.0),
-            0.5, 0.0, initial_base);
-        let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
-        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        mantle.begin_with_target_base_and_start_time(
+            MantleKind::High,
+            actor_start,
+            Vec3::new(0.0, 2.0, -1.0),
+            0.5,
+            0.0,
+            initial_base,
+        );
+        let clip = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(app.world().resource::<MantleAssets>().clip(mantle.kind))
+            .unwrap();
+        let skeleton = app
+            .world()
+            .resource::<Assets<Skeleton>>()
+            .get(&clip.skeleton)
+            .unwrap();
         let mut expected = mantle;
-        expected.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-            sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+        expected.prepare_root_motion(
+            sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+            sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+        );
         expected.refresh_target_base(Some(moved));
-        let target_transform = Transform::from_translation(moved.translation).with_rotation(moved.rotation).with_scale(moved.scale);
-        app.world_mut().entity_mut(target_entity).insert((target_transform, GlobalTransform::from(target_transform)));
-        let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom, LinearVelocity::ZERO,
-            actor_start, GlobalTransform::from(actor_start), Position(actor_start.translation), Rotation(actor_start.rotation))).id();
-        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
-        app.world_mut().run_system_once(mantle_drive_system).unwrap();
+        let target_transform = Transform::from_translation(moved.translation)
+            .with_rotation(moved.rotation)
+            .with_scale(moved.scale);
+        app.world_mut()
+            .entity_mut(target_entity)
+            .insert((target_transform, GlobalTransform::from(target_transform)));
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                mantle,
+                LocomotionState::Custom,
+                LinearVelocity::ZERO,
+                actor_start,
+                GlobalTransform::from(actor_start),
+                Position(actor_start.translation),
+                Rotation(actor_start.rotation),
+            ))
+            .id();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut()
+            .run_system_once(mantle_drive_system)
+            .unwrap();
         let actual = app.world().get::<AlsMantleState>(actor).unwrap();
-        assert!(actual.warp_start.translation.abs_diff_eq(expected.warp_start.translation, 1e-5));
-        assert!(actual.warp_start.rotation.angle_between(expected.warp_start.rotation) < 1e-4);
-        assert!(actual.warp_target.translation.abs_diff_eq(expected.warp_target.translation, 1e-5));
+        assert!(
+            actual
+                .warp_start
+                .translation
+                .abs_diff_eq(expected.warp_start.translation, 1e-5)
+        );
+        assert!(
+            actual
+                .warp_start
+                .rotation
+                .angle_between(expected.warp_start.rotation)
+                < 1e-4
+        );
+        assert!(
+            actual
+                .warp_target
+                .translation
+                .abs_diff_eq(expected.warp_target.translation, 1e-5)
+        );
     }
 
     #[test]
@@ -2119,47 +2953,113 @@ pub(crate) mod tests {
         use std::sync::{Arc, Mutex};
         let mut app = mantle_clip_test_app();
         let delta = 1.0_f32 / 60.0;
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(delta),
+        ));
         app.update();
         for (dilation, carry) in [(0.5_f32, 0.02_f32), (1.0, 0.02), (2.0, 0.02), (1.0, 0.0)] {
             let old_base = Transform::from_xyz(0.0, 4.0, 0.0);
             let next_base = old_base.with_translation(old_base.translation + Vec3::X * carry);
-            let base = app.world_mut().spawn((RigidBody::Kinematic, next_base, GlobalTransform::from(next_base),
-                Position(next_base.translation))).id();
-            let old_target = AlsMantleTargetBase { entity: base, translation: old_base.translation,
-                rotation: old_base.rotation, scale: old_base.scale, relative_location: true };
-            let new_target = AlsMantleTargetBase { translation: next_base.translation, ..old_target };
+            let base = app
+                .world_mut()
+                .spawn((
+                    RigidBody::Kinematic,
+                    next_base,
+                    GlobalTransform::from(next_base),
+                    Position(next_base.translation),
+                ))
+                .id();
+            let old_target = AlsMantleTargetBase {
+                entity: base,
+                translation: old_base.translation,
+                rotation: old_base.rotation,
+                scale: old_base.scale,
+                relative_location: true,
+            };
+            let new_target = AlsMantleTargetBase {
+                translation: next_base.translation,
+                ..old_target
+            };
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 5.0, 0.0),
-                Vec3::new(0.0, 6.0, -1.0), 1.5, 0.0, 0.0, old_target);
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.begin_with_target_base(
+                MantleKind::High,
+                Vec3::new(0.0, 5.0, 0.0),
+                Vec3::new(0.0, 6.0, -1.0),
+                1.5,
+                0.0,
+                0.0,
+                old_target,
+            );
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(mantle.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
             mantle.time = 0.3;
             let start_root = sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap();
             let start = mantle.target_actor_transform_at(mantle.time, start_root);
             let mut expected_mantle = mantle;
             expected_mantle.refresh_target_base(Some(new_target));
             let next_time = mantle.time + delta * dilation;
-            let next_root = sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap();
+            let next_root =
+                sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap();
             let expected_target = expected_mantle.target_actor_transform_at(next_time, next_root);
-            let expected_velocity = (expected_target.translation - start.translation - Vec3::X * carry) / (delta * dilation);
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                AlsNotifyLocomotionAction::Mantling, RigidBody::Dynamic, Collider::capsule(0.3, 1.2),
-                start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO,
-                crate::als::dynamics::AlsMovementBase { entity: Some(base), location: old_base.translation,
-                    rotation: old_base.rotation, has_relative_rotation: false },
-                crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            let expected_velocity =
+                (expected_target.translation - start.translation - Vec3::X * carry)
+                    / (delta * dilation);
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Custom,
+                    AlsNotifyLocomotionAction::Mantling,
+                    RigidBody::Dynamic,
+                    Collider::capsule(0.3, 1.2),
+                    start,
+                    GlobalTransform::from(start),
+                    Position(start.translation),
+                    Rotation(start.rotation),
+                    LinearVelocity::ZERO,
+                    crate::als::dynamics::AlsMovementBase {
+                        entity: Some(base),
+                        location: old_base.translation,
+                        rotation: old_base.rotation,
+                        has_relative_rotation: false,
+                    },
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                ))
+                .id();
             let sampled = Arc::new(Mutex::new(None));
             let captured = sampled.clone();
-            app.add_systems(PostUpdate, (move |actors: Query<&LinearVelocity>| {
-                if let Ok(velocity) = actors.get(actor) { *captured.lock().unwrap() = Some(velocity.0); }
-            }).after(AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            app.add_systems(
+                PostUpdate,
+                (move |actors: Query<&LinearVelocity>| {
+                    if let Ok(velocity) = actors.get(actor) {
+                        *captured.lock().unwrap() = Some(velocity.0);
+                    }
+                })
+                .after(AlsMantleDriveSet)
+                .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp),
+            );
             app.update();
-            let velocity = sampled.lock().unwrap().expect("Mantle velocity was not sampled");
-            assert!(velocity.abs_diff_eq(expected_velocity, 1e-4),
-                "dilation={dilation} carry={carry} actual={velocity:?} expected={expected_velocity:?}");
+            let velocity = sampled
+                .lock()
+                .unwrap()
+                .expect("Mantle velocity was not sampled");
+            assert!(
+                velocity.abs_diff_eq(expected_velocity, 1e-4),
+                "dilation={dilation} carry={carry} actual={velocity:?} expected={expected_velocity:?}"
+            );
             app.world_mut().despawn(actor);
             app.world_mut().despawn(base);
         }
@@ -2171,38 +3071,92 @@ pub(crate) mod tests {
         use bevy::time::TimeUpdateStrategy;
         let mut app = mantle_clip_test_app();
         let delta = 0.05_f32;
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(delta),
+        ));
         app.update();
         for actor_delta in [0.0_f32, 0.5e-6, 1.0e-6, 2.0e-6] {
             let base_transform = Transform::from_xyz(0.0, 4.0, 0.0);
-            let base = app.world_mut().spawn((RigidBody::Static, base_transform, GlobalTransform::from(base_transform))).id();
+            let base = app
+                .world_mut()
+                .spawn((
+                    RigidBody::Static,
+                    base_transform,
+                    GlobalTransform::from(base_transform),
+                ))
+                .id();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, 6.0, -1.0),
-                1.5, 0.0, 0.0, AlsMantleTargetBase { entity: base, translation: base_transform.translation,
-                    rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: false });
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.begin_with_target_base(
+                MantleKind::High,
+                Vec3::new(0.0, 5.0, 0.0),
+                Vec3::new(0.0, 6.0, -1.0),
+                1.5,
+                0.0,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: base,
+                    translation: base_transform.translation,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: false,
+                },
+            );
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(mantle.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
             mantle.time = 0.3;
-            let start = mantle.target_actor_transform_at(mantle.time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let start = mantle.target_actor_transform_at(
+                mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+            );
             let dilation = actor_delta / delta;
             let applied_delta = delta * dilation;
-            let expected = if applied_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
-                start.translation
-            } else {
-                let time = mantle.time + applied_delta;
-                mantle.target_actor_transform_at(time, sample_mantle_root(clip, skeleton, mantle.clip_time_at(time)).unwrap()).translation
-            };
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                AlsNotifyLocomotionAction::Mantling, RigidBody::Dynamic, Collider::capsule(0.3, 1.2), start,
-                GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO,
-                crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            let expected =
+                if applied_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+                    start.translation
+                } else {
+                    let time = mantle.time + applied_delta;
+                    mantle
+                        .target_actor_transform_at(
+                            time,
+                            sample_mantle_root(clip, skeleton, mantle.clip_time_at(time)).unwrap(),
+                        )
+                        .translation
+                };
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Custom,
+                    AlsNotifyLocomotionAction::Mantling,
+                    RigidBody::Dynamic,
+                    Collider::capsule(0.3, 1.2),
+                    start,
+                    GlobalTransform::from(start),
+                    Position(start.translation),
+                    Rotation(start.rotation),
+                    LinearVelocity::ZERO,
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                ))
+                .id();
             app.update();
             let actual = app.world().get::<Position>(actor).unwrap().0;
-            assert!(actual.abs_diff_eq(expected, 1e-7),
-                "actor_delta={actor_delta} actual={actual:?} expected={expected:?}");
+            assert!(
+                actual.abs_diff_eq(expected, 1e-7),
+                "actor_delta={actor_delta} actual={actual:?} expected={expected:?}"
+            );
             app.world_mut().despawn(actor);
             app.world_mut().despawn(base);
         }
@@ -2212,57 +3166,147 @@ pub(crate) mod tests {
     fn mantle_reuses_the_last_rotation_delta_at_a_tiny_owner_delta() {
         let mut app = mantle_clip_test_app();
         let world_delta = 0.0625_f32;
-        for (yaw, tiny) in [0.0_f32, 0.35].into_iter().flat_map(|yaw|
-            [0.0_f32, 5e-9, 1e-8].map(move |tiny| (yaw, tiny))) {
-            let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        for (yaw, tiny) in [0.0_f32, 0.35]
+            .into_iter()
+            .flat_map(|yaw| [0.0_f32, 5e-9, 1e-8].map(move |tiny| (yaw, tiny)))
+        {
+            let target = app
+                .world_mut()
+                .spawn((Transform::IDENTITY, GlobalTransform::IDENTITY))
+                .id();
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(
+                    app.world()
+                        .resource::<MantleAssets>()
+                        .clip(MantleKind::High),
+                )
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base_and_start_time(MantleKind::High, Transform::from_xyz(0.0, 1.0, 0.0)
-                .with_rotation(Quat::from_rotation_y(yaw)), Vec3::new(0.0, 2.5, -0.8), 0.2, 0.0,
-                AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
-                    scale: Vec3::ONE, relative_location: false });
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.begin_with_target_base_and_start_time(
+                MantleKind::High,
+                Transform::from_xyz(0.0, 1.0, 0.0).with_rotation(Quat::from_rotation_y(yaw)),
+                Vec3::new(0.0, 2.5, -0.8),
+                0.2,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: target,
+                    translation: Vec3::ZERO,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: false,
+                },
+            );
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
             mantle.time = 0.2;
-            let start = mantle.target_actor_transform_at(mantle.time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let start = mantle.target_actor_transform_at(
+                mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+            );
             let next_time = mantle.time + world_delta;
-            let next = mantle.target_actor_transform_at(next_time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap());
+            let next = mantle.target_actor_transform_at(
+                next_time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap(),
+            );
             let source_delta = (next.rotation * start.rotation.conjugate()).normalize();
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                LinearVelocity::ZERO, start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation),
-                crate::als_camera::AlsCameraCustomTimeDilation(1.0))).id();
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
-            app.world_mut().run_system_once(mantle_drive_system).unwrap();
-            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Custom,
+                    LinearVelocity::ZERO,
+                    start,
+                    GlobalTransform::from(start),
+                    Position(start.translation),
+                    Rotation(start.rotation),
+                    crate::als_camera::AlsCameraCustomTimeDilation(1.0),
+                ))
+                .id();
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(release_mantle_physics)
+                .unwrap();
             let previous = app.world().get::<Rotation>(actor).unwrap().0;
-            assert!(previous.abs_diff_eq(next.rotation, 1e-5) || previous.abs_diff_eq(-next.rotation, 1e-5));
-            if yaw != 0.0 { assert!(!source_delta.abs_diff_eq(Quat::IDENTITY, 1e-4)); }
-            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(tiny / world_delta));
+            assert!(
+                previous.abs_diff_eq(next.rotation, 1e-5)
+                    || previous.abs_diff_eq(-next.rotation, 1e-5)
+            );
+            if yaw != 0.0 {
+                assert!(!source_delta.abs_diff_eq(Quat::IDENTITY, 1e-4));
+            }
+            app.world_mut().entity_mut(actor).insert(
+                crate::als_camera::AlsCameraCustomTimeDilation(tiny / world_delta),
+            );
             for repeat in 1..=2 {
-                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
-                app.world_mut().run_system_once(mantle_drive_system).unwrap();
-                app.world_mut().run_system_once(release_mantle_physics).unwrap();
-                let expected = if repeat == 1 { source_delta * previous } else { source_delta * source_delta * previous };
+                app.world_mut()
+                    .resource_mut::<Time>()
+                    .advance_by(std::time::Duration::from_secs_f32(world_delta));
+                app.world_mut()
+                    .run_system_once(mantle_drive_system)
+                    .unwrap();
+                app.world_mut()
+                    .run_system_once(release_mantle_physics)
+                    .unwrap();
+                let expected = if repeat == 1 {
+                    source_delta * previous
+                } else {
+                    source_delta * source_delta * previous
+                };
                 let actual = app.world().get::<Rotation>(actor).unwrap().0;
                 let expected = expected.normalize();
-                assert!(actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5),
-                    "yaw={yaw} tiny={tiny} repeat={repeat} actual={actual:?} expected={expected:?}");
+                assert!(
+                    actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5),
+                    "yaw={yaw} tiny={tiny} repeat={repeat} actual={actual:?} expected={expected:?}"
+                );
             }
             let state = *app.world().get::<AlsMantleState>(actor).unwrap();
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(state.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(state.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
             let resume_time = state.time + world_delta;
-            let resume = state.target_actor_transform_at(resume_time,
-                sample_mantle_root(clip, skeleton, state.clip_time_at(resume_time)).unwrap());
-            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
-            app.world_mut().run_system_once(mantle_drive_system).unwrap();
-            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            let resume = state.target_actor_transform_at(
+                resume_time,
+                sample_mantle_root(clip, skeleton, state.clip_time_at(resume_time)).unwrap(),
+            );
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(release_mantle_physics)
+                .unwrap();
             let actual = app.world().get::<Rotation>(actor).unwrap().0;
-            assert!(actual.abs_diff_eq(resume.rotation, 1e-5) || actual.abs_diff_eq(-resume.rotation, 1e-5));
+            assert!(
+                actual.abs_diff_eq(resume.rotation, 1e-5)
+                    || actual.abs_diff_eq(-resume.rotation, 1e-5)
+            );
             app.world_mut().despawn(actor);
             app.world_mut().despawn(target);
         }
@@ -2278,88 +3322,208 @@ pub(crate) mod tests {
                 let assets = app.world().resource::<MantleAssets>();
                 let clips = app.world().resource::<Assets<GraphClip>>();
                 let skeletons = app.world().resource::<Assets<Skeleton>>();
-                clips.get(assets.clip(MantleKind::High)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                clips
+                    .get(assets.clip(MantleKind::High))
+                    .is_some_and(|clip| skeletons.contains(&clip.skeleton))
             };
-            if ready { break; }
+            if ready {
+                break;
+            }
             app.update();
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         assert!(ready, "Mantle assets did not load within 600 frames");
-        let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
-        let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
-        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        let target = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, GlobalTransform::IDENTITY))
+            .id();
+        let clip = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(
+                app.world()
+                    .resource::<MantleAssets>()
+                    .clip(MantleKind::High),
+            )
+            .unwrap();
+        let skeleton = app
+            .world()
+            .resource::<Assets<Skeleton>>()
+            .get(&clip.skeleton)
+            .unwrap();
         let mut mantle = AlsMantleState::default();
-        mantle.begin_with_target_base_and_start_time(MantleKind::High, Transform::from_xyz(0.0, 10.0, 0.0)
-            .with_rotation(Quat::from_rotation_y(0.35)), Vec3::new(0.0, 11.5, -0.8), 0.2, 0.0,
-            AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
-                scale: Vec3::ONE, relative_location: false });
-        mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-            sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+        mantle.begin_with_target_base_and_start_time(
+            MantleKind::High,
+            Transform::from_xyz(0.0, 10.0, 0.0).with_rotation(Quat::from_rotation_y(0.35)),
+            Vec3::new(0.0, 11.5, -0.8),
+            0.2,
+            0.0,
+            AlsMantleTargetBase {
+                entity: target,
+                translation: Vec3::ZERO,
+                rotation: Quat::IDENTITY,
+                scale: Vec3::ONE,
+                relative_location: false,
+            },
+        );
+        mantle.prepare_root_motion(
+            sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+            sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+        );
         mantle.time = 0.2;
-        let start = mantle.target_actor_transform_at(mantle.time,
-            sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
-        app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, AlsNotifyLocomotionAction::Mantling,
-            start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO));
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        let start = mantle.target_actor_transform_at(
+            mantle.time,
+            sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+        );
+        app.world_mut().entity_mut(actor).insert((
+            mantle,
+            LocomotionState::Custom,
+            AlsNotifyLocomotionAction::Mantling,
+            start,
+            GlobalTransform::from(start),
+            Position(start.translation),
+            Rotation(start.rotation),
+            LinearVelocity::ZERO,
+        ));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(0.05),
+        ));
         app.update();
         let previous = app.world().get::<Rotation>(actor).unwrap().0;
         let source_delta = (previous * start.rotation.conjugate()).normalize();
         assert!(!source_delta.abs_diff_eq(Quat::IDENTITY, 1e-4));
         let position = app.world().get::<Position>(actor).unwrap().0;
-        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
         app.update();
         let actual = app.world().get::<Rotation>(actor).unwrap().0;
         let expected = (source_delta * previous).normalize();
         assert!(actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5));
-        assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-7));
+        assert!(
+            app.world()
+                .get::<Position>(actor)
+                .unwrap()
+                .0
+                .abs_diff_eq(position, 1e-7)
+        );
     }
 
     #[test]
     fn mantle_uses_the_targets_current_mobility_for_warp_space() {
         let mut app = mantle_clip_test_app();
         let delta = 0.05_f32;
-        for (initial, current) in [(RigidBody::Static, RigidBody::Static), (RigidBody::Static, RigidBody::Kinematic),
-            (RigidBody::Kinematic, RigidBody::Static), (RigidBody::Kinematic, RigidBody::Kinematic)] {
+        for (initial, current) in [
+            (RigidBody::Static, RigidBody::Static),
+            (RigidBody::Static, RigidBody::Kinematic),
+            (RigidBody::Kinematic, RigidBody::Static),
+            (RigidBody::Kinematic, RigidBody::Kinematic),
+        ] {
             let target_transform = Transform::from_xyz(0.0, 0.4, -1.4);
-            let target = app.world_mut().spawn((initial, target_transform, GlobalTransform::from(target_transform))).id();
+            let target = app
+                .world_mut()
+                .spawn((
+                    initial,
+                    target_transform,
+                    GlobalTransform::from(target_transform),
+                ))
+                .id();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(0.0, 1.8, -1.4), 1.5, 0.35, 0.0,
-                AlsMantleTargetBase { entity: target, translation: target_transform.translation,
-                    rotation: target_transform.rotation, scale: target_transform.scale, relative_location: initial != RigidBody::Static });
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.begin_with_target_base(
+                MantleKind::High,
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(0.0, 1.8, -1.4),
+                1.5,
+                0.35,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: target,
+                    translation: target_transform.translation,
+                    rotation: target_transform.rotation,
+                    scale: target_transform.scale,
+                    relative_location: initial != RigidBody::Static,
+                },
+            );
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(mantle.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
             mantle.time = 0.2;
-            let start = mantle.target_actor_transform_at(mantle.time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let start = mantle.target_actor_transform_at(
+                mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+            );
             let time = mantle.time + delta;
             let root = sample_mantle_root(clip, skeleton, mantle.clip_time_at(time)).unwrap();
             let in_world = |warp: Transform| {
-                if current == RigidBody::Static { warp }
-                else { Transform::from_translation(target_transform.translation + target_transform.rotation * (target_transform.scale * warp.translation))
-                    .with_rotation(target_transform.rotation * warp.rotation) }
+                if current == RigidBody::Static {
+                    warp
+                } else {
+                    Transform::from_translation(
+                        target_transform.translation
+                            + target_transform.rotation
+                                * (target_transform.scale * warp.translation),
+                    )
+                    .with_rotation(target_transform.rotation * warp.rotation)
+                }
             };
             let start_warp = in_world(mantle.warp_start);
             let target_warp = in_world(mantle.warp_target);
-            let location = start_warp.translation.lerp(target_warp.translation, mantle.location_warp_amount_at(time));
-            let blended = start_warp.rotation.lerp(target_warp.rotation, mantle.rotation_warp_amount_at(time)).normalize();
+            let location = start_warp.translation.lerp(
+                target_warp.translation,
+                mantle.location_warp_amount_at(time),
+            );
+            let blended = start_warp
+                .rotation
+                .lerp(target_warp.rotation, mantle.rotation_warp_amount_at(time))
+                .normalize();
             let twist = Quat::from_xyzw(0.0, blended.y, 0.0, blended.w).normalize();
             let expected = location + twist * root.translation;
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                LinearVelocity::ZERO, start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation))).id();
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Custom,
+                    LinearVelocity::ZERO,
+                    start,
+                    GlobalTransform::from(start),
+                    Position(start.translation),
+                    Rotation(start.rotation),
+                ))
+                .id();
             app.world_mut().entity_mut(target).insert(current);
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
-            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
             let actual = app.world().get::<Position>(actor).unwrap().0;
             let state = app.world().get::<AlsMantleState>(actor).unwrap();
-            assert!(actual.abs_diff_eq(expected, 1e-5),
-                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}");
-            assert_eq!(state.target_base.unwrap().relative_location, current != RigidBody::Static);
+            assert!(
+                actual.abs_diff_eq(expected, 1e-5),
+                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}"
+            );
+            assert_eq!(
+                state.target_base.unwrap().relative_location,
+                current != RigidBody::Static
+            );
             assert_eq!(state.warp_start, mantle.warp_start);
             assert_eq!(state.warp_target, mantle.warp_target);
-            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            app.world_mut()
+                .run_system_once(release_mantle_physics)
+                .unwrap();
             app.world_mut().despawn(actor);
             app.world_mut().despawn(target);
         }
@@ -2368,7 +3532,10 @@ pub(crate) mod tests {
     #[test]
     fn loaded_mantle_uses_live_target_mobility() {
         use bevy::time::TimeUpdateStrategy;
-        for (initial, current) in [(RigidBody::Static, RigidBody::Kinematic), (RigidBody::Kinematic, RigidBody::Static)] {
+        for (initial, current) in [
+            (RigidBody::Static, RigidBody::Kinematic),
+            (RigidBody::Kinematic, RigidBody::Static),
+        ] {
             let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
             let mut ready = false;
             for _ in 0..600 {
@@ -2376,81 +3543,208 @@ pub(crate) mod tests {
                     let assets = app.world().resource::<MantleAssets>();
                     let clips = app.world().resource::<Assets<GraphClip>>();
                     let skeletons = app.world().resource::<Assets<Skeleton>>();
-                    clips.get(assets.clip(MantleKind::High)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                    clips
+                        .get(assets.clip(MantleKind::High))
+                        .is_some_and(|clip| skeletons.contains(&clip.skeleton))
                 };
-                if ready { break; }
+                if ready {
+                    break;
+                }
                 app.update();
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
             assert!(ready, "Mantle assets did not load within 600 frames");
             let base_transform = Transform::from_xyz(0.0, 9.4, -1.4);
-            let base = app.world_mut().spawn((initial, base_transform, GlobalTransform::from(base_transform))).id();
+            let base = app
+                .world_mut()
+                .spawn((
+                    initial,
+                    base_transform,
+                    GlobalTransform::from(base_transform),
+                ))
+                .id();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::Y * 10.0, Vec3::new(0.0, 10.8, -1.4), 1.5, 0.35, 0.0,
-                AlsMantleTargetBase { entity: base, translation: base_transform.translation, rotation: Quat::IDENTITY,
-                    scale: Vec3::ONE, relative_location: initial != RigidBody::Static });
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.begin_with_target_base(
+                MantleKind::High,
+                Vec3::Y * 10.0,
+                Vec3::new(0.0, 10.8, -1.4),
+                1.5,
+                0.35,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: base,
+                    translation: base_transform.translation,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: initial != RigidBody::Static,
+                },
+            );
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(mantle.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
             mantle.time = 0.2;
-            let start = mantle.target_actor_transform_at(mantle.time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
-            app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, AlsNotifyLocomotionAction::Mantling,
-                start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO));
+            let start = mantle.target_actor_transform_at(
+                mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+            );
+            app.world_mut().entity_mut(actor).insert((
+                mantle,
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                start,
+                GlobalTransform::from(start),
+                Position(start.translation),
+                Rotation(start.rotation),
+                LinearVelocity::ZERO,
+            ));
             app.world_mut().entity_mut(base).insert(current);
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(0.05),
+            ));
             app.update();
             let state = *app.world().get::<AlsMantleState>(actor).unwrap();
-            assert_eq!(state.target_base.unwrap().relative_location, current != RigidBody::Static);
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(state.kind)).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            assert_eq!(
+                state.target_base.unwrap().relative_location,
+                current != RigidBody::Static
+            );
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(app.world().resource::<MantleAssets>().clip(state.kind))
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
             let root = sample_mantle_root(clip, skeleton, state.clip_time()).unwrap();
-            let expected = state.target_actor_transform_at(state.time, root).translation;
+            let expected = state
+                .target_actor_transform_at(state.time, root)
+                .translation;
             let actual = app.world().get::<Position>(actor).unwrap().0;
-            assert!(actual.abs_diff_eq(expected, 1e-4),
-                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}");
+            assert!(
+                actual.abs_diff_eq(expected, 1e-4),
+                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}"
+            );
         }
     }
 
     #[test]
     fn fresh_audit_mantle_root_moves_and_finishes_on_owner_time() {
         let mut app = mantle_clip_test_app();
-        let handle = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
+        let handle = app
+            .world()
+            .resource::<MantleAssets>()
+            .clip(MantleKind::High)
+            .clone();
         let mut failures = Vec::new();
-        for (dilation, near_end) in [0.0_f32, 0.5, 1.0, 2.0].into_iter()
-            .flat_map(|dilation| [false, true].map(move |near_end| (dilation, near_end))) {
-            let clip = app.world().resource::<Assets<GraphClip>>().get(&handle).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        for (dilation, near_end) in [0.0_f32, 0.5, 1.0, 2.0]
+            .into_iter()
+            .flat_map(|dilation| [false, true].map(move |near_end| (dilation, near_end)))
+        {
+            let clip = app
+                .world()
+                .resource::<Assets<GraphClip>>()
+                .get(&handle)
+                .unwrap();
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(&clip.skeleton)
+                .unwrap();
             let mut mantle = AlsMantleState::default();
             mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
-            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
-            mantle.time = if near_end { mantle.action_end() - 0.075 } else { 0.2 };
-            let before = mantle.target_actor_transform_at(mantle.time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            mantle.prepare_root_motion(
+                sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+            );
+            mantle.time = if near_end {
+                mantle.action_end() - 0.075
+            } else {
+                0.2
+            };
+            let before = mantle.target_actor_transform_at(
+                mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap(),
+            );
             let expected_time = (mantle.time + 0.05 * dilation).min(mantle.action_end());
-            let expected = mantle.target_actor_transform_at(expected_time,
-                sample_mantle_root(clip, skeleton, mantle.clip_time_at(expected_time)).unwrap());
+            let expected = mantle.target_actor_transform_at(
+                expected_time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time_at(expected_time)).unwrap(),
+            );
             let expected_active = expected_time < mantle.action_end();
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                LinearVelocity::ZERO, before, Position(before.translation), Rotation(before.rotation),
-                AlsCollisionLayerOwnership::default(), crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
-            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Custom,
+                    LinearVelocity::ZERO,
+                    before,
+                    Position(before.translation),
+                    Rotation(before.rotation),
+                    AlsCollisionLayerOwnership::default(),
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                ))
+                .id();
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
             let current = app.world().get::<AlsMantleState>(actor).unwrap();
             let actual = app.world().get::<Transform>(actor).unwrap();
-            let expected_velocity = if dilation == 0.0 { Vec3::ZERO }
-                else { (expected.translation - before.translation) / (0.05 * dilation) };
-            if (current.time - expected_time).abs() > 1e-6 || current.active != expected_active
+            let expected_velocity = if dilation == 0.0 {
+                Vec3::ZERO
+            } else {
+                (expected.translation - before.translation) / (0.05 * dilation)
+            };
+            if (current.time - expected_time).abs() > 1e-6
+                || current.active != expected_active
                 || actual.translation.distance(expected.translation) > 1e-5
-                || app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) > 1e-5
-                || app.world().get::<LinearVelocity>(actor).unwrap().0.distance(expected_velocity) > 1e-5 {
-                failures.push((dilation, near_end, current.time, expected_time, current.active, actual.translation, expected.translation));
+                || app
+                    .world()
+                    .get::<Position>(actor)
+                    .unwrap()
+                    .0
+                    .distance(expected.translation)
+                    > 1e-5
+                || app
+                    .world()
+                    .get::<LinearVelocity>(actor)
+                    .unwrap()
+                    .0
+                    .distance(expected_velocity)
+                    > 1e-5
+            {
+                failures.push((
+                    dilation,
+                    near_end,
+                    current.time,
+                    expected_time,
+                    current.active,
+                    actual.translation,
+                    expected.translation,
+                ));
             }
             app.world_mut().despawn(actor);
         }
-        assert!(failures.is_empty(), "Mantle root time, final pose, or completion ignored owner time: {failures:?}");
+        assert!(
+            failures.is_empty(),
+            "Mantle root time, final pose, or completion ignored owner time: {failures:?}"
+        );
     }
 
     #[test]
@@ -2459,32 +3753,75 @@ pub(crate) mod tests {
         let mut mantle = AlsMantleState::default();
         mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
         let source_velocity = Vec3::new(0.7, 0.2, -0.4);
-        let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Grounded,
-            LinearVelocity(source_velocity), Transform::IDENTITY, GlobalTransform::IDENTITY,
-            Position(Vec3::ZERO), Rotation(Quat::IDENTITY), AlsCollisionLayerOwnership::default(),
-            crate::als_camera::AlsCameraCustomTimeDilation(0.0), crate::als::character::AlsCmcAdapterRuntime::default())).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                mantle,
+                LocomotionState::Grounded,
+                LinearVelocity(source_velocity),
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+                Position(Vec3::ZERO),
+                Rotation(Quat::IDENTITY),
+                AlsCollisionLayerOwnership::default(),
+                crate::als_camera::AlsCameraCustomTimeDilation(0.0),
+                crate::als::character::AlsCmcAdapterRuntime::default(),
+            ))
+            .id();
         let mut identities = Vec::new();
         for _ in 0..3 {
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
-            app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
-            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut()
+                .run_system_once(prepare_mantle_montages)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
             let montage = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
             identities.push(montage.id);
             assert_eq!(montage.elapsed, 0.0);
             assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, 0.0);
-            assert_eq!(app.world().get::<Transform>(actor).unwrap().translation, Vec3::ZERO);
-            assert!(app.world().get::<LinearVelocity>(actor).unwrap().0.abs_diff_eq(source_velocity, 1e-6),
-                "Source zero-delta RMS entry must retain current velocity before its first root preparation");
+            assert_eq!(
+                app.world().get::<Transform>(actor).unwrap().translation,
+                Vec3::ZERO
+            );
+            assert!(
+                app.world()
+                    .get::<LinearVelocity>(actor)
+                    .unwrap()
+                    .0
+                    .abs_diff_eq(source_velocity, 1e-6),
+                "Source zero-delta RMS entry must retain current velocity before its first root preparation"
+            );
         }
-        let prepared = app.world().get::<AlsMantleState>(actor).unwrap().root_motion_ready;
-        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
-        app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
-        app.world_mut().run_system_once(mantle_drive_system).unwrap();
+        let prepared = app
+            .world()
+            .get::<AlsMantleState>(actor)
+            .unwrap()
+            .root_motion_ready;
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut()
+            .run_system_once(prepare_mantle_montages)
+            .unwrap();
+        app.world_mut()
+            .run_system_once(mantle_drive_system)
+            .unwrap();
         let current = app.world().get::<AlsMantleState>(actor).unwrap();
         let montage = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
-        assert!(prepared && identities == [1, 1, 1] && montage.id == 1 && (current.time - 0.025).abs() < 1e-6,
+        assert!(
+            prepared
+                && identities == [1, 1, 1]
+                && montage.id == 1
+                && (current.time - 0.025).abs() < 1e-6,
             "Zero-clock Mantle entry restarted before resume: prepared={prepared} ids={identities:?} current_id={} root_time={}",
-            montage.id, current.time);
+            montage.id,
+            current.time
+        );
     }
 
     fn mantle_clip_test_app() -> App {
@@ -2501,7 +3838,9 @@ pub(crate) mod tests {
             AlsMantleDrivePlugin,
             crate::source_physics_timing::SourcePhysicsTimingPlugin,
             bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
-            bevy_tnua::TnuaControllerPlugin::<crate::als::control_scheme::AlsControlScheme>::new(Update),
+            bevy_tnua::TnuaControllerPlugin::<crate::als::control_scheme::AlsControlScheme>::new(
+                Update,
+            ),
             crate::als::transition::AlsStateTransitionPlugin,
             crate::als::character::AlsCharacterPlugin,
             crate::als::motion::AlsMotionPlugin,
@@ -2550,50 +3889,110 @@ pub(crate) mod tests {
 
     #[test]
     fn mantle_completion_keeps_the_current_moving_support() {
+        use crate::als::{
+            character::AlsCharacterBundle, control_scheme::AlsControlSchemeConfig,
+            params::AlsMovementParams,
+        };
         use avian3d::prelude::*;
-        use crate::als::{character::AlsCharacterBundle, control_scheme::AlsControlSchemeConfig, params::AlsMovementParams};
         let mut app = mantle_clip_test_app();
         let mut failures = Vec::new();
-        for (child, delta) in [false, true].into_iter().flat_map(|child| [1.0 / 60.0, 0.05_f32].map(move |delta| (child, delta))) {
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+        for (child, delta) in [false, true]
+            .into_iter()
+            .flat_map(|child| [1.0 / 60.0, 0.05_f32].map(move |delta| (child, delta)))
+        {
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
             let center = Vec3::Y * 2.0;
-            let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_translation(center), GlobalTransform::from_translation(center))).id();
+            let body = app
+                .world_mut()
+                .spawn((
+                    RigidBody::Kinematic,
+                    Transform::from_translation(center),
+                    GlobalTransform::from_translation(center),
+                ))
+                .id();
             let target = if child {
-                app.world_mut().spawn((ChildOf(body), Collider::cuboid(4.0, 0.5, 4.0), Transform::IDENTITY, GlobalTransform::from_translation(center))).id()
+                app.world_mut()
+                    .spawn((
+                        ChildOf(body),
+                        Collider::cuboid(4.0, 0.5, 4.0),
+                        Transform::IDENTITY,
+                        GlobalTransform::from_translation(center),
+                    ))
+                    .id()
             } else {
-                app.world_mut().entity_mut(body).insert(Collider::cuboid(4.0, 0.5, 4.0));
+                app.world_mut()
+                    .entity_mut(body)
+                    .insert(Collider::cuboid(4.0, 0.5, 4.0));
                 body
             };
             let params = AlsMovementParams::default();
             let config = crate::als::motion::initial_als_control_scheme_config(&params);
-            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
+            let params = app
+                .world_mut()
+                .resource_mut::<Assets<AlsMovementParams>>()
+                .add(params);
             let start = Vec3::new(0.0, 2.424, 1.5);
-            let mut actor_bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
+            let mut actor_bundle = AlsCharacterBundle::new(
+                params,
+                &mut app
+                    .world_mut()
+                    .resource_mut::<Assets<AlsControlSchemeConfig>>(),
+                config,
+            );
             actor_bundle.transform.translation = start;
             let actor = app.world_mut().spawn(actor_bundle).id();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::Low, start, Vec3::new(0.0, 3.174, 0.0), 0.75, 0.0, 0.0,
-                AlsMantleTargetBase { entity:target, translation:center, rotation:Quat::IDENTITY, scale:Vec3::ONE, relative_location:true });
+            mantle.begin_with_target_base(
+                MantleKind::Low,
+                start,
+                Vec3::new(0.0, 3.174, 0.0),
+                0.75,
+                0.0,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: target,
+                    translation: center,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: true,
+                },
+            );
             app.world_mut().entity_mut(actor).insert(mantle);
             app.update();
             app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X;
             for _ in 0..240 {
                 app.update();
-                if !app.world().get::<AlsMantleState>(actor).unwrap().active { break; }
+                if !app.world().get::<AlsMantleState>(actor).unwrap().active {
+                    break;
+                }
             }
             assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
             app.update();
-            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
-            let bound_base = app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap();
+            assert_eq!(
+                app.world().get::<LocomotionState>(actor),
+                Some(&LocomotionState::Custom)
+            );
+            let bound_base = app
+                .world()
+                .get::<crate::als::dynamics::AlsMovementBase>(actor)
+                .unwrap();
             assert_eq!(bound_base.entity, Some(target));
             let offset = app.world().get::<Position>(actor).unwrap().0 - bound_base.location;
-            app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(AlsNotifyLocomotionAction::None);
             for frame in 0..20 {
                 app.update();
-                let actual = app.world().get::<Position>(actor).unwrap().0 - app.world().get::<Position>(body).unwrap().0;
+                let actual = app.world().get::<Position>(actor).unwrap().0
+                    - app.world().get::<Position>(body).unwrap().0;
                 let error = (actual - offset).with_y(0.0).length();
                 let mode = *app.world().get::<LocomotionState>(actor).unwrap();
-                let base = app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).and_then(|base| base.entity);
+                let base = app
+                    .world()
+                    .get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor)
+                    .and_then(|base| base.entity);
                 if error > 1e-4 || mode != LocomotionState::Grounded || base != Some(target) {
                     failures.push((child, delta, frame, error, mode, base == Some(target)));
                     break;
@@ -2602,7 +4001,10 @@ pub(crate) mod tests {
             app.world_mut().despawn(actor);
             app.world_mut().despawn(body);
         }
-        assert!(failures.is_empty(), "Mantle lost the current movement base at completion: {failures:?}");
+        assert!(
+            failures.is_empty(),
+            "Mantle lost the current movement base at completion: {failures:?}"
+        );
     }
 
     #[test]
@@ -2614,135 +4016,406 @@ pub(crate) mod tests {
         for child in [false, true] {
             for (linear, angular) in [(Vec3::X, Vec3::ZERO), (Vec3::ZERO, Vec3::Y)] {
                 let transform = Transform::from_xyz(0.0, 4.0, 0.0);
-                let body = app.world_mut().spawn((RigidBody::Kinematic, transform, GlobalTransform::from(transform),
-                    LinearVelocity(linear), AngularVelocity(angular))).id();
+                let body = app
+                    .world_mut()
+                    .spawn((
+                        RigidBody::Kinematic,
+                        transform,
+                        GlobalTransform::from(transform),
+                        LinearVelocity(linear),
+                        AngularVelocity(angular),
+                    ))
+                    .id();
                 let target = if child {
-                    app.world_mut().spawn((ChildOf(body), Transform::from_xyz(0.2, 0.0, 0.0),
-                        GlobalTransform::from(Transform::from_xyz(0.2, 4.0, 0.0)), Collider::cuboid(2.0, 0.4, 2.0))).id()
+                    app.world_mut()
+                        .spawn((
+                            ChildOf(body),
+                            Transform::from_xyz(0.2, 0.0, 0.0),
+                            GlobalTransform::from(Transform::from_xyz(0.2, 4.0, 0.0)),
+                            Collider::cuboid(2.0, 0.4, 2.0),
+                        ))
+                        .id()
                 } else {
-                    app.world_mut().entity_mut(body).insert(Collider::cuboid(2.0, 0.4, 2.0));
+                    app.world_mut()
+                        .entity_mut(body)
+                        .insert(Collider::cuboid(2.0, 0.4, 2.0));
                     body
                 };
                 let base_transform = *app.world().get::<GlobalTransform>(target).unwrap();
                 let start = Vec3::new(-0.5, 4.9, 1.5);
                 let mut mantle = AlsMantleState::default();
-                mantle.begin_with_target_base(MantleKind::Low, start, Vec3::new(0.0, 5.2, 0.0), 0.75, 0.0, 0.0,
-                    AlsMantleTargetBase { entity:target, translation:base_transform.translation(), rotation:base_transform.rotation(),
-                        scale:base_transform.scale(), relative_location:true });
-                let clip_handle = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
-                let clip = app.world().resource::<Assets<GraphClip>>().get(&clip_handle).unwrap();
-                let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+                mantle.begin_with_target_base(
+                    MantleKind::Low,
+                    start,
+                    Vec3::new(0.0, 5.2, 0.0),
+                    0.75,
+                    0.0,
+                    0.0,
+                    AlsMantleTargetBase {
+                        entity: target,
+                        translation: base_transform.translation(),
+                        rotation: base_transform.rotation(),
+                        scale: base_transform.scale(),
+                        relative_location: true,
+                    },
+                );
+                let clip_handle = app
+                    .world()
+                    .resource::<MantleAssets>()
+                    .clip(MantleKind::Low)
+                    .clone();
+                let clip = app
+                    .world()
+                    .resource::<Assets<GraphClip>>()
+                    .get(&clip_handle)
+                    .unwrap();
+                let skeleton = app
+                    .world()
+                    .resource::<Assets<Skeleton>>()
+                    .get(&clip.skeleton)
+                    .unwrap();
                 let mut reference = mantle.clone();
-                reference.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
-                    sample_mantle_root(clip, skeleton, clip.duration).unwrap());
-                let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Grounded,
-                    RigidBody::Dynamic, Transform::from_translation(start), GlobalTransform::from(Transform::from_translation(start)),
-                    Collider::sphere(0.3))).id();
+                reference.prepare_root_motion(
+                    sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                    sample_mantle_root(clip, skeleton, clip.duration).unwrap(),
+                );
+                let actor = app
+                    .world_mut()
+                    .spawn((
+                        AlsCharacter,
+                        mantle,
+                        LocomotionState::Grounded,
+                        RigidBody::Dynamic,
+                        Transform::from_translation(start),
+                        GlobalTransform::from(Transform::from_translation(start)),
+                        Collider::sphere(0.3),
+                    ))
+                    .id();
                 let mut maximum = 0.0_f32;
                 let mut elapsed = 0.0_f32;
                 for frame in 0..120 {
-                    let delta = [1.0/60.0, 0.05][frame % 2];
+                    let delta = [1.0 / 60.0, 0.05][frame % 2];
                     elapsed += delta;
                     let before_physics = *app.world().get::<GlobalTransform>(target).unwrap();
-                    reference.refresh_target_base(Some(AlsMantleTargetBase { entity:target, translation:before_physics.translation(),
-                        rotation:before_physics.rotation(), scale:before_physics.scale(), relative_location:true }));
-                    app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+                    reference.refresh_target_base(Some(AlsMantleTargetBase {
+                        entity: target,
+                        translation: before_physics.translation(),
+                        rotation: before_physics.rotation(),
+                        scale: before_physics.scale(),
+                        relative_location: true,
+                    }));
+                    app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                        std::time::Duration::from_secs_f32(delta),
+                    ));
                     app.update();
                     let current = app.world().get::<AlsMantleState>(actor).unwrap();
                     assert!((current.time - elapsed.min(current.action_end())).abs() < 1e-5);
-                    let clip = app.world().resource::<Assets<GraphClip>>().get(&clip_handle).unwrap();
-                    let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+                    let clip = app
+                        .world()
+                        .resource::<Assets<GraphClip>>()
+                        .get(&clip_handle)
+                        .unwrap();
+                    let skeleton = app
+                        .world()
+                        .resource::<Assets<Skeleton>>()
+                        .get(&clip.skeleton)
+                        .unwrap();
                     let root = sample_mantle_root(clip, skeleton, current.clip_time()).unwrap();
                     let expected = reference.target_actor_transform_at(current.time, root);
                     let actual = app.world().get::<Transform>(actor).unwrap();
                     maximum = maximum.max(actual.translation.distance(expected.translation));
                     assert!(actual.rotation.angle_between(expected.rotation) < 1e-3);
-                    if !current.active { break; }
+                    if !current.active {
+                        break;
+                    }
                 }
                 assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
-                if maximum > 1e-4 { failures.push((child, linear, angular, maximum)); }
-                app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+                if maximum > 1e-4 {
+                    failures.push((child, linear, angular, maximum));
+                }
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(AlsNotifyLocomotionAction::None);
                 app.update();
-                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
-                assert!(app.world().get::<CustomPositionIntegration>(actor).is_none());
-                assert!(app.world().get::<CustomVelocityIntegration>(actor).is_none());
+                assert_eq!(
+                    *app.world().get::<LocomotionState>(actor).unwrap(),
+                    LocomotionState::Grounded
+                );
+                assert!(
+                    app.world()
+                        .get::<CustomPositionIntegration>(actor)
+                        .is_none()
+                );
+                assert!(
+                    app.world()
+                        .get::<CustomVelocityIntegration>(actor)
+                        .is_none()
+                );
                 app.world_mut().despawn(actor);
                 app.world_mut().despawn(body);
             }
         }
-        assert!(failures.is_empty(), "Mantle did not use the pre-physics movement-base transform: {failures:?}");
+        assert!(
+            failures.is_empty(),
+            "Mantle did not use the pre-physics movement-base transform: {failures:?}"
+        );
     }
 
     #[test]
     fn mantle_slot_follows_current_assembly_and_cleans_only_its_old_player() {
+        use crate::character_assembly::AlsCharacterAssembly;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
-        use crate::character_assembly::AlsCharacterAssembly;
         let mut app = mantle_clip_test_app();
-        let clip = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
-        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        let clip = app
+            .world()
+            .resource::<MantleAssets>()
+            .clip(MantleKind::Low)
+            .clone();
+        let skeleton = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(&clip)
+            .unwrap()
+            .skeleton
+            .clone();
         for current_first in [false, true] {
-            let actor = app.world_mut().spawn((AlsCharacter, AlsMantleMontages {
-                entries: vec![AlsMantleMontage { id: 1, kind: MantleKind::Low, elapsed: 0.2,
-                    clip_time: 0.6, previous_clip_time: 0.5, weight: 1.0, pose_ready: false, interrupted: false, stop: None }],
-                ..default()
-            })).id();
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    AlsMantleMontages {
+                        entries: vec![AlsMantleMontage {
+                            id: 1,
+                            kind: MantleKind::Low,
+                            elapsed: 0.2,
+                            clip_time: 0.6,
+                            previous_clip_time: 0.5,
+                            weight: 1.0,
+                            pose_ready: false,
+                            interrupted: false,
+                            stop: None,
+                        }],
+                        ..default()
+                    },
+                ))
+                .id();
             let spawn_avatar = |app: &mut App| {
-                let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
-                    AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
-                let player = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()),
-                    Transform::IDENTITY, ChildOf(avatar))).id();
-                app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-                    instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+                let avatar = app
+                    .world_mut()
+                    .spawn((
+                        AlsCharacterAvatar { character: actor },
+                        AnimatedSceneHandle::default(),
+                        Transform::IDENTITY,
+                        ChildOf(actor),
+                    ))
+                    .id();
+                let player = app
+                    .world_mut()
+                    .spawn((
+                        AnimationGraphPlayer::new(skeleton.clone()),
+                        Transform::IDENTITY,
+                        ChildOf(avatar),
+                    ))
+                    .id();
+                app.world_mut().trigger(WorldInstanceReady {
+                    entity: avatar,
+                    instance_id: WorldInstanceSpawner::default()
+                        .spawn(Handle::<WorldAsset>::default()),
+                });
                 app.world_mut().flush();
                 (avatar, player)
             };
             let pair = [spawn_avatar(&mut app), spawn_avatar(&mut app)];
             let current = pair[usize::from(!current_first)];
             let old = pair[usize::from(current_first)];
-            app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar: current.0, camera: None });
-            let unrelated = app.world_mut().spawn(AnimationGraphPlayer::new(skeleton.clone())).id();
-            app.world_mut().get_mut::<AnimationGraphPlayer>(unrelated).unwrap().set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
-            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(1.0),
-                "The current Assembly player must receive the mantle slot in both creation orders");
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap().paths.len(), 79);
-            assert!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap().get_global_input_data(POST_LOCOMOTION_WEIGHT).is_none());
-            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(current.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_some());
-            app.world_mut().get_mut::<AnimationGraphPlayer>(old.1).unwrap().pause();
-            app.world_mut().get_mut::<AlsCharacterAssembly>(actor).unwrap().avatar = old.0;
-            app.world_mut().get_mut::<AlsMantleMontages>(actor).unwrap().entries[0].weight = 0.5;
-            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
-            assert!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap().paths.is_empty());
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
-            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(current.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.5));
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(AlsCharacterAssembly {
+                    avatar: current.0,
+                    camera: None,
+                });
+            let unrelated = app
+                .world_mut()
+                .spawn(AnimationGraphPlayer::new(skeleton.clone()))
+                .id();
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(unrelated)
+                .unwrap()
+                .set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
+            app.world_mut()
+                .run_system_cached(publish_mantle_slot)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(current.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(1.0),
+                "The current Assembly player must receive the mantle slot in both creation orders"
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(current.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_POSE)
+                    .unwrap()
+                    .as_pose()
+                    .unwrap()
+                    .paths
+                    .len(),
+                79
+            );
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(old.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .is_none()
+            );
+            assert!(
+                app.world()
+                    .get::<crate::extensions::SourceAnimationInputs>(current.1)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .is_some()
+            );
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(old.1)
+                .unwrap()
+                .pause();
+            app.world_mut()
+                .get_mut::<AlsCharacterAssembly>(actor)
+                .unwrap()
+                .avatar = old.0;
+            app.world_mut()
+                .get_mut::<AlsMantleMontages>(actor)
+                .unwrap()
+                .entries[0]
+                .weight = 0.5;
+            app.world_mut()
+                .run_system_cached(publish_mantle_slot)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(current.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.0)
+            );
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(current.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_POSE)
+                    .unwrap()
+                    .as_pose()
+                    .unwrap()
+                    .paths
+                    .is_empty()
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(current.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.0)
+            );
+            assert!(
+                app.world()
+                    .get::<crate::extensions::SourceAnimationInputs>(current.1)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .is_none()
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(old.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.5)
+            );
             app.world_mut().entity_mut(old.1).remove::<ChildOf>();
-            let rebuilt = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()), Transform::IDENTITY, ChildOf(old.0))).id();
-            app.world_mut().trigger(WorldInstanceReady { entity: old.0,
-                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            let rebuilt = app
+                .world_mut()
+                .spawn((
+                    AnimationGraphPlayer::new(skeleton.clone()),
+                    Transform::IDENTITY,
+                    ChildOf(old.0),
+                ))
+                .id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: old.0,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
             app.world_mut().flush();
-            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(rebuilt).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.5));
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
-            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(old.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
-            let foreign = app.world_mut().spawn((AlsCharacter, AlsCharacterAssembly { avatar: old.0, camera: None })).id();
-            app.world_mut().get_mut::<AlsCharacterAvatar>(old.0).unwrap().character = foreign;
-            app.world_mut().get_mut::<AnimationGraphPlayer>(rebuilt).unwrap().set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
-            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(rebuilt).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.37));
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(unrelated).unwrap()
-                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.37));
+            app.world_mut()
+                .run_system_cached(publish_mantle_slot)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(rebuilt)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.5)
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(old.1)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.0)
+            );
+            assert!(
+                app.world()
+                    .get::<crate::extensions::SourceAnimationInputs>(old.1)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .is_none()
+            );
+            let foreign = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    AlsCharacterAssembly {
+                        avatar: old.0,
+                        camera: None,
+                    },
+                ))
+                .id();
+            app.world_mut()
+                .get_mut::<AlsCharacterAvatar>(old.0)
+                .unwrap()
+                .character = foreign;
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(rebuilt)
+                .unwrap()
+                .set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
+            app.world_mut()
+                .run_system_cached(publish_mantle_slot)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(rebuilt)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.37)
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(unrelated)
+                    .unwrap()
+                    .get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                    .and_then(|v| v.as_f32().ok()),
+                Some(0.37)
+            );
             app.world_mut().despawn(actor);
             app.world_mut().despawn(foreign);
             app.world_mut().despawn(old.1);
@@ -2798,10 +4471,11 @@ pub(crate) mod tests {
                 );
                 let (pose, context) =
                     sample_mantle_pose(clip, skeleton, settings, clip.duration).unwrap();
-                let root_id =
-                    crate::extensions::root_motion_defaults::derive_default_root_bone(clip, skeleton)
-                        .unwrap()
-                        .id();
+                let root_id = crate::extensions::root_motion_defaults::derive_default_root_bone(
+                    clip, skeleton,
+                )
+                .unwrap()
+                .id();
                 let locked_root = pose.get_bone(root_id).unwrap();
                 let reference = skeleton.default_transforms(root_id).unwrap().local;
                 assert_eq!(locked_root.translation, Some(reference.translation));
@@ -2814,9 +4488,21 @@ pub(crate) mod tests {
                     let (_, right) =
                         sample_mantle_pose(clip, skeleton, right_settings, 0.8).unwrap();
                     assert_eq!(settings.clip, right_settings.clip);
-                    assert_eq!(low.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")], -1.0);
-                    assert!(!right.curves.contains_key(&crate::extensions::SourceCurveName::from("LayerArmRight")));
-                    assert_eq!(low.curves[&crate::extensions::SourceCurveName::from("PoseStanding")], 1.0);
+                    assert_eq!(
+                        low.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")],
+                        -1.0
+                    );
+                    assert!(
+                        !right
+                            .curves
+                            .contains_key(&crate::extensions::SourceCurveName::from(
+                                "LayerArmRight"
+                            ))
+                    );
+                    assert_eq!(
+                        low.curves[&crate::extensions::SourceCurveName::from("PoseStanding")],
+                        1.0
+                    );
                     let mut controlled: MantleSourceSettings =
                         ron::from_str(crate::als::mantle::MANTLE_SOURCE_DATA).unwrap();
                     let controlled = &mut controlled.montages[kind.action_settings().montage_index];
@@ -2831,8 +4517,16 @@ pub(crate) mod tests {
                     );
                     let (_, overridden) =
                         sample_mantle_pose(clip, skeleton, controlled, 0.8).unwrap();
-                    assert_eq!(overridden.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")], -1.0);
-                    assert_eq!(overridden.curves[&crate::extensions::SourceCurveName::from("PoseStanding")], 1.0);
+                    assert_eq!(
+                        overridden.curves
+                            [&crate::extensions::SourceCurveName::from("LayerArmRight")],
+                        -1.0
+                    );
+                    assert_eq!(
+                        overridden.curves
+                            [&crate::extensions::SourceCurveName::from("PoseStanding")],
+                        1.0
+                    );
                 }
                 let root = sample_mantle_root(clip, skeleton, clip.duration).unwrap();
                 assert!(
@@ -2909,7 +4603,12 @@ pub(crate) mod tests {
                 instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
             });
             app.world_mut().flush();
-            app.world_mut().entity_mut(entity).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
+            app.world_mut().entity_mut(entity).insert(
+                crate::character_assembly::AlsCharacterAssembly {
+                    avatar,
+                    camera: None,
+                },
+            );
             app.world_mut().entity_mut(entity).insert((
                 crate::als::transition::AlsStateRequest::default(),
                 crate::als::state::Stance::Standing,
@@ -2926,17 +4625,30 @@ pub(crate) mod tests {
                     .run_system_once(prepare_mantle_montages)
                     .unwrap();
                 assert_eq!(
-                    app.world().get::<crate::als::state::LocomotionState>(entity),
+                    app.world()
+                        .get::<crate::als::state::LocomotionState>(entity),
                     Some(&crate::als::state::LocomotionState::Custom)
                 );
                 let owner = app.world().get::<AlsMantleState>(entity).unwrap();
                 if owner.active || owner.root_motion_ready {
                     for requested in [LocomotionState::Grounded, LocomotionState::Air] {
-                        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(entity).unwrap().locomotion_state = Some(requested);
+                        app.world_mut()
+                            .get_mut::<crate::als::transition::AlsStateRequest>(entity)
+                            .unwrap()
+                            .locomotion_state = Some(requested);
                         app.world_mut().run_schedule(Update);
-                        assert_eq!(*app.world().get::<LocomotionState>(entity).unwrap(), LocomotionState::Custom,
-                            "Source active Mantle owns the mode lock: kind={kind:?} requested={requested:?}");
-                        assert!(app.world().get::<crate::als::transition::AlsStateRequest>(entity).unwrap().locomotion_state.is_none());
+                        assert_eq!(
+                            *app.world().get::<LocomotionState>(entity).unwrap(),
+                            LocomotionState::Custom,
+                            "Source active Mantle owns the mode lock: kind={kind:?} requested={requested:?}"
+                        );
+                        assert!(
+                            app.world()
+                                .get::<crate::als::transition::AlsStateRequest>(entity)
+                                .unwrap()
+                                .locomotion_state
+                                .is_none()
+                        );
                     }
                 }
                 app.world_mut()
@@ -2969,7 +4681,12 @@ pub(crate) mod tests {
                         .unwrap(),
                     1.0
                 );
-                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+                let context = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .unwrap();
                 assert!(context.curves_are_authoritative);
                 assert_eq!(context.relevant_asset.unwrap().position, montage.clip_time);
                 let clip = app
@@ -3110,7 +4827,12 @@ pub(crate) mod tests {
                         .distance(first.lerp(second, 0.5))
                         < 1e-5
                 );
-                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+                let context = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .unwrap();
                 for (name, value) in &context.curves {
                     let expected = (samples[0].1.curves.get(name).copied().unwrap_or(0.0)
                         + samples[1].1.curves.get(name).copied().unwrap_or(0.0))
@@ -3149,7 +4871,13 @@ pub(crate) mod tests {
                     .unwrap(),
                 0.0
             );
-            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
+            assert!(
+                app.world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE)
+                    .is_none()
+            );
             app.world_mut().despawn(entity);
         }
         assert_eq!(MANTLE_SETTINGS.stop_blend_out_seconds, 0.3);

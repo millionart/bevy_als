@@ -65,19 +65,31 @@ pub(crate) fn sample_source_montage(
     let (clip, reference) = assets.0.get(name)?;
     let time = time.min(settings.duration);
     let sequence = clips.get(clip)?;
-    let (mut pose, baked_additive, mut source_pose) = match sample_prepared_source_pose(sequence, time) {
-        Some((source, kind)) => {
-            let mut pose = bevy_animation_graph::core::pose::Pose {
-                skeleton: sequence.skeleton.clone(), timestamp: time, ..default()
-            };
-            source.project_into(&mut pose);
-            (pose, kind != PreparedPoseKind::Absolute, Some(Arc::new(source)))
-        }
-        None => (crate::extensions::source_sequence_player::sample_pose(sequence, time), false, None),
-    };
+    let (mut pose, baked_additive, mut source_pose) =
+        match sample_prepared_source_pose(sequence, time) {
+            Some((source, kind)) => {
+                let mut pose = bevy_animation_graph::core::pose::Pose {
+                    skeleton: sequence.skeleton.clone(),
+                    timestamp: time,
+                    ..default()
+                };
+                source.project_into(&mut pose);
+                (
+                    pose,
+                    kind != PreparedPoseKind::Absolute,
+                    Some(Arc::new(source)),
+                )
+            }
+            None => (
+                crate::extensions::source_sequence_player::sample_pose(sequence, time),
+                false,
+                None,
+            ),
+        };
     if let Some(reference) = reference.as_ref().filter(|_| !baked_additive) {
         source_pose = None;
-        let reference = crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);
+        let reference =
+            crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);
         pose = crate::extensions::mesh_space_difference::make_mesh_space_difference(
             &reference,
             &pose,
@@ -87,11 +99,20 @@ pub(crate) fn sample_source_montage(
     }
     let mut context = crate::get_up::sampled_curve_context(Some(sequence), &settings.curves, time);
     context.source_pose = source_pose;
-    context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
-        identity: name.to_owned(), clip: clip.clone(), montage: true,
-        clock: crate::extensions::SourceRelevantAsset { duration: settings.duration, position: time, weight: 1.0, ..default() },
-        ..default()
-    });
+    context
+        .asset_samples
+        .push(crate::extensions::animation_context::SourceAssetSample {
+            identity: name.to_owned(),
+            clip: clip.clone(),
+            montage: true,
+            clock: crate::extensions::SourceRelevantAsset {
+                duration: settings.duration,
+                position: time,
+                weight: 1.0,
+                ..default()
+            },
+            ..default()
+        });
     Some((pose, context))
 }
 
@@ -106,8 +127,10 @@ struct StandingCurves {
 }
 
 static CURVES: LazyLock<StandingCurves> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json"))
-        .expect("generated Standing curves are valid")
+    serde_json::from_str(include_str!(
+        "../../../../assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json"
+    ))
+    .expect("generated Standing curves are valid")
 });
 
 pub(crate) fn velocity_blend_interpolation_half_life() -> f32 {
@@ -141,15 +164,20 @@ pub(crate) mod tests {
     fn standing_yaw_offset_samples_native_key_order() {
         let cases: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/u07/standing-yaw-curve/source-cases.json",
-        )).unwrap();
+        ))
+        .unwrap();
         for row in cases.as_array().unwrap() {
             let native = &row["native"];
             let angle = native["view_space_degrees"].as_f64().unwrap() as f32;
             let expected = native["curve"].as_f64().unwrap() as f32;
             let left = row["left"].as_f64().unwrap() as f32;
             let right = row["right"].as_f64().unwrap() as f32;
-            assert_eq!(standing_rotation_yaw_offsets(-angle), (-expected, -expected, -left, -right),
-                "{}", row["name"]);
+            assert_eq!(
+                standing_rotation_yaw_offsets(-angle),
+                (-expected, -expected, -left, -right),
+                "{}",
+                row["name"]
+            );
         }
     }
 
@@ -223,7 +251,8 @@ pub(crate) mod tests {
             );
             assert!(context.curves_are_authoritative);
             if name.contains("_Turn_") {
-                let yaw = context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
+                let yaw =
+                    context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
                 assert!(
                     if name.ends_with("_Left") {
                         yaw > 0.0

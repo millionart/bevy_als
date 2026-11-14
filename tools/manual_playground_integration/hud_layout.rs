@@ -16,7 +16,9 @@ pub(super) fn install(app: &mut App) {
     app.add_systems(
         PostUpdate,
         observe
-            .run_if(|state: Res<ManualIntegrationState>| state.scenario == IntegrationScenario::Interface)
+            .run_if(|state: Res<ManualIntegrationState>| {
+                state.scenario == IntegrationScenario::Interface
+            })
             .after(bevy::ui::UiSystems::PostLayout)
             .after(crate::show_debug_hud::AlsShowDebugHudSet::Sync)
             .before(observe_manual_integration),
@@ -90,12 +92,27 @@ fn observe(
         return;
     }
     let scale = (size.x as f32 / 1280.0).min(size.y as f32 / 720.0);
-    let Some(camera_curve_count) = state.camera.and_then(|camera| instances.get(camera).ok())
-        .and_then(|instance| contexts.get(instance.player_entity()).ok()).map(|context| context.curves.len()) else { return; };
+    let Some(camera_curve_count) = state
+        .camera
+        .and_then(|camera| instances.get(camera).ok())
+        .and_then(|instance| contexts.get(instance.player_entity()).ok())
+        .map(|context| context.curves.len())
+    else {
+        return;
+    };
     let camera_height = (31.0 + 12.0 * camera_curve_count as f32).max(158.0);
     let mut failures = Vec::new();
-    for prefix in ["ENTITY ", "Location (cm): ", "Owner: ", "INPUT CONTEXT ", "STATE "] {
-        if !controls.iter().any(|(_, _, _, text, _)| text.is_some_and(|text| text.0.starts_with(prefix))) {
+    for prefix in [
+        "ENTITY ",
+        "Location (cm): ",
+        "Owner: ",
+        "INPUT CONTEXT ",
+        "STATE ",
+    ] {
+        if !controls
+            .iter()
+            .any(|(_, _, _, text, _)| text.is_some_and(|text| text.0.starts_with(prefix)))
+        {
             failures.push(serde_json::json!({"field":"HostDiagnostic","missing":prefix}));
         }
     }
@@ -113,7 +130,10 @@ fn observe(
             "DebugHeader:Debug mode is enabled! Press (Shift + 0) to disable.",
             Vec2::new(5.0, camera_height + 5.0),
         ),
-        ("DebugHeader:Als.State (Shift + 2)", Vec2::new(205.0, camera_height + 32.0)),
+        (
+            "DebugHeader:Als.State (Shift + 2)",
+            Vec2::new(205.0, camera_height + 32.0),
+        ),
         ("Allow Transitions", Vec2::new(150.0, camera_height + 51.0)),
         ("View Block", Vec2::new(150.0, camera_height + 555.0)),
     ] {
@@ -122,15 +142,27 @@ fn observe(
             .find(|(key, _, _, _)| key.as_str() == name)
             .filter(|(_, node, _, _)| node.size().min_element() > 0.0)
             .map(|(_, node, transform, _)| transform.affine().translation - node.size() * 0.5);
-        let expected = Vec2::new(position.x * scale,
-            50.0 * dpi + 29.9 * (size.x as f32 / 1920.0).max(dpi) + (position.y - 5.0) * scale);
+        let expected = Vec2::new(
+            position.x * scale,
+            50.0 * dpi + 29.9 * (size.x as f32 / 1920.0).max(dpi) + (position.y - 5.0) * scale,
+        );
         if actual.is_none_or(|actual| !actual.abs_diff_eq(expected, 0.001)) {
             failures.push(serde_json::json!({"field":name,"expected":expected.to_array(),"actual":actual.map(|point| point.to_array())}));
         }
     }
-    for (name, position) in [("DebugHostTarget", Vec2::new(4.0 * dpi, 50.0 * dpi)),
-        ("DebugHostHelp", Vec2::new(4.0 * dpi, 50.0 * dpi + 14.95 * (size.x as f32 / 1920.0).max(dpi)))] {
-        let actual = nodes.iter().find(|(key, _, _, _)| key.as_str() == name)
+    for (name, position) in [
+        ("DebugHostTarget", Vec2::new(4.0 * dpi, 50.0 * dpi)),
+        (
+            "DebugHostHelp",
+            Vec2::new(
+                4.0 * dpi,
+                50.0 * dpi + 14.95 * (size.x as f32 / 1920.0).max(dpi),
+            ),
+        ),
+    ] {
+        let actual = nodes
+            .iter()
+            .find(|(key, _, _, _)| key.as_str() == name)
             .map(|(_, node, transform, _)| transform.affine().translation - node.size() * 0.5);
         if actual.is_none_or(|actual| !actual.abs_diff_eq(position, 0.001)) {
             failures.push(serde_json::json!({"field":name,"expected":position.to_array(),"actual":actual.map(|point| point.to_array())}));
@@ -263,8 +295,18 @@ pub(super) fn passed(trace: &[serde_json::Value]) -> bool {
         .all(|valid| valid)
 }
 
-const DEBUG_KEYS: [KeyCode; 10] = [KeyCode::Digit0, KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3,
-    KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7, KeyCode::Digit8, KeyCode::Digit9];
+const DEBUG_KEYS: [KeyCode; 10] = [
+    KeyCode::Digit0,
+    KeyCode::Digit1,
+    KeyCode::Digit2,
+    KeyCode::Digit3,
+    KeyCode::Digit4,
+    KeyCode::Digit5,
+    KeyCode::Digit6,
+    KeyCode::Digit7,
+    KeyCode::Digit8,
+    KeyCode::Digit9,
+];
 
 pub(super) fn drive_controls(keys: &mut ButtonInput<KeyCode>, elapsed: f32) {
     drive_key_windows(keys, KeyCode::Tab, elapsed, &[(0.25, 0.55), (0.95, 1.25)]);
@@ -272,8 +314,16 @@ pub(super) fn drive_controls(keys: &mut ButtonInput<KeyCode>, elapsed: f32) {
     drive_key_windows(keys, KeyCode::KeyQ, elapsed, &[(2.9, 3.9)]);
 }
 
-fn drive_key_windows(keys: &mut ButtonInput<KeyCode>, key: KeyCode, elapsed: f32, windows: &[(f32, f32)]) {
-    if windows.iter().any(|(start, end)| (*start..*end).contains(&elapsed)) {
+fn drive_key_windows(
+    keys: &mut ButtonInput<KeyCode>,
+    key: KeyCode,
+    elapsed: f32,
+    windows: &[(f32, f32)],
+) {
+    if windows
+        .iter()
+        .any(|(start, end)| (*start..*end).contains(&elapsed))
+    {
         keys.press(key);
     } else {
         keys.release(key);
@@ -284,31 +334,59 @@ pub(super) fn drive_debug_keys(keys: &mut ButtonInput<KeyCode>, elapsed: f32) {
     keys.press(KeyCode::ShiftLeft);
     for (index, key) in DEBUG_KEYS.into_iter().enumerate() {
         let start = 5.0 + index as f32 * 0.6;
-        drive_key_windows(keys, key, elapsed, &[(start, start + 0.1), (start + 0.3, start + 0.4)]);
+        drive_key_windows(
+            keys,
+            key,
+            elapsed,
+            &[(start, start + 0.1), (start + 0.3, start + 0.4)],
+        );
     }
 }
 
-pub(super) fn observe_debug_keys(elapsed: f32, state: &AlsShowDebugHudState, roots: &Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>,
-    stats: &AlsDebugDisplayStats, trace: &mut Vec<serde_json::Value>) {
+pub(super) fn observe_debug_keys(
+    elapsed: f32,
+    state: &AlsShowDebugHudState,
+    roots: &Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>,
+    stats: &AlsDebugDisplayStats,
+    trace: &mut Vec<serde_json::Value>,
+) {
     let index = ((elapsed - 5.0) / 0.6).floor() as usize;
-    if index >= 10 { return; }
+    if index >= 10 {
+        return;
+    }
     let phase = elapsed - 5.0 - index as f32 * 0.6;
     let enabled = index == 9 || phase >= 0.3;
     let visible = index != 0 || enabled;
-    let root = roots.iter().any(|(node, visibility)| node.display != Display::None && *visibility != Visibility::Hidden);
-    let valid = state.visible == visible && root == visible
+    let root = roots.iter().any(|(node, visibility)| {
+        node.display != Display::None && *visibility != Visibility::Hidden
+    });
+    let valid = state.visible == visible
+        && root == visible
         && stats.bounds_boxes_drawn == u32::from(visible)
-        && DebugCategory::ALL.into_iter().enumerate().all(|(category_index, category)| {
-            state.is_active(category) == (visible && (index != category_index + 1 || enabled))
-        });
+        && DebugCategory::ALL
+            .into_iter()
+            .enumerate()
+            .all(|(category_index, category)| {
+                state.is_active(category) == (visible && (index != category_index + 1 || enabled))
+            });
     trace.push(serde_json::json!({"debug_key":index,"debug_key_enabled":enabled,"debug_key_valid":valid,
         "debug_key_master":state.visible,"debug_key_root_visible":root,"debug_target_bounds":stats.bounds_boxes_drawn}));
 }
 
 pub(super) fn debug_keys_passed(trace: &[serde_json::Value]) -> bool {
-    (0..10).all(|key| [false, true].into_iter().filter(|enabled| key != 9 || *enabled).all(|enabled| {
-        trace.iter().any(|entry| entry["debug_key"] == key && entry["debug_key_enabled"] == enabled)
-    })) && trace.iter().filter_map(|entry| entry["debug_key_valid"].as_bool()).all(|valid| valid)
+    (0..10).all(|key| {
+        [false, true]
+            .into_iter()
+            .filter(|enabled| key != 9 || *enabled)
+            .all(|enabled| {
+                trace
+                    .iter()
+                    .any(|entry| entry["debug_key"] == key && entry["debug_key_enabled"] == enabled)
+            })
+    }) && trace
+        .iter()
+        .filter_map(|entry| entry["debug_key_valid"].as_bool())
+        .all(|valid| valid)
 }
 
 #[cfg(test)]
@@ -322,7 +400,10 @@ mod tests {
         for step in 0..100 {
             keys.clear();
             drive_controls(&mut keys, step as f32 * 0.05);
-            for (index, key) in [KeyCode::Tab, KeyCode::KeyZ, KeyCode::KeyQ].into_iter().enumerate() {
+            for (index, key) in [KeyCode::Tab, KeyCode::KeyZ, KeyCode::KeyQ]
+                .into_iter()
+                .enumerate()
+            {
                 presses[index] += u32::from(keys.just_pressed(key));
             }
         }
@@ -336,12 +417,23 @@ mod tests {
         app.add_plugins((MinimalPlugins, crate::show_debug_hud::AlsShowDebugHudPlugin))
             .init_resource::<ButtonInput<KeyCode>>();
         app.update();
-        let trace = app.world_mut().run_system_once(|roots: Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>| {
-            assert_eq!(roots.iter().count(), 1);
-            let mut trace = Vec::new();
-            observe_debug_keys(5.1, &AlsShowDebugHudState::default(), &roots, &AlsDebugDisplayStats::default(), &mut trace);
-            trace
-        }).unwrap();
+        let trace = app
+            .world_mut()
+            .run_system_once(
+                |roots: Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>| {
+                    assert_eq!(roots.iter().count(), 1);
+                    let mut trace = Vec::new();
+                    observe_debug_keys(
+                        5.1,
+                        &AlsShowDebugHudState::default(),
+                        &roots,
+                        &AlsDebugDisplayStats::default(),
+                        &mut trace,
+                    );
+                    trace
+                },
+            )
+            .unwrap();
         assert_eq!(trace[0]["debug_key_valid"], true);
     }
 

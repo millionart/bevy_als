@@ -1,3 +1,5 @@
+use bevy::asset::AssetPlugin;
+use bevy::prelude::*;
 use bevy_als::als::character::{AlsCharacter, AlsMovementParamsHandle};
 use bevy_als::als::gait::{
     AlsDesiredGait, AlsGaitAmount, AlsGaitPlugin, AlsMaxAllowedGait, refresh_gait_system,
@@ -8,8 +10,6 @@ use bevy_als::als::motion::AlsActualVelocity;
 use bevy_als::als::params::AlsMovementParams;
 use bevy_als::als::state::{Gait, LocomotionState, RotationMode, Stance};
 use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use bevy::asset::AssetPlugin;
-use bevy::prelude::*;
 
 fn main() {
     let mut app = App::new();

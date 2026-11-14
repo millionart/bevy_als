@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
-use bevy_als::extensions::{AlsExtPlugin, SyncGroupPhaseNode, SyncMarker, follower_sample_time};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::extensions::{AlsExtPlugin, SyncGroupPhaseNode, SyncMarker, follower_sample_time};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},

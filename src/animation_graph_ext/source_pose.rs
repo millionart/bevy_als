@@ -6,7 +6,8 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::{
-    control_rig_hierarchy::RigTransform, raw_sequence_sampling::normalize_source_rotation,
+    control_rig_hierarchy::RigTransform,
+    raw_sequence_sampling::normalize_source_rotation,
     source_compression::{project_bone_transform, source_quaternion_product},
 };
 
@@ -52,23 +53,38 @@ impl SourcePose {
 
     pub(crate) fn same_layout(&self, other: &Self) -> bool {
         self.length_scale == other.length_scale
-            && self.bones.iter().map(|(bone, _)| bone).eq(other.bones.iter().map(|(bone, _)| bone))
+            && self
+                .bones
+                .iter()
+                .map(|(bone, _)| bone)
+                .eq(other.bones.iter().map(|(bone, _)| bone))
     }
 
     pub(crate) fn parent_indices(&self, skeleton: &Skeleton) -> Option<Vec<Option<usize>>> {
-        let indices: HashMap<_, _> = self.bones.iter().enumerate()
-            .map(|(index, (bone, _))| (*bone, index)).collect();
-        self.bones.iter().enumerate().map(|(index, (bone, _))| {
-            let parent = skeleton.parent(bone).and_then(|id| indices.get(&id).copied());
-            parent.is_none_or(|parent| parent < index).then_some(parent)
-        }).collect()
+        let indices: HashMap<_, _> = self
+            .bones
+            .iter()
+            .enumerate()
+            .map(|(index, (bone, _))| (*bone, index))
+            .collect();
+        self.bones
+            .iter()
+            .enumerate()
+            .map(|(index, (bone, _))| {
+                let parent = skeleton
+                    .parent(bone)
+                    .and_then(|id| indices.get(&id).copied());
+                parent.is_none_or(|parent| parent < index).then_some(parent)
+            })
+            .collect()
     }
 
     pub(crate) fn convert_rotations_to_mesh(&mut self, parents: &[Option<usize>]) {
         for (index, &parent) in parents.iter().enumerate() {
             if let Some(parent) = parent {
                 self.bones[index].1.rotation = source_quaternion_product(
-                    self.bones[parent].1.rotation, self.bones[index].1.rotation,
+                    self.bones[parent].1.rotation,
+                    self.bones[index].1.rotation,
                 );
             }
         }
@@ -78,7 +94,8 @@ impl SourcePose {
         for (index, &parent) in parents.iter().enumerate().rev() {
             if let Some(parent) = parent {
                 self.bones[index].1.rotation = source_quaternion_product(
-                    self.bones[parent].1.rotation.conjugate(), self.bones[index].1.rotation,
+                    self.bones[parent].1.rotation.conjugate(),
+                    self.bones[index].1.rotation,
                 );
             }
         }

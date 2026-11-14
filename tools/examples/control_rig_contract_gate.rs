@@ -1,22 +1,21 @@
 use std::time::{Duration, Instant};
 
+use avian3d::prelude::*;
+use bevy::animation::AnimationTargetId;
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
 use bevy_als::als::character::AlsCharacter;
 use bevy_als::als::control_scheme::AlsControlSchemeConfig;
 use bevy_als::als::motion::{AlsInputOverride, AlsViewYaw};
 use bevy_als::als::params::AlsMovementParams;
 use bevy_als::als::state::{Gait, OverlayState, RotationMode};
 use bevy_als::als::transition::AlsStateRequest;
-use avian3d::prelude::*;
-use bevy::animation::AnimationTargetId;
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
 use bevy_als::animation_context_projection::AlsRootAnimationContext;
 use bevy_als::control_rig_apply::{
-    AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet,
-    AlsControlRigState,
+    AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigState,
 };
 use bevy_als::foot_ik_apply::AlsFootIkSpaceState;
 use bevy_als::playable_character::{
@@ -61,7 +60,9 @@ fn main() {
         (
             drive_canonical_character
                 .after(avian3d::prelude::PhysicsSystems::Last)
-                .before(bevy_als::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs),
+                .before(
+                    bevy_als::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs,
+                ),
             observe.after(AlsControlRigPropagationSet),
         ),
     );
@@ -251,9 +252,7 @@ fn observe(
     state.max_spine_yaw = state.max_spine_yaw.max(rig.final_yaw_angle.abs());
     let state_ready = rig.spine_rotation_allowed && state.max_spine_yaw > 1.0;
     state.stage_complete |= stage.is_some_and(|stage| {
-        stage.initialization_count == 1
-            && stage.executed_steps > 0
-            && stage.frame > 0
+        stage.initialization_count == 1 && stage.executed_steps > 0 && stage.frame > 0
     });
     let construction_ready = construction.is_some_and(|construction| {
         construction.foot_height_m.is_finite()

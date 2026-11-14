@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::ecs::intern::Interner;
+use bevy::prelude::*;
 use bevy_gameplay_tag::{GameplayTag, InvalidTagName};
 
 static TAG_NAMES: Interner<str> = Interner::new();
@@ -60,15 +60,7 @@ tag_state!(AlsNotifyLocomotionAction, None, {
     Rolling: "Als.LocomotionAction.Rolling", Ragdolling: "Als.LocomotionAction.Ragdolling",
 });
 
-#[derive(
-    Component,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Reflect,
-    serde::Serialize,
-)]
+#[derive(Component, Debug, Default, Clone, Copy, Reflect, serde::Serialize)]
 #[reflect(Default)]
 pub enum LocomotionState {
     #[default]
@@ -81,7 +73,9 @@ pub enum LocomotionState {
 
 impl LocomotionState {
     pub fn new(name: &str) -> Result<Self, InvalidTagName> {
-        if !name.is_empty() { GameplayTag::try_new(name)?; }
+        if !name.is_empty() {
+            GameplayTag::try_new(name)?;
+        }
         Ok(match name {
             value if value.eq_ignore_ascii_case("Als.LocomotionMode.Grounded") => Self::Grounded,
             value if value.eq_ignore_ascii_case("Als.LocomotionMode.InAir") => Self::Air,
@@ -90,7 +84,9 @@ impl LocomotionState {
         })
     }
 
-    pub fn from_tag(tag: &GameplayTag) -> Self { Self::new(tag.as_str()).expect("GameplayTag must contain a valid name") }
+    pub fn from_tag(tag: &GameplayTag) -> Self {
+        Self::new(tag.as_str()).expect("GameplayTag must contain a valid name")
+    }
 
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -101,7 +97,9 @@ impl LocomotionState {
         }
     }
 
-    pub fn tag(self) -> GameplayTag { GameplayTag::new(self.as_str()) }
+    pub fn tag(self) -> GameplayTag {
+        GameplayTag::new(self.as_str())
+    }
 }
 
 impl PartialEq for LocomotionState {
@@ -123,7 +121,13 @@ impl std::hash::Hash for LocomotionState {
 impl<'de> serde::Deserialize<'de> for LocomotionState {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(serde::Deserialize)]
-        enum Value { Grounded, Air, Custom, None, Named(String) }
+        enum Value {
+            Grounded,
+            Air,
+            Custom,
+            None,
+            Named(String),
+        }
         match Value::deserialize(deserializer)? {
             Value::Grounded => Ok(Self::Grounded),
             Value::Air => Ok(Self::Air),
@@ -151,38 +155,71 @@ tag_state!(OverlayState, Default, {
 mod tests {
     #[test]
     fn browser_review_tag_known_names_keep_constant_patterns_ignoring_case() {
-        assert!(matches!(Gait::new("als.gait.walking").unwrap(), Gait::Walking));
-        assert!(matches!(Stance::new("ALS.STANCE.CROUCHING").unwrap(), Stance::Crouching));
-        assert!(matches!(RotationMode::new("als.rotationmode.aiming").unwrap(), RotationMode::Aiming));
-        assert!(matches!(OverlayState::from_tag(&GameplayTag::new("als.overlaymode.rifle")), OverlayState::Rifle));
-        assert!(matches!(AlsNotifyLocomotionAction::new("als.locomotionaction.rolling").unwrap(), AlsNotifyLocomotionAction::Rolling));
-        assert!(matches!(AlsGroundedEntryMode::new("als.groundedentrymode.fromroll").unwrap(), AlsGroundedEntryMode::FromRoll));
-        assert_eq!(ron::from_str::<Gait>("\"ALS.GAIT.WALKING\"").unwrap(), Gait::Walking);
+        assert!(matches!(
+            Gait::new("als.gait.walking").unwrap(),
+            Gait::Walking
+        ));
+        assert!(matches!(
+            Stance::new("ALS.STANCE.CROUCHING").unwrap(),
+            Stance::Crouching
+        ));
+        assert!(matches!(
+            RotationMode::new("als.rotationmode.aiming").unwrap(),
+            RotationMode::Aiming
+        ));
+        assert!(matches!(
+            OverlayState::from_tag(&GameplayTag::new("als.overlaymode.rifle")),
+            OverlayState::Rifle
+        ));
+        assert!(matches!(
+            AlsNotifyLocomotionAction::new("als.locomotionaction.rolling").unwrap(),
+            AlsNotifyLocomotionAction::Rolling
+        ));
+        assert!(matches!(
+            AlsGroundedEntryMode::new("als.groundedentrymode.fromroll").unwrap(),
+            AlsGroundedEntryMode::FromRoll
+        ));
+        assert_eq!(
+            ron::from_str::<Gait>("\"ALS.GAIT.WALKING\"").unwrap(),
+            Gait::Walking
+        );
     }
 
     #[test]
     fn browser_review_tag_custom_names_share_equality_and_hash_without_losing_display() {
-        let original=Gait::new("Browser.Custom.Identity").unwrap();
-        let alias=Gait::from_tag(&GameplayTag::new("browser.custom.identity"));
-        assert_eq!(original,alias,"Custom tag aliases have different identities");
-        assert_eq!(original.as_str(),"Browser.Custom.Identity");
-        assert_eq!(alias.as_str(),"browser.custom.identity");
-        assert_eq!(std::collections::HashSet::from([original,alias]).len(),1);
-        assert_ne!(original,Gait::new("Browser.Custom.Other").unwrap());
+        let original = Gait::new("Browser.Custom.Identity").unwrap();
+        let alias = Gait::from_tag(&GameplayTag::new("browser.custom.identity"));
+        assert_eq!(
+            original, alias,
+            "Custom tag aliases have different identities"
+        );
+        assert_eq!(original.as_str(), "Browser.Custom.Identity");
+        assert_eq!(alias.as_str(), "browser.custom.identity");
+        assert_eq!(std::collections::HashSet::from([original, alias]).len(), 1);
+        assert_ne!(original, Gait::new("Browser.Custom.Other").unwrap());
         assert!(Gait::new("Browser..Invalid").is_err());
     }
 
     #[test]
     fn browser_review_tag_locomotion_names_share_source_identity() {
-        assert!(matches!(LocomotionState::new("als.locomotionmode.grounded").unwrap(),LocomotionState::Grounded));
-        assert_eq!(LocomotionState::Named("ALS.LOCOMOTIONMODE.INAIR"),LocomotionState::Air);
-        let original=LocomotionState::new("Browser.Mode.Climbing").unwrap();
-        let alias=LocomotionState::new("browser.mode.climbing").unwrap();
-        assert_eq!(original,alias);
-        assert_eq!(std::collections::HashSet::from([original,alias]).len(),1);
-        assert_ne!(LocomotionState::Custom,LocomotionState::None);
-        assert_eq!(std::collections::HashSet::from([LocomotionState::Custom,LocomotionState::None]).len(),2);
-        assert_ne!(LocomotionState::Custom,LocomotionState::Named(""));
+        assert!(matches!(
+            LocomotionState::new("als.locomotionmode.grounded").unwrap(),
+            LocomotionState::Grounded
+        ));
+        assert_eq!(
+            LocomotionState::Named("ALS.LOCOMOTIONMODE.INAIR"),
+            LocomotionState::Air
+        );
+        let original = LocomotionState::new("Browser.Mode.Climbing").unwrap();
+        let alias = LocomotionState::new("browser.mode.climbing").unwrap();
+        assert_eq!(original, alias);
+        assert_eq!(std::collections::HashSet::from([original, alias]).len(), 1);
+        assert_ne!(LocomotionState::Custom, LocomotionState::None);
+        assert_eq!(
+            std::collections::HashSet::from([LocomotionState::Custom, LocomotionState::None]).len(),
+            2
+        );
+        assert_ne!(LocomotionState::Custom, LocomotionState::Named(""));
     }
 
     use super::*;
@@ -191,7 +228,8 @@ mod tests {
     #[test]
     fn state_data_accepts_custom_gameplay_tags() {
         fn check<T: DeserializeOwned + serde::Serialize>(name: &str) {
-            let value = ron::from_str::<T>(&format!("{name:?}")).expect("Custom source tag was rejected");
+            let value =
+                ron::from_str::<T>(&format!("{name:?}")).expect("Custom source tag was rejected");
             assert_eq!(ron::to_string(&value).unwrap(), format!("{name:?}"));
         }
         check::<Gait>("Als.Gait.Custom");
@@ -201,19 +239,37 @@ mod tests {
         check::<AlsNotifyLocomotionAction>("Als.LocomotionAction.Custom");
         assert_eq!(Gait::new("Als.Gait.Walking").unwrap(), Gait::Walking);
         assert!(Gait::new("Als..Gait").is_err());
-        assert!(Gait::new("Als.Gait.Custom").unwrap().tag().matches_tag_exact(&GameplayTag::new("Als.Gait.Custom")));
+        assert!(
+            Gait::new("Als.Gait.Custom")
+                .unwrap()
+                .tag()
+                .matches_tag_exact(&GameplayTag::new("Als.Gait.Custom"))
+        );
     }
 
     #[test]
     fn locomotion_state_preserves_named_mode_data() {
         let serialized = "Named(\"Als.LocomotionMode.Climbing\")";
-        let value: LocomotionState = ron::from_str(serialized).expect("Custom locomotion mode was rejected");
+        let value: LocomotionState =
+            ron::from_str(serialized).expect("Custom locomotion mode was rejected");
         assert_eq!(ron::to_string(&value).unwrap(), serialized);
-        assert_eq!(value, LocomotionState::new("Als.LocomotionMode.Climbing").unwrap());
+        assert_eq!(
+            value,
+            LocomotionState::new("Als.LocomotionMode.Climbing").unwrap()
+        );
         assert_eq!(value.tag().as_str(), "Als.LocomotionMode.Climbing");
-        assert_eq!(LocomotionState::new("Als.LocomotionMode.Grounded").unwrap(), LocomotionState::Grounded);
-        assert_eq!(LocomotionState::new("Als.LocomotionMode.InAir").unwrap(), LocomotionState::Air);
-        assert_eq!(ron::from_str::<LocomotionState>("Named(\"Als.LocomotionMode.Grounded\")").unwrap(), LocomotionState::Grounded);
+        assert_eq!(
+            LocomotionState::new("Als.LocomotionMode.Grounded").unwrap(),
+            LocomotionState::Grounded
+        );
+        assert_eq!(
+            LocomotionState::new("Als.LocomotionMode.InAir").unwrap(),
+            LocomotionState::Air
+        );
+        assert_eq!(
+            ron::from_str::<LocomotionState>("Named(\"Als.LocomotionMode.Grounded\")").unwrap(),
+            LocomotionState::Grounded
+        );
         assert!(ron::from_str::<LocomotionState>("Named(\"Als..Invalid\")").is_err());
         assert!(!LocomotionState::Custom.tag().is_valid());
         assert!(!LocomotionState::None.tag().is_valid());
@@ -247,8 +303,14 @@ mod tests {
         check("Air", LocomotionState::Air);
         check("Custom", LocomotionState::Custom);
         check("r#None", LocomotionState::None);
-        check("\"Als.RotationMode.VelocityDirection\"", RotationMode::VelocityDirection);
-        check("\"Als.RotationMode.ViewDirection\"", RotationMode::ViewDirection);
+        check(
+            "\"Als.RotationMode.VelocityDirection\"",
+            RotationMode::VelocityDirection,
+        );
+        check(
+            "\"Als.RotationMode.ViewDirection\"",
+            RotationMode::ViewDirection,
+        );
         check("\"Als.RotationMode.Aiming\"", RotationMode::Aiming);
         check("\"Als.Stance.Standing\"", Stance::Standing);
         check("\"Als.Stance.Crouching\"", Stance::Crouching);
@@ -256,7 +318,10 @@ mod tests {
         check("\"Als.Gait.Running\"", Gait::Running);
         check("\"Als.Gait.Sprinting\"", Gait::Sprinting);
         check("\"Als.OverlayMode.Default\"", OverlayState::Default);
-        check("\"Als.OverlayMode.PistolTwoHanded\"", OverlayState::PistolTwoHanded);
+        check(
+            "\"Als.OverlayMode.PistolTwoHanded\"",
+            OverlayState::PistolTwoHanded,
+        );
         check("\"Als.OverlayMode.Torch\"", OverlayState::Torch);
         check("\"Als.OverlayMode.Barrel\"", OverlayState::Barrel);
     }

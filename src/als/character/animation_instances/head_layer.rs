@@ -1,4 +1,3 @@
-use crate::als_camera::AlsCameraCustomTimeDilation;
 use crate::als::character::AlsCharacter;
 use crate::als::head::AlsHeadUpdateInput as HeadUpdateInput;
 #[cfg(test)]
@@ -12,6 +11,7 @@ use crate::als::motion::AlsRotationResponseState;
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::state::RotationMode;
 use crate::als::view::AlsViewPitch;
+use crate::als_camera::AlsCameraCustomTimeDilation;
 use crate::extensions::post_physics_animation::{AnimationPoseUpdateGate, InitialAnimation};
 use crate::extensions::{source_instance::source_player_property, unscaled_delta_seconds};
 use bevy::prelude::*;
@@ -19,9 +19,9 @@ use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
+use crate::ab_als_provider::AbAlsProviderSet;
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::ab_als_provider::AbAlsProviderSet;
 use crate::layering_layer::AlsLayeringLayerSet;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -36,7 +36,9 @@ impl Plugin for HeadLayerPlugin {
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
                 .after(AbAlsProviderSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         )
         .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
         .add_systems(
@@ -107,7 +109,8 @@ fn head_frame_inputs(
             .map_or(body_yaw, |response| -response.target_yaw.to_degrees()),
         body_yaw_world: body_yaw,
         body_yaw_velocity_world: if !pending_update && timing.0 > 1e-8 {
-            unwind_degrees(body_yaw - unwind_degrees(previous_body_yaw + movement_base_delta_yaw)) / timing.0
+            unwind_degrees(body_yaw - unwind_degrees(previous_body_yaw + movement_base_delta_yaw))
+                / timing.0
         } else {
             0.0
         },
@@ -145,7 +148,10 @@ fn write_head_inputs(
             input.body_yaw_velocity_world,
         ),
         ("view_state.pitch_angle", input.view_pitch_angle),
-        ("view_state.pitch_amount", 0.5 - input.view_pitch_angle / 180.0),
+        (
+            "view_state.pitch_amount",
+            0.5 - input.view_pitch_angle / 180.0,
+        ),
         ("view_state.head_blend_amount", head_blend_amount(context)),
     ] {
         player.set_global_input_data(key, value);
@@ -174,38 +180,56 @@ fn head_layer_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&InitialAnimation>, Option<&AnimationPoseUpdateGate>)>,
+    mut players: Query<(
+        &mut AnimationGraphPlayer,
+        Option<&AlsRootAnimationContext>,
+        Option<&InitialAnimation>,
+        Option<&AnimationPoseUpdateGate>,
+    )>,
 ) {
     for (parent, instance) in &avatars {
-        let Ok((
-            pitch,
-            rotation_mode,
-            response,
-            first_person,
-            custom_dilation,
-        )) = characters.get(parent.parent())
+        let Ok((pitch, rotation_mode, response, first_person, custom_dilation)) =
+            characters.get(parent.parent())
         else {
             continue;
         };
-        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
-        let Ok((mut player, context, initial, gate)) = players.get_mut(instance.player_entity()) else {
+        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else {
+            continue;
+        };
+        let Ok((mut player, context, initial, gate)) = players.get_mut(instance.player_entity())
+        else {
             continue;
         };
         let mut previous_dilation =
             player_scalar(&player, "animation.previous_global_time_dilation", 1.0);
         let custom_dilation = custom_dilation.map_or(1.0, |value| value.0);
-        let scaled_delta = if initial.is_some() { 0.0 } else { virtual_time.delta_secs() * custom_dilation };
+        let scaled_delta = if initial.is_some() {
+            0.0
+        } else {
+            virtual_time.delta_secs() * custom_dilation
+        };
         let unscaled = unscaled_delta_seconds(
             &mut previous_dilation,
             scaled_delta,
-            if initial.is_some() { 0.0 } else { real_time.delta_secs() },
+            if initial.is_some() {
+                0.0
+            } else {
+                real_time.delta_secs()
+            },
             virtual_time.effective_speed(),
             custom_dilation,
         );
         if gate.is_none_or(|gate| gate.update_graph) {
-            player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
+            player.set_global_input_data(
+                "animation.previous_global_time_dilation",
+                previous_dilation,
+            );
         }
-        let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
+        let action_active = source_inputs
+            .get(instance.player_entity())
+            .ok()
+            .and_then(|inputs| inputs.gameplay_tag_input("locomotion_action"))
+            .is_some_and(|tag| tag.is_valid());
         let input = head_frame_inputs(
             &player,
             &transform.compute_transform(),
@@ -265,17 +289,38 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let parent = app.world_mut().spawn(Transform::IDENTITY).id();
-        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY, AlsViewPitch(0.4)));
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(actor).insert((
+            ChildOf(parent),
+            Transform::IDENTITY,
+            AlsViewPitch(0.4),
+        ));
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         for yaw in [90.0_f32, -45.0] {
             let rotation = Quat::from_euler(EulerRot::YXZ, yaw.to_radians(), 0.2, -0.1);
-            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
-                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() =
+                Transform::from_xyz(4.0, 2.0, -1.0)
+                    .with_rotation(rotation)
+                    .with_scale(Vec3::new(2.0, 3.0, 0.5));
             app.world_mut().run_system_once(head_layer_writer).unwrap();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             let expected_yaw = -world_forward_to_yaw(rotation * Vec3::NEG_Z).to_degrees();
-            assert!((player_scalar(player, "locomotion_state.rotation_yaw", 999.0) - expected_yaw).abs() < 1e-4);
-            assert!((player_scalar(player, "view_state.pitch_angle", 999.0) - 0.2_f32.to_degrees()).abs() < 1e-4);
+            assert!(
+                (player_scalar(player, "locomotion_state.rotation_yaw", 999.0) - expected_yaw)
+                    .abs()
+                    < 1e-4
+            );
+            assert!(
+                (player_scalar(player, "view_state.pitch_angle", 999.0) - 0.2_f32.to_degrees())
+                    .abs()
+                    < 1e-4
+            );
         }
     }
 
@@ -293,58 +338,128 @@ mod tests {
             previous_body_yaw: f32,
             expected: Option<AlsHeadState>,
         }
-        fn set_base(fixture: Res<Fixture>, mut actors: Query<&mut crate::als::dynamics::AlsMovementBase>) {
+        fn set_base(
+            fixture: Res<Fixture>,
+            mut actors: Query<&mut crate::als::dynamics::AlsMovementBase>,
+        ) {
             let mut base = actors.get_mut(fixture.actor).unwrap();
             base.entity = Some(fixture.base);
             base.location = Vec3::ZERO;
             base.rotation = fixture.rotation;
             base.has_relative_rotation = true;
         }
-        fn expected_head(mut fixture: ResMut<Fixture>, time: Res<Time<Virtual>>, players: Query<&AnimationGraphPlayer>, actors: Query<(&crate::character_assembly::AlsCharacterAssembly, &crate::actual_motion::AlsActualMotion, &crate::als::state::LocomotionState)>, avatars: Query<&AnimatedSceneInstance>) {
+        fn expected_head(
+            mut fixture: ResMut<Fixture>,
+            time: Res<Time<Virtual>>,
+            players: Query<&AnimationGraphPlayer>,
+            actors: Query<(
+                &crate::character_assembly::AlsCharacterAssembly,
+                &crate::actual_motion::AlsActualMotion,
+                &crate::als::state::LocomotionState,
+            )>,
+            avatars: Query<&AnimatedSceneInstance>,
+        ) {
             let (assembly, motion, locomotion) = actors.get(fixture.actor).unwrap();
             let avatar = assembly.avatar;
-            let player = players.get(avatars.get(avatar).unwrap().player_entity()).unwrap();
+            let player = players
+                .get(avatars.get(avatar).unwrap().player_entity())
+                .unwrap();
             let scalar = |key| player_scalar(player, key, 0.0);
             let delta = scalar("animation.delta_seconds");
             assert_eq!(*locomotion, crate::als::state::LocomotionState::Grounded);
-            assert_eq!(motion.movement_base_snapshot, Some((fixture.base, fixture.rotation)));
-            assert_eq!(player.get_global_input_data("movement_base.b_has_relative_rotation")
-                .and_then(|value| value.as_bool().ok()), Some(true));
+            assert_eq!(
+                motion.movement_base_snapshot,
+                Some((fixture.base, fixture.rotation))
+            );
+            assert_eq!(
+                player
+                    .get_global_input_data("movement_base.b_has_relative_rotation")
+                    .and_then(|value| value.as_bool().ok()),
+                Some(true)
+            );
             let mut expected = head_state_from_player(player);
-            assert!(!expected.initialization_required, "Head fixture must reach its native refresh before the base rotates");
+            assert!(
+                !expected.initialization_required,
+                "Head fixture must reach its native refresh before the base rotates"
+            );
             if time.is_paused() {
                 fixture.expected = Some(expected);
                 return;
             }
-            update_head_state(&mut expected, HeadUpdateInput {
-                delta_seconds: delta,
-                delta_seconds_without_time_dilation: scalar("animation.delta_seconds_without_time_dilation"),
-                first_person: false,
-                rotation_mode: RotationMode::ViewDirection,
-                has_input: false,
-                input_yaw_world: scalar("locomotion_state.input_yaw_angle_world_space"),
-                target_yaw_world: scalar("locomotion_state.target_yaw_angle_world_space"),
-                body_yaw_world: scalar("locomotion_state.rotation_yaw"),
-                body_yaw_velocity_world: if delta > 1e-8 {
-                    unwind_degrees(scalar("locomotion_state.rotation_yaw")
-                        - unwind_degrees(fixture.previous_body_yaw + fixture.delta_yaw)) / delta
-                } else { 0.0 },
-                view_yaw_angle: scalar("view_state.yaw_angle"),
-                view_pitch_angle: scalar("view_state.pitch_angle"),
-                movement_base_relative_yaw: fixture.delta_yaw,
-            }, AlsHeadSettings::default());
+            update_head_state(
+                &mut expected,
+                HeadUpdateInput {
+                    delta_seconds: delta,
+                    delta_seconds_without_time_dilation: scalar(
+                        "animation.delta_seconds_without_time_dilation",
+                    ),
+                    first_person: false,
+                    rotation_mode: RotationMode::ViewDirection,
+                    has_input: false,
+                    input_yaw_world: scalar("locomotion_state.input_yaw_angle_world_space"),
+                    target_yaw_world: scalar("locomotion_state.target_yaw_angle_world_space"),
+                    body_yaw_world: scalar("locomotion_state.rotation_yaw"),
+                    body_yaw_velocity_world: if delta > 1e-8 {
+                        unwind_degrees(
+                            scalar("locomotion_state.rotation_yaw")
+                                - unwind_degrees(fixture.previous_body_yaw + fixture.delta_yaw),
+                        ) / delta
+                    } else {
+                        0.0
+                    },
+                    view_yaw_angle: scalar("view_state.yaw_angle"),
+                    view_pitch_angle: scalar("view_state.pitch_angle"),
+                    movement_base_relative_yaw: fixture.delta_yaw,
+                },
+                AlsHeadSettings::default(),
+            );
             fixture.previous_body_yaw = scalar("locomotion_state.rotation_yaw");
             fixture.expected = Some(expected);
         }
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(actor).insert(crate::als::transition::AlsStateRequest::default().with_rotation_mode(RotationMode::ViewDirection));
-        for _ in 0..3 { app.update(); }
-        let base = app.world_mut().spawn((avian3d::prelude::RigidBody::Kinematic, Transform::IDENTITY)).id();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let previous_body_yaw = player_scalar(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(), "locomotion_state.rotation_yaw", 0.0);
-        app.insert_resource(Fixture { actor, base, rotation: Quat::IDENTITY, delta_yaw: 0.0, previous_body_yaw, expected: None });
-        app.add_systems(PostUpdate, set_base.after(crate::als::motion::AlsActualVelocitySet).before(AlsActualMotionSet));
-        app.add_systems(PostUpdate, expected_head.after(AlsHeadLayerSet).before(PostPhysicsAnimationSet::Evaluate));
+        app.world_mut().entity_mut(actor).insert(
+            crate::als::transition::AlsStateRequest::default()
+                .with_rotation_mode(RotationMode::ViewDirection),
+        );
+        for _ in 0..3 {
+            app.update();
+        }
+        let base = app
+            .world_mut()
+            .spawn((avian3d::prelude::RigidBody::Kinematic, Transform::IDENTITY))
+            .id();
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let previous_body_yaw = player_scalar(
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap(),
+            "locomotion_state.rotation_yaw",
+            0.0,
+        );
+        app.insert_resource(Fixture {
+            actor,
+            base,
+            rotation: Quat::IDENTITY,
+            delta_yaw: 0.0,
+            previous_body_yaw,
+            expected: None,
+        });
+        app.add_systems(
+            PostUpdate,
+            set_base
+                .after(crate::als::motion::AlsActualVelocitySet)
+                .before(AlsActualMotionSet),
+        );
+        app.add_systems(
+            PostUpdate,
+            expected_head
+                .after(AlsHeadLayerSet)
+                .before(PostPhysicsAnimationSet::Evaluate),
+        );
         for target_yaw in [0.0_f32, 10.0] {
             {
                 let mut fixture = app.world_mut().resource_mut::<Fixture>();
@@ -353,25 +468,50 @@ mod tests {
             }
             app.update();
             let expected = app.world().resource::<Fixture>().expected.unwrap();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             assert!(player.get_error().is_none());
             let actual = head_state_from_player(player);
-            assert!((actual.yaw_angle - expected.yaw_angle).abs() < 1e-4,
-                "Native head rotating-base output differs: actual={actual:?}, source={expected:?}, base={target_yaw}");
+            assert!(
+                (actual.yaw_angle - expected.yaw_angle).abs() < 1e-4,
+                "Native head rotating-base output differs: actual={actual:?}, source={expected:?}, base={target_yaw}"
+            );
         }
-        let before_pause = head_state_from_player(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap());
+        let before_pause = head_state_from_player(
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap(),
+        );
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         app.update();
-        let paused = head_state_from_player(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap());
-        assert_eq!(paused, before_pause, "Paused native head must not apply the previous movement-base delta again");
+        let paused = head_state_from_player(
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap(),
+        );
+        assert_eq!(
+            paused, before_pause,
+            "Paused native head must not apply the previous movement-base delta again"
+        );
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
-        app.world_mut().entity_mut(actor).insert(AlsCameraCustomTimeDilation(0.0));
-        app.world_mut().resource_mut::<Fixture>().rotation = Quat::from_rotation_y(20.0_f32.to_radians());
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(AlsCameraCustomTimeDilation(0.0));
+        app.world_mut().resource_mut::<Fixture>().rotation =
+            Quat::from_rotation_y(20.0_f32.to_radians());
         app.update();
         let expected = app.world().resource::<Fixture>().expected.unwrap();
-        let actual = head_state_from_player(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap());
-        assert!((actual.yaw_angle - expected.yaw_angle).abs() < 1e-4,
-            "Zero custom dilation must retain the source base offset during a running world: {actual:?}, {expected:?}");
+        let actual = head_state_from_player(
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap(),
+        );
+        assert!(
+            (actual.yaw_angle - expected.yaw_angle).abs() < 1e-4,
+            "Zero custom dilation must retain the source base offset during a running world: {actual:?}, {expected:?}"
+        );
     }
 
     #[test]
@@ -621,12 +761,48 @@ mod tests {
     fn generated_pitch_amount_uses_the_retained_source_pitch_angle() {
         let mut player = AnimationGraphPlayer::new(Handle::default());
         for angle in [-90.0_f32, 0.0, 65.0, 90.0] {
-            let input = head_frame_inputs(&player, &Transform::IDENTITY, None, angle.to_radians(), (0.01, 0.01), RotationMode::ViewDirection, false, false);
+            let input = head_frame_inputs(
+                &player,
+                &Transform::IDENTITY,
+                None,
+                angle.to_radians(),
+                (0.01, 0.01),
+                RotationMode::ViewDirection,
+                false,
+                false,
+            );
             write_head_inputs(&mut player, input, None);
-            assert!((player.get_global_input_data("view_state.pitch_amount").unwrap().as_f32().unwrap() - (0.5 - angle / 180.0)).abs() < 1e-6);
-            let held = head_frame_inputs(&player, &Transform::IDENTITY, None, -0.7, (0.01, 0.01), RotationMode::ViewDirection, false, true);
+            assert!(
+                (player
+                    .get_global_input_data("view_state.pitch_amount")
+                    .unwrap()
+                    .as_f32()
+                    .unwrap()
+                    - (0.5 - angle / 180.0))
+                    .abs()
+                    < 1e-6
+            );
+            let held = head_frame_inputs(
+                &player,
+                &Transform::IDENTITY,
+                None,
+                -0.7,
+                (0.01, 0.01),
+                RotationMode::ViewDirection,
+                false,
+                true,
+            );
             write_head_inputs(&mut player, held, None);
-            assert!((player.get_global_input_data("view_state.pitch_amount").unwrap().as_f32().unwrap() - (0.5 - angle / 180.0)).abs() < 1e-6);
+            assert!(
+                (player
+                    .get_global_input_data("view_state.pitch_amount")
+                    .unwrap()
+                    .as_f32()
+                    .unwrap()
+                    - (0.5 - angle / 180.0))
+                    .abs()
+                    < 1e-6
+            );
         }
     }
 }

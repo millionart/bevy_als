@@ -1,6 +1,6 @@
-use crate::show_debug_hud::{AlsShowDebugHudState, DebugCategory};
 use crate::als::input::SlomoAction;
 use crate::als::input::ToggleUiAction;
+use crate::show_debug_hud::{AlsShowDebugHudState, DebugCategory};
 use bevy::prelude::*;
 use bevy::ui::Display;
 use bevy_enhanced_input::prelude::*;
@@ -113,7 +113,9 @@ pub struct AlsHudPlugin;
 
 impl Plugin for AlsHudPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() { app.add_plugins(crate::debug_target::AlsDebugTargetPlugin); }
+        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() {
+            app.add_plugins(crate::debug_target::AlsDebugTargetPlugin);
+        }
         app.init_resource::<AlsHudState>()
             .init_resource::<UiScale>()
             .add_systems(Startup, spawn_hud)
@@ -510,9 +512,10 @@ fn toggle_ui_system(
     mut debug_sections: Query<&mut Node, (With<AlsHudDebugSection>, Without<AlsHudInputSection>)>,
     mut input_sections: Query<&mut Node, With<AlsHudInputSection>>,
 ) {
-    let pressed = !time.is_paused() && events
-        .iter()
-        .any(|events| events.contains(ActionEvents::START));
+    let pressed = !time.is_paused()
+        && events
+            .iter()
+            .any(|events| events.contains(ActionEvents::START));
     if pressed {
         state.ui_visible = !state.ui_visible;
     }
@@ -538,9 +541,10 @@ fn slomo_system(
     mut state: ResMut<AlsHudState>,
     mut time: ResMut<Time<Virtual>>,
 ) {
-    let pressed = !time.is_paused() && events
-        .iter()
-        .any(|events| events.contains(ActionEvents::START));
+    let pressed = !time.is_paused()
+        && events
+            .iter()
+            .any(|events| events.contains(ActionEvents::START));
     if !pressed {
         return;
     }
@@ -551,7 +555,13 @@ fn slomo_system(
 fn refresh_colors_system(
     state: Res<AlsHudState>,
     show_debug: Option<Res<AlsShowDebugHudState>>,
-    owned_target: Query<(), (With<crate::debug_target::AlsDebugTarget>, With<crate::character_assembly::AlsPlayerCharacter>)>,
+    owned_target: Query<
+        (),
+        (
+            With<crate::debug_target::AlsDebugTarget>,
+            With<crate::character_assembly::AlsPlayerCharacter>,
+        ),
+    >,
     mut targets: Query<(&AlsHudColorTarget, &mut TextColor)>,
 ) {
     for (target, mut color) in &mut targets {
@@ -636,53 +646,103 @@ pub(crate) mod tests {
         use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
         for gamepad_input in [false, true] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
-                .init_resource::<AlsHudState>()
-                .add_systems(Update, (toggle_ui_system, slomo_system));
+            app.add_plugins((
+                MinimalPlugins,
+                bevy::input::InputPlugin,
+                EnhancedInputPlugin,
+                AlsInputPlugin,
+            ))
+            .init_resource::<AlsHudState>()
+            .add_systems(Update, (toggle_ui_system, slomo_system));
             app.finish();
             let player = app.world_mut().spawn_empty().id();
             let gamepad = app.world_mut().spawn(Gamepad::default()).id();
-            let debug = app.world_mut().spawn((Node::default(), AlsHudDebugSection)).id();
-            let input = app.world_mut().spawn((Node::default(), AlsHudInputSection)).id();
-            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            let debug = app
+                .world_mut()
+                .spawn((Node::default(), AlsHudDebugSection))
+                .id();
+            let input = app
+                .world_mut()
+                .spawn((Node::default(), AlsHudInputSection))
+                .id();
+            spawn_als_actions(
+                &mut app.world_mut().commands(),
+                player,
+                &AlsInputMap::default(),
+            );
             app.update();
             app.world_mut().resource_mut::<Time<Virtual>>().pause();
             for value in [1.0, 0.0, 1.0] {
-                if value == 0.0 { app.world_mut().resource_mut::<Time<Virtual>>().unpause(); }
-                for (key, button) in [(KeyCode::Tab, GamepadButton::Select), (KeyCode::KeyZ, GamepadButton::Start)] {
+                if value == 0.0 {
+                    app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                }
+                for (key, button) in [
+                    (KeyCode::Tab, GamepadButton::Select),
+                    (KeyCode::KeyZ, GamepadButton::Start),
+                ] {
                     if gamepad_input {
                         app.world_mut().write_message(RawGamepadEvent::Button(
-                            RawGamepadButtonChangedEvent::new(gamepad, button, value)));
+                            RawGamepadButtonChangedEvent::new(gamepad, button, value),
+                        ));
                     } else {
                         let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
-                        if value > 0.0 { keys.press(key); } else { keys.release(key); }
+                        if value > 0.0 {
+                            keys.press(key);
+                        } else {
+                            keys.release(key);
+                        }
                     }
                 }
                 app.update();
                 let paused = app.world().resource::<Time<Virtual>>().is_paused();
                 let expected = value > 0.0 && !paused;
-                assert_eq!(*app.world().resource::<AlsHudState>(),
-                    AlsHudState { ui_visible: !expected, slomo_active: expected },
-                    "Source paused UI Pressed actions must preserve HUD and Slomo state");
-                assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(),
-                    if expected { SLMO_TIME_SCALE } else { 1.0 });
+                assert_eq!(
+                    *app.world().resource::<AlsHudState>(),
+                    AlsHudState {
+                        ui_visible: !expected,
+                        slomo_active: expected
+                    },
+                    "Source paused UI Pressed actions must preserve HUD and Slomo state"
+                );
+                assert_eq!(
+                    app.world().resource::<Time<Virtual>>().relative_speed(),
+                    if expected { SLMO_TIME_SCALE } else { 1.0 }
+                );
                 for section in [debug, input] {
-                    assert_eq!(app.world().get::<Node>(section).unwrap().display,
-                        if expected { Display::None } else { Display::Flex });
+                    assert_eq!(
+                        app.world().get::<Node>(section).unwrap().display,
+                        if expected {
+                            Display::None
+                        } else {
+                            Display::Flex
+                        }
+                    );
                 }
                 let command = app.world().get::<AlsInputCommand>(player).unwrap();
-                assert_eq!([command.toggle_ui_pressed, command.slomo_pressed], [expected; 2],
-                    "Source paused UI bridge contract must match the actual HUD consumer");
+                assert_eq!(
+                    [command.toggle_ui_pressed, command.slomo_pressed],
+                    [expected; 2],
+                    "Source paused UI bridge contract must match the actual HUD consumer"
+                );
                 if paused {
                     app.world_mut().resource_mut::<Time<Virtual>>().unpause();
                     app.update();
-                    assert_eq!(*app.world().resource::<AlsHudState>(), AlsHudState::default(),
-                        "Source paused UI Pressed history must not replay after resume");
+                    assert_eq!(
+                        *app.world().resource::<AlsHudState>(),
+                        AlsHudState::default(),
+                        "Source paused UI Pressed history must not replay after resume"
+                    );
                 }
             }
             app.update();
-            assert_eq!(*app.world().resource::<AlsHudState>(), AlsHudState { ui_visible: false, slomo_active: true },
-                "Source held UI Pressed must not toggle again");
+            assert_eq!(
+                *app.world().resource::<AlsHudState>(),
+                AlsHudState {
+                    ui_visible: false,
+                    slomo_active: true
+                },
+                "Source held UI Pressed must not toggle again"
+            );
         }
     }
     #[test]
@@ -690,41 +750,97 @@ pub(crate) mod tests {
         use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
         for custom in [false, true] {
             for (button, key, toggle_ui) in [
-                (Some(if custom { GamepadButton::Start } else { GamepadButton::Select }), None, true),
-                (Some(if custom { GamepadButton::Select } else { GamepadButton::Start }), None, false),
-                (None, Some(KeyCode::Tab), true), (None, Some(KeyCode::KeyZ), false)] {
+                (
+                    Some(if custom {
+                        GamepadButton::Start
+                    } else {
+                        GamepadButton::Select
+                    }),
+                    None,
+                    true,
+                ),
+                (
+                    Some(if custom {
+                        GamepadButton::Select
+                    } else {
+                        GamepadButton::Start
+                    }),
+                    None,
+                    false,
+                ),
+                (None, Some(KeyCode::Tab), true),
+                (None, Some(KeyCode::KeyZ), false),
+            ] {
                 let mut app = App::new();
-                app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
-                    .init_resource::<AlsHudState>()
-                    .add_systems(Update, (toggle_ui_system, slomo_system));
+                app.add_plugins((
+                    MinimalPlugins,
+                    bevy::input::InputPlugin,
+                    EnhancedInputPlugin,
+                    AlsInputPlugin,
+                ))
+                .init_resource::<AlsHudState>()
+                .add_systems(Update, (toggle_ui_system, slomo_system));
                 app.finish();
                 let gamepad = app.world_mut().spawn(Gamepad::default()).id();
                 let player = app.world_mut().spawn_empty().id();
-                let debug = app.world_mut().spawn((Node::default(), AlsHudDebugSection)).id();
-                let input = app.world_mut().spawn((Node::default(), AlsHudInputSection)).id();
+                let debug = app
+                    .world_mut()
+                    .spawn((Node::default(), AlsHudDebugSection))
+                    .id();
+                let input = app
+                    .world_mut()
+                    .spawn((Node::default(), AlsHudInputSection))
+                    .id();
                 let mut map = AlsInputMap::default();
                 if custom {
                     map.toggle_ui = vec![KeyCode::Tab.into(), GamepadButton::Start.into()];
                     map.slomo = vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()];
                 }
                 spawn_als_actions(&mut app.world_mut().commands(), player, &map);
-                app.update(); app.update();
+                app.update();
+                app.update();
                 for (frame, pressed) in [true, true, false, true].into_iter().enumerate() {
                     if let Some(button) = button {
-                        app.world_mut().get_mut::<Gamepad>(gamepad).unwrap().analog_mut().set(button, if pressed { 1.0 } else { 0.0 });
+                        app.world_mut()
+                            .get_mut::<Gamepad>(gamepad)
+                            .unwrap()
+                            .analog_mut()
+                            .set(button, if pressed { 1.0 } else { 0.0 });
                     }
                     if let Some(key) = key {
                         let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
-                        if pressed { keys.press(key); } else { keys.release(key); }
+                        if pressed {
+                            keys.press(key);
+                        } else {
+                            keys.release(key);
+                        }
                     }
                     app.update();
                     let state = *app.world().resource::<AlsHudState>();
                     let active = frame < 3;
-                    assert_eq!(state.ui_visible, !(toggle_ui && active), "custom={custom} button={button:?} key={key:?} frame={frame}: {state:?}");
+                    assert_eq!(
+                        state.ui_visible,
+                        !(toggle_ui && active),
+                        "custom={custom} button={button:?} key={key:?} frame={frame}: {state:?}"
+                    );
                     assert_eq!(state.slomo_active, !toggle_ui && active);
-                    assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), if !toggle_ui && active { SLMO_TIME_SCALE } else { 1.0 });
+                    assert_eq!(
+                        app.world().resource::<Time<Virtual>>().relative_speed(),
+                        if !toggle_ui && active {
+                            SLMO_TIME_SCALE
+                        } else {
+                            1.0
+                        }
+                    );
                     for section in [debug, input] {
-                        assert_eq!(app.world().get::<Node>(section).unwrap().display, if toggle_ui && active { Display::None } else { Display::Flex });
+                        assert_eq!(
+                            app.world().get::<Node>(section).unwrap().display,
+                            if toggle_ui && active {
+                                Display::None
+                            } else {
+                                Display::Flex
+                            }
+                        );
                     }
                 }
             }

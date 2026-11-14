@@ -140,9 +140,15 @@ impl SourceScalarExpressionNode {
                     (left - right).abs() > f32::EPSILON
                 }
             }
-            "and" => self.input_pins.iter().filter(|pin| pin.data_type == SourceScalarDataType::Bool)
+            "and" => self
+                .input_pins
+                .iter()
+                .filter(|pin| pin.data_type == SourceScalarDataType::Bool)
                 .fold(true, |value, pin| value & self.input_bool(ctx, &pin.name)),
-            "or" => self.input_pins.iter().filter(|pin| pin.data_type == SourceScalarDataType::Bool)
+            "or" => self
+                .input_pins
+                .iter()
+                .filter(|pin| pin.data_type == SourceScalarDataType::Bool)
                 .fold(false, |value, pin| value | self.input_bool(ctx, &pin.name)),
             "not" => !self.input_bool(ctx, "A"),
             "gameplay_tag_valid" => self.input_bool(ctx, "GameplayTag"),
@@ -230,8 +236,15 @@ mod tests {
             let inputs = HashMap::new();
             let env = TestIoEnv::default();
             let context = GraphContext::new(
-                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
-                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &inputs,
             );
             graph
                 .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
@@ -247,8 +260,16 @@ mod tests {
         let mut failures = Vec::new();
 
         for (data_type, value, spec) in [
-            (SourceScalarDataType::F32, DataValue::F32(2.5), DataSpec::F32),
-            (SourceScalarDataType::Bool, DataValue::Bool(true), DataSpec::Bool),
+            (
+                SourceScalarDataType::F32,
+                DataValue::F32(2.5),
+                DataSpec::F32,
+            ),
+            (
+                SourceScalarDataType::Bool,
+                DataValue::Bool(true),
+                DataSpec::Bool,
+            ),
         ] {
             let mut graph = AnimationGraph::new();
             let node = AnimationNode::new(
@@ -293,12 +314,16 @@ mod tests {
     fn boolean_operators_use_every_declared_operand() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
-            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate},
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, TimeUpdate},
             animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
                 graph_context_arena::GraphContextArena, new_context::GraphContext,
-                system_resources::SystemResources},
-            skeleton::Skeleton, state_machine::high_level::StateMachine,
+                system_resources::SystemResources,
+            },
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
         };
         fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> bool {
@@ -308,10 +333,22 @@ mod tests {
             let entities = HashMap::new();
             let inputs = HashMap::new();
             let env = TestIoEnv::default();
-            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
-                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
-                .unwrap()["Result"].as_bool().unwrap()
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
+            graph
+                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                .unwrap()["Result"]
+                .as_bool()
+                .unwrap()
         }
         let mut world = World::new();
         world.insert_resource(Assets::<AnimationGraph>::default());
@@ -323,23 +360,39 @@ mod tests {
             for bits in 0..(1 << count) {
                 for operation in ["and", "or"] {
                     let mut graph = AnimationGraph::new();
-                    let node = AnimationNode::new("boolean", SourceScalarExpressionNode {
-                        operation: operation.into(),
-                        input_pins: (0..count).map(|index| SourceScalarPin {
-                            name: ((b'A' + index) as char).to_string(),
-                            data_type: SourceScalarDataType::Bool,
-                            bool_default: bits & (1 << index) != 0, ..default()
-                        }).collect(),
-                        output_pins: vec![SourceScalarPin { name: "ReturnValue".into(), data_type: SourceScalarDataType::Bool, ..default() }],
-                        ..default()
-                    });
+                    let node = AnimationNode::new(
+                        "boolean",
+                        SourceScalarExpressionNode {
+                            operation: operation.into(),
+                            input_pins: (0..count)
+                                .map(|index| SourceScalarPin {
+                                    name: ((b'A' + index) as char).to_string(),
+                                    data_type: SourceScalarDataType::Bool,
+                                    bool_default: bits & (1 << index) != 0,
+                                    ..default()
+                                })
+                                .collect(),
+                            output_pins: vec![SourceScalarPin {
+                                name: "ReturnValue".into(),
+                                data_type: SourceScalarDataType::Bool,
+                                ..default()
+                            }],
+                            ..default()
+                        },
+                    );
                     graph.add_node(node.clone());
                     graph.add_output_data("Result".into(), DataSpec::Bool);
                     graph.add_output_data_edge(node.id, "ReturnValue", "Result");
                     let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
                     let actual = world.run_system_cached_with(query, handle).unwrap();
-                    let expected = if operation == "and" { bits == (1 << count) - 1 } else { bits != 0 };
-                    if actual != expected { failures.push((operation, count, bits)); }
+                    let expected = if operation == "and" {
+                        bits == (1 << count) - 1
+                    } else {
+                        bits != 0
+                    };
+                    if actual != expected {
+                        failures.push((operation, count, bits));
+                    }
                 }
             }
         }

@@ -112,8 +112,10 @@ struct RawAdditiveReference {
 }
 
 static RAW_ADDITIVE_REFERENCES: LazyLock<Vec<RawAdditiveReference>> = LazyLock::new(|| {
-    serde_json::from_slice(include_bytes!("../../assets/ALSRuntime/Animations/als_raw_additive_references.json"))
-        .expect("Generated raw additive reference poses")
+    serde_json::from_slice(include_bytes!(
+        "../../assets/ALSRuntime/Animations/als_raw_additive_references.json"
+    ))
+    .expect("Generated raw additive reference poses")
 });
 
 impl SourceTransform {
@@ -424,7 +426,10 @@ impl PreparedAcl {
 
     fn reference_pose(&self, additive: bool) -> SourcePose {
         SourcePose {
-            bones: self.bone_references.iter().zip(&self.bone_ids)
+            bones: self
+                .bone_references
+                .iter()
+                .zip(&self.bone_ids)
                 .map(|(bone, &id)| (id, Self::initial_transform(bone, additive)))
                 .collect(),
             length_scale: self.source_length_to_runtime_scale,
@@ -551,7 +556,8 @@ impl PreparedAcl {
 }
 
 pub(crate) fn prepared_reference_pose(skeleton: &Handle<Skeleton>) -> Option<SourcePose> {
-    skeleton.path()
+    skeleton
+        .path()
         .filter(|path| path.path() == Path::new("ALS/Character/SKM_Als.skn.ron"))
         .map(|_| PREPARED_ACL.reference_pose(false))
 }
@@ -566,7 +572,12 @@ pub(crate) fn sample_raw_additive_reference(clip: &GraphClip, time: f32) -> Opti
         return None;
     }
     Some(SourcePose {
-        bones: data.bone_ids.iter().copied().zip(source.bones.iter().map(SourceTransform::rig_transform)).collect(),
+        bones: data
+            .bone_ids
+            .iter()
+            .copied()
+            .zip(source.bones.iter().map(SourceTransform::rig_transform))
+            .collect(),
         length_scale: data.source_length_to_runtime_scale,
     })
 }
@@ -727,10 +738,22 @@ mod tests {
         assert_eq!(raw.bones.len(), 79);
         let spine = EntityPath::from_slashed_string(
             "GltfNode0/root/pelvis/spine_01/spine_02/spine_03".to_owned(),
-        ).id();
+        )
+        .id();
         let raw = raw.bones.iter().find(|(bone, _)| *bone == spine).unwrap().1;
-        assert_eq!(raw.translation, DVec3::new(13.412386894226074, -0.4207170009613037, -9.5367431640625e-7));
-        assert_ne!(ordinary.bones.iter().find(|(bone, _)| *bone == spine).unwrap().1, raw);
+        assert_eq!(
+            raw.translation,
+            DVec3::new(13.412386894226074, -0.4207170009613037, -9.5367431640625e-7)
+        );
+        assert_ne!(
+            ordinary
+                .bones
+                .iter()
+                .find(|(bone, _)| *bone == spine)
+                .unwrap()
+                .1,
+            raw
+        );
         assert!(sample_raw_additive_reference(&lean, 0.01).is_none());
     }
 

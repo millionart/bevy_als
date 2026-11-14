@@ -153,8 +153,7 @@ fn anim_probe_logger(
     else {
         return;
     };
-    let Ok((instance, dir_state)) = avatars.get(assembly.avatar)
-    else {
+    let Ok((instance, dir_state)) = avatars.get(assembly.avatar) else {
         return;
     };
     let Ok(player) = players.get(instance.player_entity()) else {
@@ -301,7 +300,12 @@ mod tests {
 
     #[test]
     fn facing_probe_only_tracks_source_velocity_facing_modes() {
-        for (direction, yaw) in [(Vec3::NEG_Z, 0.0), (Vec3::X, -90.0), (Vec3::Z, 180.0), (Vec3::NEG_X, 90.0)] {
+        for (direction, yaw) in [
+            (Vec3::NEG_Z, 0.0),
+            (Vec3::X, -90.0),
+            (Vec3::Z, 180.0),
+            (Vec3::NEG_X, 90.0),
+        ] {
             assert!(angle_err(yaw_deg(direction), yaw) < 1e-4);
         }
         assert!(facing_tracks_velocity(

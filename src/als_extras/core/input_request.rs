@@ -154,47 +154,127 @@ mod tests {
 
     #[test]
     fn walk_input_preserves_sprinting_and_custom_desired_gaits() {
-        for gait in [Gait::Sprinting, Gait::new("Als.Gait.Custom").unwrap(), Gait::new("").unwrap()] {
+        for gait in [
+            Gait::Sprinting,
+            Gait::new("Als.Gait.Custom").unwrap(),
+            Gait::new("").unwrap(),
+        ] {
             let mut app = app_with_plugins();
             let held = gait == Gait::Sprinting;
-            let character = spawn_character(&mut app, Stance::Standing, gait,
-                AlsInputCommand { walk_pressed: true, sprint_held: held, ..default() });
-            app.world_mut().entity_mut(character).insert(AlsSprintPrev(held));
-            app.world_mut().run_system_once(input_state_request_system).unwrap();
-            assert_eq!(app.world().get::<crate::als::gait::AlsDesiredGait>(character).unwrap().0, gait);
-            assert!(app.world().get::<AlsStateRequest>(character).unwrap().gait.is_none());
+            let character = spawn_character(
+                &mut app,
+                Stance::Standing,
+                gait,
+                AlsInputCommand {
+                    walk_pressed: true,
+                    sprint_held: held,
+                    ..default()
+                },
+            );
+            app.world_mut()
+                .entity_mut(character)
+                .insert(AlsSprintPrev(held));
+            app.world_mut()
+                .run_system_once(input_state_request_system)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<crate::als::gait::AlsDesiredGait>(character)
+                    .unwrap()
+                    .0,
+                gait
+            );
+            assert!(
+                app.world()
+                    .get::<AlsStateRequest>(character)
+                    .unwrap()
+                    .gait
+                    .is_none()
+            );
         }
     }
 
     #[test]
     fn crouch_input_preserves_custom_desired_stance_and_pending_requests() {
-        for desired in [Stance::new("Als.Stance.Prone").unwrap(), Stance::new("").unwrap()] {
+        for desired in [
+            Stance::new("Als.Stance.Prone").unwrap(),
+            Stance::new("").unwrap(),
+        ] {
             for pending in [None, Some(Stance::Crouching)] {
                 let mut app = app_with_plugins();
-                let character = spawn_character(&mut app, Stance::Standing, Gait::Running,
-                    AlsInputCommand { crouch_pressed: true, ..default() });
-                app.world_mut().entity_mut(character).insert(AlsDesiredStance(desired));
-                app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = pending;
-                app.world_mut().run_system_once(input_state_request_system).unwrap();
-                assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, desired);
-                assert_eq!(app.world().get::<AlsStateRequest>(character).unwrap().stance, pending);
+                let character = spawn_character(
+                    &mut app,
+                    Stance::Standing,
+                    Gait::Running,
+                    AlsInputCommand {
+                        crouch_pressed: true,
+                        ..default()
+                    },
+                );
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsDesiredStance(desired));
+                app.world_mut()
+                    .get_mut::<AlsStateRequest>(character)
+                    .unwrap()
+                    .stance = pending;
+                app.world_mut()
+                    .run_system_once(input_state_request_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world().get::<AlsDesiredStance>(character).unwrap().0,
+                    desired
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<AlsStateRequest>(character)
+                        .unwrap()
+                        .stance,
+                    pending
+                );
             }
         }
     }
 
     #[test]
     fn rotation_input_uses_source_fallback_for_custom_saved_modes() {
-        for stored in [RotationMode::new("Als.RotationMode.Custom").unwrap(), RotationMode::new("").unwrap()] {
+        for stored in [
+            RotationMode::new("Als.RotationMode.Custom").unwrap(),
+            RotationMode::new("").unwrap(),
+        ] {
             for aiming in [false, true] {
                 let mut app = app_with_plugins();
-                let character = spawn_character(&mut app, Stance::Standing, Gait::Running,
-                    AlsInputCommand { rotation_mode_pressed: true, ..default() });
-                *app.world_mut().get_mut::<RotationMode>(character).unwrap() = if aiming { RotationMode::Aiming } else { stored };
-                app.world_mut().entity_mut(character).insert(AlsLastFreeRotationMode(stored));
-                app.world_mut().run_system_once(input_state_request_system).unwrap();
-                assert_eq!(app.world().get::<AlsLastFreeRotationMode>(character).unwrap().0, RotationMode::VelocityDirection);
-                assert_eq!(app.world().get::<AlsStateRequest>(character).unwrap().rotation_mode,
-                    (!aiming).then_some(RotationMode::VelocityDirection));
+                let character = spawn_character(
+                    &mut app,
+                    Stance::Standing,
+                    Gait::Running,
+                    AlsInputCommand {
+                        rotation_mode_pressed: true,
+                        ..default()
+                    },
+                );
+                *app.world_mut().get_mut::<RotationMode>(character).unwrap() =
+                    if aiming { RotationMode::Aiming } else { stored };
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsLastFreeRotationMode(stored));
+                app.world_mut()
+                    .run_system_once(input_state_request_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world()
+                        .get::<AlsLastFreeRotationMode>(character)
+                        .unwrap()
+                        .0,
+                    RotationMode::VelocityDirection
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<AlsStateRequest>(character)
+                        .unwrap()
+                        .rotation_mode,
+                    (!aiming).then_some(RotationMode::VelocityDirection)
+                );
             }
         }
     }
@@ -311,7 +391,10 @@ mod tests {
 
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Sprinting
         );
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
@@ -322,7 +405,10 @@ mod tests {
             .sprint_held = false;
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Running
         );
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
@@ -345,7 +431,10 @@ mod tests {
         app.update();
 
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Sprinting
         );
         assert_eq!(
@@ -382,7 +471,10 @@ mod tests {
             Stance::Crouching
         );
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Sprinting
         );
     }
@@ -403,7 +495,10 @@ mod tests {
 
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Sprinting
         );
         assert_eq!(
@@ -418,7 +513,10 @@ mod tests {
             .sprint_held = false;
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Running
         );
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
@@ -444,7 +542,10 @@ mod tests {
 
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Walking
         );
 
@@ -454,7 +555,10 @@ mod tests {
             .walk_pressed = false;
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Walking
         );
 
@@ -464,7 +568,10 @@ mod tests {
             .walk_pressed = true;
         app.update();
         assert_eq!(
-            app.world().get::<crate::als::gait::AlsDesiredGait>(e).unwrap().0,
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
             Gait::Running
         );
     }
@@ -487,7 +594,9 @@ mod tests {
             *app.world().get::<LocomotionState>(e).unwrap(),
             LocomotionState::Grounded
         );
-        app.world_mut().entity_mut(e).insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
+        app.world_mut()
+            .entity_mut(e)
+            .insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
 
         app.world_mut()
             .get_mut::<AlsInputCommand>(e)

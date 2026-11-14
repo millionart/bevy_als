@@ -103,17 +103,31 @@ impl AlsSourceRefreshNode {
     }
 
     fn refresh_in_air(&self, ctx: &NodeContext) -> Result<(), GraphError> {
-        let scalar = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
-        let boolean = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());
+        let scalar =
+            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
+        let boolean =
+            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());
         if boolean("in_air_state.b_jumped", false)? {
             set_source_property(ctx, "in_air_state.b_jumped", false)?;
-            set_source_property(ctx, "in_air_state.jump_play_rate", scalar("in_air_source.jump_play_rate", 1.0)?)?;
+            set_source_property(
+                ctx,
+                "in_air_state.jump_play_rate",
+                scalar("in_air_source.jump_play_rate", 1.0)?,
+            )?;
         }
         let velocity = source_input_data(ctx, "locomotion_state.velocity_world_space")
             .map_or(Ok(Vec3::ZERO), |value| value.as_vec3())?;
         let vertical_centimeters = (f64::from(velocity.y) * 100.0) as f32;
-        set_source_property(ctx, "in_air_state.vertical_velocity_world_space", vertical_centimeters)?;
-        set_source_property(ctx, "in_air_state.ground_prediction_amount", scalar("in_air_source.ground_prediction_amount", 0.0)?)?;
+        set_source_property(
+            ctx,
+            "in_air_state.vertical_velocity_world_space",
+            vertical_centimeters,
+        )?;
+        set_source_property(
+            ctx,
+            "in_air_state.ground_prediction_amount",
+            scalar("in_air_source.ground_prediction_amount", 0.0)?,
+        )?;
         let target = source_input_data(ctx, "in_air_source.lean_target")
             .map_or(Ok(Vec2::ZERO), |value| value.as_vec2())?;
         let half_life = scalar("in_air_source.lean_interpolation_half_life", 0.0)?;
@@ -121,7 +135,8 @@ impl AlsSourceRefreshNode {
             1.0
         } else {
             1.0 - crate::als::animation::inv_exp_approx(
-                std::f32::consts::LN_2 / (half_life + 1e-8) * scalar("animation.delta_seconds", 0.0)?,
+                std::f32::consts::LN_2 / (half_life + 1e-8)
+                    * scalar("animation.delta_seconds", 0.0)?,
             )
         };
         for (key, target) in [
@@ -150,12 +165,15 @@ impl AlsSourceRefreshNode {
                 std::f32::consts::LN_2 / (half_life + 1e-8) * dt,
             )
         };
-        let velocity_half_life = scalar("grounded_source.velocity_blend_interpolation_half_life",
-            crate::standing_source::velocity_blend_interpolation_half_life())?;
+        let velocity_half_life = scalar(
+            "grounded_source.velocity_blend_interpolation_half_life",
+            crate::standing_source::velocity_blend_interpolation_half_life(),
+        )?;
         let velocity_alpha = if boolean(
             "grounded_state.velocity_blend.b_initialization_required",
             true,
-        )? || velocity_half_life <= 0.0 {
+        )? || velocity_half_life <= 0.0
+        {
             1.0
         } else {
             alpha(velocity_half_life)
@@ -192,8 +210,10 @@ impl AlsSourceRefreshNode {
             scalar("locomotion_state.max_acceleration", 0.0)?,
             scalar("locomotion_state.max_braking_deceleration", 0.0)?,
         );
-        let lean_half_life = scalar("in_air_source.lean_interpolation_half_life",
-            crate::locomotion_layer::lean_interpolation_half_life())?;
+        let lean_half_life = scalar(
+            "in_air_source.lean_interpolation_half_life",
+            crate::locomotion_layer::lean_interpolation_half_life(),
+        )?;
         let lean_alpha = if boolean("animation.pending_update", true)? || lean_half_life <= 0.0 {
             1.0
         } else {
@@ -355,7 +375,8 @@ impl AlsSourceRefreshNode {
                 use crate::als::{
                     state::Stance,
                     transitions::{
-                        TransitionConfig, TransitionSequence, foot_lock_distance_squared_cm, select_dynamic_transition,
+                        TransitionConfig, TransitionSequence, foot_lock_distance_squared_cm,
+                        select_dynamic_transition,
                     },
                 };
                 let delay = scalar("dynamic_transitions_state.frame_delay", 0.0)?;
@@ -372,7 +393,10 @@ impl AlsSourceRefreshNode {
                     };
                     let selection = select_dynamic_transition(
                         distances,
-                        [scalar("feet_state.left.lock_amount", 0.0)?, scalar("feet_state.right.lock_amount", 0.0)?],
+                        [
+                            scalar("feet_state.left.lock_amount", 0.0)?,
+                            scalar("feet_state.right.lock_amount", 0.0)?,
+                        ],
                         scalar("locomotion_state.scale_world_space", 1.0)?,
                         if boolean("stance.crouching", false)? {
                             Stance::Crouching
@@ -675,7 +699,10 @@ mod tests {
 
     #[test]
     fn in_air_source_calls_latch_landing_values_consume_jumps_and_reset_lean_on_reentry() {
-        fn query(In(root): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<[f32; 5]> {
+        fn query(
+            In(root): In<Handle<AnimationGraph>>,
+            resources: SystemResources,
+        ) -> Vec<[f32; 5]> {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let mut gizmos = DeferredGizmos::default();
@@ -690,33 +717,93 @@ mod tests {
                     6 => Vec2::new(0.2, 0.3),
                     _ => Vec2::ZERO,
                 };
-                let vertical_velocity = if frame == 0 { -0.32699996 } else { -((frame + 1) as f32) };
+                let vertical_velocity = if frame == 0 {
+                    -0.32699996
+                } else {
+                    -((frame + 1) as f32)
+                };
                 let inputs = HashMap::from([
                     ("fixture".to_owned(), DataValue::Pose(default())),
-                    ("active".to_owned(), DataValue::F32(if matches!(frame, 2 | 3) { 0.0 } else { 1.0 })),
+                    (
+                        "active".to_owned(),
+                        DataValue::F32(if matches!(frame, 2 | 3) { 0.0 } else { 1.0 }),
+                    ),
                     ("animation.delta_seconds".to_owned(), DataValue::F32(0.2)),
-                    ("animation.pending_update".to_owned(), DataValue::Bool(frame == 0 || frame == 6)),
-                    ("source_frame_input.in_air_state.b_jumped".to_owned(), DataValue::Bool(matches!(frame, 1 | 3 | 4))),
-                    ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::Y * vertical_velocity)),
-                    ("in_air_source.ground_prediction_amount".to_owned(), DataValue::F32(frame as f32 * 0.1)),
-                    ("in_air_source.jump_play_rate".to_owned(), DataValue::F32(if frame == 4 { 1.5 } else { 1.35 })),
-                    ("in_air_source.lean_target".to_owned(), DataValue::Vec2(target)),
-                    ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(if frame == 5 { 0.0 } else { 0.2 })),
+                    (
+                        "animation.pending_update".to_owned(),
+                        DataValue::Bool(frame == 0 || frame == 6),
+                    ),
+                    (
+                        "source_frame_input.in_air_state.b_jumped".to_owned(),
+                        DataValue::Bool(matches!(frame, 1 | 3 | 4)),
+                    ),
+                    (
+                        "locomotion_state.velocity_world_space".to_owned(),
+                        DataValue::Vec3(Vec3::Y * vertical_velocity),
+                    ),
+                    (
+                        "in_air_source.ground_prediction_amount".to_owned(),
+                        DataValue::F32(frame as f32 * 0.1),
+                    ),
+                    (
+                        "in_air_source.jump_play_rate".to_owned(),
+                        DataValue::F32(if frame == 4 { 1.5 } else { 1.35 }),
+                    ),
+                    (
+                        "in_air_source.lean_target".to_owned(),
+                        DataValue::Vec2(target),
+                    ),
+                    (
+                        "in_air_source.lean_interpolation_half_life".to_owned(),
+                        DataValue::F32(if frame == 5 { 0.0 } else { 0.2 }),
+                    ),
                 ]);
-                graph.query_with_context(
-                    QueryOutputTime::Forced(TimeUpdate::Delta(0.2)),
-                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
-                        Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs),
-                ).unwrap();
-                let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
-                values.push([
-                    "in_air_state.jump_play_rate", "in_air_state.vertical_velocity_world_space",
-                    "in_air_state.ground_prediction_amount", "lean_state.forward_amount", "lean_state.right_amount",
-                ].map(|key| state.values.get(key).and_then(|value| value.as_f32().ok()).unwrap_or(if key.ends_with("jump_play_rate") { 1.0 } else { 0.0 })));
+                graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.2)),
+                        GraphContext::new(
+                            arena.get_toplevel_id(),
+                            graph,
+                            &mut arena,
+                            &resources,
+                            &env,
+                            Entity::PLACEHOLDER,
+                            &entities,
+                            &mut gizmos,
+                            &inputs,
+                        ),
+                    )
+                    .unwrap();
+                let state = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                    .unwrap();
+                values.push(
+                    [
+                        "in_air_state.jump_play_rate",
+                        "in_air_state.vertical_velocity_world_space",
+                        "in_air_state.ground_prediction_amount",
+                        "lean_state.forward_amount",
+                        "lean_state.right_amount",
+                    ]
+                    .map(|key| {
+                        state
+                            .values
+                            .get(key)
+                            .and_then(|value| value.as_f32().ok())
+                            .unwrap_or(if key.ends_with("jump_play_rate") {
+                                1.0
+                            } else {
+                                0.0
+                            })
+                    }),
+                );
             }
             values
         }
-        let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.2);
+        let alpha = 1.0
+            - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.2);
         let expected = [
             [1.0, -32.699997, 0.0, 1.0, 2.0],
             [1.35, -200.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
@@ -728,23 +815,63 @@ mod tests {
         ];
         for (execute, initialize_enabled) in [(true, true), (false, true), (true, false)] {
             let mut graph = AnimationGraph::new();
-            let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "fixture".to_owned(), output: "Pose".to_owned() });
+            let pose = AnimationNode::new(
+                "pose",
+                GlobalPoseInputNode {
+                    key: "fixture".to_owned(),
+                    output: "Pose".to_owned(),
+                },
+            );
             let refresh = if execute {
-                AnimationNode::new("refresh", AlsSourceRefreshNode { function: AlsSourceRefreshFunction::RefreshInAir })
+                AnimationNode::new(
+                    "refresh",
+                    AlsSourceRefreshNode {
+                        function: AlsSourceRefreshFunction::RefreshInAir,
+                    },
+                )
             } else {
-                AnimationNode::new("refresh", SourcePosePassthroughNode { output_time: false, ..default() })
+                AnimationNode::new(
+                    "refresh",
+                    SourcePosePassthroughNode {
+                        output_time: false,
+                        ..default()
+                    },
+                )
             };
-            let initialize = AnimationNode::new("initialize", SourcePropertyWriteNode {
-                assignments: if initialize_enabled {
-                    ["lean_state.forward_amount", "lean_state.right_amount"].map(|property| SourcePropertyAssignment {
-                        property: property.to_owned(), value: DataValue::F32(0.0),
-                    }).to_vec()
-                } else { vec![] },
-                on_become_relevant: true,
-            });
-            let active = AnimationNode::new("active", SourceTwoWayBlendNode { alpha_key: "active".to_owned(), ..default() });
-            let scope = AnimationNode::new("scope", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
-            for node in [&pose, &refresh, &initialize, &active, &scope] { graph.add_node(node.clone()); }
+            let initialize = AnimationNode::new(
+                "initialize",
+                SourcePropertyWriteNode {
+                    assignments: if initialize_enabled {
+                        ["lean_state.forward_amount", "lean_state.right_amount"]
+                            .map(|property| SourcePropertyAssignment {
+                                property: property.to_owned(),
+                                value: DataValue::F32(0.0),
+                            })
+                            .to_vec()
+                    } else {
+                        vec![]
+                    },
+                    on_become_relevant: true,
+                },
+            );
+            let active = AnimationNode::new(
+                "active",
+                SourceTwoWayBlendNode {
+                    alpha_key: "active".to_owned(),
+                    ..default()
+                },
+            );
+            let scope = AnimationNode::new(
+                "scope",
+                SourcePosePassthroughNode {
+                    synchronize_groups: true,
+                    output_time: false,
+                    ..default()
+                },
+            );
+            for node in [&pose, &refresh, &initialize, &active, &scope] {
+                graph.add_node(node.clone());
+            }
             graph.add_node_parameter_edge(pose.id, "Pose", refresh.id, "Source");
             graph.add_node_parameter_edge(refresh.id, "Pose", initialize.id, "Source");
             graph.add_node_parameter_edge(initialize.id, "Pose", active.id, "B");
@@ -764,10 +891,15 @@ mod tests {
                 for (frame, (actual, expected)) in actual.iter().zip(expected).enumerate() {
                     assert_eq!(actual[1], expected[1]);
                     for (field, (actual, expected)) in actual.iter().zip(expected).enumerate() {
-                        assert!((actual - expected).abs() < 1e-5, "frame {frame}, field {field}: {actual} != {expected}");
+                        assert!(
+                            (actual - expected).abs() < 1e-5,
+                            "frame {frame}, field {field}: {actual} != {expected}"
+                        );
                     }
                 }
-            } else { assert_ne!(actual[4], expected[4]); }
+            } else {
+                assert_ne!(actual[4], expected[4]);
+            }
         }
     }
 
@@ -937,10 +1069,22 @@ mod tests {
     fn native_rotate_damper_reaches_the_generated_sequence_pose() {
         use bevy_animation_graph::core::animation_graph::{SourcePin, TargetPin};
         use bevy_animation_graph::core::pose::Pose;
-        fn query(In((actual_handle, source_handle, delta)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, f32)>,
-            resources: SystemResources) -> (f32, f32) {
-            let actual_graph = resources.animation_graph_assets.get(&actual_handle).unwrap();
-            let source_graph = resources.animation_graph_assets.get(&source_handle).unwrap();
+        fn query(
+            In((actual_handle, source_handle, delta)): In<(
+                Handle<AnimationGraph>,
+                Handle<AnimationGraph>,
+                f32,
+            )>,
+            resources: SystemResources,
+        ) -> (f32, f32) {
+            let actual_graph = resources
+                .animation_graph_assets
+                .get(&actual_handle)
+                .unwrap();
+            let source_graph = resources
+                .animation_graph_assets
+                .get(&source_handle)
+                .unwrap();
             let mut actual_arena = GraphContextArena::new(actual_handle.id());
             let mut source_arena = GraphContextArena::new(source_handle.id());
             let mut source_rate = 1.0_f32;
@@ -948,32 +1092,64 @@ mod tests {
             let mut maximum_location_error = 0.0_f32;
             for _ in 0..2 {
                 let x = std::f32::consts::LN_2 / (0.15 + 1e-8) * delta;
-                let alpha = 1.0 - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+                let alpha = 1.0
+                    - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
                 source_rate += (3.0 - source_rate) * alpha;
                 let mut poses: Vec<Pose> = Vec::new();
-                for (graph, arena, reference) in [(actual_graph, &mut actual_arena, false), (source_graph, &mut source_arena, true)] {
+                for (graph, arena, reference) in [
+                    (actual_graph, &mut actual_arena, false),
+                    (source_graph, &mut source_arena, true),
+                ] {
                     let mut inputs = HashMap::from([
                         ("animation.delta_seconds".to_owned(), DataValue::F32(delta)),
-                        ("animation.pending_update".to_owned(), DataValue::Bool(false)),
+                        (
+                            "animation.pending_update".to_owned(),
+                            DataValue::Bool(false),
+                        ),
                         ("rotate_in_place.allowed".to_owned(), DataValue::Bool(true)),
                         ("view_state.yaw_angle".to_owned(), DataValue::F32(80.0)),
                         ("view_state.yaw_speed".to_owned(), DataValue::F32(460.0)),
-                        ("rotate_in_place_state.b_rotating_right".to_owned(), DataValue::Bool(true)),
+                        (
+                            "rotate_in_place_state.b_rotating_right".to_owned(),
+                            DataValue::Bool(true),
+                        ),
                     ]);
-                    if reference { inputs.insert("rotate_in_place_state.play_rate".to_owned(), source_rate.into()); }
+                    if reference {
+                        inputs.insert(
+                            "rotate_in_place_state.play_rate".to_owned(),
+                            source_rate.into(),
+                        );
+                    }
                     let mut gizmos = DeferredGizmos::default();
                     let entities = HashMap::new();
                     let env = TestIoEnv::default();
-                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
-                        GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env,
-                            Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    let output = graph
+                        .query_with_context(
+                            QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                            GraphContext::new(
+                                arena.get_toplevel_id(),
+                                graph,
+                                arena,
+                                &resources,
+                                &env,
+                                Entity::PLACEHOLDER,
+                                &entities,
+                                &mut gizmos,
+                                &inputs,
+                            ),
+                        )
+                        .unwrap();
                     poses.push(output["Result"].as_pose().unwrap().clone());
                 }
                 for bone in poses[1].paths.keys() {
                     let a = poses[0].get_bone(*bone).unwrap();
                     let s = poses[1].get_bone(*bone).unwrap();
-                    if let (Some(a), Some(s)) = (a.rotation, s.rotation) { minimum_dot = minimum_dot.min(a.dot(s).abs()); }
-                    if let (Some(a), Some(s)) = (a.translation, s.translation) { maximum_location_error = maximum_location_error.max(a.distance(s)); }
+                    if let (Some(a), Some(s)) = (a.rotation, s.rotation) {
+                        minimum_dot = minimum_dot.min(a.dot(s).abs());
+                    }
+                    if let (Some(a), Some(s)) = (a.translation, s.translation) {
+                        maximum_location_error = maximum_location_error.max(a.distance(s));
+                    }
                 }
             }
             (minimum_dot, maximum_location_error)
@@ -981,24 +1157,56 @@ mod tests {
         let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
         let leaf: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load(
             "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron");
-        for _ in 0..3 { app.update(); }
-        let source_graph = app.world().resource::<Assets<AnimationGraph>>().get(&leaf).unwrap().clone();
+        for _ in 0..3 {
+            app.update();
+        }
+        let source_graph = app
+            .world()
+            .resource::<Assets<AnimationGraph>>()
+            .get(&leaf)
+            .unwrap()
+            .clone();
         let mut actual_graph = source_graph.clone();
-        let SourcePin::NodeData(source_node, source_pin) = actual_graph.edges_inverted[&TargetPin::OutputData("Result".to_owned())].clone() else { panic!("Rotate output must be a pose node"); };
-        let refresh = AnimationNode::new("Native Rotate", AlsSourceRefreshNode { function:AlsSourceRefreshFunction::RefreshRotateInPlace });
+        let SourcePin::NodeData(source_node, source_pin) =
+            actual_graph.edges_inverted[&TargetPin::OutputData("Result".to_owned())].clone()
+        else {
+            panic!("Rotate output must be a pose node");
+        };
+        let refresh = AnimationNode::new(
+            "Native Rotate",
+            AlsSourceRefreshNode {
+                function: AlsSourceRefreshFunction::RefreshRotateInPlace,
+            },
+        );
         actual_graph.add_node(refresh.clone());
         actual_graph.add_node_parameter_edge(source_node, source_pin, refresh.id, "Source");
         actual_graph.add_output_data_edge(refresh.id, "Pose", "Result");
-        let actual = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(actual_graph);
-        let source = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(source_graph);
+        let actual = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(actual_graph);
+        let source = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(source_graph);
         let mut errors = Vec::new();
         for delta in [0.15_f32, 0.25, 1.0] {
-            let (minimum_dot, location_error) = app.world_mut().run_system_cached_with(query, (actual.clone(), source.clone(), delta)).unwrap();
+            let (minimum_dot, location_error) = app
+                .world_mut()
+                .run_system_cached_with(query, (actual.clone(), source.clone(), delta))
+                .unwrap();
             if minimum_dot <= 1.0 - 1e-5 || location_error >= 1e-5 {
-                errors.push((delta, (2.0 * minimum_dot.clamp(-1.0, 1.0).acos()).to_degrees(), location_error));
+                errors.push((
+                    delta,
+                    (2.0 * minimum_dot.clamp(-1.0, 1.0).acos()).to_degrees(),
+                    location_error,
+                ));
             }
         }
-        assert!(errors.is_empty(), "Native Rotate damper changes the generated pose (delta, rotation degrees, location): {errors:?}");
+        assert!(
+            errors.is_empty(),
+            "Native Rotate damper changes the generated pose (delta, rotation degrees, location): {errors:?}"
+        );
     }
 
     #[test]
@@ -1015,7 +1223,10 @@ mod tests {
             let inputs = HashMap::from([
                 ("fixture".to_owned(), DataValue::Pose(default())),
                 ("animation.delta_seconds".to_owned(), DataValue::F32(delta)),
-                ("animation.pending_update".to_owned(), DataValue::Bool(pending)),
+                (
+                    "animation.pending_update".to_owned(),
+                    DataValue::Bool(pending),
+                ),
                 ("rotate_in_place.allowed".to_owned(), DataValue::Bool(true)),
                 ("view_state.yaw_angle".to_owned(), DataValue::F32(-80.0)),
                 ("view_state.yaw_speed".to_owned(), DataValue::F32(460.0)),
@@ -1078,25 +1289,43 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        let first = world.run_system_cached_with(query, (root.clone(), true, 0.15)).unwrap();
-        let second = world.run_system_cached_with(query, (root.clone(), true, 0.15)).unwrap();
+        let first = world
+            .run_system_cached_with(query, (root.clone(), true, 0.15))
+            .unwrap();
+        let second = world
+            .run_system_cached_with(query, (root.clone(), true, 0.15))
+            .unwrap();
         assert_eq!((first.0, first.1), (true, 3.0));
         assert_eq!((second.0, second.1), (true, 3.0));
         assert_ne!(first.2, second.2);
         for delta in [0.0_f32, 0.15, 0.25, 1.0] {
-            let actual = world.run_system_cached_with(query, (root.clone(), false, delta)).unwrap();
+            let actual = world
+                .run_system_cached_with(query, (root.clone(), false, delta))
+                .unwrap();
             let x = std::f32::consts::LN_2 / (0.15 + 1e-8) * delta;
-            let source_alpha = 1.0 - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+            let source_alpha =
+                1.0 - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
             let source_rate = 1.0 + 2.0 * source_alpha;
-            assert!(actual.0 && (actual.1 - source_rate).abs() < 1e-6,
-                "Actual Rotate source instance uses a different damper: delta={delta}, actual={}, source={source_rate}", actual.1);
+            assert!(
+                actual.0 && (actual.1 - source_rate).abs() < 1e-6,
+                "Actual Rotate source instance uses a different damper: delta={delta}, actual={}, source={source_rate}",
+                actual.1
+            );
         }
     }
 
     #[test]
     fn grounded_source_refresh_uses_configured_lean_half_life() {
-        fn sample(In((root, lean_half, velocity_half, pending, initializing)):
-            In<(Handle<AnimationGraph>, f32, f32, bool, bool)>, resources: SystemResources) -> (f32, f32) {
+        fn sample(
+            In((root, lean_half, velocity_half, pending, initializing)): In<(
+                Handle<AnimationGraph>,
+                f32,
+                f32,
+                bool,
+                bool,
+            )>,
+            resources: SystemResources,
+        ) -> (f32, f32) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let mut gizmos = DeferredGizmos::default();
@@ -1105,28 +1334,86 @@ mod tests {
             let inputs = HashMap::from([
                 ("fixture".to_owned(), DataValue::Pose(default())),
                 ("animation.delta_seconds".to_owned(), DataValue::F32(0.1)),
-                ("animation.pending_update".to_owned(), DataValue::Bool(pending)),
-                ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(lean_half)),
-                ("grounded_source.velocity_blend_interpolation_half_life".to_owned(), DataValue::F32(velocity_half)),
-                ("grounded_state.velocity_blend.b_initialization_required".to_owned(), DataValue::Bool(initializing)),
-                ("grounded_state.velocity_blend.forward_amount".to_owned(), DataValue::F32(0.0)),
-                ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z)),
-                ("locomotion_state.acceleration_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z * 10.0)),
-                ("locomotion_state.max_acceleration".to_owned(), DataValue::F32(20.0)),
-                ("locomotion_state.max_braking_deceleration".to_owned(), DataValue::F32(15.0)),
+                (
+                    "animation.pending_update".to_owned(),
+                    DataValue::Bool(pending),
+                ),
+                (
+                    "in_air_source.lean_interpolation_half_life".to_owned(),
+                    DataValue::F32(lean_half),
+                ),
+                (
+                    "grounded_source.velocity_blend_interpolation_half_life".to_owned(),
+                    DataValue::F32(velocity_half),
+                ),
+                (
+                    "grounded_state.velocity_blend.b_initialization_required".to_owned(),
+                    DataValue::Bool(initializing),
+                ),
+                (
+                    "grounded_state.velocity_blend.forward_amount".to_owned(),
+                    DataValue::F32(0.0),
+                ),
+                (
+                    "locomotion_state.velocity_world_space".to_owned(),
+                    DataValue::Vec3(Vec3::NEG_Z),
+                ),
+                (
+                    "locomotion_state.acceleration_world_space".to_owned(),
+                    DataValue::Vec3(Vec3::NEG_Z * 10.0),
+                ),
+                (
+                    "locomotion_state.max_acceleration".to_owned(),
+                    DataValue::F32(20.0),
+                ),
+                (
+                    "locomotion_state.max_braking_deceleration".to_owned(),
+                    DataValue::F32(15.0),
+                ),
                 ("lean_state.forward_amount".to_owned(), DataValue::F32(0.0)),
             ]);
-            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
-                GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
-                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
-            let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(
-                NodeId::default(), StateKey::Default).unwrap();
-            (state.values["lean_state.forward_amount"].as_f32().unwrap(),
-                state.values["grounded_state.velocity_blend.forward_amount"].as_f32().unwrap())
+            graph
+                .query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                    GraphContext::new(
+                        arena.get_toplevel_id(),
+                        graph,
+                        &mut arena,
+                        &resources,
+                        &env,
+                        Entity::PLACEHOLDER,
+                        &entities,
+                        &mut gizmos,
+                        &inputs,
+                    ),
+                )
+                .unwrap();
+            let state = arena
+                .get_toplevel()
+                .node_states
+                .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                .unwrap();
+            (
+                state.values["lean_state.forward_amount"].as_f32().unwrap(),
+                state.values["grounded_state.velocity_blend.forward_amount"]
+                    .as_f32()
+                    .unwrap(),
+            )
         }
         let mut graph = AnimationGraph::new();
-        let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "fixture".to_owned(), output: "Pose".to_owned() });
-        let refresh = AnimationNode::new("refresh", AlsSourceRefreshNode { function: AlsSourceRefreshFunction::RefreshGrounded });
+        let pose = AnimationNode::new(
+            "pose",
+            GlobalPoseInputNode {
+                key: "fixture".to_owned(),
+                output: "Pose".to_owned(),
+            },
+        );
+        let refresh = AnimationNode::new(
+            "refresh",
+            AlsSourceRefreshNode {
+                function: AlsSourceRefreshFunction::RefreshGrounded,
+            },
+        );
         graph.add_node(pose.clone());
         graph.add_node(refresh.clone());
         graph.add_node_parameter_edge(pose.id, "Pose", refresh.id, "Source");
@@ -1139,24 +1426,59 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        let zero = world.run_system_cached_with(sample, (root.clone(), 0.0, 0.1, false, false)).unwrap().0;
-        let negative = world.run_system_cached_with(sample, (root.clone(), -0.1, 0.1, false, false)).unwrap().0;
-        let normal = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false)).unwrap().0;
-        let slow = world.run_system_cached_with(sample, (root.clone(), 0.6, 0.1, false, false)).unwrap().0;
-        let pending = world.run_system_cached_with(sample, (root.clone(), 0.6, 0.1, true, false)).unwrap().0;
+        let zero = world
+            .run_system_cached_with(sample, (root.clone(), 0.0, 0.1, false, false))
+            .unwrap()
+            .0;
+        let negative = world
+            .run_system_cached_with(sample, (root.clone(), -0.1, 0.1, false, false))
+            .unwrap()
+            .0;
+        let normal = world
+            .run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false))
+            .unwrap()
+            .0;
+        let slow = world
+            .run_system_cached_with(sample, (root.clone(), 0.6, 0.1, false, false))
+            .unwrap()
+            .0;
+        let pending = world
+            .run_system_cached_with(sample, (root.clone(), 0.6, 0.1, true, false))
+            .unwrap()
+            .0;
         assert!((zero - 0.5).abs() < 1e-6 && (negative - 0.5).abs() < 1e-6);
         assert!((pending - 0.5).abs() < 1e-6);
         assert!(slow > 0.0 && slow < normal && normal < zero);
-        let source_alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.1);
+        let source_alpha = 1.0
+            - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.1);
         assert!((normal - 0.5 * source_alpha).abs() < 1e-6);
-        let velocity_zero = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.0, false, false)).unwrap().1;
-        let velocity_negative = world.run_system_cached_with(sample, (root.clone(), 0.2, -0.1, false, false)).unwrap().1;
-        let velocity_normal = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false)).unwrap().1;
-        let velocity_slow = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.4, false, false)).unwrap().1;
-        let velocity_initial = world.run_system_cached_with(sample, (root, 0.2, 0.4, false, true)).unwrap().1;
+        let velocity_zero = world
+            .run_system_cached_with(sample, (root.clone(), 0.2, 0.0, false, false))
+            .unwrap()
+            .1;
+        let velocity_negative = world
+            .run_system_cached_with(sample, (root.clone(), 0.2, -0.1, false, false))
+            .unwrap()
+            .1;
+        let velocity_normal = world
+            .run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false))
+            .unwrap()
+            .1;
+        let velocity_slow = world
+            .run_system_cached_with(sample, (root.clone(), 0.2, 0.4, false, false))
+            .unwrap()
+            .1;
+        let velocity_initial = world
+            .run_system_cached_with(sample, (root, 0.2, 0.4, false, true))
+            .unwrap()
+            .1;
         assert!((velocity_zero - 1.0).abs() < 1e-6 && (velocity_negative - 1.0).abs() < 1e-6);
         assert!((velocity_initial - 1.0).abs() < 1e-6);
-        assert!(velocity_slow > 0.0 && velocity_slow < velocity_normal && velocity_normal < velocity_zero);
+        assert!(
+            velocity_slow > 0.0
+                && velocity_slow < velocity_normal
+                && velocity_normal < velocity_zero
+        );
     }
 
     #[test]

@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
-use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
@@ -13,24 +12,25 @@ use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::time::TimeUpdateStrategy;
 use bevy::window::{PresentMode, WindowPlugin};
+use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
-use bevy_als::als_camera::AlsCameraViewSource;
 use bevy_als::als::character::{AlsCharacter, AlsCrushRecovery, AlsCrushRecoveryFloor};
 use bevy_als::als::control_scheme::AlsControlScheme;
 use bevy_als::als::params::AlsMovementParams;
 use bevy_als::als::player_start::{AlsPlayerStart, AlsPlayerStartReady};
+use bevy_als::als_camera::AlsCameraViewSource;
+use bevy_als::character_assembly::AlsCharacterAvatar;
+use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::extensions::overlay_materials::{
     AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
 };
 use bevy_als::extensions::playground::PlaygroundLandscape;
+use bevy_als::extensions::source_world_time::SourceWorldTimePlugin;
 use bevy_als::extensions::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
     PlaygroundMovingObject, PlaygroundPlugin,
 };
-use bevy_als::extensions::source_world_time::SourceWorldTimePlugin;
-use bevy_als::character_assembly::AlsCharacterAvatar;
-use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::game_mode::{
     AlsGameModePlugin, AlsPlayerAdmission, AlsPlayerAdmissionComplete, AlsScenePhysicsReady,
     request_als_player,
@@ -45,7 +45,8 @@ use bevy_als::{
     anim_probe::AnimProbePlugin,
     animation_visual_validation::AnimationVisualValidationPlugin,
     manual_playground_integration::{
-        LightingProbePlugin, ManualIntegrationGateReport, ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
+        LightingProbePlugin, ManualIntegrationGateReport, ManualPlaygroundIntegrationPlugin,
+        ManualPlaygroundStartupReady,
     },
 };
 
@@ -61,7 +62,8 @@ struct PlaygroundWorldTime {
 fn main() {
     let world_time: PlaygroundWorldTime = serde_json::from_str(include_str!(
         "../../../assets/ALSExtras/Levels/L_Als_Playground/world_time.runtime.json"
-    )).expect("playground world time settings must be valid");
+    ))
+    .expect("playground world time settings must be valid");
     let mut app = App::new();
     app.add_plugins((
         DefaultPlugins
@@ -93,19 +95,30 @@ fn main() {
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
         let frame_delta = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS")
-            .ok().map(|raw| parse_gate_frame_delta(&raw));
+            .ok()
+            .map(|raw| parse_gate_frame_delta(&raw));
         if let Some(delta) = frame_delta {
             app.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
         }
         if let Ok(raw) = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS") {
             let baseline = frame_delta.expect("frame hitch requires a manual baseline delta");
             let hitch = parse_gate_frame_delta(&raw);
-            assert!(hitch > baseline, "frame hitch must exceed the baseline delta");
-            app.insert_resource(GateFrameHitch { baseline, hitch, fired: false, restore_next: false });
+            assert!(
+                hitch > baseline,
+                "frame hitch must exceed the baseline delta"
+            );
+            app.insert_resource(GateFrameHitch {
+                baseline,
+                hitch,
+                fired: false,
+                restore_next: false,
+            });
             app.add_systems(Last, apply_gate_frame_hitch);
         }
     } else if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_none() {
-        app.insert_resource(bevy_als::show_debug_hud::AlsShowDebugSettingsFile("tools/tmp/saved/als_debug.ron".into()));
+        app.insert_resource(bevy_als::show_debug_hud::AlsShowDebugSettingsFile(
+            "tools/tmp/saved/als_debug.ron".into(),
+        ));
     }
     if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_some() {
         app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
@@ -151,16 +164,27 @@ fn main() {
             screenshot_runner,
         ),
     )
-    .add_systems(PostUpdate, grounded_spawn_probe.after(bevy_als::als::motion::AlsActualVelocitySet));
+    .add_systems(
+        PostUpdate,
+        grounded_spawn_probe.after(bevy_als::als::motion::AlsActualVelocitySet),
+    );
     if std::env::var("ALS_PLAYGROUND_STARTUP_VARIANT").as_deref() == Ok("multi_raised") {
-        app.add_systems(Update, setup_multi_raised_startup_variant
-            .before(bevy_als::als::player_start::AlsPlayerStartPrepared));
+        app.add_systems(
+            Update,
+            setup_multi_raised_startup_variant
+                .before(bevy_als::als::player_start::AlsPlayerStartPrepared),
+        );
     }
     if let Ok(raw) = std::env::var("ALS_MANUAL_JUMP_GRAVITY_Y") {
-        assert!(std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some(),
-            "jump gravity variant requires the manual integration gate");
+        assert!(
+            std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some(),
+            "jump gravity variant requires the manual integration gate"
+        );
         let gravity_y = raw.parse::<f32>().expect("jump gravity must be a number");
-        assert!(gravity_y.is_finite() && gravity_y < 0.0, "jump gravity must be finite and downward");
+        assert!(
+            gravity_y.is_finite() && gravity_y < 0.0,
+            "jump gravity must be finite and downward"
+        );
         app.insert_resource(Gravity(Vec3::Y * gravity_y));
         info!("[JUMP-GRAVITY-VARIANT] gravity_y={gravity_y:.3} -> PASS");
     }
@@ -171,8 +195,13 @@ fn main() {
 }
 
 fn parse_gate_frame_delta(raw: &str) -> Duration {
-    let seconds = raw.parse::<f64>().expect("gate frame delta must be a number");
-    assert!(seconds.is_finite() && seconds > 0.0, "gate frame delta must be positive and finite");
+    let seconds = raw
+        .parse::<f64>()
+        .expect("gate frame delta must be a number");
+    assert!(
+        seconds.is_finite() && seconds > 0.0,
+        "gate frame delta must be positive and finite"
+    );
     Duration::from_secs_f64(seconds)
 }
 
@@ -192,14 +221,22 @@ fn apply_gate_frame_hitch(
     if hitch.restore_next {
         *strategy = TimeUpdateStrategy::ManualDuration(hitch.baseline);
         hitch.restore_next = false;
-    } else if !hitch.fired && report.moving_base_trace.last().is_some_and(|frame| {
-        frame.get("takeoff_ready").and_then(serde_json::Value::as_bool) == Some(true)
-            && frame.get("mode").and_then(serde_json::Value::as_str) == Some("Grounded")
-    }) {
+    } else if !hitch.fired
+        && report.moving_base_trace.last().is_some_and(|frame| {
+            frame
+                .get("takeoff_ready")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+                && frame.get("mode").and_then(serde_json::Value::as_str) == Some("Grounded")
+        })
+    {
         *strategy = TimeUpdateStrategy::ManualDuration(hitch.hitch);
         hitch.fired = true;
         hitch.restore_next = true;
-        info!("[MANUAL-INTEGRATION][FRAME-HITCH] next_delta_seconds={:.6}", hitch.hitch.as_secs_f64());
+        info!(
+            "[MANUAL-INTEGRATION][FRAME-HITCH] next_delta_seconds={:.6}",
+            hitch.hitch.as_secs_f64()
+        );
     }
 }
 
@@ -292,7 +329,9 @@ fn auto_quit(
     timer: Option<Res<AutoQuit>>,
     ground_probe: Res<GroundedSpawnProbe>,
     render_probe: Res<RenderEffectsProbe>,
-    visual_progress: Option<Res<bevy_als::animation_visual_validation::AnimationVisualValidationProgress>>,
+    visual_progress: Option<
+        Res<bevy_als::animation_visual_validation::AnimationVisualValidationProgress>,
+    >,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Some(t) = timer else {
@@ -300,8 +339,11 @@ fn auto_quit(
     };
     if Instant::now() >= t.0 {
         if visual_progress.is_some_and(|progress| {
-            ground_probe.passed != Some(false) && render_probe.passed != Some(false)
-                && (!progress.evidence_ready || ground_probe.passed.is_none() || render_probe.passed.is_none())
+            ground_probe.passed != Some(false)
+                && render_probe.passed != Some(false)
+                && (!progress.evidence_ready
+                    || ground_probe.passed.is_none()
+                    || render_probe.passed.is_none())
         }) {
             return;
         }
@@ -332,7 +374,9 @@ fn screenshot_runner(
 ) {
     if ground_probe.passed == Some(false) {
         if let Some(report) = report.as_deref_mut() {
-            if report.scenario.is_empty() { report.scenario = "startup".into(); }
+            if report.scenario.is_empty() {
+                report.scenario = "startup".into();
+            }
             report.completed = true;
             report.passed = Some(false);
             report.results.push(bevy_als::manual_playground_integration::ManualIntegrationGateResult {
@@ -539,20 +583,36 @@ fn setup_multi_raised_startup_variant(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if *done { return; }
-    let Some(start) = starts.iter().next().copied() else { return; };
+    if *done {
+        return;
+    }
+    let Some(start) = starts.iter().next().copied() else {
+        return;
+    };
     let platform = Transform::from_xyz(start.translation.x, 1.9, start.translation.z);
     commands.spawn((
-        Name::new("StartupVariantRaisedPlatform"), platform,
-        RigidBody::Static, Collider::cuboid(8.0, 0.2, 8.0),
-        CollisionLayers::new([bevy_als::als::character::AlsCollisionLayer::Default,
-            bevy_als::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
+        Name::new("StartupVariantRaisedPlatform"),
+        platform,
+        RigidBody::Static,
+        Collider::cuboid(8.0, 0.2, 8.0),
+        CollisionLayers::new(
+            [
+                bevy_als::als::character::AlsCollisionLayer::Default,
+                bevy_als::als::character::AlsCollisionLayer::Visibility,
+            ],
+            LayerMask::ALL,
+        ),
         Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 8.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.25, 0.55, 0.75), ..default()
+            base_color: Color::srgb(0.25, 0.55, 0.75),
+            ..default()
         })),
     ));
-    commands.spawn((Name::new("StartupVariantSecondPlayerStart"), AlsPlayerStart::default(), start));
+    commands.spawn((
+        Name::new("StartupVariantSecondPlayerStart"),
+        AlsPlayerStart::default(),
+        start,
+    ));
     *done = true;
     info!("[STARTUP-VARIANT] second_player_start=true platform_top_y=2.0 -> PASS");
 }
@@ -958,17 +1018,34 @@ mod tests {
             let mut world = World::new();
             world.init_resource::<Messages<AppExit>>();
             world.insert_resource(AutoQuit(Instant::now() - Duration::from_secs(30)));
-            world.insert_resource(GroundedSpawnProbe { passed: ground, ..default() });
-            world.insert_resource(RenderEffectsProbe { passed: render, ..default() });
+            world.insert_resource(GroundedSpawnProbe {
+                passed: ground,
+                ..default()
+            });
+            world.insert_resource(RenderEffectsProbe {
+                passed: render,
+                ..default()
+            });
             if let Some(evidence_ready) = evidence {
-                world.insert_resource(bevy_als::animation_visual_validation::AnimationVisualValidationProgress { evidence_ready });
+                world.insert_resource(
+                    bevy_als::animation_visual_validation::AnimationVisualValidationProgress {
+                        evidence_ready,
+                    },
+                );
             }
             world.run_system_once(auto_quit).unwrap();
-            let actual = world.resource_mut::<Messages<AppExit>>().drain().next().map(|exit| match exit {
-                AppExit::Success => 0,
-                AppExit::Error(code) => code.get(),
-            });
-            assert_eq!(actual, expected, "ground={ground:?} render={render:?} evidence={evidence:?}");
+            let actual = world
+                .resource_mut::<Messages<AppExit>>()
+                .drain()
+                .next()
+                .map(|exit| match exit {
+                    AppExit::Success => 0,
+                    AppExit::Error(code) => code.get(),
+                });
+            assert_eq!(
+                actual, expected,
+                "ground={ground:?} render={render:?} evidence={evidence:?}"
+            );
         }
     }
 
@@ -978,17 +1055,27 @@ mod tests {
         world.init_resource::<Messages<AppExit>>();
         world.init_resource::<ManualIntegrationGateReport>();
         world.insert_resource(GroundedSpawnProbe {
-            passed: Some(false), done: true, max_vertical_velocity: 0.163349,
+            passed: Some(false),
+            done: true,
+            max_vertical_velocity: 0.163349,
             ..default()
         });
         world.run_system_once(screenshot_runner).unwrap();
-        assert!(world.resource_mut::<Messages<AppExit>>().drain()
-            .any(|exit| matches!(exit, AppExit::Error(code) if code.get() == 13)),
-            "Failed startup must terminate without a screenshot plan");
+        assert!(
+            world
+                .resource_mut::<Messages<AppExit>>()
+                .drain()
+                .any(|exit| matches!(exit, AppExit::Error(code) if code.get() == 13)),
+            "Failed startup must terminate without a screenshot plan"
+        );
         let report = world.resource::<ManualIntegrationGateReport>();
         assert!(report.completed && report.passed == Some(false));
         assert_eq!(report.results[0].name, "grounded_spawn");
-        assert!(report.results[0].detail.contains("max_vertical_velocity=0.163349"));
+        assert!(
+            report.results[0]
+                .detail
+                .contains("max_vertical_velocity=0.163349")
+        );
     }
     #[test]
     fn scene_ready_accepts_multiple_valid_player_starts() {
@@ -997,20 +1084,39 @@ mod tests {
             world.init_resource::<ManualScenePhysicsReady>();
             world.init_resource::<AlsScenePhysicsReady>();
             world.spawn((PlaygroundLandscape, LandscapeColliderBuilt));
-            world.spawn((PlaygroundCollisionSource {
-                mesh_base: "fixture".into(), kind: PlaygroundColliderKind::TriMesh,
-            }, Collider::cuboid(1.0, 1.0, 1.0)));
-            world.spawn((PlaygroundBoxCollider { half_extents: Vec3::ONE }, Collider::cuboid(1.0, 1.0, 1.0)));
+            world.spawn((
+                PlaygroundCollisionSource {
+                    mesh_base: "fixture".into(),
+                    kind: PlaygroundColliderKind::TriMesh,
+                },
+                Collider::cuboid(1.0, 1.0, 1.0),
+            ));
+            world.spawn((
+                PlaygroundBoxCollider {
+                    half_extents: Vec3::ONE,
+                },
+                Collider::cuboid(1.0, 1.0, 1.0),
+            ));
             for _ in 0..start_count {
                 world.spawn(AlsPlayerStartReady {
-                    transform: Transform::IDENTITY, ground_y: 0.0, adjustment: 0.0,
+                    transform: Transform::IDENTITY,
+                    ground_y: 0.0,
+                    adjustment: 0.0,
                     teleport_adjustment: Vec3::ZERO,
                     occupancy: bevy_als::als::player_start::AlsPlayerStartOccupancy::Unoccupied,
                 });
             }
-            for _ in 0..2 { world.run_system_once(scene_physics_ready).unwrap(); }
-            assert!(world.resource::<ManualScenePhysicsReady>().ready, "starts={start_count}");
-            assert!(world.resource::<AlsScenePhysicsReady>().ready, "starts={start_count}");
+            for _ in 0..2 {
+                world.run_system_once(scene_physics_ready).unwrap();
+            }
+            assert!(
+                world.resource::<ManualScenePhysicsReady>().ready,
+                "starts={start_count}"
+            );
+            assert!(
+                world.resource::<AlsScenePhysicsReady>().ready,
+                "starts={start_count}"
+            );
         }
     }
 
@@ -1018,10 +1124,22 @@ mod tests {
     fn spawn_sensor_proximity_is_ground_relative() {
         for ground_y in [0.0, 5.0, -3.0] {
             let center_y = bevy_als::als::player_start::player_start_grounded_height(
-                ground_y, AlsMovementParams::default().crouch.standing_capsule_half_height);
+                ground_y,
+                AlsMovementParams::default()
+                    .crouch
+                    .standing_capsule_half_height,
+            );
             let sensor_proximity = center_y - ground_y;
-            assert!(spawn_sensor_matches_ground(sensor_proximity, center_y, ground_y));
-            assert!(!spawn_sensor_matches_ground(sensor_proximity + 0.1, center_y, ground_y));
+            assert!(spawn_sensor_matches_ground(
+                sensor_proximity,
+                center_y,
+                ground_y
+            ));
+            assert!(!spawn_sensor_matches_ground(
+                sensor_proximity + 0.1,
+                center_y,
+                ground_y
+            ));
         }
     }
 
@@ -1040,24 +1158,52 @@ mod tests {
         let hitch = Duration::from_millis(200);
         let mut app = App::new();
         app.insert_resource(TimeUpdateStrategy::ManualDuration(baseline));
-        app.insert_resource(GateFrameHitch { baseline, hitch, fired: false, restore_next: false });
+        app.insert_resource(GateFrameHitch {
+            baseline,
+            hitch,
+            fired: false,
+            restore_next: false,
+        });
         app.init_resource::<ManualIntegrationGateReport>();
         app.add_systems(Last, apply_gate_frame_hitch);
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.push(serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":false}));
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline)
+        );
+        app.world_mut()
+            .resource_mut::<ManualIntegrationGateReport>()
+            .moving_base_trace
+            .push(serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":false}));
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Exit","mode":"Air","takeoff_ready":true});
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline)
+        );
+        *app.world_mut()
+            .resource_mut::<ManualIntegrationGateReport>()
+            .moving_base_trace
+            .last_mut()
+            .unwrap() = serde_json::json!({"stage":"Exit","mode":"Air","takeoff_ready":true});
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":true});
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline)
+        );
+        *app.world_mut()
+            .resource_mut::<ManualIntegrationGateReport>()
+            .moving_base_trace
+            .last_mut()
+            .unwrap() = serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":true});
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == hitch));
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == hitch)
+        );
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline)
+        );
         app.update();
-        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        assert!(
+            matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline)
+        );
         assert!(app.world().resource::<GateFrameHitch>().fired);
     }
 
@@ -1066,13 +1212,21 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<PlatformPhysicsProbe>();
         world.init_resource::<ManualPlaygroundStartupReady>();
-        world.spawn(AlsCrushRecoveryFloor { half_extents: Vec3::ONE });
-        let platforms = (0..3).map(|index| world.spawn((
-            PlaygroundMovingObject,
-            RigidBody::Kinematic,
-            LinearVelocity::ZERO,
-            AngularVelocity(if index == 0 { Vec3::Y } else { Vec3::ZERO }),
-        )).id()).collect::<Vec<_>>();
+        world.spawn(AlsCrushRecoveryFloor {
+            half_extents: Vec3::ONE,
+        });
+        let platforms = (0..3)
+            .map(|index| {
+                world
+                    .spawn((
+                        PlaygroundMovingObject,
+                        RigidBody::Kinematic,
+                        LinearVelocity::ZERO,
+                        AngularVelocity(if index == 0 { Vec3::Y } else { Vec3::ZERO }),
+                    ))
+                    .id()
+            })
+            .collect::<Vec<_>>();
         world.run_system_once(platform_physics_probe).unwrap();
         assert!(!world.resource::<PlatformPhysicsProbe>().0);
         world.resource_mut::<ManualPlaygroundStartupReady>().passed = true;
@@ -1104,9 +1258,14 @@ mod tests {
     fn render_effects_follow_the_view_and_preserve_existing_settings() {
         for (has_ssao, has_taa) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut world = World::new();
-            let source = world.spawn(bevy_als::als_camera::AlsCameraRig::default()).id();
+            let source = world
+                .spawn(bevy_als::als_camera::AlsCameraRig::default())
+                .id();
             let view = world
-                .spawn((Camera3d::default(), bevy_als::als_camera::AlsCameraViewSource(source)))
+                .spawn((
+                    Camera3d::default(),
+                    bevy_als::als_camera::AlsCameraViewSource(source),
+                ))
                 .id();
             if has_ssao {
                 world.entity_mut(view).insert(ScreenSpaceAmbientOcclusion {
@@ -1139,7 +1298,11 @@ mod tests {
                     .is_some()
             );
             assert!(world.get::<ScreenSpaceAmbientOcclusion>(source).is_none());
-            assert!(world.get::<bevy_als::als_camera::AlsCameraRig>(view).is_none());
+            assert!(
+                world
+                    .get::<bevy_als::als_camera::AlsCameraRig>(view)
+                    .is_none()
+            );
             if has_ssao {
                 assert_eq!(
                     world

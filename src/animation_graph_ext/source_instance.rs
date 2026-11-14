@@ -4,7 +4,9 @@ use bevy_animation_graph::core::{
     animation_graph_player::AnimationGraphPlayer,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
-        graph_context_arena::{GraphContextArena, GraphContextId}, new_context::NodeContext, node_states::StateKey,
+        graph_context_arena::{GraphContextArena, GraphContextId},
+        new_context::NodeContext,
+        node_states::StateKey,
         spec_context::SpecContext,
     },
     edge_data::{DataSpec, DataValue},
@@ -49,19 +51,45 @@ struct SourceMachineWeights {
     previous_states: Vec<SourceFsmStateWeight>,
 }
 
-fn machine_weights<'a>(ctx: &'a NodeContext, node: NodeId) -> Result<&'a mut SourceMachineWeights, GraphError> {
+fn machine_weights<'a>(
+    ctx: &'a NodeContext,
+    node: NodeId,
+) -> Result<&'a mut SourceMachineWeights, GraphError> {
     let frame = ctx.graph_context.frame_index();
-    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| GraphError::UnknownErrorNode {
-        graph: ctx.graph_context.context_id, node: ctx.node_id,
-        error: "Machine weights have no owning animation instance".into(),
+    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| {
+        GraphError::UnknownErrorNode {
+            graph: ctx.graph_context.context_id,
+            node: ctx.node_id,
+            error: "Machine weights have no owning animation instance".into(),
+        }
     })?;
-    let properties = ctx.graph_context.context_arena.get_mut().get_context_mut(owner).unwrap().node_states
-        .get_mut_or_insert_with(source_notify_instance_node(), StateKey::Default, SourceInstanceProperties::default)?;
+    let properties = ctx
+        .graph_context
+        .context_arena
+        .get_mut()
+        .get_context_mut(owner)
+        .unwrap()
+        .node_states
+        .get_mut_or_insert_with(
+            source_notify_instance_node(),
+            StateKey::Default,
+            SourceInstanceProperties::default,
+        )?;
     let state = properties.machine_weights.entry(node).or_default();
     if state.frame != Some(frame) {
-        let continuous = state.frame.is_some_and(|previous| previous.wrapping_add(1) == frame);
-        state.previous_machine = if continuous { state.current_machine } else { 0.0 };
-        state.previous_states = if continuous { std::mem::take(&mut state.current_states) } else { Vec::new() };
+        let continuous = state
+            .frame
+            .is_some_and(|previous| previous.wrapping_add(1) == frame);
+        state.previous_machine = if continuous {
+            state.current_machine
+        } else {
+            0.0
+        };
+        state.previous_states = if continuous {
+            std::mem::take(&mut state.current_states)
+        } else {
+            Vec::new()
+        };
         state.current_machine = 0.0;
         state.current_states.clear();
         state.frame = Some(frame);
@@ -69,7 +97,10 @@ fn machine_weights<'a>(ctx: &'a NodeContext, node: NodeId) -> Result<&'a mut Sou
     Ok(state)
 }
 
-pub(crate) fn begin_source_machine_update(ctx: &NodeContext, weight: f32) -> Result<(), GraphError> {
+pub(crate) fn begin_source_machine_update(
+    ctx: &NodeContext,
+    weight: f32,
+) -> Result<(), GraphError> {
     if ctx.graph_context.state_key == StateKey::Default {
         let state = machine_weights(ctx, ctx.node_id)?;
         state.context = Some(ctx.graph_context.context_id);
@@ -78,14 +109,20 @@ pub(crate) fn begin_source_machine_update(ctx: &NodeContext, weight: f32) -> Res
     Ok(())
 }
 
-pub(crate) fn record_source_state_weights(ctx: &NodeContext, values: Vec<SourceFsmStateWeight>) -> Result<(), GraphError> {
+pub(crate) fn record_source_state_weights(
+    ctx: &NodeContext,
+    values: Vec<SourceFsmStateWeight>,
+) -> Result<(), GraphError> {
     if ctx.graph_context.state_key == StateKey::Default {
         machine_weights(ctx, ctx.node_id)?.current_states = values;
     }
     Ok(())
 }
 
-pub(crate) fn source_machine_context(ctx: &NodeContext, node: NodeId) -> Result<Option<GraphContextId>, GraphError> {
+pub(crate) fn source_machine_context(
+    ctx: &NodeContext,
+    node: NodeId,
+) -> Result<Option<GraphContextId>, GraphError> {
     Ok(machine_weights(ctx, node)?.context)
 }
 
@@ -93,8 +130,16 @@ pub(crate) fn source_machine_weight(ctx: &NodeContext, node: NodeId) -> Result<f
     Ok(machine_weights(ctx, node)?.previous_machine)
 }
 
-pub(crate) fn source_state_weight(ctx: &NodeContext, node: NodeId, state_id: &str) -> Result<f32, GraphError> {
-    Ok(machine_weights(ctx, node)?.previous_states.iter().find(|value| value.state_id == state_id).map_or(0.0, |value| value.value))
+pub(crate) fn source_state_weight(
+    ctx: &NodeContext,
+    node: NodeId,
+    state_id: &str,
+) -> Result<f32, GraphError> {
+    Ok(machine_weights(ctx, node)?
+        .previous_states
+        .iter()
+        .find(|value| value.state_id == state_id)
+        .map_or(0.0, |value| value.value))
 }
 
 pub fn source_instance_properties<'a>(
@@ -112,14 +157,23 @@ pub fn source_instance_properties<'a>(
         )
 }
 
-pub(crate) fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphContextId) -> Option<GraphContextId> {
+pub(crate) fn linked_instance_context(
+    ctx: &NodeContext,
+    mut context_id: GraphContextId,
+) -> Option<GraphContextId> {
     let arena = ctx.graph_context.context_arena.get_ref();
     arena.get_context(context_id)?;
     while let Some(parent) = arena.get_parent_context(context_id) {
         let graph_id = arena.get_context(parent.ctx_id)?.get_graph_id();
-        let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
-        if graph.nodes.get(&parent.node_id).is_some_and(|node|
-            node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some()) {
+        let graph = ctx
+            .graph_context
+            .resources
+            .animation_graph_assets
+            .get(graph_id)?;
+        if graph.nodes.get(&parent.node_id).is_some_and(|node| {
+            node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>()
+                .is_some()
+        }) {
             return Some(context_id);
         }
         context_id = parent.ctx_id;
@@ -129,12 +183,26 @@ pub(crate) fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphCo
 
 pub(crate) fn source_notify_instance_id(ctx: &NodeContext) -> Result<u64, GraphError> {
     source_instance_properties(ctx)?;
-    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| GraphError::UnknownErrorNode {
-        graph: ctx.graph_context.context_id, node: ctx.node_id,
-        error: "Notify queue has no owning animation instance".to_owned(),
+    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| {
+        GraphError::UnknownErrorNode {
+            graph: ctx.graph_context.context_id,
+            node: ctx.node_id,
+            error: "Notify queue has no owning animation instance".to_owned(),
+        }
     })?;
-    Ok(ctx.graph_context.context_arena.get_mut().get_context_mut(owner).unwrap().node_states
-        .get_mut_or_insert_with(source_notify_instance_node(), StateKey::Default, SourceInstanceProperties::default)?.instance_id)
+    Ok(ctx
+        .graph_context
+        .context_arena
+        .get_mut()
+        .get_context_mut(owner)
+        .unwrap()
+        .node_states
+        .get_mut_or_insert_with(
+            source_notify_instance_node(),
+            StateKey::Default,
+            SourceInstanceProperties::default,
+        )?
+        .instance_id)
 }
 
 pub(crate) fn source_notify_instance_node() -> NodeId {
@@ -224,15 +292,24 @@ pub(crate) fn reset_source_call_relevancy(player: &mut AnimationGraphPlayer) {
     let ReflectMut::Struct(fields) = player.reflect_mut() else {
         panic!("Animation graph player must reflect as a struct");
     };
-    let arena = fields.field_mut("context_arena")
+    let arena = fields
+        .field_mut("context_arena")
         .and_then(|field| field.try_downcast_mut::<Option<GraphContextArena>>())
         .expect("Animation graph player must expose its context arena");
-    let Some(arena) = arena.as_mut() else { return; };
+    let Some(arena) = arena.as_mut() else {
+        return;
+    };
     let states = &mut arena.get_toplevel_mut().node_states;
     let node = NodeId::default();
-    if states.get::<SourceInstanceProperties>(node, StateKey::Default).is_ok_and(|state| !state.call_frames.is_empty()) {
-        states.get_mut_or_insert_with(node, StateKey::Default, SourceInstanceProperties::default)
-            .expect("source instance property state must keep its type").call_frames.clear();
+    if states
+        .get::<SourceInstanceProperties>(node, StateKey::Default)
+        .is_ok_and(|state| !state.call_frames.is_empty())
+    {
+        states
+            .get_mut_or_insert_with(node, StateKey::Default, SourceInstanceProperties::default)
+            .expect("source instance property state must keep its type")
+            .call_frames
+            .clear();
     }
 }
 

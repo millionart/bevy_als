@@ -8,7 +8,9 @@ use bevy_als::als::input::AlsInputCommand;
 use bevy_als::als::input_request::AlsInputRequestPlugin;
 use bevy_als::als::motion::{JumpChain, jump_chain};
 use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::transition::{
+    AlsStateRequest, AlsStateTransitionPlugin, state_transition_system,
+};
 
 fn main() {
     App::new()
@@ -50,22 +52,31 @@ fn spawn_character(mut commands: Commands) {
 fn verify_priority(
     mut state: Local<GateState>,
     mut characters: Query<
-        (&mut AlsInputCommand, &mut LocomotionState, &RotationMode, &mut bevy_als::als::state::AlsNotifyLocomotionAction, &AlsStateRequest),
+        (
+            &mut AlsInputCommand,
+            &mut LocomotionState,
+            &RotationMode,
+            &mut bevy_als::als::state::AlsNotifyLocomotionAction,
+            &AlsStateRequest,
+        ),
         With<AlsCharacter>,
     >,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((mut command, mut locomotion, rotation, mut action, request)) = characters.single_mut() else {
+    let Ok((mut command, mut locomotion, rotation, mut action, request)) = characters.single_mut()
+    else {
         return;
     };
-    let chain_pass = jump_chain(true, Stance::Crouching, true)
-        == JumpChain::ExitRagdoll
+    let chain_pass = jump_chain(true, Stance::Crouching, true) == JumpChain::ExitRagdoll
         && jump_chain(false, Stance::Standing, true) == JumpChain::Mantle
         && jump_chain(false, Stance::Crouching, false) == JumpChain::StandUp
         && jump_chain(false, Stance::Standing, false) == JumpChain::Jump;
     match state.phase {
         0 => {
-            if *action == bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::Grounded || *rotation != RotationMode::Aiming {
+            if *action == bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling
+                || *locomotion != LocomotionState::Grounded
+                || *rotation != RotationMode::Aiming
+            {
                 eprintln!(
                     "[BCHAR5][VERDICT] phase=enter locomotion={locomotion:?} rotation={rotation:?} -> FAIL"
                 );
@@ -79,7 +90,8 @@ fn verify_priority(
             state.phase = 1;
         }
         1 => {
-            if *action != bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None
+            if *action != bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling
+                || *locomotion != LocomotionState::None
                 || *rotation != RotationMode::VelocityDirection
             {
                 eprintln!(
@@ -92,7 +104,8 @@ fn verify_priority(
             state.phase = 2;
         }
         _ => {
-            let pass = request.ragdoll_exit && *locomotion == LocomotionState::None
+            let pass = request.ragdoll_exit
+                && *locomotion == LocomotionState::None
                 && *action == bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling
                 && *rotation == RotationMode::VelocityDirection
                 && chain_pass;

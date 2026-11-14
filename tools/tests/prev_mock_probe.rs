@@ -1,7 +1,7 @@
+use bevy::prelude::*;
 use bevy_als::als::input::{
     AlsInputMap, NextOverlayModeAction, OnFoot, PreviousOverlayModeAction, spawn_als_actions,
 };
-use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 #[test]

@@ -9,8 +9,8 @@ use bevy_animation_graph::core::{
 use bevy_gameplay_tag::GameplayTag;
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::source_gameplay_tag_input::active_gameplay_tag_input;
 use crate::extensions::profile_blend::{AlphaBlendMode, advance_alpha_blend, transition_alpha};
+use crate::extensions::source_gameplay_tag_input::active_gameplay_tag_input;
 
 pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-5;
 
@@ -59,14 +59,25 @@ pub(crate) struct GameplayTagBlendState {
 impl GameplayTagBlendState {
     pub(crate) fn should_reset_child(&self, child_count: usize, active_index: usize) -> bool {
         let initialized = self.initialized && self.weights.len() == child_count;
-        let weight = if initialized { self.weights[active_index] } else { f32::from(active_index == 0) };
-        (!initialized || self.last_active_index != active_index as i32) && weight <= WEIGHT_THRESHOLD
+        let weight = if initialized {
+            self.weights[active_index]
+        } else {
+            f32::from(active_index == 0)
+        };
+        (!initialized || self.last_active_index != active_index as i32)
+            && weight <= WEIGHT_THRESHOLD
     }
 
-    pub(crate) fn instant_transition_source(&self, active_index: usize, blend_time: f32) -> Option<usize> {
-        (self.initialized && self.last_active_index >= 0
+    pub(crate) fn instant_transition_source(
+        &self,
+        active_index: usize,
+        blend_time: f32,
+    ) -> Option<usize> {
+        (self.initialized
+            && self.last_active_index >= 0
             && self.last_active_index != active_index as i32
-            && blend_time.max(0.0) * (1.0 - self.weights[active_index]).abs().clamp(0.0, 1.0) == 0.0)
+            && blend_time.max(0.0) * (1.0 - self.weights[active_index]).abs().clamp(0.0, 1.0)
+                == 0.0)
             .then_some(self.last_active_index as usize)
     }
 }
@@ -78,8 +89,10 @@ pub(crate) fn select_gameplay_tag_child_index_for_tag(
     active_tag
         .filter(|tag| tag.is_valid())
         .and_then(|tag| {
-            tags.iter()
-                .position(|candidate| tag.as_str().eq_ignore_ascii_case(GameplayTag::new(candidate).as_str()))
+            tags.iter().position(|candidate| {
+                tag.as_str()
+                    .eq_ignore_ascii_case(GameplayTag::new(candidate).as_str())
+            })
         })
         .map_or(0, |index| index + 1)
 }
@@ -281,10 +294,25 @@ impl NodeLike for GameplayTagBlendNode {
 mod tests {
     #[test]
     fn browser_review_tag_blend_selects_case_alias_with_exact_source_semantics() {
-        let tags=vec!["Als.OverlayMode.Rifle".to_owned()];
-        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new("als.overlaymode.rifle"))),1);
-        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new("Als.OverlayMode.Rifle.Child"))),0);
-        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new(""))),0);
+        let tags = vec!["Als.OverlayMode.Rifle".to_owned()];
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                &tags,
+                Some(&GameplayTag::new("als.overlaymode.rifle"))
+            ),
+            1
+        );
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                &tags,
+                Some(&GameplayTag::new("Als.OverlayMode.Rifle.Child"))
+            ),
+            0
+        );
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(&tags, Some(&GameplayTag::new(""))),
+            0
+        );
     }
 
     use super::*;
@@ -316,20 +344,30 @@ mod tests {
 
         let reference: Reference = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d214/weights.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for probe in reference.probes {
             for case in probe.cases {
                 let mut state = GameplayTagBlendState::default();
                 for (index, frame) in case.frames.into_iter().enumerate() {
-                    let changed = !state.initialized || state.last_active_index != frame.active as i32;
+                    let changed =
+                        !state.initialized || state.last_active_index != frame.active as i32;
                     let weights = advance_gameplay_tag_weights(
-                        &mut state, probe.times.len(), frame.active, probe.times[frame.active],
-                        probe.mode, frame.delta,
+                        &mut state,
+                        probe.times.len(),
+                        frame.active,
+                        probe.times[frame.active],
+                        probe.mode,
+                        frame.delta,
                     );
                     assert_eq!(weights, frame.weights, "{} at frame {index}", case.name);
                     let active = &state.clocks[frame.active];
                     if changed && frame.delta == 0.0 && active.alpha == 0.0 {
-                        assert_eq!(active.remaining, frame.duration, "{} at frame {index}", case.name);
+                        assert_eq!(
+                            active.remaining, frame.duration,
+                            "{} at frame {index}",
+                            case.name
+                        );
                     }
                 }
             }

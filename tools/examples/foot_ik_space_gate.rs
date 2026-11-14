@@ -1,9 +1,9 @@
+use bevy::prelude::*;
 use bevy_als::extensions::{
     ArmatureDirection, ArmaturePoint, armature_direction_from_world, armature_point_from_world,
     bone_local_point_from_world, parent_point_from_world, world_direction_from_armature,
     world_point_from_armature,
 };
-use bevy::prelude::*;
 
 fn frame(translation: Vec3, rotation: Quat) -> GlobalTransform {
     GlobalTransform::from(Transform::from_translation(translation).with_rotation(rotation))

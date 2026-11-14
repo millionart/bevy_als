@@ -1,7 +1,9 @@
 use crate::als::rotate_in_place::RotateInPlaceState;
 use crate::als::state::Stance;
 use crate::als::turn_in_place::{TurnInPlaceConfig, TurnVariant};
-use crate::extensions::source_slot::{MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator};
+use crate::extensions::source_slot::{
+    MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator,
+};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
@@ -164,9 +166,13 @@ impl AlsTurnMontage {
     pub fn weight(&self) -> f32 {
         if let Some(elapsed) = self.blend_out_elapsed {
             return self.blend_out_start_weight
-                * (1.0 - crate::stop_link::transition_blend_amount(elapsed, self.blend_out_duration));
+                * (1.0
+                    - crate::stop_link::transition_blend_amount(elapsed, self.blend_out_duration));
         }
-        crate::stop_link::transition_blend_amount(self.blend_in_elapsed, TURN_MONTAGE_BLEND_DURATION)
+        crate::stop_link::transition_blend_amount(
+            self.blend_in_elapsed,
+            TURN_MONTAGE_BLEND_DURATION,
+        )
     }
 
     fn playing(&self) -> bool {
@@ -249,7 +255,8 @@ impl AlsTurnMontageStack {
                 entry.blend_out_start_weight = 0.0;
             }
         }
-        self.entries.retain(|entry| entry.blend_out_elapsed.is_none() || entry.weight() > f32::EPSILON);
+        self.entries
+            .retain(|entry| entry.blend_out_elapsed.is_none() || entry.weight() > f32::EPSILON);
         natural_end
     }
 
@@ -365,7 +372,10 @@ pub(crate) fn source_turn_sequence(crouching: bool, is_180: bool, lr: f32) -> &'
     }
 }
 
-pub(crate) fn character_turn_angle_from_radians(view_yaw_radians: f32, body_yaw_degrees: f32) -> f32 {
+pub(crate) fn character_turn_angle_from_radians(
+    view_yaw_radians: f32,
+    body_yaw_degrees: f32,
+) -> f32 {
     let mut view = if view_yaw_radians.abs() == std::f32::consts::PI {
         180.0
     } else {
@@ -407,7 +417,9 @@ impl Plugin for TurnLayerPlugin {
             PostUpdate,
             AlsTurnSlotBridgeSet
                 .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         )
         .add_systems(
             PostUpdate,
@@ -494,18 +506,27 @@ fn compose_turn_montage_poses(
     let total_weight = entries.iter().map(|(_, weight)| *weight).sum::<f32>();
     let slot_weight = total_weight.min(1.0);
     let denominator = slot_weight * montage_evaluation_denominator(total_weight);
-    let output = entries.into_iter()
+    let output = entries
+        .into_iter()
         .map(|(pose, weight)| pose.scalar_mult(weight / denominator))
         .reduce(|accumulated, pose| accumulated.linear_add(&pose))?;
     Some((output, slot_weight, denominator))
 }
 
-fn write_turn_inertialization_inputs(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, requested: bool) {
+fn write_turn_inertialization_inputs(
+    player: &mut AnimationGraphPlayer,
+    drive: &AlsTurnDrive,
+    requested: bool,
+) {
     for crouching in [false, true] {
         let contract = turn_slot_contract(crouching);
         player.set_global_input_data(
             contract.inertialization_epoch_key,
-            if requested { drive.inertialization_request_epoch } else { 0.0 },
+            if requested {
+                drive.inertialization_request_epoch
+            } else {
+                0.0
+            },
         );
         player.set_global_input_data(
             contract.inertialization_duration_key,
@@ -533,7 +554,8 @@ fn clear_old_turn_player(
     clear_turn_slot_inputs(player);
     if let Some(source_inputs) = source_inputs {
         for crouching in [false, true] {
-            source_inputs.set_slot_input_context(turn_slot_contract(crouching).generated_pose_key, None);
+            source_inputs
+                .set_slot_input_context(turn_slot_contract(crouching).generated_pose_key, None);
         }
     }
 }
@@ -601,40 +623,57 @@ fn bridge_turn_slot_samples(
         };
         for crouching in [false, true] {
             let contract = turn_slot_contract(crouching);
-            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(contract.generated_pose_key,
-                None,);
-            let Some((pose, weight, denominator)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
+            source_inputs
+                .get_mut(player_entity)
+                .unwrap()
+                .set_slot_input_context(contract.generated_pose_key, None);
+            let Some((pose, weight, denominator)) =
+                compose_turn_montage_poses(&stack, &poses, crouching)
+            else {
                 continue;
             };
-            let mut context = crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation(
-                stack
-                    .entries
-                    .iter()
-                    .filter(|entry| entry.crouching == crouching)
-                    .filter_map(|entry| {
-                        contexts
-                            .get(&entry.id)
-                            .cloned()
-                            .map(|context| (context, entry.weight() / denominator))
-                    }),
-            );
-            context.slot_has_multiple_montages = stack.entries.iter()
+            let mut context =
+                crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation(
+                    stack
+                        .entries
+                        .iter()
+                        .filter(|entry| entry.crouching == crouching)
+                        .filter_map(|entry| {
+                            contexts
+                                .get(&entry.id)
+                                .cloned()
+                                .map(|context| (context, entry.weight() / denominator))
+                        }),
+                );
+            context.slot_has_multiple_montages = stack
+                .entries
+                .iter()
                 .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
-                .nth(1).is_some();
-            context.source_slot_poses = stack.entries.iter()
+                .nth(1)
+                .is_some();
+            context.source_slot_poses = stack
+                .entries
+                .iter()
                 .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
                 .map(|entry| {
-                    let source = contexts.get(&entry.id)?.source_pose_for(poses.get(&entry.id)?)?.clone();
+                    let source = contexts
+                        .get(&entry.id)?
+                        .source_pose_for(poses.get(&entry.id)?)?
+                        .clone();
                     Some((source, entry.weight() / denominator.max(1.0)))
-                }).collect::<Option<Vec<_>>>().unwrap_or_default();
+                })
+                .collect::<Option<Vec<_>>>()
+                .unwrap_or_default();
             player.set_global_input_data(contract.pose_key, DataValue::Pose(pose.clone()));
             player.set_global_input_data(contract.weight_key, weight);
             player.set_global_input_data(contract.layer_weight_key, 1.0_f32);
             player.set_global_input_data(contract.generated_pose_key, DataValue::Pose(pose));
             player.set_global_input_data(contract.generated_weight_key, weight);
             player.set_global_input_data(contract.generated_layer_weight_key, 1.0_f32);
-            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(contract.generated_pose_key,
-                Some(context),);
+            source_inputs
+                .get_mut(player_entity)
+                .unwrap()
+                .set_slot_input_context(contract.generated_pose_key, Some(context));
             runtime.weight = (runtime.weight + weight).min(1.0);
         }
         commands.entity(avatar).insert(runtime);
@@ -675,7 +714,13 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, crou
 #[allow(clippy::type_complexity)]
 fn turn_pin_driver(
     time: Res<Time>,
-    stances: Query<(&Stance, Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<crate::als::character::AlsCharacter>>,
+    stances: Query<
+        (
+            &Stance,
+            Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
+        ),
+        With<crate::als::character::AlsCharacter>,
+    >,
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     mut drives: Query<
         (
@@ -694,7 +739,9 @@ fn turn_pin_driver(
             continue;
         };
         let dt = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
-        let current_player = instances.get(entity).ok()
+        let current_player = instances
+            .get(entity)
+            .ok()
             .map(AnimatedSceneInstance::player_entity)
             .filter(|player| players.contains(*player));
         if let Some(old_player) = reconcile_turn_player(&mut stack, &mut drive, current_player)
@@ -723,53 +770,98 @@ fn turn_pin_driver(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
-    use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
-    use bevy_animation_graph::AnimationGraphPlugin;
     use crate::als::motion::AlsViewYaw;
     use crate::als::rotate_in_place::{RotateInPlaceConfig, RotateSide, update_rotate_in_place};
     use crate::als::state::{LocomotionState, RotationMode};
     use crate::als::turn_in_place::TurnInPlaceDetector;
     use avian3d::prelude::LinearVelocity;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+    use bevy_animation_graph::AnimationGraphPlugin;
 
     #[test]
     fn current_slot_samples_reach_post_physics_graph_evaluation() {
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, animation_node::AnimationNode,
-            edge_data::{DataSpec, DataValue}};
+        use crate::extensions::post_physics_animation::{
+            PostPhysicsAnimation, PostPhysicsAnimationSet, evaluate_players,
+        };
         use bevy_animation_graph::core::plugin::AnimationGraphSet;
-        use crate::extensions::post_physics_animation::{evaluate_players, PostPhysicsAnimation, PostPhysicsAnimationSet};
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph,
+            animation_node::AnimationNode,
+            edge_data::{DataSpec, DataValue},
+        };
         #[derive(Resource, Default)]
-        struct EvalInputs { turn_clock: Option<f32>, transition_clock: Option<f32> }
+        struct EvalInputs {
+            turn_clock: Option<f32>,
+            transition_clock: Option<f32>,
+        }
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
-            bevy::gizmos::GizmoPlugin, bevy::gltf::GltfPlugin::default(), TransformPlugin,
-            AnimationGraphPlugin::default(), crate::extensions::AlsExtPlugin,
-            TurnLayerPlugin, crate::stop_link::AlsStopLinkPlugin))
-            .init_asset::<WorldAsset>()
-            .init_asset::<crate::als::params::AlsMovementParams>()
-            .init_asset::<bevy::animation::AnimationClip>()
-            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
-            .init_asset::<Mesh>()
-            .init_asset::<Image>()
-            .init_resource::<EvalInputs>()
-            .add_systems(Startup, crate::standing_source::load_source_montage_assets);
-        app.configure_sets(PostUpdate, (
-            PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
-            PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)
-                .before(AnimationGraphSet::PostPhysics),
-            AnimationGraphSet::PostPhysics.before(AnimationGraphSet::Final),
-        )).add_systems(PostUpdate, evaluate_players::<With<PostPhysicsAnimation>>
-            .in_set(PostPhysicsAnimationSet::Evaluate));
-        app.add_systems(PostUpdate, (|players: Query<Entity, (With<AnimationGraphPlayer>, With<PostPhysicsAnimation>)>,
-            inputs: Query<&crate::extensions::SourceAnimationInputs>, mut seen: ResMut<EvalInputs>| {
-            let Some(entity) = players.iter().next() else { return; };
-            if let Ok(inputs) = inputs.get(entity) {
-                seen.turn_clock = inputs.slot_input_context("turn_in_place_standing.pose")
-                    .and_then(|context| context.asset_samples.first().map(|sample| sample.clock.position));
-                seen.transition_clock = inputs.slot_input_context("transition.pose")
-                    .and_then(|context| context.asset_samples.first().map(|sample| sample.clock.position));
-            }
-        }).in_set(PostPhysicsAnimationSet::Evaluate).before(evaluate_players::<With<PostPhysicsAnimation>>));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin,
+            bevy::gltf::GltfPlugin::default(),
+            TransformPlugin,
+            AnimationGraphPlugin::default(),
+            crate::extensions::AlsExtPlugin,
+            TurnLayerPlugin,
+            crate::stop_link::AlsStopLinkPlugin,
+        ))
+        .init_asset::<WorldAsset>()
+        .init_asset::<crate::als::params::AlsMovementParams>()
+        .init_asset::<bevy::animation::AnimationClip>()
+        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .init_resource::<EvalInputs>()
+        .add_systems(Startup, crate::standing_source::load_source_montage_assets);
+        app.configure_sets(
+            PostUpdate,
+            (
+                PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
+                PostPhysicsAnimationSet::Evaluate
+                    .after(PostPhysicsAnimationSet::Inputs)
+                    .before(AnimationGraphSet::PostPhysics),
+                AnimationGraphSet::PostPhysics.before(AnimationGraphSet::Final),
+            ),
+        )
+        .add_systems(
+            PostUpdate,
+            evaluate_players::<With<PostPhysicsAnimation>>
+                .in_set(PostPhysicsAnimationSet::Evaluate),
+        );
+        app.add_systems(
+            PostUpdate,
+            (|players: Query<Entity, (With<AnimationGraphPlayer>, With<PostPhysicsAnimation>)>,
+              inputs: Query<&crate::extensions::SourceAnimationInputs>,
+              mut seen: ResMut<EvalInputs>| {
+                let Some(entity) = players.iter().next() else {
+                    return;
+                };
+                if let Ok(inputs) = inputs.get(entity) {
+                    seen.turn_clock = inputs
+                        .slot_input_context("turn_in_place_standing.pose")
+                        .and_then(|context| {
+                            context
+                                .asset_samples
+                                .first()
+                                .map(|sample| sample.clock.position)
+                        });
+                    seen.transition_clock =
+                        inputs
+                            .slot_input_context("transition.pose")
+                            .and_then(|context| {
+                                context
+                                    .asset_samples
+                                    .first()
+                                    .map(|sample| sample.clock.position)
+                            });
+                }
+            })
+            .in_set(PostPhysicsAnimationSet::Evaluate)
+            .before(evaluate_players::<With<PostPhysicsAnimation>>),
+        );
         app.finish();
         app.cleanup();
         let transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
@@ -778,86 +870,207 @@ mod tests {
         let transition_name = crate::stop_link::source_transition_sequence(&transition).unwrap();
         let started = std::time::Instant::now();
         let watchdog_reason = |wall: std::time::Duration, stalled: std::time::Duration| {
-            if wall.as_secs() >= 30 { "wall_timeout" }
-            else if stalled.as_secs() >= 15 { "no_progress_timeout" } else { "" }
+            if wall.as_secs() >= 30 {
+                "wall_timeout"
+            } else if stalled.as_secs() >= 15 {
+                "no_progress_timeout"
+            } else {
+                ""
+            }
         };
-        assert_eq!(watchdog_reason(std::time::Duration::ZERO, std::time::Duration::ZERO), "");
-        assert_eq!(watchdog_reason(std::time::Duration::from_secs(30), std::time::Duration::ZERO), "wall_timeout");
-        assert_eq!(watchdog_reason(std::time::Duration::ZERO, std::time::Duration::from_secs(15)), "no_progress_timeout");
+        assert_eq!(
+            watchdog_reason(std::time::Duration::ZERO, std::time::Duration::ZERO),
+            ""
+        );
+        assert_eq!(
+            watchdog_reason(
+                std::time::Duration::from_secs(30),
+                std::time::Duration::ZERO
+            ),
+            "wall_timeout"
+        );
+        assert_eq!(
+            watchdog_reason(
+                std::time::Duration::ZERO,
+                std::time::Duration::from_secs(15)
+            ),
+            "no_progress_timeout"
+        );
         let mut last_progress = std::time::Instant::now();
         let mut loaded = 0;
         loop {
             app.update();
-            let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
-            let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
-            let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
-            let ready = [turn_name, crouch_turn_name, transition_name].into_iter().filter(|name|
-                crate::standing_source::sample_source_montage(name, 0.42, assets, clips, skeletons).is_some()).count();
+            let assets = app
+                .world()
+                .resource::<crate::standing_source::SourceMontageAssets>();
+            let clips = app
+                .world()
+                .resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+            let skeletons = app
+                .world()
+                .resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+            let ready = [turn_name, crouch_turn_name, transition_name]
+                .into_iter()
+                .filter(|name| {
+                    crate::standing_source::sample_source_montage(
+                        name, 0.42, assets, clips, skeletons,
+                    )
+                    .is_some()
+                })
+                .count();
             if ready > loaded {
                 loaded = ready;
                 last_progress = std::time::Instant::now();
             }
-            if ready == 3 { break; }
+            if ready == 3 {
+                break;
+            }
             let reason = watchdog_reason(started.elapsed(), last_progress.elapsed());
-            assert!(reason.is_empty(), "{}", serde_json::json!({"exit_reason":reason,
-                "last_progress_loaded":loaded,"required":3,"wait_seconds":last_progress.elapsed().as_secs()}));
+            assert!(
+                reason.is_empty(),
+                "{}",
+                serde_json::json!({"exit_reason":reason,
+                "last_progress_loaded":loaded,"required":3,"wait_seconds":last_progress.elapsed().as_secs()})
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         let (old_turn, old_transition) = {
-            let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
-            let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
-            let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
-            (crate::standing_source::sample_source_montage(turn_name, 0.40, assets, clips, skeletons).unwrap().0,
-                crate::standing_source::sample_source_montage(transition_name, 0.40, assets, clips, skeletons).unwrap().0)
+            let assets = app
+                .world()
+                .resource::<crate::standing_source::SourceMontageAssets>();
+            let clips = app
+                .world()
+                .resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+            let skeletons = app
+                .world()
+                .resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+            (
+                crate::standing_source::sample_source_montage(
+                    turn_name, 0.40, assets, clips, skeletons,
+                )
+                .unwrap()
+                .0,
+                crate::standing_source::sample_source_montage(
+                    transition_name,
+                    0.40,
+                    assets,
+                    clips,
+                    skeletons,
+                )
+                .unwrap()
+                .0,
+            )
         };
         let mut graph = AnimationGraph::default();
         for (name, key, output) in [
-            ("turn pose", turn_slot_contract(false).generated_pose_key, "pose"),
+            (
+                "turn pose",
+                turn_slot_contract(false).generated_pose_key,
+                "pose",
+            ),
             ("transition pose", "transition.pose", "transition_pose"),
         ] {
-            let node = AnimationNode::new(name, crate::extensions::GlobalPoseInputNode { key: key.into(), output: "Pose".into() });
+            let node = AnimationNode::new(
+                name,
+                crate::extensions::GlobalPoseInputNode {
+                    key: key.into(),
+                    output: "Pose".into(),
+                },
+            );
             graph.add_output_data(output.into(), DataSpec::Pose);
             graph.add_output_data_edge(node.id, "Pose", output);
             graph.add_node(node);
         }
         for (name, key, output) in [
-            ("turn weight", turn_slot_contract(false).generated_weight_key, "turn_weight"),
-            ("transition weight", "transition.weight", "transition_weight"),
+            (
+                "turn weight",
+                turn_slot_contract(false).generated_weight_key,
+                "turn_weight",
+            ),
+            (
+                "transition weight",
+                "transition.weight",
+                "transition_weight",
+            ),
         ] {
-            let node = AnimationNode::new(name, crate::extensions::GlobalF32InputNode { key: key.into() });
+            let node = AnimationNode::new(
+                name,
+                crate::extensions::GlobalF32InputNode { key: key.into() },
+            );
             graph.add_output_data(output.into(), DataSpec::F32);
             graph.add_output_data_edge(node.id, key, output);
             graph.add_node(node);
         }
-        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
-        let character = app.world_mut().spawn((crate::als::character::AlsCharacter, Stance::Standing)).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
-            AnimatedSceneHandle::default(), ChildOf(character),
-            AlsTurnDrive::default(), AlsTurnMontageStack::default())).id();
-        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
-            avatar, camera: None,
-        });
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(graph);
+        let character = app
+            .world_mut()
+            .spawn((crate::als::character::AlsCharacter, Stance::Standing))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+                AlsTurnDrive::default(),
+                AlsTurnMontageStack::default(),
+            ))
+            .id();
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            },
+        );
         let mut player = AnimationGraphPlayer::new(Handle::default()).with_graph(graph);
-        player.set_global_input_data(turn_slot_contract(false).generated_pose_key, DataValue::Pose(old_turn));
+        player.set_global_input_data(
+            turn_slot_contract(false).generated_pose_key,
+            DataValue::Pose(old_turn),
+        );
         player.set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.5_f32);
         player.set_global_input_data("transition.pose", DataValue::Pose(old_transition));
         player.set_global_input_data("transition.weight", 0.5_f32);
-        let player_entity = app.world_mut().spawn((Name::new("slot_player"), player, PostPhysicsAnimation, Transform::IDENTITY,
-            GlobalTransform::IDENTITY, ChildOf(avatar))).id();
-        app.world_mut().spawn((Name::new("root"), Transform::IDENTITY, GlobalTransform::IDENTITY, ChildOf(player_entity)));
+        let player_entity = app
+            .world_mut()
+            .spawn((
+                Name::new("slot_player"),
+                player,
+                PostPhysicsAnimation,
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().spawn((
+            Name::new("root"),
+            Transform::IDENTITY,
+            GlobalTransform::IDENTITY,
+            ChildOf(player_entity),
+        ));
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
         app.world_mut().run_schedule(Update);
-        let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
+        let stack = app
+            .world_mut()
+            .get_mut::<AlsTurnMontageStack>(avatar)
+            .unwrap()
+            .into_inner();
         stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
         stack.owner_player = Some(player_entity);
         stack.entries[0].elapsed = 0.42;
         stack.entries[0].blend_in_elapsed = 0.42;
         stack.entries[0].sampling_ready = true;
-        let drive = app.world_mut().get_mut::<AlsTurnDrive>(avatar).unwrap().into_inner();
+        let drive = app
+            .world_mut()
+            .get_mut::<AlsTurnDrive>(avatar)
+            .unwrap()
+            .into_inner();
         drive.playing = true;
         drive.clip_time = 0.42;
         let mut transition = transition;
@@ -865,45 +1078,100 @@ mod tests {
         transition.previous_clip_time = 0.40;
         transition.elapsed = 0.42;
         transition.weight = 1.0;
-        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack { entries: vec![transition], ..default() });
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::stop_link::AlsTransitionMontageStack {
+                entries: vec![transition],
+                ..default()
+            });
         app.world_mut().run_schedule(PostUpdate);
         app.world_mut().schedule_scope(PostUpdate, |_, schedule| {
             use bevy::ecs::schedule::NodeId;
             let graph = schedule.graph();
             let dependencies = graph.dependency().graph();
-            let find_set = |needle: &str| dependencies.nodes().filter(|node| matches!(node, NodeId::Set(_)))
-                .find(|node| graph.get_node_name(node).contains(needle))
-                .unwrap_or_else(|| panic!("missing schedule set: {needle}"));
-            let transition = schedule.systems().unwrap()
-                .find(|(_, system)| system.name().contains("bridge_root_transition_slot_samples"))
-                .map(|(key, _)| NodeId::System(key)).expect("missing transition bridge system");
+            let find_set = |needle: &str| {
+                dependencies
+                    .nodes()
+                    .filter(|node| matches!(node, NodeId::Set(_)))
+                    .find(|node| graph.get_node_name(node).contains(needle))
+                    .unwrap_or_else(|| panic!("missing schedule set: {needle}"))
+            };
+            let transition = schedule
+                .systems()
+                .unwrap()
+                .find(|(_, system)| {
+                    system
+                        .name()
+                        .contains("bridge_root_transition_slot_samples")
+                })
+                .map(|(key, _)| NodeId::System(key))
+                .expect("missing transition bridge system");
             let evaluate = find_set("Evaluate");
             let reaches_evaluate = |start| {
                 let mut pending = vec![start];
                 let mut visited = std::collections::HashSet::new();
                 while let Some(node) = pending.pop() {
-                    if node == evaluate { return true; }
-                    if visited.insert(node) { pending.extend(dependencies.neighbors(node)); }
+                    if node == evaluate {
+                        return true;
+                    }
+                    if visited.insert(node) {
+                        pending.extend(dependencies.neighbors(node));
+                    }
                 }
                 false
             };
-            assert!(reaches_evaluate(find_set("AlsTurnSlotBridgeSet")), "turn bridge has no ordering path to late evaluate");
-            assert!(reaches_evaluate(transition), "transition bridge has no ordering path to late evaluate");
+            assert!(
+                reaches_evaluate(find_set("AlsTurnSlotBridgeSet")),
+                "turn bridge has no ordering path to late evaluate"
+            );
+            assert!(
+                reaches_evaluate(transition),
+                "transition bridge has no ordering path to late evaluate"
+            );
         });
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        assert!(player.get_error().is_none(), "late graph evaluation failed: {:?}", player.get_error());
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        assert!(
+            player.get_error().is_none(),
+            "late graph evaluation failed: {:?}",
+            player.get_error()
+        );
         let outputs = player.get_outputs();
-        let turn_weight = outputs.get("turn_weight").and_then(|value| value.as_f32().ok());
-        let transition_weight = outputs.get("transition_weight").and_then(|value| value.as_f32().ok());
-        let turn_pose_time = outputs.get("pose").cloned().and_then(|value| value.into_pose().ok()).map(|pose| pose.timestamp);
-        let transition_pose_time = outputs.get("transition_pose").cloned().and_then(|value| value.into_pose().ok()).map(|pose| pose.timestamp);
+        let turn_weight = outputs
+            .get("turn_weight")
+            .and_then(|value| value.as_f32().ok());
+        let transition_weight = outputs
+            .get("transition_weight")
+            .and_then(|value| value.as_f32().ok());
+        let turn_pose_time = outputs
+            .get("pose")
+            .cloned()
+            .and_then(|value| value.into_pose().ok())
+            .map(|pose| pose.timestamp);
+        let transition_pose_time = outputs
+            .get("transition_pose")
+            .cloned()
+            .and_then(|value| value.into_pose().ok())
+            .map(|pose| pose.timestamp);
         let seen = app.world().resource::<EvalInputs>();
-        assert_eq!((seen.turn_clock, seen.transition_clock), (Some(0.42), Some(0.42)));
+        assert_eq!(
+            (seen.turn_clock, seen.transition_clock),
+            (Some(0.42), Some(0.42))
+        );
         assert_eq!((turn_weight, transition_weight), (Some(1.0), Some(1.0)));
-        assert_eq!((turn_pose_time, transition_pose_time), (Some(0.42), Some(0.42)));
+        assert_eq!(
+            (turn_pose_time, transition_pose_time),
+            (Some(0.42), Some(0.42))
+        );
 
         let publish = |app: &mut App, crouching, weights: &[f32], positions: &[f32]| {
-            let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
+            let stack = app
+                .world_mut()
+                .get_mut::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .into_inner();
             stack.entries.clear();
             for (&weight, &position) in weights.iter().zip(positions) {
                 stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
@@ -912,7 +1180,9 @@ mod tests {
                 entry.blend_out_elapsed = Some(0.0);
                 entry.blend_out_start_weight = weight;
             }
-            app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
+            app.world_mut()
+                .run_system_once(bridge_turn_slot_samples)
+                .unwrap();
         };
         #[derive(serde::Deserialize)]
         struct CurveFixture {
@@ -926,18 +1196,32 @@ mod tests {
         }
         let fixture: CurveFixture = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d179/curve-accumulation.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let yaw_speed = crate::extensions::SourceCurveName::from("RotationYawSpeed");
         for crouching in [false, true] {
             let contract = turn_slot_contract(crouching);
-            for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
+            for case in crate::extensions::source_slot::montage_eligibility_cases()
+                .into_iter()
+                .rev()
+            {
                 publish(&mut app, crouching, &case.weights, &[0.15, 0.42]);
-                let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
+                let runtime = app
+                    .world()
+                    .get::<AlsStandingTurnSlotRuntime>(avatar)
+                    .unwrap();
                 assert!(runtime.active && runtime.pose_ready);
-                assert_eq!(runtime.weight, case.total, "crouching={crouching} {:?}", case.weights);
+                assert_eq!(
+                    runtime.weight, case.total,
+                    "crouching={crouching} {:?}",
+                    case.weights
+                );
                 let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
                 assert!(stack.entries.iter().all(|entry| entry.sampling_ready));
-                let inputs = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap();
+                let inputs = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap();
                 let context = inputs.slot_input_context(contract.generated_pose_key);
                 if case.eligible == 0 {
                     assert!(context.is_none());
@@ -948,34 +1232,71 @@ mod tests {
                     assert_eq!(context.asset_samples[0].clock.position, expected_position);
                 }
             }
-            let curve_at = |app: &App, position| crate::standing_source::sample_source_montage(
-                source_turn_sequence(crouching, false, 0.0), position,
-                app.world().resource::<crate::standing_source::SourceMontageAssets>(),
-                app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>(),
-                app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>(),
-            ).unwrap().1.curves[&yaw_speed];
+            let curve_at = |app: &App, position| {
+                crate::standing_source::sample_source_montage(
+                    source_turn_sequence(crouching, false, 0.0),
+                    position,
+                    app.world()
+                        .resource::<crate::standing_source::SourceMontageAssets>(),
+                    app.world()
+                        .resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>(
+                        ),
+                    app.world()
+                        .resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>(),
+                )
+                .unwrap()
+                .1
+                .curves[&yaw_speed]
+            };
             let layer_curve = curve_at(&app, 0.25);
-            let slot = if crouching { "crouching-turn" } else { "standing-turn" };
+            let slot = if crouching {
+                "crouching-turn"
+            } else {
+                "standing-turn"
+            };
             for case in crate::extensions::source_slot::montage_normalization_cases(slot) {
                 publish(&mut app, crouching, &case.weights, &[0.25; 2]);
-                let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
+                let runtime = app
+                    .world()
+                    .get::<AlsStandingTurnSlotRuntime>(avatar)
+                    .unwrap();
                 assert_eq!(runtime.weight, case.slot_weight);
-                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
-                    .slot_input_context(contract.generated_pose_key).unwrap();
+                let context = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap()
+                    .slot_input_context(contract.generated_pose_key)
+                    .unwrap();
                 assert_eq!(context.slot_has_multiple_montages, case.weights.len() > 1);
                 let actual = context.curves[&yaw_speed] * runtime.weight;
-                let expected = case.effective.iter().map(|weight| layer_curve * weight).sum::<f32>();
-                assert!((actual - expected).abs() <= 2.0 * f32::EPSILON * expected.abs().max(1.0),
-                    "{slot} {:?}: {actual} != {expected}", case.weights);
+                let expected = case
+                    .effective
+                    .iter()
+                    .map(|weight| layer_curve * weight)
+                    .sum::<f32>();
+                assert!(
+                    (actual - expected).abs() <= 2.0 * f32::EPSILON * expected.abs().max(1.0),
+                    "{slot} {:?}: {actual} != {expected}",
+                    case.weights
+                );
             }
             let stance = if crouching { "crouching" } else { "standing" };
             for case in &fixture.cases[stance] {
                 publish(&mut app, crouching, &case.weights, &case.positions);
-                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
-                    .slot_input_context(contract.generated_pose_key).unwrap();
-                let expected = case.positions.iter().zip(&case.effective).enumerate()
+                let context = app
+                    .world()
+                    .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                    .unwrap()
+                    .slot_input_context(contract.generated_pose_key)
+                    .unwrap();
+                let expected = case
+                    .positions
+                    .iter()
+                    .zip(&case.effective)
+                    .enumerate()
                     .filter(|(index, (_, weight))| *index == 0 || **weight > 1e-5)
-                    .map(|(_, (&position, &weight))| curve_at(&app, position) * weight).sum::<f32>();
+                    .map(|(_, (&position, &weight))| curve_at(&app, position) * weight)
+                    .sum::<f32>();
                 let actual = context.curves[&yaw_speed];
                 assert_eq!(actual, expected, "{slot} {:?}", case.weights);
             }
@@ -991,91 +1312,187 @@ mod tests {
             AnimationGraphPlugin::default(),
             crate::extensions::SourceAnimationInputsPlugin,
         ));
-        let character = app.world_mut().spawn((crate::als::character::AlsCharacter, Stance::Standing)).id();
-        let avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character },
-            AnimatedSceneHandle::default(),
-            ChildOf(character),
-            AlsTurnDrive::default(),
-            AlsTurnMontageStack::default(),
-        )).id();
-        let old_player = app.world_mut().spawn((
-            AnimationGraphPlayer::new(Handle::default()),
-            ChildOf(avatar),
-        )).id();
+        let character = app
+            .world_mut()
+            .spawn((crate::als::character::AlsCharacter, Stance::Standing))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+                AlsTurnDrive::default(),
+                AlsTurnMontageStack::default(),
+            ))
+            .id();
+        let old_player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
         app.world_mut().run_system_once(turn_pin_driver).unwrap();
-        let mut stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        let mut stack = app
+            .world_mut()
+            .get_mut::<AlsTurnMontageStack>(avatar)
+            .unwrap();
         stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
         stack.entries[0].sampling_ready = true;
         drop(stack);
-        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap()
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(old_player)
+            .unwrap()
             .set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.8_f32);
-        app.world_mut().get_mut::<crate::extensions::SourceAnimationInputs>(old_player).unwrap()
+        app.world_mut()
+            .get_mut::<crate::extensions::SourceAnimationInputs>(old_player)
+            .unwrap()
             .set_slot_input_context(
                 turn_slot_contract(false).generated_pose_key,
                 Some(crate::extensions::animation_context::AnimationContextState::default()),
             );
-        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
+        assert_eq!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .len(),
+            1
+        );
 
         app.world_mut().entity_mut(old_player).remove::<ChildOf>();
-        let new_player = app.world_mut().spawn((
-            AnimationGraphPlayer::new(Handle::default()),
-            ChildOf(avatar),
-        )).id();
+        let new_player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
-        app.world_mut().run_system_once(crate::standing_source::load_source_montage_assets).unwrap();
-        app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
-        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
-        assert!(!app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap().active);
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
-            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
-            .and_then(|value| value.as_f32().ok()), Some(0.0));
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            new_player
+        );
+        app.world_mut()
+            .run_system_once(crate::standing_source::load_source_montage_assets)
+            .unwrap();
+        app.world_mut()
+            .run_system_once(bridge_turn_slot_samples)
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
+        assert!(
+            !app.world()
+                .get::<AlsStandingTurnSlotRuntime>(avatar)
+                .unwrap()
+                .active
+        );
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(new_player)
+                .unwrap()
+                .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.0)
+        );
         app.world_mut().run_system_once(turn_pin_driver).unwrap();
         assert!(app.world().entities().contains(old_player));
-        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(old_player).unwrap()
-            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
-            .and_then(|value| value.as_f32().ok()), Some(0.0));
-        assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(old_player).unwrap()
-            .slot_input_context(turn_slot_contract(false).generated_pose_key).is_none());
+        assert!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(old_player)
+                .unwrap()
+                .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.0)
+        );
+        assert!(
+            app.world()
+                .get::<crate::extensions::SourceAnimationInputs>(old_player)
+                .unwrap()
+                .slot_input_context(turn_slot_contract(false).generated_pose_key)
+                .is_none()
+        );
 
-        let mut stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        let mut stack = app
+            .world_mut()
+            .get_mut::<AlsTurnMontageStack>(avatar)
+            .unwrap();
         stack.begin(1.0, false, TURN_DUR_90, 1.0, false);
         stack.entries[0].sampling_ready = true;
         drop(stack);
-        app.world_mut().get_mut::<AnimationGraphPlayer>(new_player).unwrap()
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(new_player)
+            .unwrap()
             .set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.7_f32);
         app.world_mut().entity_mut(new_player).remove::<ChildOf>();
-        let third_player = app.world_mut().spawn((
-            AnimationGraphPlayer::new(Handle::default()),
-            ChildOf(avatar),
-        )).id();
+        let third_player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), third_player);
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            third_player
+        );
         app.world_mut().run_system_once(turn_pin_driver).unwrap();
-        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
-            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
-            .and_then(|value| value.as_f32().ok()), Some(0.0));
+        assert!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(new_player)
+                .unwrap()
+                .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.0)
+        );
     }
 
     #[test]
     fn live_turn_curve_survives_switch_to_velocity_direction() {
-        use crate::als::{input::AlsInputCommand, motion::{AlsRotationAnimationState, AlsRotationResponseSet}};
+        use crate::als::{
+            input::AlsInputCommand,
+            motion::{AlsRotationAnimationState, AlsRotationResponseSet},
+        };
 
         #[derive(Resource, Default)]
         struct Capture {
@@ -1083,26 +1500,50 @@ mod tests {
             value: Option<(f32, f32, f32, RotationMode)>,
         }
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let original = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source()
-        else { panic!("Source graph is missing"); };
-        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
-        app.world_mut().entity_mut(player_entity).insert(replacement);
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let original = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) =
+            original.get_animation_source()
+        else {
+            panic!("Source graph is missing");
+        };
+        let replacement =
+            AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        app.world_mut()
+            .entity_mut(player_entity)
+            .insert(replacement);
         let mut idle_ready = false;
         for _ in 0..60 {
             app.update();
             let world = app.world();
-            let context = world.get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity).unwrap();
-            if context.f32("AllowTransitions").is_some_and(|value| value >= 1.0 - 1e-5) {
+            let context = world
+                .get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity)
+                .unwrap();
+            if context
+                .f32("AllowTransitions")
+                .is_some_and(|value| value >= 1.0 - 1e-5)
+            {
                 idle_ready = true;
                 break;
             }
         }
-        assert!(idle_ready, "Standing Idle never published AllowTransitions: state={:?} motion={:?} curves={:?}",
-            app.world().get::<crate::standing_layer::AlsStandingGraphTelemetry>(character),
-            app.world().get::<crate::actual_motion::AlsActualMotion>(character),
-            app.world().get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity));
+        assert!(
+            idle_ready,
+            "Standing Idle never published AllowTransitions: state={:?} motion={:?} curves={:?}",
+            app.world()
+                .get::<crate::standing_layer::AlsStandingGraphTelemetry>(character),
+            app.world()
+                .get::<crate::actual_motion::AlsActualMotion>(character),
+            app.world()
+                .get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity)
+        );
         app.init_resource::<Capture>().add_systems(PostUpdate, (move |time: Res<Time>, mut capture: ResMut<Capture>,
             actors: Query<(&Transform, &AlsRotationAnimationState, &RotationMode)>| {
             if !capture.armed { return; }
@@ -1113,34 +1554,55 @@ mod tests {
             .after(crate::als::aim::aim_rotation_mode_system).before(AlsRotationResponseSet));
         let before_turn = app.world().get::<AlsViewYaw>(character).unwrap().0;
         let count = 160.0_f32.to_radians() / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT;
-        app.world_mut().entity_mut(character).insert(crate::als::motion::AlsInputOverride(AlsInputCommand {
-            look_delta: Vec2::X * count,
-            ..default()
-        }));
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als::motion::AlsInputOverride(AlsInputCommand {
+                look_delta: Vec2::X * count,
+                ..default()
+            }));
         app.update();
         let yaw_delta = app.world().get::<AlsViewYaw>(character).unwrap().0 - before_turn;
         assert!((yaw_delta.to_degrees() + 160.0).abs() < 1e-4);
-        app.world_mut().get_mut::<crate::als::motion::AlsInputOverride>(character).unwrap().0.look_delta = Vec2::ZERO;
+        app.world_mut()
+            .get_mut::<crate::als::motion::AlsInputOverride>(character)
+            .unwrap()
+            .0
+            .look_delta = Vec2::ZERO;
         for _ in 0..90 {
             app.update();
-            if app.world().get::<AlsRotationAnimationState>(character)
+            if app
+                .world()
+                .get::<AlsRotationAnimationState>(character)
                 .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0)
             {
                 break;
             }
         }
         let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        assert!(app.world().get::<AlsRotationAnimationState>(character)
-            .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0),
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<AlsRotationAnimationState>(character)
+                .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0),
             "Loaded turn has no curve: stack={:?} yaw={:?} allowed={:?} transitions={:?} mode={:?}",
-            stack.entries, player.get_global_input_data("view_state.yaw_angle"),
+            stack.entries,
+            player.get_global_input_data("view_state.yaw_angle"),
             player.get_global_input_data("turn_in_place.allowed"),
             player.get_global_input_data("transitions_state.b_transitions_allowed"),
-            app.world().get::<RotationMode>(character));
-        assert!(stack.entries.iter().any(|entry| entry.sampling_ready && entry.weight() > 0.0
-            && source_turn_sequence(entry.crouching, entry.is_180, entry.lr) == "A_Als_Turn_180_Right"));
-        app.world_mut().get_mut::<crate::als::motion::AlsInputOverride>(character).unwrap().0.rotation_mode_pressed = true;
+            app.world().get::<RotationMode>(character)
+        );
+        assert!(stack.entries.iter().any(|entry| entry.sampling_ready
+            && entry.weight() > 0.0
+            && source_turn_sequence(entry.crouching, entry.is_180, entry.lr)
+                == "A_Als_Turn_180_Right"));
+        app.world_mut()
+            .get_mut::<crate::als::motion::AlsInputOverride>(character)
+            .unwrap()
+            .0
+            .rotation_mode_pressed = true;
         app.world_mut().resource_mut::<Capture>().armed = true;
         app.update();
         let (before, curve, delta, mode) = app.world().resource::<Capture>().value.unwrap();
@@ -1148,9 +1610,12 @@ mod tests {
         assert!(curve.abs() > 1e-4 && delta > 0.0);
         let expected = before + curve.to_radians() * delta;
         let actual = crate::als::orientation::world_forward_to_yaw(
-            app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z);
-        assert!(crate::als::motion::wrap_yaw_radians(actual - expected).abs() < 1e-5,
-            "before={before} curve={curve} delta={delta} actual={actual} expected={expected}");
+            app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z,
+        );
+        assert!(
+            crate::als::motion::wrap_yaw_radians(actual - expected).abs() < 1e-5,
+            "before={before} curve={curve} delta={delta} actual={actual} expected={expected}"
+        );
     }
 
     #[test]
@@ -1158,148 +1623,342 @@ mod tests {
         use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
         for frame_delta in [0.1_f32, 0.05] {
             let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            app.add_systems(PostUpdate, (move |instances:Query<&AnimatedSceneInstance>,
-                mut players:Query<&mut AnimationGraphPlayer>| {
-                let player = instances.get(avatar).unwrap().player_entity();
-                players.get_mut(player).unwrap().set_global_input_data("turn_in_place.allowed", false);
-            }).after(crate::ab_als_provider::AbAlsProviderSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
-            for _ in 0..3 { app.update(); }
-            app.world_mut().run_system_once(move |mut commands:Commands| {
-                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
-                    SourceTurnRequest { variant:TurnVariant::Left90, yaw:-90.0, crouching:false });
-            }).unwrap();
-            for _ in 0..30 { app.update(); }
+            app.add_systems(
+                PostUpdate,
+                (move |instances: Query<&AnimatedSceneInstance>,
+                       mut players: Query<&mut AnimationGraphPlayer>| {
+                    let player = instances.get(avatar).unwrap().player_entity();
+                    players
+                        .get_mut(player)
+                        .unwrap()
+                        .set_global_input_data("turn_in_place.allowed", false);
+                })
+                .after(crate::ab_als_provider::AbAlsProviderSet)
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
+            );
+            for _ in 0..3 {
+                app.update();
+            }
+            app.world_mut()
+                .run_system_once(move |mut commands: Commands| {
+                    crate::transition_notify::queue_turn_in_grounded_group(
+                        &mut commands,
+                        character,
+                        avatar,
+                        SourceTurnRequest {
+                            variant: TurnVariant::Left90,
+                            yaw: -90.0,
+                            crouching: false,
+                        },
+                    );
+                })
+                .unwrap();
+            for _ in 0..30 {
+                app.update();
+            }
             let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
             assert_eq!(stack.entries.len(), 1);
-            assert!((stack.entries[0].weight()-1.0).abs()<1e-6);
-            app.world_mut().run_system_once(move |mut commands:Commands| {
-                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
-                    SourceTurnRequest { variant:TurnVariant::Right180, yaw:150.0, crouching:false });
-            }).unwrap();
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(frame_delta)));
+            assert!((stack.entries[0].weight() - 1.0).abs() < 1e-6);
+            app.world_mut()
+                .run_system_once(move |mut commands: Commands| {
+                    crate::transition_notify::queue_turn_in_grounded_group(
+                        &mut commands,
+                        character,
+                        avatar,
+                        SourceTurnRequest {
+                            variant: TurnVariant::Right180,
+                            yaw: 150.0,
+                            crouching: false,
+                        },
+                    );
+                })
+                .unwrap();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(frame_delta),
+            ));
             app.update();
             let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
             assert_eq!(stack.entries.len(), 2);
             assert!(stack.entries.iter().all(|entry| entry.sampling_ready));
-            assert!((stack.entries[1].blend_in_elapsed-frame_delta).abs()<1e-6);
+            assert!((stack.entries[1].blend_in_elapsed - frame_delta).abs() < 1e-6);
             let mut source_poses = Vec::new();
             let mut source_weights = Vec::new();
             for entry in &stack.entries {
                 let pose = crate::standing_source::sample_source_montage(
-                    source_turn_sequence(entry.crouching, entry.is_180, entry.lr), entry.elapsed,
-                    app.world().resource::<crate::standing_source::SourceMontageAssets>(),
-                    app.world().resource::<Assets<GraphClip>>(), app.world().resource::<Assets<Skeleton>>()).unwrap().0;
+                    source_turn_sequence(entry.crouching, entry.is_180, entry.lr),
+                    entry.elapsed,
+                    app.world()
+                        .resource::<crate::standing_source::SourceMontageAssets>(),
+                    app.world().resource::<Assets<GraphClip>>(),
+                    app.world().resource::<Assets<Skeleton>>(),
+                )
+                .unwrap()
+                .0;
                 let elapsed = entry.blend_out_elapsed.unwrap_or(entry.blend_in_elapsed);
-                let alpha = (elapsed/TURN_MONTAGE_BLEND_DURATION).clamp(0.0,1.0);
-                let native_alpha = alpha*alpha*(3.0-2.0*alpha);
-                source_weights.push(if entry.blend_out_elapsed.is_some() { entry.blend_out_start_weight*(1.0-native_alpha) } else { native_alpha });
+                let alpha = (elapsed / TURN_MONTAGE_BLEND_DURATION).clamp(0.0, 1.0);
+                let native_alpha = alpha * alpha * (3.0 - 2.0 * alpha);
+                source_weights.push(if entry.blend_out_elapsed.is_some() {
+                    entry.blend_out_start_weight * (1.0 - native_alpha)
+                } else {
+                    native_alpha
+                });
                 source_poses.push(pose);
             }
             let total = source_weights.iter().sum::<f32>();
-            let source = source_poses[0].scalar_mult(source_weights[0] / total)
+            let source = source_poses[0]
+                .scalar_mult(source_weights[0] / total)
                 .linear_add(&source_poses[1].scalar_mult(source_weights[1] / total));
-            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player_entity = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             assert!(player.get_error().is_none());
-            let actual = player.get_global_input_data(turn_slot_contract(false).generated_pose_key).unwrap().as_pose().unwrap();
+            let actual = player
+                .get_global_input_data(turn_slot_contract(false).generated_pose_key)
+                .unwrap()
+                .as_pose()
+                .unwrap();
             let mut rotation_error = 0.0_f32;
             let mut location_error = 0.0_f32;
             for bone in source.paths.keys() {
                 let a = actual.get_bone(*bone).unwrap();
                 let s = source.get_bone(*bone).unwrap();
-                if let (Some(a),Some(s))=(a.rotation,s.rotation) { rotation_error=rotation_error.max((a-s).length().min((a+s).length())); }
-                if let (Some(a),Some(s))=(a.translation,s.translation) { location_error=location_error.max(a.distance(s)); }
+                if let (Some(a), Some(s)) = (a.rotation, s.rotation) {
+                    rotation_error = rotation_error.max((a - s).length().min((a + s).length()));
+                }
+                if let (Some(a), Some(s)) = (a.translation, s.translation) {
+                    location_error = location_error.max(a.distance(s));
+                }
             }
-            assert!(rotation_error<1e-6 && location_error<1e-5,
-                "Native Turn Hermite blend changes the actual slot pose: delta={frame_delta}, source_weights={source_weights:?}, rotation_error={rotation_error}, location_error={location_error}");
+            assert!(
+                rotation_error < 1e-6 && location_error < 1e-5,
+                "Native Turn Hermite blend changes the actual slot pose: delta={frame_delta}, source_weights={source_weights:?}, rotation_error={rotation_error}, location_error={location_error}"
+            );
         }
     }
 
     #[test]
     fn turn_slot_pose_uses_the_source_actor_animation_clock() {
         use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
-        for (custom_dilation, world_paused) in [(1.0_f32, false), (0.5, false), (0.0, false), (1.0, true)] {
+        for (custom_dilation, world_paused) in
+            [(1.0_f32, false), (0.5, false), (0.0, false), (1.0, true)]
+        {
             let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            let request = SourceTurnRequest { variant:TurnVariant::Right90, yaw:90.0, crouching:false };
+            let request = SourceTurnRequest {
+                variant: TurnVariant::Right90,
+                yaw: 90.0,
+                crouching: false,
+            };
             let sequence = request.source_sequence();
-            app.world_mut().run_system_once(move |mut commands: Commands| {
-                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar, request);
-            }).unwrap();
-            for _ in 0..18 { app.update(); }
+            app.world_mut()
+                .run_system_once(move |mut commands: Commands| {
+                    crate::transition_notify::queue_turn_in_grounded_group(
+                        &mut commands,
+                        character,
+                        avatar,
+                        request,
+                    );
+                })
+                .unwrap();
+            for _ in 0..18 {
+                app.update();
+            }
             let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
             assert_eq!(stack.entries.len(), 1);
             let before = stack.entries[0].clone();
-            assert!(before.sampling_ready && before.blend_out_elapsed.is_none() && (before.weight()-1.0).abs()<1e-6);
-            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
-            if world_paused { app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().pause(); }
+            assert!(
+                before.sampling_ready
+                    && before.blend_out_elapsed.is_none()
+                    && (before.weight() - 1.0).abs() < 1e-6
+            );
+            app.world_mut().entity_mut(character).insert(
+                crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation),
+            );
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_millis(100),
+            ));
+            if world_paused {
+                app.world_mut()
+                    .resource_mut::<Time<bevy::time::Virtual>>()
+                    .pause();
+            }
             let mut delta = 0.0_f32;
-            for _ in 0..if custom_dilation == 0.0 || world_paused { 100 } else { 1 } {
+            for _ in 0..if custom_dilation == 0.0 || world_paused {
+                100
+            } else {
+                1
+            } {
                 app.update();
                 delta += app.world().resource::<Time>().delta_secs() * custom_dilation;
             }
-            if world_paused { assert_eq!(delta, 0.0); }
+            if world_paused {
+                assert_eq!(delta, 0.0);
+            }
             let source_time = before.elapsed + delta * before.play_rate;
-            let source_pose = crate::standing_source::sample_source_montage(sequence, source_time,
-                app.world().resource::<crate::standing_source::SourceMontageAssets>(), app.world().resource::<Assets<GraphClip>>(),
-                app.world().resource::<Assets<Skeleton>>()).unwrap().0;
-            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let source_pose = crate::standing_source::sample_source_montage(
+                sequence,
+                source_time,
+                app.world()
+                    .resource::<crate::standing_source::SourceMontageAssets>(),
+                app.world().resource::<Assets<GraphClip>>(),
+                app.world().resource::<Assets<Skeleton>>(),
+            )
+            .unwrap()
+            .0;
+            let player_entity = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             assert!(player.get_error().is_none());
-            let pose = player.get_global_input_data(turn_slot_contract(false).generated_pose_key).unwrap().as_pose().unwrap();
+            let pose = player
+                .get_global_input_data(turn_slot_contract(false).generated_pose_key)
+                .unwrap()
+                .as_pose()
+                .unwrap();
             let mut minimum_rotation_dot = 1.0_f32;
             let mut maximum_location_error = 0.0_f32;
             for bone in source_pose.paths.keys() {
                 let actual = pose.get_bone(*bone).unwrap();
                 let source = source_pose.get_bone(*bone).unwrap();
-                if let (Some(a),Some(s))=(actual.rotation,source.rotation) { minimum_rotation_dot=minimum_rotation_dot.min(a.dot(s).abs()); }
-                if let (Some(a),Some(s))=(actual.translation,source.translation) { maximum_location_error=maximum_location_error.max(a.distance(s)); }
+                if let (Some(a), Some(s)) = (actual.rotation, source.rotation) {
+                    minimum_rotation_dot = minimum_rotation_dot.min(a.dot(s).abs());
+                }
+                if let (Some(a), Some(s)) = (actual.translation, source.translation) {
+                    maximum_location_error = maximum_location_error.max(a.distance(s));
+                }
             }
-            assert!(minimum_rotation_dot>1.0-1e-5 && maximum_location_error<1e-5,
+            assert!(
+                minimum_rotation_dot > 1.0 - 1e-5 && maximum_location_error < 1e-5,
                 "Turn slot pose uses the wrong actor clock: custom={custom_dilation}, world_paused={world_paused}, rotation_error_degrees={}, location_error={maximum_location_error}, source_time={source_time}, stack={:?}",
-                (2.0*minimum_rotation_dot.clamp(-1.0,1.0).acos()).to_degrees(), app.world().get::<AlsTurnMontageStack>(avatar).unwrap());
-            let after = &app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0];
+                (2.0 * minimum_rotation_dot.clamp(-1.0, 1.0).acos()).to_degrees(),
+                app.world().get::<AlsTurnMontageStack>(avatar).unwrap()
+            );
+            let after = &app
+                .world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries[0];
             assert_eq!(after.id, before.id);
-            assert!((after.elapsed-source_time).abs()<1e-6);
-            if world_paused { app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().unpause(); }
+            assert!((after.elapsed - source_time).abs() < 1e-6);
+            if world_paused {
+                app.world_mut()
+                    .resource_mut::<Time<bevy::time::Virtual>>()
+                    .unpause();
+            }
         }
     }
 
     #[test]
     fn turn_pause_resume_keeps_the_existing_turn_while_grounded() {
-        let (mut app, character, avatar)=crate::roll_drive::tests::loaded_roll_character();
-        app.add_systems(PostUpdate,(move |mut mode:Query<&mut LocomotionState>| {
-            *mode.get_mut(character).unwrap()=LocomotionState::Grounded;
-        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::ab_als_root::AlsRootGraphSet));
-        app.world_mut().run_system_once(move |mut commands:Commands| {
-            crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
-                SourceTurnRequest { variant:TurnVariant::Right90,yaw:90.0,crouching:false });
-        }).unwrap();
-        let started = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].id;
-        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
-        for _ in 0..2 { app.update(); }
-        let held = &app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0];
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.add_systems(
+            PostUpdate,
+            (move |mut mode: Query<&mut LocomotionState>| {
+                *mode.get_mut(character).unwrap() = LocomotionState::Grounded;
+            })
+            .after(crate::actual_motion::AlsActualMotionSet)
+            .before(crate::ab_als_root::AlsRootGraphSet),
+        );
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(
+                    &mut commands,
+                    character,
+                    avatar,
+                    SourceTurnRequest {
+                        variant: TurnVariant::Right90,
+                        yaw: 90.0,
+                        crouching: false,
+                    },
+                );
+            })
+            .unwrap();
+        let started = app
+            .world()
+            .get::<AlsTurnMontageStack>(avatar)
+            .unwrap()
+            .entries[0]
+            .id;
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        for _ in 0..2 {
+            app.update();
+        }
+        let held = &app
+            .world()
+            .get::<AlsTurnMontageStack>(avatar)
+            .unwrap()
+            .entries[0];
         assert!(held.sampling_ready);
         assert_eq!((held.id, held.elapsed, held.weight()), (started, 0.0, 0.0));
-        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
-        for _ in 0..18 {app.update();}
-        let before=app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].clone();
-        let calls=app.world().get::<crate::transition_notify::TransitionNotifyTelemetry>(character).unwrap().stop_animations_count;
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
-        app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().pause();
-        for _ in 0..100 {app.update();}
-        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].elapsed,before.elapsed);
-        app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().unpause();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
+        for _ in 0..18 {
+            app.update();
+        }
+        let before = app
+            .world()
+            .get::<AlsTurnMontageStack>(avatar)
+            .unwrap()
+            .entries[0]
+            .clone();
+        let calls = app
+            .world()
+            .get::<crate::transition_notify::TransitionNotifyTelemetry>(character)
+            .unwrap()
+            .stop_animations_count;
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(100),
+        ));
+        app.world_mut()
+            .resource_mut::<Time<bevy::time::Virtual>>()
+            .pause();
+        for _ in 0..100 {
+            app.update();
+        }
+        assert_eq!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries[0]
+                .elapsed,
+            before.elapsed
+        );
+        app.world_mut()
+            .resource_mut::<Time<bevy::time::Virtual>>()
+            .unpause();
         app.update();
-        assert_eq!(app.world().get::<crate::transition_notify::TransitionNotifyTelemetry>(character).unwrap().stop_animations_count,calls,
-            "Pause resume fabricated a state-machine stop notification");
-        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(),LocomotionState::Grounded);
-        let stack=app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
-        assert_eq!(stack.entries.len(),1);
-        assert_eq!(stack.entries[0].id,before.id);
+        assert_eq!(
+            app.world()
+                .get::<crate::transition_notify::TransitionNotifyTelemetry>(character)
+                .unwrap()
+                .stop_animations_count,
+            calls,
+            "Pause resume fabricated a state-machine stop notification"
+        );
+        assert_eq!(
+            *app.world().get::<LocomotionState>(character).unwrap(),
+            LocomotionState::Grounded
+        );
+        let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+        assert_eq!(stack.entries.len(), 1);
+        assert_eq!(stack.entries[0].id, before.id);
         assert!(stack.entries[0].blend_out_elapsed.is_none());
-        assert!((stack.entries[0].elapsed-before.elapsed-0.1*before.play_rate).abs()<1e-6);
+        assert!((stack.entries[0].elapsed - before.elapsed - 0.1 * before.play_rate).abs() < 1e-6);
     }
 
     #[test]
@@ -1375,32 +2034,51 @@ mod tests {
 
     #[test]
     fn source_half_turn_reaches_head_with_correct_direction() {
-        use crate::als::head::{AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state};
+        use crate::als::head::{
+            AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state,
+        };
 
         for (view, body, expected) in [
-            (180.0_f32, 0.0, 180.0), (-180.0, 0.0, 180.0),
-            (170.0, 0.0, -170.0), (-170.0, 0.0, 170.0),
-            (-90.0, 90.0, 180.0), (90.0, -90.0, -180.0),
-            (180.0, 10.0, -170.0), (-180.0, -10.0, 170.0),
+            (180.0_f32, 0.0, 180.0),
+            (-180.0, 0.0, 180.0),
+            (170.0, 0.0, -170.0),
+            (-170.0, 0.0, 170.0),
+            (-90.0, 90.0, 180.0),
+            (90.0, -90.0, -180.0),
+            (180.0, 10.0, -170.0),
+            (-180.0, -10.0, 170.0),
         ] {
-            assert_eq!(character_turn_angle_from_radians(view.to_radians(), body), expected);
+            assert_eq!(
+                character_turn_angle_from_radians(view.to_radians(), body),
+                expected
+            );
         }
-        assert_eq!(character_turn_angle_from_radians(-1.5707963705062866, -45.000003814697266), 45.0);
-        let mut head = AlsHeadState { initialization_required: false, ..default() };
-        update_head_state(&mut head, AlsHeadUpdateInput {
-            delta_seconds: 1.0 / 60.0,
-            delta_seconds_without_time_dilation: 1.0 / 60.0,
-            first_person: false,
-            rotation_mode: RotationMode::ViewDirection,
-            has_input: false,
-            input_yaw_world: 0.0,
-            target_yaw_world: 0.0,
-            body_yaw_world: 0.0,
-            body_yaw_velocity_world: 0.0,
-            view_yaw_angle: character_turn_angle_from_radians(std::f32::consts::PI, 0.0),
-            view_pitch_angle: 0.0,
-            movement_base_relative_yaw: 0.0,
-        }, AlsHeadSettings::default());
+        assert_eq!(
+            character_turn_angle_from_radians(-1.5707963705062866, -45.000003814697266),
+            45.0
+        );
+        let mut head = AlsHeadState {
+            initialization_required: false,
+            ..default()
+        };
+        update_head_state(
+            &mut head,
+            AlsHeadUpdateInput {
+                delta_seconds: 1.0 / 60.0,
+                delta_seconds_without_time_dilation: 1.0 / 60.0,
+                first_person: false,
+                rotation_mode: RotationMode::ViewDirection,
+                has_input: false,
+                input_yaw_world: 0.0,
+                target_yaw_world: 0.0,
+                body_yaw_world: 0.0,
+                body_yaw_velocity_world: 0.0,
+                view_yaw_angle: character_turn_angle_from_radians(std::f32::consts::PI, 0.0),
+                view_pitch_angle: 0.0,
+                movement_base_relative_yaw: 0.0,
+            },
+            AlsHeadSettings::default(),
+        );
         assert!(head.yaw_angle > 0.0 && head.yaw_amount > 0.5);
     }
 
@@ -1467,45 +2145,79 @@ mod tests {
     fn grounded_transition_play_stops_the_current_turn_montage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        let character = app.world_mut().spawn(crate::als::character::AlsCharacter).id();
+        let character = app
+            .world_mut()
+            .spawn(crate::als::character::AlsCharacter)
+            .id();
         let mut turns = AlsTurnMontageStack::default();
         SourceTurnRequest {
             variant: TurnVariant::Left90,
             yaw: 90.0,
             crouching: false,
-        }.play(&mut turns);
+        }
+        .play(&mut turns);
         turns.entries[0].blend_in_elapsed = 0.1;
         turns.entries[0].sampling_ready = true;
         let mut old_turns = turns.clone();
         old_turns.entries[0].id = 99;
-        let old_avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character }, ChildOf(character), old_turns,
-        )).id();
-        let avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character }, ChildOf(character), turns,
-        )).id();
-        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
-            avatar, camera: None,
-        });
-        app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::stop_link::play_transition(&mut commands, character,
-                crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0));
-        }).unwrap();
+        let old_avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                old_turns,
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((AlsCharacterAvatar { character }, ChildOf(character), turns))
+            .id();
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            },
+        );
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                crate::stop_link::play_transition(
+                    &mut commands,
+                    character,
+                    crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0),
+                );
+            })
+            .unwrap();
         app.world_mut().flush();
         let turns = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
         assert!(turns.entries[0].blend_out_elapsed.is_some());
-        assert!((turns.entries[0].blend_out_duration - crate::stop_link::QUICK_STOP_BLEND_IN).abs() < 1e-6);
+        assert!(
+            (turns.entries[0].blend_out_duration - crate::stop_link::QUICK_STOP_BLEND_IN).abs()
+                < 1e-6
+        );
         assert!(!turns.inertialization_pending);
-        assert!(app.world().get::<AlsTurnMontageStack>(old_avatar).unwrap().entries[0].blend_out_elapsed.is_none());
+        assert!(
+            app.world()
+                .get::<AlsTurnMontageStack>(old_avatar)
+                .unwrap()
+                .entries[0]
+                .blend_out_elapsed
+                .is_none()
+        );
         let initial_weight = turns.entries[0].weight();
-        let mut turns = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        let mut turns = app
+            .world_mut()
+            .get_mut::<AlsTurnMontageStack>(avatar)
+            .unwrap();
         turns.advance(0.05);
         assert!((turns.entries[0].weight() - initial_weight * 0.5).abs() < 1e-5);
 
         let mut immediate = AlsTurnMontageStack::default();
         SourceTurnRequest {
-            variant: TurnVariant::Right90, yaw: 90.0, crouching: false,
-        }.play(&mut immediate);
+            variant: TurnVariant::Right90,
+            yaw: 90.0,
+            crouching: false,
+        }
+        .play(&mut immediate);
         immediate.entries[0].blend_in_elapsed = 0.1;
         immediate.stop_for_group_replacement(0.0);
         assert!(immediate.entries.is_empty());
@@ -1534,19 +2246,33 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d171/replacement.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let mut app = App::new();
-        let character = app.world_mut().spawn(crate::als::character::AlsCharacter).id();
+        let character = app
+            .world_mut()
+            .spawn(crate::als::character::AlsCharacter)
+            .id();
         let avatar = app.world_mut().spawn(AlsCharacterAvatar { character }).id();
-        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            },
+        );
         for case in fixture.cases {
             let mut turns = AlsTurnMontageStack::default();
             SourceTurnRequest {
-                variant: TurnVariant::Left90, yaw: -90.0, crouching: case.crouching,
-            }.play(&mut turns);
+                variant: TurnVariant::Left90,
+                yaw: -90.0,
+                crouching: case.crouching,
+            }
+            .play(&mut turns);
             turns.entries[0].sampling_ready = true;
             app.world_mut().entity_mut(avatar).insert(turns);
-            app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack::default());
+            app.world_mut()
+                .entity_mut(character)
+                .insert(crate::stop_link::AlsTransitionMontageStack::default());
             for (index, frame) in case.frames.into_iter().enumerate() {
                 if let Some(duration) = frame.stop_seconds {
                     let mut transition = if case.crouching {
@@ -1555,15 +2281,24 @@ mod tests {
                         crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0)
                     };
                     transition.blend_in = duration;
-                    app.world_mut().run_system_once(move |mut commands: Commands| {
-                        crate::stop_link::play_transition(&mut commands, character, transition);
-                    }).unwrap();
+                    app.world_mut()
+                        .run_system_once(move |mut commands: Commands| {
+                            crate::stop_link::play_transition(&mut commands, character, transition);
+                        })
+                        .unwrap();
                     app.world_mut().flush();
                 }
-                let mut turns = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+                let mut turns = app
+                    .world_mut()
+                    .get_mut::<AlsTurnMontageStack>(avatar)
+                    .unwrap();
                 assert!(!turns.advance(frame.delta_seconds));
                 let weight = turns.entries.first().map_or(0.0, AlsTurnMontage::weight);
-                assert_eq!(weight, frame.weight, "{} crouching={} frame {index}", case.name, case.crouching);
+                assert_eq!(
+                    weight, frame.weight,
+                    "{} crouching={} frame {index}",
+                    case.name, case.crouching
+                );
             }
         }
     }
@@ -1571,87 +2306,188 @@ mod tests {
     #[test]
     fn grounded_turn_play_stops_the_current_transition_montage() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            AnimationGraphPlugin::default(),
+        ));
         let mut transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
         transition.weight = 0.75;
         let transitions = crate::stop_link::AlsTransitionMontageStack {
             entries: vec![transition],
             ..default()
         };
-        let character = app.world_mut().spawn((crate::als::character::AlsCharacter, transitions)).id();
-        let avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character }, AnimatedSceneHandle::default(),
-            ChildOf(character), AlsTurnMontageStack::default(),
-        )).id();
-        let player = app.world_mut().spawn((
-            AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar),
-        )).id();
-        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
-            avatar, camera: None,
-        });
+        let character = app
+            .world_mut()
+            .spawn((crate::als::character::AlsCharacter, transitions))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+                AlsTurnMontageStack::default(),
+            ))
+            .id();
+        let player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            },
+        );
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            player
+        );
         let request = SourceTurnRequest {
             variant: TurnVariant::Right90,
             yaw: 90.0,
             crouching: false,
         };
-        app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::transition_notify::queue_turn_in_grounded_group(
-                &mut commands, character, avatar, request);
-        }).unwrap();
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(
+                    &mut commands,
+                    character,
+                    avatar,
+                    request,
+                );
+            })
+            .unwrap();
         app.world_mut().flush();
-        let transition = &app.world().get::<crate::stop_link::AlsTransitionMontageStack>(character).unwrap().entries[0];
+        let transition = &app
+            .world()
+            .get::<crate::stop_link::AlsTransitionMontageStack>(character)
+            .unwrap()
+            .entries[0];
         assert_eq!(transition.stop_elapsed, Some(0.0));
         assert!((transition.stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
-        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
+        assert_eq!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .len(),
+            1
+        );
 
-        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack::default());
-        app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
-        app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::stop_link::play_transition(&mut commands, character,
-                crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0));
-            crate::transition_notify::queue_turn_in_grounded_group(
-                &mut commands, character, avatar, request);
-        }).unwrap();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::stop_link::AlsTransitionMontageStack::default());
+        app.world_mut()
+            .entity_mut(avatar)
+            .insert(AlsTurnMontageStack::default());
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                crate::stop_link::play_transition(
+                    &mut commands,
+                    character,
+                    crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0),
+                );
+                crate::transition_notify::queue_turn_in_grounded_group(
+                    &mut commands,
+                    character,
+                    avatar,
+                    request,
+                );
+            })
+            .unwrap();
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
-        let transition = &app.world().get::<crate::stop_link::AlsTransitionMontageStack>(character).unwrap().entries[0];
+        assert_eq!(
+            app.world()
+                .get::<AlsTurnMontageStack>(avatar)
+                .unwrap()
+                .entries
+                .len(),
+            1
+        );
+        let transition = &app
+            .world()
+            .get::<crate::stop_link::AlsTransitionMontageStack>(character)
+            .unwrap()
+            .entries[0];
         assert_eq!(transition.stop_elapsed, Some(0.0));
         assert!((transition.stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap()
-            .get_global_input_data("turn_in_place_state.play_rate")
-            .and_then(|value| value.as_f32().ok()), Some(TurnInPlaceConfig::default().play_rate));
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_global_input_data("turn_in_place_state.play_rate")
+                .and_then(|value| value.as_f32().ok()),
+            Some(TurnInPlaceConfig::default().play_rate)
+        );
 
         app.world_mut().entity_mut(player).remove::<ChildOf>();
-        let new_player = app.world_mut().spawn((
-            AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar),
-        )).id();
+        let new_player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
-        app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
-        app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::transition_notify::queue_turn_in_grounded_group(
-                &mut commands, character, avatar, SourceTurnRequest {
-                    variant: TurnVariant::Left180, yaw: 120.0, crouching: false,
-                });
-        }).unwrap();
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            new_player
+        );
+        app.world_mut()
+            .entity_mut(avatar)
+            .insert(AlsTurnMontageStack::default());
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(
+                    &mut commands,
+                    character,
+                    avatar,
+                    SourceTurnRequest {
+                        variant: TurnVariant::Left180,
+                        yaw: 120.0,
+                        crouching: false,
+                    },
+                );
+            })
+            .unwrap();
         app.world_mut().flush();
         let expected = TurnInPlaceConfig::default().play_rate * (120.0 / 180.0);
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
-            .get_global_input_data("turn_in_place_state.play_rate")
-            .and_then(|value| value.as_f32().ok()), Some(expected));
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap()
-            .get_global_input_data("turn_in_place_state.play_rate")
-            .and_then(|value| value.as_f32().ok()), Some(TurnInPlaceConfig::default().play_rate));
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(new_player)
+                .unwrap()
+                .get_global_input_data("turn_in_place_state.play_rate")
+                .and_then(|value| value.as_f32().ok()),
+            Some(expected)
+        );
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_global_input_data("turn_in_place_state.play_rate")
+                .and_then(|value| value.as_f32().ok()),
+            Some(TurnInPlaceConfig::default().play_rate)
+        );
     }
 
     #[test]
@@ -1673,23 +2509,42 @@ mod tests {
     #[test]
     fn generated_turn_slots_publish_requests_to_the_parent_inertialization() {
         for (graph, idle, epoch, duration) in [
-            ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            (
+                "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
                 "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
-                STANDING_TURN_INERTIALIZATION_EPOCH_KEY, STANDING_TURN_INERTIALIZATION_DURATION_KEY),
-            ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+                STANDING_TURN_INERTIALIZATION_EPOCH_KEY,
+                STANDING_TURN_INERTIALIZATION_DURATION_KEY,
+            ),
+            (
+                "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
                 "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
-                CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY, CROUCHING_TURN_INERTIALIZATION_DURATION_KEY),
+                CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY,
+                CROUCHING_TURN_INERTIALIZATION_DURATION_KEY,
+            ),
         ] {
             let graph_text = std::fs::read_to_string(graph).unwrap();
-            let node = graph_text.lines().find(|line| line.contains("InertializationPassthroughNode")
-                && line.contains("filtered_curves: [\"RotationYawSpeed\"]")).unwrap();
+            let node = graph_text
+                .lines()
+                .find(|line| {
+                    line.contains("InertializationPassthroughNode")
+                        && line.contains("filtered_curves: [\"RotationYawSpeed\"]")
+                })
+                .unwrap();
             assert!(node.contains("request_epoch_key: \"\""), "{graph}");
             assert!(node.contains("request_duration_key: \"\""), "{graph}");
             let idle_text = std::fs::read_to_string(idle).unwrap();
-            let slot = idle_text.lines().find(|line| line.contains("SourceSlotNode")
-                && line.contains("TurnInPlace")).unwrap();
-            assert!(slot.contains(&format!("request_epoch_key: \"{epoch}\"")), "{idle}");
-            assert!(slot.contains(&format!("request_duration_key: \"{duration}\"")), "{idle}");
+            let slot = idle_text
+                .lines()
+                .find(|line| line.contains("SourceSlotNode") && line.contains("TurnInPlace"))
+                .unwrap();
+            assert!(
+                slot.contains(&format!("request_epoch_key: \"{epoch}\"")),
+                "{idle}"
+            );
+            assert!(
+                slot.contains(&format!("request_duration_key: \"{duration}\"")),
+                "{idle}"
+            );
         }
     }
 
@@ -1716,7 +2571,11 @@ mod tests {
             _ => panic!("invalid turn angle"),
         };
         let yaw = f32::from(angle) * if right { 1.0 } else { -1.0 };
-        SourceTurnRequest { variant, yaw, crouching }
+        SourceTurnRequest {
+            variant,
+            yaw,
+            crouching,
+        }
     }
 
     #[test]
@@ -1745,7 +2604,8 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d175/zero-delta.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in fixture.cases {
             let request = fixture_turn_request(case.angle, case.right, case.crouching);
             assert_eq!(request.source_sequence(), case.sequence);
@@ -1761,7 +2621,12 @@ mod tests {
                 let entry = &stack.entries[0];
                 assert_eq!(entry.id, id);
                 assert!(entry.playing());
-                assert_eq!((entry.elapsed, entry.weight()), (frame.position, frame.weight), "{}", case.sequence);
+                assert_eq!(
+                    (entry.elapsed, entry.weight()),
+                    (frame.position, frame.weight),
+                    "{}",
+                    case.sequence
+                );
             }
         }
     }
@@ -1792,7 +2657,8 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d176/stop-window.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in fixture.cases {
             let request = fixture_turn_request(case.angle, case.right, case.crouching);
             assert_eq!(request.source_sequence(), case.sequence);
@@ -1804,7 +2670,13 @@ mod tests {
                 let mut drive = AlsTurnDrive::default();
                 for (frame, delta) in sample.deltas.into_iter().enumerate() {
                     let requested = request_turn_inertialization(stack.advance(delta), &mut drive);
-                    assert_eq!(requested, frame == sample.stop_frame, "{} {} frame {frame}", case.sequence, sample.name);
+                    assert_eq!(
+                        requested,
+                        frame == sample.stop_frame,
+                        "{} {} frame {frame}",
+                        case.sequence,
+                        sample.name
+                    );
                     assert_eq!(stack.entries.is_empty(), frame >= sample.stop_frame);
                 }
                 assert_eq!(drive.inertialization_request_epoch, 1.0);
@@ -1850,16 +2722,32 @@ mod tests {
                 entry.blend_out_elapsed = Some(0.0);
                 entry.blend_out_start_weight = weight;
                 let mut pose = Pose::default();
-                pose.add_bone(BonePose { rotation: Some(Quat::from_array(rotation)), ..default() }, bone);
+                pose.add_bone(
+                    BonePose {
+                        rotation: Some(Quat::from_array(rotation)),
+                        ..default()
+                    },
+                    bone,
+                );
                 poses.insert(entry.id, pose);
             }
             let (pose, weight, _) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
             assert_eq!(weight, 1.0);
             let actual = pose.get_bone(bone).unwrap().rotation.unwrap();
-            assert!((actual - Quat::from_array(case.raw_rotation)).length() < 3e-7, "{} {}", case.stance, case.bone);
+            assert!(
+                (actual - Quat::from_array(case.raw_rotation)).length() < 3e-7,
+                "{} {}",
+                case.stance,
+                case.bone
+            );
             let output = pose.normalize_quat();
             let actual = output.get_bone(bone).unwrap().rotation.unwrap();
-            assert!((actual - Quat::from_array(case.rotation)).length() < 3e-7, "{} {}", case.stance, case.bone);
+            assert!(
+                (actual - Quat::from_array(case.rotation)).length() < 3e-7,
+                "{} {}",
+                case.stance,
+                case.bone
+            );
         }
     }
 
@@ -1893,7 +2781,9 @@ mod tests {
             Some(Vec3::X * 5.0)
         );
         for case in crate::extensions::source_slot::montage_normalization_cases("standing-turn") {
-            let [first, second] = case.effective.as_slice() else { continue; };
+            let [first, second] = case.effective.as_slice() else {
+                continue;
+            };
             for (entry, weight) in stack.entries.iter_mut().zip(case.weights) {
                 entry.blend_out_elapsed = Some(0.0);
                 entry.blend_out_start_weight = weight;
@@ -1914,7 +2804,10 @@ mod tests {
         let bone = BoneId::default();
         let make_pose = |rotation| {
             let mut pose = Pose::default();
-            pose.add_bone(BonePose::from_transform(Transform::from_rotation(rotation)), bone);
+            pose.add_bone(
+                BonePose::from_transform(Transform::from_rotation(rotation)),
+                bone,
+            );
             pose
         };
         let base = make_pose(Quat::from_rotation_y(0.45));
@@ -1932,7 +2825,10 @@ mod tests {
                     (0.22, Quat::from_rotation_x(1.7)),
                     (0.18, Quat::from_rotation_y(-1.6)),
                     (0.19, Quat::from_rotation_z(1.1)),
-                ].into_iter().take(count) {
+                ]
+                .into_iter()
+                .take(count)
+                {
                     stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
                     let entry = stack.entries.last_mut().unwrap();
                     entry.sampling_ready = true;
@@ -1942,12 +2838,24 @@ mod tests {
                     poses.insert(entry.id, pose.clone());
                     samples.push((pose, weight));
                 }
-                let (overlay, weight, _) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
-                assert_eq!(weight, samples.iter().map(|(_, weight)| weight).sum::<f32>());
+                let (overlay, weight, _) =
+                    compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
+                assert_eq!(
+                    weight,
+                    samples.iter().map(|(_, weight)| weight).sum::<f32>()
+                );
                 samples.push((base.clone(), 1.0 - weight));
                 let expected = crate::extensions::source_pose_nodes::blend_source_poses(&samples);
-                let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay), Some(weight));
-                let early = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay.normalize_quat()), Some(weight));
+                let actual = crate::extensions::slot_node::blend_slot_pose(
+                    base.clone(),
+                    Some(&overlay),
+                    Some(weight),
+                );
+                let early = crate::extensions::slot_node::blend_slot_pose(
+                    base.clone(),
+                    Some(&overlay.normalize_quat()),
+                    Some(weight),
+                );
                 assert!(distance(&actual, &expected) < 1e-6);
                 assert!(distance(&early, &expected) > 1e-3);
             }
@@ -2009,9 +2917,23 @@ mod tests {
         assert_eq!(drive.inertialization_request_epoch, 1.0);
         let mut player = AnimationGraphPlayer::new(Handle::default());
         write_turn_inertialization_inputs(&mut player, &drive, true);
-        assert_eq!(player.get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY).unwrap().as_f32().unwrap(), 1.0);
+        assert_eq!(
+            player
+                .get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY)
+                .unwrap()
+                .as_f32()
+                .unwrap(),
+            1.0
+        );
         write_turn_inertialization_inputs(&mut player, &drive, false);
-        assert_eq!(player.get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY).unwrap().as_f32().unwrap(), 0.0);
+        assert_eq!(
+            player
+                .get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY)
+                .unwrap()
+                .as_f32()
+                .unwrap(),
+            0.0
+        );
         assert_eq!(drive.inertialization_request_epoch, 1.0);
         assert!(!stack.advance(0.0));
     }

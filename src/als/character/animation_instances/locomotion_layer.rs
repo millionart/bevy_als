@@ -8,22 +8,22 @@ use crate::als::{
         AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig,
     },
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use crate::extensions::source_instance::{set_source_frame_input, source_player_property};
 use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQueryFilter};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
+#[cfg(test)]
+use bevy_animation_graph::core::ragdoll::definition::ColliderLabel;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
 };
-#[cfg(test)]
-use bevy_animation_graph::core::ragdoll::definition::ColliderLabel;
 use bevy_tnua::{TnuaConfig, TnuaController, controller::TnuaActionFlowStatus};
 
 use crate::{
+    ab_als_provider::AbAlsProviderSet,
     actual_motion::AlsActualMotion,
     animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet},
     character_assembly::AlsCharacterAvatar,
-    ab_als_provider::AbAlsProviderSet,
 };
 
 #[derive(serde::Deserialize)]
@@ -44,8 +44,10 @@ struct InAirSettings {
 }
 
 static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json"))
-        .expect("generated in-air settings are valid")
+    serde_json::from_str(include_str!(
+        "../../../../assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json"
+    ))
+    .expect("generated in-air settings are valid")
 });
 
 pub(crate) fn lean_interpolation_half_life() -> f32 {
@@ -74,9 +76,9 @@ impl Plugin for LocomotionLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsLocomotionLayerSet
-                .after(AbAlsProviderSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            AlsLocomotionLayerSet.after(AbAlsProviderSet).before(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
         )
         .add_systems(
             PostUpdate,
@@ -143,11 +145,28 @@ fn ground_prediction_amount(
         &ShapeCastConfig::from_max_distance(distance),
         filter,
     );
-    let hit = hit.as_ref().filter(|hit| crate::als::motion::source_sweep_impact_normal(
-        spatial, hit, *direction * distance, origin, Quat::IDENTITY, capsule).y >= walkable_floor_cos);
-    (hit.map_or(0.0, |hit| settings.ground_prediction.sample(hit.distance / distance) * allowance),
-        Some(AlsGroundPredictionTrace { start: origin, end: origin + direction * distance, shape: capsule.clone(),
-            hit: hit.map(|hit| (origin + direction * hit.distance, hit.point1)) }))
+    let hit = hit.as_ref().filter(|hit| {
+        crate::als::motion::source_sweep_impact_normal(
+            spatial,
+            hit,
+            *direction * distance,
+            origin,
+            Quat::IDENTITY,
+            capsule,
+        )
+        .y >= walkable_floor_cos
+    });
+    (
+        hit.map_or(0.0, |hit| {
+            settings.ground_prediction.sample(hit.distance / distance) * allowance
+        }),
+        Some(AlsGroundPredictionTrace {
+            start: origin,
+            end: origin + direction * distance,
+            shape: capsule.clone(),
+            hit: hit.map(|hit| (origin + direction * hit.distance, hit.point1)),
+        }),
+    )
 }
 
 #[allow(clippy::type_complexity)]
@@ -172,16 +191,21 @@ fn locomotion_input_writer(
     avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
-    let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter()).with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+    let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter())
+        .with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
     for (avatar, parent, instance) in &avatars {
-        let Ok(mesh) = transforms.compute_global_transform(avatar) else { continue; };
+        let Ok(mesh) = transforms.compute_global_transform(avatar) else {
+            continue;
+        };
         let Ok((controller, config, position, stance, params, motion)) =
             characters.get(parent.parent())
         else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
-        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
+        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else {
+            continue;
+        };
         let Some(config) = configs.get(&config.0) else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
@@ -205,10 +229,15 @@ fn locomotion_input_writer(
                 .unwrap_or(0.0)
                 .clamp(0.0, 1.0);
         let scale = transform.to_scale_rotation_translation().0;
-        let half = if *stance == crate::als::state::Stance::Crouching { params.crouch.actual_crouched_half_height() }
-            else { params.crouch.standing_capsule_half_height } * scale.y;
-        let capsule = crate::als::character::als_character_capsule(half,
-            params.crouch.standing_capsule_radius * scale.x.min(scale.z));
+        let half = if *stance == crate::als::state::Stance::Crouching {
+            params.crouch.actual_crouched_half_height()
+        } else {
+            params.crouch.standing_capsule_half_height
+        } * scale.y;
+        let capsule = crate::als::character::als_character_capsule(
+            half,
+            params.crouch.standing_capsule_radius * scale.x.min(scale.z),
+        );
         let (prediction, trace) = ground_prediction_amount(
             &spatial,
             position.0,
@@ -219,8 +248,11 @@ fn locomotion_input_writer(
             &filter,
             allowance,
         );
-        if let Some(trace) = trace { commands.entity(avatar).insert(trace); }
-        else { commands.entity(avatar).remove::<AlsGroundPredictionTrace>(); }
+        if let Some(trace) = trace {
+            commands.entity(avatar).insert(trace);
+        } else {
+            commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
+        }
         player.set_global_input_data("in_air_source.ground_prediction_amount", prediction);
         player.set_global_input_data(
             "in_air_source.lean_target",
@@ -272,24 +304,55 @@ mod tests {
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let parent = app.world_mut().spawn(Transform::IDENTITY).id();
         let velocity = Vec3::new(1.0, IN_AIR_SETTINGS.prediction_min_velocity, -3.0);
-        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY,
-            AlsActualMotion { world_velocity: velocity, ..default() }));
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        app.world_mut().entity_mut(player_entity).remove::<AlsRootAnimationContext>();
+        app.world_mut().entity_mut(actor).insert((
+            ChildOf(parent),
+            Transform::IDENTITY,
+            AlsActualMotion {
+                world_velocity: velocity,
+                ..default()
+            },
+        ));
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut()
+            .entity_mut(player_entity)
+            .remove::<AlsRootAnimationContext>();
         for yaw in [90.0_f32, -45.0] {
             let rotation = Quat::from_rotation_y(yaw.to_radians());
-            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
-                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
-            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
-            let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-                .get_global_input_data("in_air_source.lean_target").unwrap().as_vec2().unwrap();
-            assert!(actual.abs_diff_eq(in_air_lean_target(velocity, rotation), 1e-5),
-                "Source Air lean world basis differs at {yaw}: {actual:?}");
-            let trace = app.world().get::<AlsGroundPredictionTrace>(avatar).expect("Source falling prediction must publish its trace");
-            let expected_distance = IN_AIR_SETTINGS.prediction_max_distance * 3.0
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() =
+                Transform::from_xyz(4.0, 2.0, -1.0)
+                    .with_rotation(rotation)
+                    .with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut()
+                .run_system_once(locomotion_input_writer)
+                .unwrap();
+            let actual = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_global_input_data("in_air_source.lean_target")
+                .unwrap()
+                .as_vec2()
+                .unwrap();
+            assert!(
+                actual.abs_diff_eq(in_air_lean_target(velocity, rotation), 1e-5),
+                "Source Air lean world basis differs at {yaw}: {actual:?}"
+            );
+            let trace = app
+                .world()
+                .get::<AlsGroundPredictionTrace>(avatar)
+                .expect("Source falling prediction must publish its trace");
+            let expected_distance = IN_AIR_SETTINGS.prediction_max_distance
+                * 3.0
                 * app.world().get::<Transform>(avatar).unwrap().scale.y;
-            assert!((trace.end.distance(trace.start) - expected_distance).abs() < 1e-4,
-                "Source Air prediction must use current mesh world scale: {} != {expected_distance}", trace.end.distance(trace.start));
+            assert!(
+                (trace.end.distance(trace.start) - expected_distance).abs() < 1e-4,
+                "Source Air prediction must use current mesh world scale: {} != {expected_distance}",
+                trace.end.distance(trace.start)
+            );
         }
     }
 
@@ -297,27 +360,66 @@ mod tests {
     fn falling_ground_prediction_starts_at_the_current_actor_position() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = true;
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(actor)
+            .unwrap()
+            .jump_pressed = true;
         app.update();
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = false;
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(actor)
+            .unwrap()
+            .jump_pressed = false;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         let mut falling_samples = 0;
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         for _ in 0..180 {
-            let allowance = 1.0 - app.world().get::<AlsRootAnimationContext>(player_entity)
-                .and_then(|context| context.f32("GroundPredictionBlock")).unwrap_or(0.0).clamp(0.0, 1.0);
+            let allowance = 1.0
+                - app
+                    .world()
+                    .get::<AlsRootAnimationContext>(player_entity)
+                    .and_then(|context| context.f32("GroundPredictionBlock"))
+                    .unwrap_or(0.0)
+                    .clamp(0.0, 1.0);
             app.update();
-            let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap();
+            let motion = app
+                .world()
+                .get::<crate::actual_motion::AlsActualMotion>(actor)
+                .unwrap();
             if motion.world_velocity.y <= IN_AIR_SETTINGS.prediction_velocity_threshold {
-                assert_eq!(*app.world().get::<crate::als::state::LocomotionState>(actor).unwrap(), crate::als::state::LocomotionState::Air);
-                let trace = app.world().get::<AlsGroundPredictionTrace>(avatar).expect("Falling source prediction must execute its sweep");
-                let position = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+                assert_eq!(
+                    *app.world()
+                        .get::<crate::als::state::LocomotionState>(actor)
+                        .unwrap(),
+                    crate::als::state::LocomotionState::Air
+                );
+                let trace = app
+                    .world()
+                    .get::<AlsGroundPredictionTrace>(avatar)
+                    .expect("Falling source prediction must execute its sweep");
+                let position = app
+                    .world()
+                    .get::<avian3d::prelude::Position>(actor)
+                    .unwrap()
+                    .0;
                 let transform = app.world().get::<Transform>(actor).unwrap();
-                assert!(position.abs_diff_eq(transform.translation, 1e-6), "Actor pose must be synchronized after physics");
+                assert!(
+                    position.abs_diff_eq(transform.translation, 1e-6),
+                    "Actor pose must be synchronized after physics"
+                );
                 let trace_start = trace.start;
                 let velocity = motion.world_velocity;
-                let actual_prediction = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-                    .get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
+                let actual_prediction = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player_entity)
+                    .unwrap()
+                    .get_global_input_data("in_air_source.ground_prediction_amount")
+                    .unwrap()
+                    .as_f32()
+                    .unwrap();
                 let expected_prediction = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
                     actors: Query<(&Collider, &TnuaConfig<AlsControlScheme>)>,
                     avatars: Query<&GlobalTransform>, configs: Res<Assets<AlsControlSchemeConfig>>,
@@ -330,15 +432,28 @@ mod tests {
                         avatars.get(avatar).unwrap().to_scale_rotation_translation().0.y,
                         config.basis.max_slope.cos(), &filter, allowance).0
                 }).unwrap();
-                assert!((actual_prediction - expected_prediction).abs() < 1e-6,
-                    "Ground prediction uses a stale actor origin: actual={actual_prediction}, source={expected_prediction}, trace={trace_start:?}, actor={position:?}, velocity={velocity:?}");
-                assert!(trace_start.abs_diff_eq(position, 1e-6), "Source sweep origin must use the current actor position");
+                assert!(
+                    (actual_prediction - expected_prediction).abs() < 1e-6,
+                    "Ground prediction uses a stale actor origin: actual={actual_prediction}, source={expected_prediction}, trace={trace_start:?}, actor={position:?}, velocity={velocity:?}"
+                );
+                assert!(
+                    trace_start.abs_diff_eq(position, 1e-6),
+                    "Source sweep origin must use the current actor position"
+                );
                 falling_samples += 1;
-                if falling_samples == 3 { break; }
+                if falling_samples == 3 {
+                    break;
+                }
             }
-            assert!(std::time::Instant::now() < deadline, "Falling prediction fixture made no progress");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Falling prediction fixture made no progress"
+            );
         }
-        assert_eq!(falling_samples, 3, "The accepted jump did not reach source prediction velocity");
+        assert_eq!(
+            falling_samples, 3,
+            "The accepted jump did not reach source prediction velocity"
+        );
     }
     use avian3d::prelude::*;
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce};
@@ -347,8 +462,12 @@ mod tests {
         let slope = angle.to_radians().tan();
         let mut points = Vec::new();
         for z in [-1.0_f32, 1.0] {
-            points.extend([Vec3::new(-1.0, 0.08 - slope, z), Vec3::new(0.0, 0.08, z),
-                Vec3::new(-1.0, -3.0, z), Vec3::new(0.0, -3.0, z)]);
+            points.extend([
+                Vec3::new(-1.0, 0.08 - slope, z),
+                Vec3::new(0.0, 0.08, z),
+                Vec3::new(-1.0, -3.0, z),
+                Vec3::new(0.0, -3.0, z),
+            ]);
         }
         Collider::convex_hull(&points).unwrap()
     }
@@ -356,18 +475,49 @@ mod tests {
     #[test]
     fn prediction_trace_is_published_by_the_actual_query_and_cleared_when_blocked_or_unavailable() {
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut().entity_mut(actor).insert(AlsActualMotion {
+            world_velocity: Vec3::NEG_Y * 10.0,
+            ..default()
+        });
         for blocked in [false, true, false] {
-            app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [("GroundPredictionBlock".into(), if blocked { 1.0 } else { 0.0 })].into() });
-            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            app.world_mut()
+                .entity_mut(player)
+                .insert(AlsRootAnimationContext {
+                    curves: [(
+                        "GroundPredictionBlock".into(),
+                        if blocked { 1.0 } else { 0.0 },
+                    )]
+                    .into(),
+                });
+            app.world_mut()
+                .run_system_once(locomotion_input_writer)
+                .unwrap();
             app.world_mut().flush();
-            assert_eq!(app.world().get::<AlsGroundPredictionTrace>(avatar).is_some(), !blocked);
+            assert_eq!(
+                app.world()
+                    .get::<AlsGroundPredictionTrace>(avatar)
+                    .is_some(),
+                !blocked
+            );
         }
-        app.world_mut().entity_mut(player).remove::<AnimationGraphPlayer>();
-        app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+        app.world_mut()
+            .entity_mut(player)
+            .remove::<AnimationGraphPlayer>();
+        app.world_mut()
+            .run_system_once(locomotion_input_writer)
+            .unwrap();
         app.world_mut().flush();
-        assert!(app.world().get::<AlsGroundPredictionTrace>(avatar).is_none(), "Unavailable player must not retain a previous prediction trace");
+        assert!(
+            app.world()
+                .get::<AlsGroundPredictionTrace>(avatar)
+                .is_none(),
+            "Unavailable player must not retain a previous prediction trace"
+        );
     }
 
     #[test]
@@ -388,11 +538,19 @@ mod tests {
         ))
         .configure_sets(
             PostUpdate,
-            (AnimationGraphSet::PrePhysics, AnimationGraphSet::PostPhysics, AnimationGraphSet::Final).chain(),
+            (
+                AnimationGraphSet::PrePhysics,
+                AnimationGraphSet::PostPhysics,
+                AnimationGraphSet::Final,
+            )
+                .chain(),
         );
-        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
-            schedule.initialize(world).expect("source input schedule must initialize");
-        });
+        app.world_mut()
+            .schedule_scope(PostUpdate, |world, schedule| {
+                schedule
+                    .initialize(world)
+                    .expect("source input schedule must initialize");
+            });
     }
 
     #[test]
@@ -457,26 +615,67 @@ mod tests {
                 .init_resource::<Assets<Mesh>>()
                 .add_message::<AssetEvent<Mesh>>();
             app.finish();
-            app.world_mut().spawn((RigidBody::Static, prediction_edge(angle),
-                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
-                    crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL), Transform::IDENTITY));
+            app.world_mut().spawn((
+                RigidBody::Static,
+                prediction_edge(angle),
+                CollisionLayers::new(
+                    [
+                        crate::als::character::AlsCollisionLayer::Default,
+                        crate::als::character::AlsCollisionLayer::Visibility,
+                    ],
+                    LayerMask::ALL,
+                ),
+                Transform::IDENTITY,
+            ));
             app.update();
             app.update();
-            let (contact, animation, trace, state) = app.world_mut().run_system_once(|spatial: crate::extensions::RagdollSpatialQuery| {
-                let origin = Vec3::new(0.1, 2.0, 0.0);
-                let velocity = Vec3::NEG_Y * 10.0;
-                let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
-                let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
-                let contact = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
-                    &ShapeCastConfig::from_max_distance(5.0), &filter).unwrap();
-                let (animation, trace) = ground_prediction_amount(&spatial, origin, velocity, &capsule,
-                    1.0, crate::als::air::WALKABLE_FLOOR_COS, &filter, 1.0);
-                let state = crate::als::air::ground_prediction_sweep(&spatial, Entity::PLACEHOLDER,
-                    origin, velocity, 0.9, 0.3);
-                (contact, animation, trace.unwrap(), state)
-            }).unwrap();
-            assert!(contact.distance > 0.0 && contact.normal1.y > crate::als::air::WALKABLE_FLOOR_COS);
-            assert_eq!(animation > 0.0, angle == 30.0, "angle={angle} animation={animation}");
+            let (contact, animation, trace, state) = app
+                .world_mut()
+                .run_system_once(|spatial: crate::extensions::RagdollSpatialQuery| {
+                    let origin = Vec3::new(0.1, 2.0, 0.0);
+                    let velocity = Vec3::NEG_Y * 10.0;
+                    let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
+                    let filter = SpatialQueryFilter::default()
+                        .with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+                    let contact = spatial
+                        .cast_shape(
+                            &capsule,
+                            origin,
+                            Quat::IDENTITY,
+                            Dir3::NEG_Y,
+                            &ShapeCastConfig::from_max_distance(5.0),
+                            &filter,
+                        )
+                        .unwrap();
+                    let (animation, trace) = ground_prediction_amount(
+                        &spatial,
+                        origin,
+                        velocity,
+                        &capsule,
+                        1.0,
+                        crate::als::air::WALKABLE_FLOOR_COS,
+                        &filter,
+                        1.0,
+                    );
+                    let state = crate::als::air::ground_prediction_sweep(
+                        &spatial,
+                        Entity::PLACEHOLDER,
+                        origin,
+                        velocity,
+                        0.9,
+                        0.3,
+                    );
+                    (contact, animation, trace.unwrap(), state)
+                })
+                .unwrap();
+            assert!(
+                contact.distance > 0.0 && contact.normal1.y > crate::als::air::WALKABLE_FLOOR_COS
+            );
+            assert_eq!(
+                animation > 0.0,
+                angle == 30.0,
+                "angle={angle} animation={animation}"
+            );
             assert_eq!(trace.hit.is_some(), angle == 30.0);
             assert_eq!(state.ground_valid, angle == 30.0);
             assert_eq!(state.amount > 0.0, angle == 30.0);
@@ -487,22 +686,50 @@ mod tests {
     fn loaded_animation_prediction_uses_the_geometric_edge_face() {
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         for (angle, x) in [(30.0, 0.0), (60.0, 5.0)] {
-            app.world_mut().spawn((RigidBody::Static, prediction_edge(angle),
-                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
-                    crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
-                Transform::from_xyz(x, 20.0, 0.0)));
+            app.world_mut().spawn((
+                RigidBody::Static,
+                prediction_edge(angle),
+                CollisionLayers::new(
+                    [
+                        crate::als::character::AlsCollisionLayer::Default,
+                        crate::als::character::AlsCollisionLayer::Visibility,
+                    ],
+                    LayerMask::ALL,
+                ),
+                Transform::from_xyz(x, 20.0, 0.0),
+            ));
         }
         app.update();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        app.world_mut().entity_mut(player).remove::<AlsRootAnimationContext>();
-        app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut()
+            .entity_mut(player)
+            .remove::<AlsRootAnimationContext>();
+        app.world_mut().entity_mut(actor).insert(AlsActualMotion {
+            world_velocity: Vec3::NEG_Y * 10.0,
+            ..default()
+        });
         for (angle, x) in [(30.0, 0.0), (60.0, 5.0)] {
             let origin = Vec3::new(x + 0.1, 22.0, 0.0);
             app.world_mut().get_mut::<Position>(actor).unwrap().0 = origin;
-            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = origin;
-            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
-            let amount = app.world().get::<AnimationGraphPlayer>(player).unwrap()
-                .get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .translation = origin;
+            app.world_mut()
+                .run_system_once(locomotion_input_writer)
+                .unwrap();
+            let amount = app
+                .world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_global_input_data("in_air_source.ground_prediction_amount")
+                .unwrap()
+                .as_f32()
+                .unwrap();
             assert_eq!(amount > 0.0, angle == 30.0, "angle={angle} amount={amount}");
         }
     }
@@ -512,23 +739,56 @@ mod tests {
         for parented in [false, true] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             if parented {
-                let parent = app.world_mut().spawn(Transform::from_scale(Vec3::new(2.0, 1.0, 1.0))).id();
+                let parent = app
+                    .world_mut()
+                    .spawn(Transform::from_scale(Vec3::new(2.0, 1.0, 1.0)))
+                    .id();
                 app.world_mut().entity_mut(actor).insert(ChildOf(parent));
             } else {
-                app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 1.0);
+                app.world_mut().get_mut::<Transform>(actor).unwrap().scale =
+                    Vec3::new(2.0, 1.0, 1.0);
             }
             app.update();
             app.update();
-            app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            app.world_mut().entity_mut(player).remove::<AlsRootAnimationContext>();
-            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            app.world_mut().entity_mut(actor).insert(AlsActualMotion {
+                world_velocity: Vec3::NEG_Y * 10.0,
+                ..default()
+            });
+            let player = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
+            app.world_mut()
+                .entity_mut(player)
+                .remove::<AlsRootAnimationContext>();
+            app.world_mut()
+                .run_system_once(locomotion_input_writer)
+                .unwrap();
             app.world_mut().flush();
-            let physical = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents();
-            let prediction = app.world().get::<AlsGroundPredictionTrace>(avatar).unwrap()
-                .shape.shape_scaled().compute_local_aabb().half_extents();
-            assert!(physical.abs_diff_eq(Vec3::new(0.6, 0.9, 0.6), 1e-5), "parented={parented} physical={physical:?}");
-            assert!(prediction.abs_diff_eq(Vec3::new(0.3, 0.9, 0.3), 1e-5), "parented={parented} prediction={prediction:?}");
+            let physical = app
+                .world()
+                .get::<Collider>(actor)
+                .unwrap()
+                .shape_scaled()
+                .compute_local_aabb()
+                .half_extents();
+            let prediction = app
+                .world()
+                .get::<AlsGroundPredictionTrace>(avatar)
+                .unwrap()
+                .shape
+                .shape_scaled()
+                .compute_local_aabb()
+                .half_extents();
+            assert!(
+                physical.abs_diff_eq(Vec3::new(0.6, 0.9, 0.6), 1e-5),
+                "parented={parented} physical={physical:?}"
+            );
+            assert!(
+                prediction.abs_diff_eq(Vec3::new(0.3, 0.9, 0.3), 1e-5),
+                "parented={parented} prediction={prediction:?}"
+            );
         }
     }
 
@@ -537,21 +797,42 @@ mod tests {
         use crate::als::{character::AlsCollisionLayer, state::LocomotionState};
         use crate::extensions::source_pose_nodes::{SourceTwoWayBlendNode, SourceTwoWayBlendState};
         use avian3d::prelude::LinearVelocity;
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph, context::node_states::StateKey,
+        };
 
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
-        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 0.2, 1.0),
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
-            Transform::from_xyz(0.9, 19.9, 0.0)));
+        app.world_mut().entity_mut(avatar).insert(
+            crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones,
+        );
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(1.0, 0.2, 1.0),
+            CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                LayerMask::ALL,
+            ),
+            Transform::from_xyz(0.9, 19.9, 0.0),
+        ));
         app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 1.0);
         app.update();
         app.update();
-        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         for (x, hit) in [(0.0, false), (0.9, true)] {
             let origin = Vec3::new(x, 23.0, 0.0);
-            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = origin;
-            app.world_mut().entity_mut(actor).insert((Position(origin), LinearVelocity(Vec3::NEG_Y * 10.0), LocomotionState::Air));
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .translation = origin;
+            app.world_mut().entity_mut(actor).insert((
+                Position(origin),
+                LinearVelocity(Vec3::NEG_Y * 10.0),
+                LocomotionState::Air,
+            ));
             let mut sampled = false;
             for _ in 0..6 {
                 app.update();
@@ -561,21 +842,59 @@ mod tests {
                 let assets = app.world().resource::<AssetServer>();
                 let alpha = arena.iter_context_ids().find_map(|id| {
                     let context = arena.get_context(id)?;
-                    if assets.get_path(context.get_graph_id())?.path().file_name()?.to_str()? != "S1_Fall.animgraph.ron" { return None; }
+                    if assets
+                        .get_path(context.get_graph_id())?
+                        .path()
+                        .file_name()?
+                        .to_str()?
+                        != "S1_Fall.animgraph.ron"
+                    {
+                        return None;
+                    }
                     let graph = graphs.get(context.get_graph_id())?;
-                    let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceTwoWayBlendNode>()
-                        .is_some_and(|blend| blend.alpha_key == "in_air_state.ground_prediction_amount"))?;
-                    if !context.node_caches.is_updated(node.id, StateKey::Default) { return None; }
-                    context.node_states.get::<SourceTwoWayBlendState>(node.id, StateKey::Default).ok().map(|state| state.input_alpha)
+                    let node = graph.nodes.values().find(|node| {
+                        node.try_inner_downcast_ref::<SourceTwoWayBlendNode>()
+                            .is_some_and(|blend| {
+                                blend.alpha_key == "in_air_state.ground_prediction_amount"
+                            })
+                    })?;
+                    if !context.node_caches.is_updated(node.id, StateKey::Default) {
+                        return None;
+                    }
+                    context
+                        .node_states
+                        .get::<SourceTwoWayBlendState>(node.id, StateKey::Default)
+                        .ok()
+                        .map(|state| state.input_alpha)
                 });
-                let Some(alpha) = alpha else { continue; };
+                let Some(alpha) = alpha else {
+                    continue;
+                };
                 let trace = app.world().get::<AlsGroundPredictionTrace>(avatar).unwrap();
-                let physical = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents();
-                let query = trace.shape.shape_scaled().compute_local_aabb().half_extents();
+                let physical = app
+                    .world()
+                    .get::<Collider>(actor)
+                    .unwrap()
+                    .shape_scaled()
+                    .compute_local_aabb()
+                    .half_extents();
+                let query = trace
+                    .shape
+                    .shape_scaled()
+                    .compute_local_aabb()
+                    .half_extents();
                 assert!(physical.abs_diff_eq(Vec3::new(0.6, 0.9, 0.6), 1e-5));
                 assert!(query.abs_diff_eq(Vec3::new(0.3, 0.9, 0.3), 1e-5));
-                let prediction = player.get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
-                assert_eq!(trace.hit.is_some(), hit, "Capsule queried the wrong side of platform edge at x={x}");
+                let prediction = player
+                    .get_global_input_data("in_air_source.ground_prediction_amount")
+                    .unwrap()
+                    .as_f32()
+                    .unwrap();
+                assert_eq!(
+                    trace.hit.is_some(),
+                    hit,
+                    "Capsule queried the wrong side of platform edge at x={x}"
+                );
                 assert_eq!(prediction > 0.0, hit);
                 assert_eq!(alpha, prediction);
                 sampled = true;
@@ -589,17 +908,38 @@ mod tests {
     fn default_overlay_reads_the_same_ground_prediction_as_fall() {
         use crate::als::state::LocomotionState;
         use crate::extensions::source_pose_nodes::{SourceTwoWayBlendNode, SourceTwoWayBlendState};
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph, context::node_states::StateKey,
+        };
 
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
-        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(avatar).insert(
+            crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones,
+        );
+        let entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let update = |app: &mut App, blocked: bool| {
             let origin = Vec3::Y * 4.0;
-            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = origin;
-            app.world_mut().entity_mut(actor).insert((Position(origin), LinearVelocity(Vec3::NEG_Y * 10.0), LocomotionState::Air));
-            app.world_mut().get_mut::<AlsRootAnimationContext>(entity).unwrap()
-                .curves.insert("GroundPredictionBlock".into(), if blocked { 1.0 } else { 0.0 });
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .translation = origin;
+            app.world_mut().entity_mut(actor).insert((
+                Position(origin),
+                LinearVelocity(Vec3::NEG_Y * 10.0),
+                LocomotionState::Air,
+            ));
+            app.world_mut()
+                .get_mut::<AlsRootAnimationContext>(entity)
+                .unwrap()
+                .curves
+                .insert(
+                    "GroundPredictionBlock".into(),
+                    if blocked { 1.0 } else { 0.0 },
+                );
             app.update();
         };
         let inputs = |app: &App| -> Option<(f32, f32, f32)> {
@@ -608,39 +948,69 @@ mod tests {
             let arena = player.get_context_arena().unwrap();
             let graphs = world.resource::<Assets<AnimationGraph>>();
             let assets = world.resource::<AssetServer>();
-            let read = |path: &str| arena.iter_context_ids().find_map(|id| {
-                let context = arena.get_context(id)?;
-                if !assets.get_path(context.get_graph_id())?.path().ends_with(path) { return None; }
-                let graph = graphs.get(context.get_graph_id())?;
-                let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceTwoWayBlendNode>()
-                    .is_some_and(|blend| blend.alpha_key == "in_air_state.ground_prediction_amount"))?;
-                if !context.node_caches.is_updated(node.id, StateKey::Default) { return None; }
-                context.node_states.get::<SourceTwoWayBlendState>(node.id, StateKey::Default).ok().map(|state| state.input_alpha)
-            });
+            let read = |path: &str| {
+                arena.iter_context_ids().find_map(|id| {
+                    let context = arena.get_context(id)?;
+                    if !assets
+                        .get_path(context.get_graph_id())?
+                        .path()
+                        .ends_with(path)
+                    {
+                        return None;
+                    }
+                    let graph = graphs.get(context.get_graph_id())?;
+                    let node = graph.nodes.values().find(|node| {
+                        node.try_inner_downcast_ref::<SourceTwoWayBlendNode>()
+                            .is_some_and(|blend| {
+                                blend.alpha_key == "in_air_state.ground_prediction_amount"
+                            })
+                    })?;
+                    if !context.node_caches.is_updated(node.id, StateKey::Default) {
+                        return None;
+                    }
+                    context
+                        .node_states
+                        .get::<SourceTwoWayBlendState>(node.id, StateKey::Default)
+                        .ok()
+                        .map(|state| state.input_alpha)
+                })
+            };
             Some((
-                player.get_global_input_data("in_air_source.ground_prediction_amount")?.as_f32().ok()?,
+                player
+                    .get_global_input_data("in_air_source.ground_prediction_amount")?
+                    .as_f32()
+                    .ok()?,
                 read("S1_Fall.animgraph.ron")?,
                 read("AB_Als_Default/Overlay.animgraph.ron")?,
             ))
         };
         for _ in 0..20 {
             update(&mut app, true);
-            if inputs(&app).is_some() { break; }
+            if inputs(&app).is_some() {
+                break;
+            }
         }
-        assert!(inputs(&app).is_some(), "The actual Fall and Default Overlay nodes must become active");
+        assert!(
+            inputs(&app).is_some(),
+            "The actual Fall and Default Overlay nodes must become active"
+        );
         for blocked in [true, false, false, true] {
             update(&mut app, blocked);
             let (prediction, fall, overlay) = inputs(&app).unwrap();
             assert_eq!(prediction == 0.0, blocked);
             assert_eq!(fall, prediction);
-            assert_eq!(overlay, prediction, "Default Overlay read an older prediction (blocked={blocked})");
+            assert_eq!(
+                overlay, prediction,
+                "Default Overlay read an older prediction (blocked={blocked})"
+            );
         }
     }
 
     #[test]
     fn ground_prediction_uses_the_source_mesh_scaled_sweep() {
         fn sample(spatial: crate::extensions::RagdollSpatialQuery) -> [f32; 5] {
-            let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+            let filter =
+                SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
             let unfiltered = SpatialQueryFilter::default();
             [
                 (1.0, 1.0, 0.9, true),
@@ -658,17 +1028,23 @@ mod tests {
                     &capsule,
                     scale,
                     0.71,
-                    if filtered {
-                        &filter
-                    } else {
-                        &unfiltered
-                    },
+                    if filtered { &filter } else { &unfiltered },
                     allowance,
                 );
                 assert_eq!(trace.is_some(), allowance > 1e-4);
                 if let Some(trace) = trace {
                     assert!((trace.end.y - (3.0 - 1.5 * scale)).abs() < 1e-6);
-                    assert!((trace.shape.shape_scaled().compute_local_aabb().half_extents().y - half_height).abs() < 1e-6);
+                    assert!(
+                        (trace
+                            .shape
+                            .shape_scaled()
+                            .compute_local_aabb()
+                            .half_extents()
+                            .y
+                            - half_height)
+                            .abs()
+                            < 1e-6
+                    );
                 }
                 amount
             })
@@ -682,7 +1058,13 @@ mod tests {
             RigidBody::Static,
             ColliderLabel("visible_world".to_owned()),
             Collider::cuboid(20.0, 0.1, 20.0),
-            CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
+            CollisionLayers::new(
+                [
+                    crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                ],
+                LayerMask::ALL,
+            ),
             Transform::from_xyz(0.0, -0.05, 0.0),
         ));
         app.world_mut().spawn((

@@ -102,7 +102,11 @@ fn select_target(
             } else {
                 selection.index - 1
             };
-            selection.cached = usize::try_from(selection.index).ok().and_then(|index| targets.get(index)).copied().or(player);
+            selection.cached = usize::try_from(selection.index)
+                .ok()
+                .and_then(|index| targets.get(index))
+                .copied()
+                .or(player);
         }
     }
     let target = selection.cached.or(player);
@@ -135,8 +139,16 @@ fn record_rendered_characters(
             if overlay_objects.contains(ancestor) {
                 break;
             }
-            if let Some(character) = avatars.get(ancestor).ok().map(|owner| owner.character)
-                .or_else(|| detached_players.get(ancestor).ok().map(|player| player.character))
+            if let Some(character) = avatars
+                .get(ancestor)
+                .ok()
+                .map(|owner| owner.character)
+                .or_else(|| {
+                    detached_players
+                        .get(ancestor)
+                        .ok()
+                        .map(|player| player.character)
+                })
             {
                 commands
                     .entity(character)
@@ -156,15 +168,33 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsDebugTargetPlugin))
             .init_resource::<ButtonInput<KeyCode>>()
-            .insert_resource(AlsShowDebugHudState { visible: true, ..default() });
+            .insert_resource(AlsShowDebugHudState {
+                visible: true,
+                ..default()
+            });
         app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter));
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::PageUp);
         app.update();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().reset_all();
-        let a = app.world_mut().spawn((AlsCharacter, AlsLastDebugRender(0.0))).id();
-        let b = app.world_mut().spawn((AlsCharacter, AlsLastDebugRender(0.0))).id();
-        let first = [a, b].into_iter().min_by_key(|entity| entity.to_bits()).unwrap();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .reset_all();
+        let a = app
+            .world_mut()
+            .spawn((AlsCharacter, AlsLastDebugRender(0.0)))
+            .id();
+        let b = app
+            .world_mut()
+            .spawn((AlsCharacter, AlsLastDebugRender(0.0)))
+            .id();
+        let first = [a, b]
+            .into_iter()
+            .min_by_key(|entity| entity.to_bits())
+            .unwrap();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::PageUp);
         app.update();
         assert!(app.world().get::<AlsDebugTarget>(first).is_some());
     }
@@ -251,16 +281,35 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsDebugTargetPlugin))
             .init_resource::<ButtonInput<KeyCode>>()
-            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f64(0.5)))
-            .insert_resource(AlsShowDebugHudState { visible: true, ..default() });
-        let player = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, AlsLastDebugRender(0.0))).id();
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f64(0.5),
+            ))
+            .insert_resource(AlsShowDebugHudState {
+                visible: true,
+                ..default()
+            });
+        let player = app
+            .world_mut()
+            .spawn((AlsCharacter, AlsPlayerCharacter, AlsLastDebugRender(0.0)))
+            .id();
         let other = app.world_mut().spawn(AlsCharacter).id();
-        let avatar = app.world_mut().spawn(crate::character_assembly::AlsCharacterAvatar { character: other }).id();
-        app.world_mut().spawn((bevy::mesh::skinning::SkinnedMesh { inverse_bindposes: default(), joints: Vec::new() },
-            ViewVisibility::VISIBLE, ChildOf(avatar)));
+        let avatar = app
+            .world_mut()
+            .spawn(crate::character_assembly::AlsCharacterAvatar { character: other })
+            .id();
+        app.world_mut().spawn((
+            bevy::mesh::skinning::SkinnedMesh {
+                inverse_bindposes: default(),
+                joints: Vec::new(),
+            },
+            ViewVisibility::VISIBLE,
+            ChildOf(avatar),
+        ));
         app.update();
         assert!(app.world().get::<AlsLastDebugRender>(other).is_some());
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::PageUp);
         app.update();
         assert!(app.world().get::<AlsDebugTarget>(other).is_some());
         assert!(app.world().get::<AlsDebugTarget>(player).is_none());

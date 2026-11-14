@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
-use bevy_als::extensions::AlsExtPlugin;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::extensions::AlsExtPlugin;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, TimeUpdate},
@@ -88,8 +88,8 @@ fn verify_static(
     let root = graph.nodes.is_empty()
         && graph.io_spec.has_output_time()
         && graph.io_spec.get_output_data(&"pose".to_owned()).is_some();
-    let source =
-        std::fs::read_to_string("assets/Validation/Graphs/ab_als/view.animgraph.ron").unwrap_or_default();
+    let source = std::fs::read_to_string("assets/Validation/Graphs/ab_als/view.animgraph.ron")
+        .unwrap_or_default();
     let redirect = !source.contains("ClipNode")
         && !source.contains("Curve")
         && !source.contains("BlendNode")

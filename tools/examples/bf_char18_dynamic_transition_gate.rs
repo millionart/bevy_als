@@ -1,11 +1,11 @@
 use std::num::NonZeroU8;
 
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
 use bevy_als::als::character::AlsCharacter;
 use bevy_als::als::foot_ik::{AlsDynamicTransitionState, AlsFootLockState};
 use bevy_als::als::state::Stance;
 use bevy_als::als::transitions::{TransitionConfig, TransitionSequence};
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
 
 #[derive(Resource, Default)]
 struct GatePhase(u8);

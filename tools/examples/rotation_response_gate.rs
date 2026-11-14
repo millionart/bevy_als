@@ -171,7 +171,8 @@ fn spawn_character(
     translation: Vec3,
     rotation_mode: RotationMode,
 ) -> Entity {
-    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
+    let mut bundle =
+        AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation);
     bundle.gait = Gait::Running;
     bundle.locomotion_state = LocomotionState::Grounded;

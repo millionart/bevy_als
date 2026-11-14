@@ -20,7 +20,8 @@ const STANDING_PATH: &str = "Validation/Graphs/ab_als/stances/standing.animgraph
 const IDLE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_idle.animgraph.ron";
 const TURN_PATH: &str = "Validation/Graphs/ab_als/stances/standing/turn.animgraph.ron";
 const CROUCHING_PATH: &str = "Validation/Graphs/ab_als/stances/crouching.animgraph.ron";
-const CROUCHING_IDLE_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/state_idle.animgraph.ron";
+const CROUCHING_IDLE_PATH: &str =
+    "Validation/Graphs/ab_als/stances/crouching/state_idle.animgraph.ron";
 const CROUCHING_TURN_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/turn.animgraph.ron";
 const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 

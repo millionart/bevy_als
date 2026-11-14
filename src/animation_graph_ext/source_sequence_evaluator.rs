@@ -18,7 +18,9 @@ fn frame_to_time(frame: f32, frames_per_second: f64) -> f32 {
 
 fn step_sample_time(time: f32, frames_per_second: f64, duration: f32) -> f32 {
     let intervals = (duration as f64 * frames_per_second).round().max(1.0) as f32;
-    let frame = (time * frames_per_second as f32).floor().clamp(0.0, intervals);
+    let frame = (time * frames_per_second as f32)
+        .floor()
+        .clamp(0.0, intervals);
     (frame * (duration / intervals)).min(duration)
 }
 
@@ -73,7 +75,9 @@ impl SourceSequenceEvaluatorNode {
             return match source_input_data(ctx, &self.explicit_value_key) {
                 Some(value) => value.as_f32(),
                 None if root_defaults_enabled(ctx) => Ok(self.explicit_value),
-                None => Err(GraphError::GlobalInputDataMissing(self.explicit_value_key.clone())),
+                None => Err(GraphError::GlobalInputDataMissing(
+                    self.explicit_value_key.clone(),
+                )),
             };
         }
         if self.expose_explicit_value_pin {
@@ -97,14 +101,26 @@ impl NodeLike for SourceSequenceEvaluatorNode {
             return Ok(());
         };
         let value = self.input_value(&ctx)?;
-        let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }
-            .clamp(0.0, clip.duration().max(0.0));
+        let time = if self.use_explicit_frame {
+            frame_to_time(value, self.frames_per_second)
+        } else {
+            value
+        }
+        .clamp(0.0, clip.duration().max(0.0));
         let sample_time = if self.step_interpolation && !has_prepared_pose(clip) {
             step_sample_time(time, self.frames_per_second, clip.duration())
         } else {
             time
         };
-        let (mut pose, source_pose) = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        let (mut pose, source_pose) = sample_source_pose(
+            &ctx,
+            clip,
+            sample_time,
+            self.additive_reference.as_ref(),
+            self.additive_reference_position,
+            self.additive_mesh_space,
+            self.root_lock,
+        )?;
         pose.timestamp = time;
         *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =
             crate::extensions::AnimationContextState {
@@ -138,22 +154,43 @@ mod tests {
     #[test]
     fn step_sampling_matches_native_acl_frame_selection() {
         use bevy::animation::gltf_curves::SteppedKeyframeCurve;
-        for (frames_per_second, intervals) in [(30.0_f64, 11), (24.0, 5), (30.0, 23), (60.0, 59), (30000.0 / 1001.0, 37)] {
+        for (frames_per_second, intervals) in [
+            (30.0_f64, 11),
+            (24.0, 5),
+            (30.0, 23),
+            (60.0, 59),
+            (30000.0 / 1001.0, 37),
+        ] {
             let duration = (intervals as f64 / frames_per_second) as f32;
             let frame_length = duration / intervals as f32;
-            let curve = SteppedKeyframeCurve::new((0..=intervals).map(|frame| {
-                ((frame as f32 * frame_length).min(duration), frame)
-            })).unwrap();
+            let curve = SteppedKeyframeCurve::new(
+                (0..=intervals).map(|frame| ((frame as f32 * frame_length).min(duration), frame)),
+            )
+            .unwrap();
             for frame in 0..=intervals {
                 let native_time = ((frame as f64 / frames_per_second) as f32).clamp(0.0, duration);
-                let native_frame = (native_time * frames_per_second as f32).floor().min(intervals as f32) as i32;
+                let native_frame = (native_time * frames_per_second as f32)
+                    .floor()
+                    .min(intervals as f32) as i32;
                 let time = frame_to_time(frame as f32, frames_per_second).clamp(0.0, duration);
                 assert_eq!(time, native_time);
-                assert_eq!(curve.sample_clamped(step_sample_time(time, frames_per_second, duration)), native_frame,
-                    "rate={frames_per_second}, intervals={intervals}, frame={frame}, time={time:?}");
-                for time in [time.next_down().max(0.0), time, time.next_up().min(duration)] {
-                    let native_frame = (time * frames_per_second as f32).floor().min(intervals as f32) as i32;
-                    assert_eq!(curve.sample_clamped(step_sample_time(time, frames_per_second, duration)), native_frame);
+                assert_eq!(
+                    curve.sample_clamped(step_sample_time(time, frames_per_second, duration)),
+                    native_frame,
+                    "rate={frames_per_second}, intervals={intervals}, frame={frame}, time={time:?}"
+                );
+                for time in [
+                    time.next_down().max(0.0),
+                    time,
+                    time.next_up().min(duration),
+                ] {
+                    let native_frame = (time * frames_per_second as f32)
+                        .floor()
+                        .min(intervals as f32) as i32;
+                    assert_eq!(
+                        curve.sample_clamped(step_sample_time(time, frames_per_second, duration)),
+                        native_frame
+                    );
                 }
             }
         }
@@ -165,9 +202,17 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
-            animation_clip::EntityPath, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime, graph_context_arena::GraphContextArena, new_context::GraphContext, system_resources::SystemResources},
-            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+            animation_clip::EntityPath,
+            animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
         };
         fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
@@ -177,38 +222,92 @@ mod tests {
             let env = TestIoEnv::default();
             let child = EntityPath::default().child("root").child("child").id();
             for position in [-0.5_f32, 0.0, 0.25, 0.75, 1.5] {
-                let inputs = HashMap::from([("position".to_owned(), DataValue::F32(position)), ("frame".to_owned(), DataValue::F32(position * 60.0))]);
-                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                let outputs = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone()).unwrap();
+                let inputs = HashMap::from([
+                    ("position".to_owned(), DataValue::F32(position)),
+                    ("frame".to_owned(), DataValue::F32(position * 60.0)),
+                ]);
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
+                let outputs = graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                        context.clone(),
+                    )
+                    .unwrap();
                 for (name, mesh, reference_time, time) in [
-                    ("player", true, 7.0/30.0, 0.75),
-                    ("mesh_7", true, 7.0/30.0, position.clamp(0.0, 1.0)),
-                    ("local_7", false, 7.0/30.0, position.clamp(0.0, 1.0)),
-                    ("mesh_11", true, 11.0/30.0, position.clamp(0.0, 1.0)),
-                    ("frame_11", true, 11.0/30.0, position.clamp(0.0, 1.0)),
+                    ("player", true, 7.0 / 30.0, 0.75),
+                    ("mesh_7", true, 7.0 / 30.0, position.clamp(0.0, 1.0)),
+                    ("local_7", false, 7.0 / 30.0, position.clamp(0.0, 1.0)),
+                    ("mesh_11", true, 11.0 / 30.0, position.clamp(0.0, 1.0)),
+                    ("frame_11", true, 11.0 / 30.0, position.clamp(0.0, 1.0)),
                 ] {
                     let pose = outputs[name].as_pose().unwrap();
-                    assert!((pose.timestamp - time).abs() < 1e-6, "{name}: reference time leaked into sampled pose");
+                    assert!(
+                        (pose.timestamp - time).abs() < 1e-6,
+                        "{name}: reference time leaked into sampled pose"
+                    );
                     let bone = pose.get_bone(child).unwrap();
                     let target = Quat::from_rotation_x(-0.4 + 0.9 * time);
                     let reference = Quat::from_rotation_x(0.25);
                     let expected = if mesh {
-                        (Quat::from_rotation_y(0.1 + 0.5 * time) * target) * (Quat::from_rotation_y(0.7) * reference).inverse()
-                    } else { target * reference.inverse() };
+                        (Quat::from_rotation_y(0.1 + 0.5 * time) * target)
+                            * (Quat::from_rotation_y(0.7) * reference).inverse()
+                    } else {
+                        target * reference.inverse()
+                    };
                     let rotation = bone.rotation.unwrap();
-                    assert!((rotation - expected).length().min((rotation + expected).length()) < 1e-5, "{name}: incorrect reference space");
-                    assert!(bone.translation.unwrap().distance(Vec3::X * (2.0 + time - reference_time)) < 1e-5);
+                    assert!(
+                        (rotation - expected)
+                            .length()
+                            .min((rotation + expected).length())
+                            < 1e-5,
+                        "{name}: incorrect reference space"
+                    );
+                    assert!(
+                        bone.translation
+                            .unwrap()
+                            .distance(Vec3::X * (2.0 + time - reference_time))
+                            < 1e-5
+                    );
                     assert!(bone.scale.unwrap().distance(Vec3::splat(0.2)) < 1e-5);
                     if name != "player" {
-                        let curves = crate::extensions::animation_context::graph_output_context_state(graph, &context, name).unwrap();
-                        assert!((curves.curves[&crate::extensions::SourceCurveName::from("Aim")] - time).abs() < 1e-6);
+                        let curves =
+                            crate::extensions::animation_context::graph_output_context_state(
+                                graph, &context, name,
+                            )
+                            .unwrap();
+                        assert!(
+                            (curves.curves[&crate::extensions::SourceCurveName::from("Aim")]
+                                - time)
+                                .abs()
+                                < 1e-6
+                        );
                     }
                 }
                 for name in ["step_frame", "step_time"] {
                     let pose = outputs[name].as_pose().unwrap();
-                    assert_eq!(pose.get_bone(child).unwrap().translation, Some(Vec3::X * 6.0));
+                    assert_eq!(
+                        pose.get_bone(child).unwrap().translation,
+                        Some(Vec3::X * 6.0)
+                    );
                     assert_eq!(pose.timestamp, 0.2);
-                    assert_eq!(crate::extensions::animation_context::graph_output_context_state(graph, &context, name).unwrap().curves[&crate::extensions::SourceCurveName::from("Aim")], 0.2);
+                    assert_eq!(
+                        crate::extensions::animation_context::graph_output_context_state(
+                            graph, &context, name
+                        )
+                        .unwrap()
+                        .curves[&crate::extensions::SourceCurveName::from("Aim")],
+                        0.2
+                    );
                 }
             }
         }
@@ -223,35 +322,118 @@ mod tests {
         let mut clips = Assets::<GraphClip>::default();
         let mut make_clip = |reference: bool| {
             let mut clip = bevy::animation::AnimationClip::default();
-            let root_angles = if reference { [0.7,0.7] } else { [0.1,0.6] };
-            let child_angles = if reference { [0.25,0.25] } else { [-0.4,0.5] };
-            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([(0.0,Quat::from_rotation_y(root_angles[0])),(1.0,Quat::from_rotation_y(root_angles[1]))]).unwrap()));
-            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([(0.0,Quat::from_rotation_x(child_angles[0])),(1.0,Quat::from_rotation_x(child_angles[1]))]).unwrap()));
+            let root_angles = if reference { [0.7, 0.7] } else { [0.1, 0.6] };
+            let child_angles = if reference { [0.25, 0.25] } else { [-0.4, 0.5] };
+            clip.add_curve_to_target(
+                root.id().animation_target_id(),
+                AnimatableCurve::new(
+                    animated_field!(Transform::rotation),
+                    UnevenSampleAutoCurve::new([
+                        (0.0, Quat::from_rotation_y(root_angles[0])),
+                        (1.0, Quat::from_rotation_y(root_angles[1])),
+                    ])
+                    .unwrap(),
+                ),
+            );
+            clip.add_curve_to_target(
+                child.id().animation_target_id(),
+                AnimatableCurve::new(
+                    animated_field!(Transform::rotation),
+                    UnevenSampleAutoCurve::new([
+                        (0.0, Quat::from_rotation_x(child_angles[0])),
+                        (1.0, Quat::from_rotation_x(child_angles[1])),
+                    ])
+                    .unwrap(),
+                ),
+            );
             let offset = if reference { 0.0 } else { 2.0 };
-            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::translation), UnevenSampleAutoCurve::new([(0.0,Vec3::X * offset),(1.0,Vec3::X * (offset + 1.0))]).unwrap()));
+            clip.add_curve_to_target(
+                child.id().animation_target_id(),
+                AnimatableCurve::new(
+                    animated_field!(Transform::translation),
+                    UnevenSampleAutoCurve::new([
+                        (0.0, Vec3::X * offset),
+                        (1.0, Vec3::X * (offset + 1.0)),
+                    ])
+                    .unwrap(),
+                ),
+            );
             let scale = if reference { 1.0 } else { 1.2 };
-            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::scale), UnevenSampleAutoCurve::new([(0.0,Vec3::splat(scale)),(1.0,Vec3::splat(scale))]).unwrap()));
-            clips.add(GraphClip::from_bevy_clip(clip, skeleton.clone(), default(), None))
+            clip.add_curve_to_target(
+                child.id().animation_target_id(),
+                AnimatableCurve::new(
+                    animated_field!(Transform::scale),
+                    UnevenSampleAutoCurve::new([
+                        (0.0, Vec3::splat(scale)),
+                        (1.0, Vec3::splat(scale)),
+                    ])
+                    .unwrap(),
+                ),
+            );
+            clips.add(GraphClip::from_bevy_clip(
+                clip,
+                skeleton.clone(),
+                default(),
+                None,
+            ))
         };
         let reference = make_clip(true);
         let target = make_clip(false);
         let mut graph = AnimationGraph::new();
         let mut step_clip = bevy::animation::AnimationClip::default();
-        step_clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::translation),
-            bevy::animation::gltf_curves::SteppedKeyframeCurve::new((0..12).map(|frame| (frame as f32 * ((11.0_f32 / 30.0) / 11.0), Vec3::X * frame as f32))).unwrap()));
-        let step_clip = clips.add(GraphClip::from_bevy_clip(step_clip, skeleton.clone(), default(), None));
-        for (name, use_explicit_frame, explicit_value) in [("step_frame", true, 6.0), ("step_time", false, 0.2)] {
+        step_clip.add_curve_to_target(
+            child.id().animation_target_id(),
+            AnimatableCurve::new(
+                animated_field!(Transform::translation),
+                bevy::animation::gltf_curves::SteppedKeyframeCurve::new((0..12).map(|frame| {
+                    (
+                        frame as f32 * ((11.0_f32 / 30.0) / 11.0),
+                        Vec3::X * frame as f32,
+                    )
+                }))
+                .unwrap(),
+            ),
+        );
+        let step_clip = clips.add(GraphClip::from_bevy_clip(
+            step_clip,
+            skeleton.clone(),
+            default(),
+            None,
+        ));
+        for (name, use_explicit_frame, explicit_value) in
+            [("step_frame", true, 6.0), ("step_time", false, 0.2)]
+        {
             let evaluator = AnimationNode::new(name, SourceSequenceEvaluatorNode { clip: step_clip.clone(), use_explicit_frame,
                 explicit_value, step_interpolation: true, curves:crate::extensions::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Aim","times":[0.0,1.0],"values":[0.0,1.0],"interps":["LINEAR","LINEAR"]}]})).unwrap(), ..default() });
             graph.add_node(evaluator.clone());
             graph.add_output_data(name.to_owned(), DataSpec::Pose);
             graph.add_output_data_edge(evaluator.id, "Pose", name);
         }
-        let player = AnimationNode::new("player", crate::extensions::SourceSequencePlayerNode { clip:target.clone(), additive_reference:Some(reference.clone()), additive_reference_position:7.0/30.0, additive_mesh_space:true, play_rate:0.0, start_position:0.75, loop_animation:false, expose_play_rate_pin:false, expose_start_position_pin:false, expose_loop_animation_pin:false, ..default() });
+        let player = AnimationNode::new(
+            "player",
+            crate::extensions::SourceSequencePlayerNode {
+                clip: target.clone(),
+                additive_reference: Some(reference.clone()),
+                additive_reference_position: 7.0 / 30.0,
+                additive_mesh_space: true,
+                play_rate: 0.0,
+                start_position: 0.75,
+                loop_animation: false,
+                expose_play_rate_pin: false,
+                expose_start_position_pin: false,
+                expose_loop_animation_pin: false,
+                ..default()
+            },
+        );
         graph.add_node(player.clone());
         graph.add_output_data("player".to_owned(), DataSpec::Pose);
         graph.add_output_data_edge(player.id, "Pose", "player");
-        for (name, mesh, frame) in [("mesh_7",true,7.0),("local_7",false,7.0),("mesh_11",true,11.0),("frame_11",true,11.0)] {
+        for (name, mesh, frame) in [
+            ("mesh_7", true, 7.0),
+            ("local_7", false, 7.0),
+            ("mesh_11", true, 11.0),
+            ("frame_11", true, 11.0),
+        ] {
             let evaluator = AnimationNode::new(name, SourceSequenceEvaluatorNode {
                 clip:target.clone(), additive_reference:Some(reference.clone()), additive_reference_position:frame/30.0, additive_mesh_space:mesh,
                 use_explicit_frame: name == "frame_11", frames_per_second: 60.0, explicit_value_key:if name == "frame_11" { "frame" } else { "position" }.to_owned(), curves:crate::extensions::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Aim","times":[0.0,1.0],"values":[0.0,1.0],"interps":["LINEAR","LINEAR"]}]})).unwrap(), ..default()
@@ -285,35 +467,75 @@ mod tests {
     fn bound_explicit_time_uses_current_instance_then_frame_input() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
-            animation_graph::{AnimationGraph, GraphInputPin}, animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
-                new_context::GraphContext, system_resources::SystemResources},
-            skeleton::Skeleton, state_machine::high_level::StateMachine,
+            animation_graph::{AnimationGraph, GraphInputPin},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, system_resources::SystemResources,
+            },
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
         };
         fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
-            let node = graph.nodes.values().find(|node| node.name == "bound").unwrap();
-            let evaluator = node.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>().unwrap();
-            let unbound = graph.nodes.values().find(|node| node.name == "unbound").unwrap();
-            let unbound_evaluator = unbound.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>().unwrap();
+            let node = graph
+                .nodes
+                .values()
+                .find(|node| node.name == "bound")
+                .unwrap();
+            let evaluator = node
+                .try_inner_downcast_ref::<SourceSequenceEvaluatorNode>()
+                .unwrap();
+            let unbound = graph
+                .nodes
+                .values()
+                .find(|node| node.name == "unbound")
+                .unwrap();
+            let unbound_evaluator = unbound
+                .try_inner_downcast_ref::<SourceSequenceEvaluatorNode>()
+                .unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             let inputs = HashMap::from([
-                ("source_frame_input.draw_amount".to_owned(), DataValue::F32(0.55)),
+                (
+                    "source_frame_input.draw_amount".to_owned(),
+                    DataValue::F32(0.55),
+                ),
                 ("draw_amount".to_owned(), DataValue::F32(0.25)),
             ]);
             let mut values = Vec::new();
             for frame in 0..2 {
-                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
-                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
                 let node_ctx = context.create_node_context(node.id);
                 if frame == 0 {
-                    crate::extensions::source_instance::set_source_property(&node_ctx, "draw_amount", DataValue::F32(0.75)).unwrap();
+                    crate::extensions::source_instance::set_source_property(
+                        &node_ctx,
+                        "draw_amount",
+                        DataValue::F32(0.75),
+                    )
+                    .unwrap();
                 }
-                assert_eq!(node_ctx.data_back("ExplicitTime").unwrap().as_f32().unwrap(), 0.1);
+                assert_eq!(
+                    node_ctx
+                        .data_back("ExplicitTime")
+                        .unwrap()
+                        .as_f32()
+                        .unwrap(),
+                    0.1
+                );
                 values.push(evaluator.input_value(&node_ctx).unwrap());
                 drop(node_ctx);
                 let unbound_ctx = context.create_node_context(unbound.id);
@@ -324,30 +546,65 @@ mod tests {
             }
             let mut empty_arena = GraphContextArena::new(handle.id());
             let empty = HashMap::new();
-            let context = GraphContext::new(empty_arena.get_toplevel_id(), graph, &mut empty_arena,
-                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &empty);
+            let context = GraphContext::new(
+                empty_arena.get_toplevel_id(),
+                graph,
+                &mut empty_arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &empty,
+            );
             let node_ctx = context.create_node_context(node.id);
-            assert!(matches!(evaluator.input_value(&node_ctx), Err(GraphError::GlobalInputDataMissing(key)) if key == "draw_amount"));
+            assert!(
+                matches!(evaluator.input_value(&node_ctx), Err(GraphError::GlobalInputDataMissing(key)) if key == "draw_amount")
+            );
             drop(node_ctx);
             drop(context);
             let defaults = HashMap::from([(
-                crate::extensions::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY.to_owned(), DataValue::Bool(true),
+                crate::extensions::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY.to_owned(),
+                DataValue::Bool(true),
             )]);
-            let context = GraphContext::new(empty_arena.get_toplevel_id(), graph, &mut empty_arena,
-                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &defaults);
-            assert_eq!(evaluator.input_value(&context.create_node_context(node.id)).unwrap(), 0.4);
+            let context = GraphContext::new(
+                empty_arena.get_toplevel_id(),
+                graph,
+                &mut empty_arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &defaults,
+            );
+            assert_eq!(
+                evaluator
+                    .input_value(&context.create_node_context(node.id))
+                    .unwrap(),
+                0.4
+            );
             values
         }
         let mut graph = AnimationGraph::new();
         graph.set_default_data(GraphInputPin::passthrough("pin"), DataValue::F32(0.1));
-        let node = AnimationNode::new("bound", SourceSequenceEvaluatorNode {
-            explicit_value: 0.4, explicit_value_key: "draw_amount".into(), ..default()
-        });
+        let node = AnimationNode::new(
+            "bound",
+            SourceSequenceEvaluatorNode {
+                explicit_value: 0.4,
+                explicit_value_key: "draw_amount".into(),
+                ..default()
+            },
+        );
         graph.add_node(node.clone());
         graph.add_input_data_edge(GraphInputPin::passthrough("pin"), node.id, "ExplicitTime");
         let unbound = AnimationNode::new("unbound", SourceSequenceEvaluatorNode::default());
         graph.add_node(unbound.clone());
-        graph.add_input_data_edge(GraphInputPin::passthrough("pin"), unbound.id, "ExplicitTime");
+        graph.add_input_data_edge(
+            GraphInputPin::passthrough("pin"),
+            unbound.id,
+            "ExplicitTime",
+        );
         let mut graphs = Assets::<AnimationGraph>::default();
         let handle = graphs.add(graph);
         let mut world = World::new();
@@ -355,7 +612,10 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        assert_eq!(world.run_system_cached_with(query, handle).unwrap(), [0.75, 0.55]);
+        assert_eq!(
+            world.run_system_cached_with(query, handle).unwrap(),
+            [0.75, 0.55]
+        );
     }
 
     #[test]

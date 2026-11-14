@@ -152,7 +152,10 @@ mod tests {
 
     fn path(parts: &[&str]) -> EntityPath {
         EntityPath {
-            parts: parts.iter().map(|part| Name::new((*part).to_owned())).collect(),
+            parts: parts
+                .iter()
+                .map(|part| Name::new((*part).to_owned()))
+                .collect(),
         }
     }
 

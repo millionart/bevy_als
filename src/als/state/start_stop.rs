@@ -188,7 +188,10 @@ pub fn start_stop_detector_system(
     let _ = time;
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = vel.horizontal_speed;
-    let dir = classify(view_relative_move_axes(input.move_dir, player_view.map_or(view.0, |view| view.0)), view.0);
+    let dir = classify(
+        view_relative_move_axes(input.move_dir, player_view.map_or(view.0, |view| view.0)),
+        view.0,
+    );
     update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir);
 }
 pub fn predict_stop_distance(speed: f32, braking_deceleration: f32) -> f32 {

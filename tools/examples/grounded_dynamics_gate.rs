@@ -1,5 +1,8 @@
 use std::num::NonZeroU8;
 
+use avian3d::prelude::*;
+use bevy::asset::AssetPlugin;
+use bevy::prelude::*;
 use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use bevy_als::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use bevy_als::als::dynamics::AlsGroundedDynamics;
@@ -8,9 +11,6 @@ use bevy_als::als::input::AlsInputCommand;
 use bevy_als::als::motion::{AlsInputOverride, AlsMotionPlugin, initial_als_control_scheme_config};
 use bevy_als::als::params::{AlsMovementParams, GroundedDynamicsProfile};
 use bevy_als::als::state::{LocomotionState, RotationMode, Stance};
-use avian3d::prelude::*;
-use bevy::asset::AssetPlugin;
-use bevy::prelude::*;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
@@ -57,7 +57,11 @@ fn setup(
     ));
     let params_value = AlsMovementParams::default();
     let params = params_assets.add(params_value.clone());
-    let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, initial_als_control_scheme_config(&params_value));
+    let mut bundle = AlsCharacterBundle::new(
+        params,
+        &mut config_assets,
+        initial_als_control_scheme_config(&params_value),
+    );
     bundle.transform = Transform::from_xyz(0.0, 0.925, 0.0);
     commands.spawn((
         bundle,

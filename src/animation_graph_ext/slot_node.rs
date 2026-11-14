@@ -21,7 +21,8 @@ pub fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f3
     if weight > 0.0 {
         if let Some(overlay) = overlay {
             base = crate::extensions::source_pose_nodes::blend_source_poses(&[
-                (overlay.clone(), weight), (base, 1.0 - weight),
+                (overlay.clone(), weight),
+                (base, 1.0 - weight),
             ]);
         }
     }

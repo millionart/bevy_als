@@ -2,12 +2,12 @@
 
 #[path = "state/aim.rs"]
 pub mod aim;
-#[path = "utility/animation.rs"]
-pub mod animation;
 #[path = "state/air.rs"]
 pub mod air;
 #[path = "state/air_jump.rs"]
 pub mod air_jump;
+#[path = "utility/animation.rs"]
+pub mod animation;
 #[path = "utility/bones.rs"]
 pub mod bones;
 #[path = "character/character.rs"]
@@ -22,8 +22,6 @@ pub mod flail;
 pub mod foot_ik;
 #[path = "state/gait.rs"]
 pub mod gait;
-#[path = "settings/movement_constants.rs"]
-pub(crate) mod movement_constants;
 #[path = "character/animation_instances/graph_router.rs"]
 pub mod graph_router;
 #[path = "state/head.rs"]
@@ -36,6 +34,8 @@ pub mod input_request;
 pub mod mantle;
 #[path = "character/movement/motion.rs"]
 pub mod motion;
+#[path = "settings/movement_constants.rs"]
+pub(crate) mod movement_constants;
 #[path = "state/movement_direction.rs"]
 pub mod movement_direction;
 #[path = "utility/orientation.rs"]

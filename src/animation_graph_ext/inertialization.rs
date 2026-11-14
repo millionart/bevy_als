@@ -114,8 +114,9 @@ impl NodeLike for InertializationNode {
         let update = ctx.time_update_fwd()?;
         ctx.set_time_update_back(Self::IN_TIME_B, update);
         let target = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
-        let context = crate::extensions::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
-            .unwrap_or_default();
+        let context =
+            crate::extensions::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
+                .unwrap_or_default();
         ctx.set_time(target.timestamp);
         ctx.set_data_fwd(Self::OUT_POSE, target);
         ctx.state_mut::<InertializationState>()?.context = context;

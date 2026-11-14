@@ -1,9 +1,11 @@
 use std::{fs, path::Path};
 
-use bevy_als::extensions::{AlsExtPlugin, BlendProfileMode, InertializationNode, InterruptibleFsmNode, SourceSlotNode};
 use bevy::{
     asset::{AssetPlugin, AssetServer},
     prelude::*,
+};
+use bevy_als::extensions::{
+    AlsExtPlugin, BlendProfileMode, InertializationNode, InterruptibleFsmNode, SourceSlotNode,
 };
 use bevy_animation_graph::{
     builtin_nodes::clip_node::ClipNode,
@@ -21,10 +23,8 @@ fn assets_root() -> std::path::PathBuf {
 
 fn generated_files() -> Vec<String> {
     let manifest: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(
-            assets_root().join("ALS/Character/AB_Als/installation.manifest.json"),
-        )
-        .expect("generated installation manifest must be readable"),
+        &fs::read_to_string(assets_root().join("ALS/Character/AB_Als/installation.manifest.json"))
+            .expect("generated installation manifest must be readable"),
     )
     .expect("generated installation manifest must be valid json");
     manifest["files"]
@@ -37,8 +37,7 @@ fn generated_files() -> Vec<String> {
 }
 
 const GENERATED_ROOT_GRAPH: &str = "ALS/Character/AB_Als/AnimGraph.animgraph.ron";
-const RAGDOLL_WRAPPER_GRAPH: &str =
-    "ALS/Character/AB_Als.runtime.animgraph.ron";
+const RAGDOLL_WRAPPER_GRAPH: &str = "ALS/Character/AB_Als.runtime.animgraph.ron";
 const GENERATED_ANIMATED_SCENE: &str = "ALS/Character/B_Als.animscn.ron";
 
 fn generated_getter_graphs(files: &[String]) -> Vec<String> {
@@ -266,13 +265,24 @@ fn explicit_inertial_profile_graph_loads_with_its_bone_scale() {
         .init_asset::<Skeleton>()
         .init_asset::<AnimationGraph>()
         .init_asset_loader::<AnimationGraphLoader>();
-    let handle = app.world().resource::<AssetServer>()
+    let handle = app
+        .world()
+        .resource::<AssetServer>()
         .load::<AnimationGraph>("inertial_profile.animgraph.ron");
     for _ in 0..60 {
         app.update();
-        if let Some(graph) = app.world().resource::<Assets<AnimationGraph>>().get(&handle) {
-            let node = graph.nodes.values().next().unwrap()
-                .try_inner_downcast_ref::<InertializationNode>().unwrap();
+        if let Some(graph) = app
+            .world()
+            .resource::<Assets<AnimationGraph>>()
+            .get(&handle)
+        {
+            let node = graph
+                .nodes
+                .values()
+                .next()
+                .unwrap()
+                .try_inner_downcast_ref::<InertializationNode>()
+                .unwrap();
             let profile = node.blend_profile.as_ref().unwrap();
             assert_eq!(profile.profile_mode, BlendProfileMode::TimeFactor);
             assert_eq!(profile.bone_scales[0].bone, "foot_l");

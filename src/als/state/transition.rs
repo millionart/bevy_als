@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::als::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use crate::als::state::{
+    AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Dimension {
@@ -262,7 +264,9 @@ fn process_dimension<T: Copy + PartialEq + Into<StateValue>>(
     transitions: &mut MessageWriter<StateTransitionEvent>,
     rejections: &mut MessageWriter<StateTransitionRejectedEvent>,
 ) {
-    let (Some(verdict), Some(requested)) = (verdict, *request_slot) else { return; };
+    let (Some(verdict), Some(requested)) = (verdict, *request_slot) else {
+        return;
+    };
     match verdict {
         Verdict::Accept => {
             *request_slot = None;
@@ -331,19 +335,22 @@ pub fn state_transition_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut rejections: MessageWriter<StateTransitionRejectedEvent>,
     ragdoll_eligibility: crate::ragdoll_link::AlsRagdollStartEligibility,
-    mut actors: Query<(
-        Entity,
-        Has<crate::als::character::AlsCharacter>,
-        &mut AlsStateRequest,
-        &mut LocomotionState,
-        &mut Stance,
-        Option<&mut AlsDesiredStance>,
-        &mut Gait,
-        &mut RotationMode,
-        &mut OverlayState,
-        Option<&mut AlsNotifyLocomotionAction>,
-        Option<&crate::als::mantle::AlsMantleState>,
-    ), Without<crate::als::character::AlsBirthAnimationPending>>,
+    mut actors: Query<
+        (
+            Entity,
+            Has<crate::als::character::AlsCharacter>,
+            &mut AlsStateRequest,
+            &mut LocomotionState,
+            &mut Stance,
+            Option<&mut AlsDesiredStance>,
+            &mut Gait,
+            &mut RotationMode,
+            &mut OverlayState,
+            Option<&mut AlsNotifyLocomotionAction>,
+            Option<&crate::als::mantle::AlsMantleState>,
+        ),
+        Without<crate::als::character::AlsBirthAnimationPending>,
+    >,
 ) {
     for (
         entity,
@@ -364,8 +371,11 @@ pub fn state_transition_system(
             req.locomotion_state = None;
         }
         let ragdoll_start = req.ragdoll_start;
-        if ragdoll_start { req.ragdoll_start = false; }
-        if ragdoll_start && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
+        if ragdoll_start {
+            req.ragdoll_start = false;
+        }
+        if ragdoll_start
+            && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && (!is_character || ragdoll_eligibility.allows(entity))
         {
             req.ragdoll_exit = false;
@@ -375,7 +385,9 @@ pub fn state_transition_system(
             if let Some(action) = action.as_deref_mut() {
                 *action = AlsNotifyLocomotionAction::Ragdolling;
             } else {
-                commands.entity(entity).insert(AlsNotifyLocomotionAction::Ragdolling);
+                commands
+                    .entity(entity)
+                    .insert(AlsNotifyLocomotionAction::Ragdolling);
             }
         }
         let cur = AlsCurrentStates {
@@ -389,7 +401,8 @@ pub fn state_transition_system(
 
         process_dimension(
             entity,
-            req.reborrow().map_unchanged(|request| &mut request.locomotion_state),
+            req.reborrow()
+                .map_unchanged(|request| &mut request.locomotion_state),
             loco,
             verdicts.locomotion_state,
             &mut transitions,
@@ -414,7 +427,8 @@ pub fn state_transition_system(
         );
         process_dimension(
             entity,
-            req.reborrow().map_unchanged(|request| &mut request.rotation_mode),
+            req.reborrow()
+                .map_unchanged(|request| &mut request.rotation_mode),
             rotation,
             verdicts.rotation_mode,
             &mut transitions,
@@ -573,46 +587,120 @@ mod tests {
     fn state_change_ticks_follow_accepted_value_changes() {
         let mut app = App::new();
         app.add_plugins(AlsStateTransitionPlugin);
-        let actor = app.world_mut().spawn((LocomotionState::Air, Stance::Standing, Gait::Walking,
-            RotationMode::ViewDirection, OverlayState::Default, AlsDesiredStance(Stance::Standing),
-            AlsStateRequest::default())).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                LocomotionState::Air,
+                Stance::Standing,
+                Gait::Walking,
+                RotationMode::ViewDirection,
+                OverlayState::Default,
+                AlsDesiredStance(Stance::Standing),
+                AlsStateRequest::default(),
+            ))
+            .id();
         let ticks = |world: &World| {
             let actor = world.entity(actor);
-            [actor.get_ref::<LocomotionState>().unwrap().last_changed(),
+            [
+                actor.get_ref::<LocomotionState>().unwrap().last_changed(),
                 actor.get_ref::<Stance>().unwrap().last_changed(),
                 actor.get_ref::<Gait>().unwrap().last_changed(),
                 actor.get_ref::<RotationMode>().unwrap().last_changed(),
                 actor.get_ref::<OverlayState>().unwrap().last_changed(),
                 actor.get_ref::<AlsDesiredStance>().unwrap().last_changed(),
-                actor.get_ref::<AlsStateRequest>().unwrap().last_changed()]
+                actor.get_ref::<AlsStateRequest>().unwrap().last_changed(),
+            ]
         };
         let mut differences = Vec::new();
         let unchanged = [false; 7];
         let cases = [
-            ("empty", AlsStateRequest::default(), unchanged, vec![], false, None),
-            ("queued", AlsStateRequest::default().with_gait(Gait::Running), unchanged, vec![], false, Some(Gait::Running)),
-            ("rejected", AlsStateRequest::default().with_gait(Gait::Running).with_policy(InvalidRequestPolicy::Reject),
-                [false, false, false, false, false, false, true], vec![], true, None),
-            ("same", AlsStateRequest::default().with_locomotion_state(LocomotionState::Air).with_stance(Stance::Standing)
-                .with_gait(Gait::Walking).with_rotation_mode(RotationMode::ViewDirection).with_overlay_state(OverlayState::Default),
-                [false, false, false, false, false, false, true], vec![], false, None),
-            ("desired", AlsStateRequest::default().with_stance(Stance::Crouching),
-                [false, false, false, false, false, true, true], vec![], false, None),
-            ("commit", AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded)
-                .with_rotation_mode(RotationMode::VelocityDirection).with_overlay_state(OverlayState::Rifle),
+            (
+                "empty",
+                AlsStateRequest::default(),
+                unchanged,
+                vec![],
+                false,
+                None,
+            ),
+            (
+                "queued",
+                AlsStateRequest::default().with_gait(Gait::Running),
+                unchanged,
+                vec![],
+                false,
+                Some(Gait::Running),
+            ),
+            (
+                "rejected",
+                AlsStateRequest::default()
+                    .with_gait(Gait::Running)
+                    .with_policy(InvalidRequestPolicy::Reject),
+                [false, false, false, false, false, false, true],
+                vec![],
+                true,
+                None,
+            ),
+            (
+                "same",
+                AlsStateRequest::default()
+                    .with_locomotion_state(LocomotionState::Air)
+                    .with_stance(Stance::Standing)
+                    .with_gait(Gait::Walking)
+                    .with_rotation_mode(RotationMode::ViewDirection)
+                    .with_overlay_state(OverlayState::Default),
+                [false, false, false, false, false, false, true],
+                vec![],
+                false,
+                None,
+            ),
+            (
+                "desired",
+                AlsStateRequest::default().with_stance(Stance::Crouching),
+                [false, false, false, false, false, true, true],
+                vec![],
+                false,
+                None,
+            ),
+            (
+                "commit",
+                AlsStateRequest::default()
+                    .with_locomotion_state(LocomotionState::Grounded)
+                    .with_rotation_mode(RotationMode::VelocityDirection)
+                    .with_overlay_state(OverlayState::Rifle),
                 [true, false, false, true, true, false, true],
-                vec![Dimension::LocomotionState, Dimension::RotationMode, Dimension::OverlayState], false, None),
-            ("gait", AlsStateRequest::default().with_gait(Gait::Running),
-                [false, false, true, false, false, false, true], vec![Dimension::Gait], false, None),
+                vec![
+                    Dimension::LocomotionState,
+                    Dimension::RotationMode,
+                    Dimension::OverlayState,
+                ],
+                false,
+                None,
+            ),
+            (
+                "gait",
+                AlsStateRequest::default().with_gait(Gait::Running),
+                [false, false, true, false, false, false, true],
+                vec![Dimension::Gait],
+                false,
+                None,
+            ),
         ];
         for (label, request, changes, dimensions, rejected, pending_gait) in cases {
             *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() = request;
             let before = ticks(app.world());
             app.update();
             let after = ticks(app.world());
-            let transitions = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
-                .map(|event| event.dimension).collect::<Vec<_>>();
-            let rejections = app.world_mut().resource_mut::<Messages<StateTransitionRejectedEvent>>().drain().count();
+            let transitions = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .map(|event| event.dimension)
+                .collect::<Vec<_>>();
+            let rejections = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionRejectedEvent>>()
+                .drain()
+                .count();
             let pending = app.world().get::<AlsStateRequest>(actor).unwrap().gait;
             let actual = std::array::from_fn::<_, 7, _>(|i| before[i] != after[i]);
             if actual != changes {
@@ -622,24 +710,58 @@ mod tests {
             assert_eq!(rejections, usize::from(rejected));
             assert_eq!(pending, pending_gait);
         }
-        assert!(differences.is_empty(), "Unexpected component change ticks: {differences:?}");
+        assert!(
+            differences.is_empty(),
+            "Unexpected component change ticks: {differences:?}"
+        );
     }
 
     #[test]
     fn named_locomotion_requests_keep_identity_and_emit_only_changes() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
-        let actor = app.world_mut().spawn((LocomotionState::Grounded, Stance::Standing, Gait::Walking,
-            RotationMode::ViewDirection, OverlayState::Default, AlsStateRequest::default())).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                LocomotionState::Grounded,
+                Stance::Standing,
+                Gait::Walking,
+                RotationMode::ViewDirection,
+                OverlayState::Default,
+                AlsStateRequest::default(),
+            ))
+            .id();
         let climbing = LocomotionState::new("Als.LocomotionMode.Climbing").unwrap();
         let sliding = LocomotionState::new("Als.LocomotionMode.Sliding").unwrap();
         let mut previous = LocomotionState::Grounded;
-        for requested in [climbing, climbing, sliding, LocomotionState::Air, LocomotionState::Grounded] {
-            app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().locomotion_state = Some(requested);
+        for requested in [
+            climbing,
+            climbing,
+            sliding,
+            LocomotionState::Air,
+            LocomotionState::Grounded,
+        ] {
+            app.world_mut()
+                .get_mut::<AlsStateRequest>(actor)
+                .unwrap()
+                .locomotion_state = Some(requested);
             app.update();
-            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), requested);
-            assert!(app.world().get::<AlsStateRequest>(actor).unwrap().locomotion_state.is_none());
-            let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain().collect();
+            assert_eq!(
+                *app.world().get::<LocomotionState>(actor).unwrap(),
+                requested
+            );
+            assert!(
+                app.world()
+                    .get::<AlsStateRequest>(actor)
+                    .unwrap()
+                    .locomotion_state
+                    .is_none()
+            );
+            let events: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .collect();
             assert_eq!(events.len(), usize::from(previous != requested));
             if let Some(event) = events.first() {
                 assert_eq!(event.from, StateValue::LocomotionState(previous));
@@ -688,10 +810,16 @@ mod tests {
                         ragdoll_start: true,
                         ..default()
                     },
-            ))
+                ))
                 .id();
             if mode == LocomotionState::Custom {
-                app.world_mut().entity_mut(actor).insert(crate::als::mantle::AlsMantleState { active: true, root_motion_ready: true, ..default() });
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(crate::als::mantle::AlsMantleState {
+                        active: true,
+                        root_motion_ready: true,
+                        ..default()
+                    });
             }
             app.update();
             assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected));
@@ -754,13 +882,18 @@ mod tests {
                 RotationMode::ViewDirection,
                 OverlayState::Default,
                 AlsStateRequest::default(),
-                crate::als::mantle::AlsMantleState { active: true, root_motion_ready: true, ..default() },
+                crate::als::mantle::AlsMantleState {
+                    active: true,
+                    root_motion_ready: true,
+                    ..default()
+                },
             ))
             .id();
         for requested in [LocomotionState::Grounded, LocomotionState::Air] {
-            *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() = AlsStateRequest::default()
-                .with_locomotion_state(requested)
-                .with_stance(Stance::Crouching);
+            *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() =
+                AlsStateRequest::default()
+                    .with_locomotion_state(requested)
+                    .with_stance(Stance::Crouching);
             app.update();
             assert_eq!(
                 app.world().get::<LocomotionState>(actor),

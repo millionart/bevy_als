@@ -14,8 +14,12 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
     let mut values: Vec<_> = tags
         .tag_map
         .keys()
-        .filter(|tag| tag.as_str().get(..parent.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(parent))
-            && tag.as_str().as_bytes().get(parent.len()) == Some(&b'.'))
+        .filter(|tag| {
+            tag.as_str()
+                .get(..parent.len())
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case(parent))
+                && tag.as_str().as_bytes().get(parent.len()) == Some(&b'.')
+        })
         .map(OverlayState::from_tag)
         .collect();
     let name_key = |name: &str| {
@@ -90,7 +94,10 @@ impl Plugin for OverlayModeMenuPlugin {
             .add_systems(Startup, initialize_menu)
             .add_systems(
                 Update,
-                (menu_control_system.after(crate::als::view::AlsViewInputSet), menu_highlight_system)
+                (
+                    menu_control_system.after(crate::als::view::AlsViewInputSet),
+                    menu_highlight_system,
+                )
                     .chain(),
             )
             .add_systems(
@@ -135,7 +142,9 @@ fn menu_control_system(
     let pressed = held && !*prev_held;
     let released = !held && *prev_held;
     *prev_held = held;
-    if time.is_paused() { return; }
+    if time.is_paused() {
+        return;
+    }
 
     let next = next_states
         .iter()
@@ -363,19 +372,40 @@ fn menu_highlight_system(
 pub(crate) mod tests {
     #[test]
     fn browser_review_tag_menu_uses_case_insensitive_descendants_and_unique_identity() {
-        let tags=tag_manager(&["als.overlaymode.browsercase","ALS.OVERLAYMODE.BROWSERCASE","als.overlaymode.rifle","Als.OverlayMode2.Other"]);
-        let order=menu_display_order(&tags);
-        assert_eq!(order.iter().filter(|tag|tag.as_str().eq_ignore_ascii_case("Als.OverlayMode.BrowserCase")).count(),1,
-            "Source hierarchy lost the registered case aliases");
-        assert_eq!(order.iter().filter(|tag|**tag==OverlayState::Rifle).count(),1);
-        assert_eq!(order.len(),14);
+        let tags = tag_manager(&[
+            "als.overlaymode.browsercase",
+            "ALS.OVERLAYMODE.BROWSERCASE",
+            "als.overlaymode.rifle",
+            "Als.OverlayMode2.Other",
+        ]);
+        let order = menu_display_order(&tags);
+        assert_eq!(
+            order
+                .iter()
+                .filter(|tag| tag
+                    .as_str()
+                    .eq_ignore_ascii_case("Als.OverlayMode.BrowserCase"))
+                .count(),
+            1,
+            "Source hierarchy lost the registered case aliases"
+        );
+        assert_eq!(
+            order
+                .iter()
+                .filter(|tag| **tag == OverlayState::Rifle)
+                .count(),
+            1
+        );
+        assert_eq!(order.len(), 14);
     }
 
     use super::*;
 
     pub(crate) fn tag_manager(extra: &[&str]) -> bevy_gameplay_tag::GameplayTagsManager {
-        let mut rows: Vec<serde_json::Value> =
-            serde_json::from_str(include_str!("../../../assets/ALS/Data/als_gameplay_tags.json")).unwrap();
+        let mut rows: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../../../assets/ALS/Data/als_gameplay_tags.json"
+        ))
+        .unwrap();
         rows.extend(
             extra
                 .iter()
@@ -395,21 +425,43 @@ pub(crate) mod tests {
         use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
         for gamepad_menu in [false, true] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
-                .init_resource::<AlsHudState>()
-                .insert_resource(OverlayMenuState { options: menu_display_order(&tag_manager(&[])), ..default() })
-                .add_systems(Update, menu_control_system);
+            app.add_plugins((
+                MinimalPlugins,
+                bevy::input::InputPlugin,
+                EnhancedInputPlugin,
+                AlsInputPlugin,
+            ))
+            .init_resource::<AlsHudState>()
+            .insert_resource(OverlayMenuState {
+                options: menu_display_order(&tag_manager(&[])),
+                ..default()
+            })
+            .add_systems(Update, menu_control_system);
             app.finish();
-            let player = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter,
-                OverlayState::Default, AlsStateRequest::default())).id();
+            let player = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    AlsPlayerCharacter,
+                    OverlayState::Default,
+                    AlsStateRequest::default(),
+                ))
+                .id();
             let gamepad = app.world_mut().spawn(Gamepad::default()).id();
-            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            spawn_als_actions(
+                &mut app.world_mut().commands(),
+                player,
+                &AlsInputMap::default(),
+            );
             app.update();
             if gamepad_menu {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0),
+                ));
             } else {
-                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .press(KeyCode::KeyQ);
             }
             app.update();
             assert!(app.world().resource::<OverlayMenuState>().open);
@@ -417,77 +469,150 @@ pub(crate) mod tests {
             app.world_mut().resource_mut::<Time<Virtual>>().pause();
             for button in [GamepadButton::DPadUp, GamepadButton::DPadDown] {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, button, 1.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, button, 1.0),
+                ));
                 app.update();
-                assert_eq!(app.world().resource::<OverlayMenuState>().selected, selected,
-                    "Source paused Down selection must preserve the open menu selection");
+                assert_eq!(
+                    app.world().resource::<OverlayMenuState>().selected,
+                    selected,
+                    "Source paused Down selection must preserve the open menu selection"
+                );
                 let command = app.world().get::<AlsInputCommand>(player).unwrap();
-                assert_eq!([command.overlay_menu_held, command.next_overlay_mode_pressed,
-                    command.previous_overlay_mode_pressed], [false; 3],
-                    "Source paused menu bridge fields must match no source dispatch");
+                assert_eq!(
+                    [
+                        command.overlay_menu_held,
+                        command.next_overlay_mode_pressed,
+                        command.previous_overlay_mode_pressed
+                    ],
+                    [false; 3],
+                    "Source paused menu bridge fields must match no source dispatch"
+                );
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, button, 0.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, button, 0.0),
+                ));
             }
             if gamepad_menu {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0),
+                ));
             } else {
-                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .release(KeyCode::KeyQ);
             }
             app.update();
-            assert!(app.world().resource::<OverlayMenuState>().open,
-                "Source paused menu Released event must not close or approve the menu");
-            assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state, None);
-            assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), MENU_DILATION);
+            assert!(
+                app.world().resource::<OverlayMenuState>().open,
+                "Source paused menu Released event must not close or approve the menu"
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AlsStateRequest>(player)
+                    .unwrap()
+                    .overlay_state,
+                None
+            );
+            assert_eq!(
+                app.world().resource::<Time<Virtual>>().relative_speed(),
+                MENU_DILATION
+            );
             app.world_mut().resource_mut::<Time<Virtual>>().unpause();
             app.update();
-            assert!(app.world().resource::<OverlayMenuState>().open,
-                "Source menu release history must not replay approval after resume");
+            assert!(
+                app.world().resource::<OverlayMenuState>().open,
+                "Source menu release history must not replay approval after resume"
+            );
             if gamepad_menu {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0),
+                ));
             } else {
-                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .press(KeyCode::KeyQ);
             }
             app.update();
             if gamepad_menu {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0)));
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0),
+                ));
             } else {
-                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .release(KeyCode::KeyQ);
             }
             app.update();
             assert!(!app.world().resource::<OverlayMenuState>().open);
-            assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state, selected);
-            assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
+            assert_eq!(
+                app.world()
+                    .get::<AlsStateRequest>(player)
+                    .unwrap()
+                    .overlay_state,
+                selected
+            );
+            assert_eq!(
+                app.world().resource::<Time<Virtual>>().relative_speed(),
+                1.0
+            );
         }
     }
     #[test]
     fn first_menu_release_after_paused_press_approves_source_empty_selection() {
         use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
-            .init_resource::<AlsHudState>()
-            .insert_resource(OverlayMenuState { options: menu_display_order(&tag_manager(&[])), ..default() })
-            .add_systems(Update, menu_control_system);
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::input::InputPlugin,
+            EnhancedInputPlugin,
+            AlsInputPlugin,
+        ))
+        .init_resource::<AlsHudState>()
+        .insert_resource(OverlayMenuState {
+            options: menu_display_order(&tag_manager(&[])),
+            ..default()
+        })
+        .add_systems(Update, menu_control_system);
         app.finish();
-        let player = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter,
-            OverlayState::Default, AlsStateRequest::default())).id();
-        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        let player = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsPlayerCharacter,
+                OverlayState::Default,
+                AlsStateRequest::default(),
+            ))
+            .id();
+        spawn_als_actions(
+            &mut app.world_mut().commands(),
+            player,
+            &AlsInputMap::default(),
+        );
         app.update();
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyQ);
         app.update();
         assert!(!app.world().resource::<OverlayMenuState>().open);
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         app.update();
         assert!(!app.world().resource::<OverlayMenuState>().open);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::KeyQ);
         app.update();
-        assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state,
+        assert_eq!(
+            app.world()
+                .get::<AlsStateRequest>(player)
+                .unwrap()
+                .overlay_state,
             Some(OverlayState::new("").unwrap()),
-            "Source Released callback must approve the default empty Tag before first Construct");
-        assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
+            "Source Released callback must approve the default empty Tag before first Construct"
+        );
+        assert_eq!(
+            app.world().resource::<Time<Virtual>>().relative_speed(),
+            1.0
+        );
     }
 
     #[test]
@@ -802,7 +927,12 @@ pub(crate) mod tests {
                 .world()
                 .get::<CalculatedClip>(children[0])
                 .expect("The source text uses on-demand clipping");
-            assert!(clip.rects().unwrap().iter().any(|rect| rect.rect.width() <= 192.0));
+            assert!(
+                clip.rects()
+                    .unwrap()
+                    .iter()
+                    .any(|rect| rect.rect.width() <= 192.0)
+            );
         }
         assert!(found);
     }

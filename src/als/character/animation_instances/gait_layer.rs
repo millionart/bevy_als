@@ -22,7 +22,9 @@ impl Plugin for GaitLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsGaitLayerSet.before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            AlsGaitLayerSet.before(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
         )
         .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
     }
@@ -112,10 +114,12 @@ mod tests {
         for (speed, expected_gait, expected_amount) in
             [(1.2, Gait::Walking, 1.2), (1.9, Gait::Running, 1.9)]
         {
-            app.world_mut().entity_mut(character).insert(AlsActualVelocity {
-                world_velocity: Vec3::Z * speed,
-                horizontal_speed: speed,
-            });
+            app.world_mut()
+                .entity_mut(character)
+                .insert(AlsActualVelocity {
+                    world_velocity: Vec3::Z * speed,
+                    horizontal_speed: speed,
+                });
             app.update();
 
             let amount = app.world().get::<AlsGaitAmount>(character).unwrap().0;

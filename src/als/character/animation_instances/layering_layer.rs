@@ -73,7 +73,9 @@ impl Plugin for LayeringLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsLayeringLayerSet.before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            AlsLayeringLayerSet.before(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
         )
         .add_systems(
             PostUpdate,
@@ -223,14 +225,8 @@ fn write_state(player: &mut AnimationGraphPlayer, state: AlsLayeringState) {
 #[allow(clippy::type_complexity)]
 fn layering_layer_writer(
     mut commands: Commands,
-    mut characters: Query<
-        (Entity, Option<&mut AlsLayeringState>),
-        With<AlsCharacter>,
-    >,
-    avatars: Query<
-        (&ChildOf, &AnimatedSceneInstance),
-        With<AlsCharacterAvatar>,
-    >,
+    mut characters: Query<(Entity, Option<&mut AlsLayeringState>), With<AlsCharacter>>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     for (parent, instance) in &avatars {
@@ -264,29 +260,85 @@ mod tests {
     #[test]
     fn layering_state_writes_direct_generated_inputs() {
         let fields = [
-            ("LayerHead", "head_blend_amount"), ("LayerHeadAdditive", "head_additive_blend_amount"), ("LayerHeadSlot", "head_slot_blend_amount"),
-            ("LayerArmLeft", "arm_left_blend_amount"), ("LayerArmLeftAdditive", "arm_left_additive_blend_amount"), ("LayerArmLeftSlot", "arm_left_slot_blend_amount"),
-            ("LayerArmLeftLocalSpace", "arm_left_local_space_blend_amount"),
-            ("LayerArmRight", "arm_right_blend_amount"), ("LayerArmRightAdditive", "arm_right_additive_blend_amount"), ("LayerArmRightSlot", "arm_right_slot_blend_amount"),
-            ("LayerArmRightLocalSpace", "arm_right_local_space_blend_amount"),
-            ("LayerHandLeft", "hand_left_blend_amount"), ("LayerHandRight", "hand_right_blend_amount"),
-            ("LayerSpine", "spine_blend_amount"), ("LayerSpineAdditive", "spine_additive_blend_amount"), ("LayerSpineSlot", "spine_slot_blend_amount"),
-            ("LayerPelvis", "pelvis_blend_amount"), ("LayerPelvisSlot", "pelvis_slot_blend_amount"), ("LayerLegs", "legs_blend_amount"), ("LayerLegsSlot", "legs_slot_blend_amount"),
+            ("LayerHead", "head_blend_amount"),
+            ("LayerHeadAdditive", "head_additive_blend_amount"),
+            ("LayerHeadSlot", "head_slot_blend_amount"),
+            ("LayerArmLeft", "arm_left_blend_amount"),
+            ("LayerArmLeftAdditive", "arm_left_additive_blend_amount"),
+            ("LayerArmLeftSlot", "arm_left_slot_blend_amount"),
+            (
+                "LayerArmLeftLocalSpace",
+                "arm_left_local_space_blend_amount",
+            ),
+            ("LayerArmRight", "arm_right_blend_amount"),
+            ("LayerArmRightAdditive", "arm_right_additive_blend_amount"),
+            ("LayerArmRightSlot", "arm_right_slot_blend_amount"),
+            (
+                "LayerArmRightLocalSpace",
+                "arm_right_local_space_blend_amount",
+            ),
+            ("LayerHandLeft", "hand_left_blend_amount"),
+            ("LayerHandRight", "hand_right_blend_amount"),
+            ("LayerSpine", "spine_blend_amount"),
+            ("LayerSpineAdditive", "spine_additive_blend_amount"),
+            ("LayerSpineSlot", "spine_slot_blend_amount"),
+            ("LayerPelvis", "pelvis_blend_amount"),
+            ("LayerPelvisSlot", "pelvis_slot_blend_amount"),
+            ("LayerLegs", "legs_blend_amount"),
+            ("LayerLegsSlot", "legs_slot_blend_amount"),
         ];
         let mut player = AnimationGraphPlayer::new(default());
         for local_space in [0.99998, 0.99999, 1.2] {
-            let context = AlsRootAnimationContext { curves: fields.iter().enumerate().map(|(index, (curve, _))|
-                ((*curve).into(), if curve.ends_with("LocalSpace") { local_space } else { index as f32 * 0.075 - 0.1 })).collect() };
+            let context = AlsRootAnimationContext {
+                curves: fields
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (curve, _))| {
+                        (
+                            (*curve).into(),
+                            if curve.ends_with("LocalSpace") {
+                                local_space
+                            } else {
+                                index as f32 * 0.075 - 0.1
+                            },
+                        )
+                    })
+                    .collect(),
+            };
             for context in [Some(&context), None] {
                 let state = refresh_state_from_curves(context);
                 write_state(&mut player, state);
                 for (curve, property) in fields {
-                    let expected = context.and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from(curve)).copied()).unwrap_or(0.0);
-                    assert_eq!(player.get_global_input_data(format!("layering_state.{property}")).and_then(|value| value.as_f32().ok()), Some(expected), "{curve}");
+                    let expected = context
+                        .and_then(|context| {
+                            context
+                                .curves
+                                .get(&crate::extensions::SourceCurveName::from(curve))
+                                .copied()
+                        })
+                        .unwrap_or(0.0);
+                    assert_eq!(
+                        player
+                            .get_global_input_data(format!("layering_state.{property}"))
+                            .and_then(|value| value.as_f32().ok()),
+                        Some(expected),
+                        "{curve}"
+                    );
                 }
-                let expected = if context.is_some() && local_space >= 0.99999 { 0.0 } else { 1.0 };
+                let expected = if context.is_some() && local_space >= 0.99999 {
+                    0.0
+                } else {
+                    1.0
+                };
                 for side in ["left", "right"] {
-                    assert_eq!(player.get_global_input_data(format!("layering_state.arm_{side}_mesh_space_blend_amount")).and_then(|value| value.as_f32().ok()), Some(expected));
+                    assert_eq!(
+                        player
+                            .get_global_input_data(format!(
+                                "layering_state.arm_{side}_mesh_space_blend_amount"
+                            ))
+                            .and_then(|value| value.as_f32().ok()),
+                        Some(expected)
+                    );
                 }
             }
         }

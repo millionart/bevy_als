@@ -21,7 +21,9 @@ impl Plugin for LocomotionLifecyclePlugin {
             PostUpdate,
             stop_transition_and_turn_on_locomotion_exit
                 .after(AlsLocomotionLayerSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         );
     }
 }

@@ -4,8 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy_als::extensions::AlsExtPlugin;
 use bevy::{app::AppExit, ecs::message::MessageWriter, prelude::*, window::ExitCondition};
+use bevy_als::extensions::AlsExtPlugin;
 use bevy_animation_graph::{
     AnimationGraphPlugin,
     core::{
@@ -101,10 +101,9 @@ fn load(mut commands: Commands, assets: Res<AssetServer>, root: Res<DumpAssetRoo
         )
         .expect("batch graph paths must be valid JSON")
     } else {
-        vec![
-            env::var("ALS_GRAPH_SPEC_PATH")
-                .unwrap_or_else(|_| "Validation/Graphs/ab_als/stances/standing.animgraph.ron".to_owned()),
-        ]
+        vec![env::var("ALS_GRAPH_SPEC_PATH").unwrap_or_else(|_| {
+            "Validation/Graphs/ab_als/stances/standing.animgraph.ron".to_owned()
+        })]
     };
     assert!(
         !graph_paths.is_empty(),

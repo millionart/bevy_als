@@ -63,7 +63,11 @@ impl GaitWeights {
                 run_w: 1.0,
                 sprint_w: 1.0,
             },
-            _ => Self { move_w: 1.0, run_w: 1.0, sprint_w: 0.0 },
+            _ => Self {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 0.0,
+            },
         }
     }
 
@@ -176,8 +180,14 @@ pub fn calculate_gait_amount_for_thresholds(speed: f32, thresholds: GaitSpeedThr
     calculate_gait_amount_for_centimeters(speed * 100.0, thresholds)
 }
 
-pub(crate) fn calculate_gait_amount_for_velocity(velocity: Vec3, thresholds: GaitSpeedThresholds) -> f32 {
-    calculate_gait_amount_for_centimeters(crate::als::motion::source_horizontal_speed_centimeters(velocity), thresholds)
+pub(crate) fn calculate_gait_amount_for_velocity(
+    velocity: Vec3,
+    thresholds: GaitSpeedThresholds,
+) -> f32 {
+    calculate_gait_amount_for_centimeters(
+        crate::als::motion::source_horizontal_speed_centimeters(velocity),
+        thresholds,
+    )
 }
 
 fn calculate_gait_amount_for_centimeters(speed: f32, thresholds: GaitSpeedThresholds) -> f32 {
@@ -288,12 +298,17 @@ pub fn refresh_gait_system(
             &AlsActualVelocity,
             &AlsMovementParamsHandle,
         ),
-        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
+        (
+            With<AlsCharacter>,
+            Without<crate::als::character::AlsBirthAnimationPending>,
+        ),
     >,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,
 ) {
-    if time.is_paused() { return; }
+    if time.is_paused() {
+        return;
+    }
     for (
         entity,
         locomotion,
@@ -329,7 +344,10 @@ pub fn refresh_gait_system(
             first_person,
             desired_rotation_mode,
             if motion.has_input {
-                crate::als::motion::view_relative_move_axes(Vec2::Y, motion.input_yaw_degrees.to_radians() - view_yaw.0)
+                crate::als::motion::view_relative_move_axes(
+                    Vec2::Y,
+                    motion.input_yaw_degrees.to_radians() - view_yaw.0,
+                )
             } else {
                 Vec2::ZERO
             },
@@ -343,8 +361,10 @@ pub fn refresh_gait_system(
             view_yaw.0,
         );
         max_allowed.0 = allowed;
-        gait_amount.0 = calculate_gait_amount_for_velocity(actual_velocity.world_velocity, thresholds);
-        let actual = calculate_actual_gait(speed, allowed, params.gait_speeds(*stance, *rotation_mode));
+        gait_amount.0 =
+            calculate_gait_amount_for_velocity(actual_velocity.world_velocity, thresholds);
+        let actual =
+            calculate_actual_gait(speed, allowed, params.gait_speeds(*stance, *rotation_mode));
         if *gait != actual {
             let previous = *gait;
             *gait = actual;
@@ -383,50 +403,120 @@ mod tests {
         use bevy_enhanced_input::prelude::EnhancedInputPlugin;
         for gamepad_input in [false, true] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
-                .init_resource::<Assets<AlsMovementParams>>()
-                .add_message::<StateTransitionEvent>()
-                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
-                .add_systems(Update, crate::als::input_request::input_state_request_system)
-                .add_systems(PostUpdate, refresh_gait_system);
+            app.add_plugins((
+                MinimalPlugins,
+                bevy::input::InputPlugin,
+                EnhancedInputPlugin,
+                AlsInputPlugin,
+            ))
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_message::<StateTransitionEvent>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_millis(20),
+            ))
+            .add_systems(
+                Update,
+                crate::als::input_request::input_state_request_system,
+            )
+            .add_systems(PostUpdate, refresh_gait_system);
             app.finish();
-            let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
-            let character = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
-                RotationMode::VelocityDirection, AlsViewYaw(0.0), AlsDesiredGait(Gait::Running),
-                AlsMaxAllowedGait(Gait::Running), AlsGaitAmount::default(), Gait::Walking,
-                AlsActualVelocity::default(), AlsMovementParamsHandle(handle), AlsStateRequest::default(),
-                crate::actual_motion::AlsActualMotion { has_input: true, ..default() })).id();
+            let handle = app
+                .world_mut()
+                .resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let character = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    LocomotionState::Grounded,
+                    Stance::Standing,
+                    RotationMode::VelocityDirection,
+                    AlsViewYaw(0.0),
+                    AlsDesiredGait(Gait::Running),
+                    AlsMaxAllowedGait(Gait::Running),
+                    AlsGaitAmount::default(),
+                    Gait::Walking,
+                    AlsActualVelocity::default(),
+                    AlsMovementParamsHandle(handle),
+                    AlsStateRequest::default(),
+                    crate::actual_motion::AlsActualMotion {
+                        has_input: true,
+                        ..default()
+                    },
+                ))
+                .id();
             let gamepad = app.world_mut().spawn(Gamepad::default()).id();
-            spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+            spawn_als_actions(
+                &mut app.world_mut().commands(),
+                character,
+                &AlsInputMap::default(),
+            );
             app.update();
             if gamepad_input {
                 app.world_mut().write_message(RawGamepadEvent::Button(
-                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, 1.0)));
-            } else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftLeft); }
-            for _ in 0..2 { app.update(); }
-            assert_eq!(app.world().get::<AlsDesiredGait>(character).unwrap().0, Gait::Running);
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, 1.0),
+                ));
+            } else {
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .press(KeyCode::ShiftLeft);
+            }
+            for _ in 0..2 {
+                app.update();
+            }
+            assert_eq!(
+                app.world().get::<AlsDesiredGait>(character).unwrap().0,
+                Gait::Running
+            );
             app.world_mut().resource_mut::<Time<Virtual>>().pause();
             app.update();
-            assert_eq!(app.world().get::<AlsDesiredGait>(character).unwrap().0, Gait::Sprinting,
-                "Source Sprint Canceled callback preserves its actual positive value during pause");
-            assert_eq!(app.world().get::<AlsMaxAllowedGait>(character).unwrap().0, Gait::Running,
-                "Source paused Character must retain its last refreshed max allowed gait");
+            assert_eq!(
+                app.world().get::<AlsDesiredGait>(character).unwrap().0,
+                Gait::Sprinting,
+                "Source Sprint Canceled callback preserves its actual positive value during pause"
+            );
+            assert_eq!(
+                app.world().get::<AlsMaxAllowedGait>(character).unwrap().0,
+                Gait::Running,
+                "Source paused Character must retain its last refreshed max allowed gait"
+            );
             app.world_mut().resource_mut::<Time<Virtual>>().unpause();
             app.update();
-            assert_eq!(app.world().get::<AlsMaxAllowedGait>(character).unwrap().0, Gait::Sprinting,
-                "Source resumed Character must consume its saved desired gait");
+            assert_eq!(
+                app.world().get::<AlsMaxAllowedGait>(character).unwrap().0,
+                Gait::Sprinting,
+                "Source resumed Character must consume its saved desired gait"
+            );
         }
     }
     #[test]
     fn gait_permission_reads_consumed_character_input_and_world_direction() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).init_resource::<Assets<AlsMovementParams>>()
-            .add_message::<StateTransitionEvent>().add_systems(Update, refresh_gait_system);
-        let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
-        let entity = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
-            RotationMode::ViewDirection, AlsViewYaw(0.0), AlsFirstPersonView,
-            AlsDesiredGait(Gait::Sprinting), AlsMaxAllowedGait::default(), AlsGaitAmount::default(),
-            Gait::Walking, AlsActualVelocity::default(), AlsMovementParamsHandle(handle))).id();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_message::<StateTransitionEvent>()
+            .add_systems(Update, refresh_gait_system);
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Grounded,
+                Stance::Standing,
+                RotationMode::ViewDirection,
+                AlsViewYaw(0.0),
+                AlsFirstPersonView,
+                AlsDesiredGait(Gait::Sprinting),
+                AlsMaxAllowedGait::default(),
+                AlsGaitAmount::default(),
+                Gait::Walking,
+                AlsActualVelocity::default(),
+                AlsMovementParamsHandle(handle),
+            ))
+            .id();
         for (has_input, input_yaw, raw_input, expected) in [
             (false, 0.0_f32, Vec2::Y, Gait::Running),
             (true, 49.0, Vec2::ZERO, Gait::Sprinting),
@@ -434,12 +524,22 @@ mod tests {
             (true, 0.0, Vec2::Y * 0.0002, Gait::Sprinting),
         ] {
             app.world_mut().entity_mut(entity).insert((
-                AlsInputCommand { move_dir: raw_input, ..default() },
-                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: input_yaw, ..default() },
+                AlsInputCommand {
+                    move_dir: raw_input,
+                    ..default()
+                },
+                crate::actual_motion::AlsActualMotion {
+                    has_input,
+                    input_yaw_degrees: input_yaw,
+                    ..default()
+                },
             ));
             app.update();
-            assert_eq!(app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0, expected,
-                "Source gait permission differs: has_input={has_input}, yaw={input_yaw}, raw={raw_input:?}");
+            assert_eq!(
+                app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,
+                expected,
+                "Source gait permission differs: has_input={has_input}, yaw={input_yaw}, raw={raw_input:?}"
+            );
         }
     }
 
@@ -533,12 +633,18 @@ mod tests {
         directional.max_walk_backward_speed = 4.0;
         directional.max_run_backward_speed = 5.0;
         for (enabled, speed, expected) in [
-            (false, 2.5, Gait::Running), (false, 4.2, Gait::Sprinting),
-            (true, 2.5, Gait::Walking), (true, 4.2, Gait::Running), (true, 5.2, Gait::Sprinting),
+            (false, 2.5, Gait::Running),
+            (false, 4.2, Gait::Sprinting),
+            (true, 2.5, Gait::Walking),
+            (true, 4.2, Gait::Running),
+            (true, 5.2, Gait::Sprinting),
         ] {
             directional.allow_direction_dependent_movement_speed = enabled;
-            assert_eq!(calculate_actual_gait(speed, Gait::Sprinting, &directional), expected,
-                "Source ActualGait maxima differ: enabled={enabled} speed={speed}");
+            assert_eq!(
+                calculate_actual_gait(speed, Gait::Sprinting, &directional),
+                expected,
+                "Source ActualGait maxima differ: enabled={enabled} speed={speed}"
+            );
         }
     }
 
@@ -554,8 +660,14 @@ mod tests {
     #[test]
     fn gait_amount_uses_source_centimeter_mapping() {
         let thresholds = StanceGaitSpeeds::default().gait_speed_thresholds(1.0);
-        assert_eq!(calculate_gait_amount_for_thresholds(3.3333775997161865, thresholds), 1.7916889190673828);
-        assert_eq!(calculate_gait_amount_for_thresholds(3.749999761581421, thresholds), 1.999999761581421);
+        assert_eq!(
+            calculate_gait_amount_for_thresholds(3.3333775997161865, thresholds),
+            1.7916889190673828
+        );
+        assert_eq!(
+            calculate_gait_amount_for_thresholds(3.749999761581421, thresholds),
+            1.999999761581421
+        );
         assert_eq!(calculate_gait_amount_for_thresholds(3.75, thresholds), 2.0);
     }
 
@@ -565,9 +677,15 @@ mod tests {
         let thresholds = StanceGaitSpeeds::default().gait_speed_thresholds(1.0);
         let centimeters = crate::als::motion::source_horizontal_speed_centimeters(velocity);
         assert_eq!(centimeters, 452.561_3);
-        assert_eq!(calculate_gait_amount_for_centimeters(centimeters, thresholds), 2.282_041);
+        assert_eq!(
+            calculate_gait_amount_for_centimeters(centimeters, thresholds),
+            2.282_041
+        );
         let meters = crate::als::motion::source_horizontal_speed_meters(velocity);
-        assert_ne!(calculate_gait_amount_for_thresholds(meters, thresholds), 2.282_041);
+        assert_ne!(
+            calculate_gait_amount_for_thresholds(meters, thresholds),
+            2.282_041
+        );
     }
 
     #[test]
@@ -644,19 +762,54 @@ mod tests {
                     world_velocity: Vec3::Z * 1.2,
                     horizontal_speed: 1.2,
                 },
-                crate::actual_motion::AlsActualMotion { has_input: true, ..default() },
+                crate::actual_motion::AlsActualMotion {
+                    has_input: true,
+                    ..default()
+                },
                 AlsMovementParamsHandle(handle.clone()),
             ))
             .id();
 
-        for (back_walk, back_run, velocity, expected_gait, expected_amount, walk_limit, run_limit) in [
-            (1.0, 2.0, Vec3::NEG_Z * 1.2, Gait::Walking, 0.6857143, 1.75, 3.75),
+        for (
+            back_walk,
+            back_run,
+            velocity,
+            expected_gait,
+            expected_amount,
+            walk_limit,
+            run_limit,
+        ) in [
+            (
+                1.0,
+                2.0,
+                Vec3::NEG_Z * 1.2,
+                Gait::Walking,
+                0.6857143,
+                1.75,
+                3.75,
+            ),
             (1.0, 2.0, Vec3::Z * 1.2, Gait::Walking, 1.2, 1.0, 2.0),
             (1.0, 2.0, Vec3::Z * 2.5, Gait::Running, 2.1111112, 1.0, 2.0),
-            (4.0, 5.0, Vec3::NEG_Z * 2.5, Gait::Walking, 1.375, 1.75, 3.75),
+            (
+                4.0,
+                5.0,
+                Vec3::NEG_Z * 2.5,
+                Gait::Walking,
+                1.375,
+                1.75,
+                3.75,
+            ),
             (4.0, 5.0, Vec3::Z * 2.5, Gait::Walking, 0.625, 4.0, 5.0),
             (4.0, 5.0, Vec3::Z * 4.2, Gait::Running, 1.2, 4.0, 5.0),
-            (4.0, 5.0, Vec3::Z * 5.2, Gait::Sprinting, 2.1333334, 4.0, 5.0),
+            (
+                4.0,
+                5.0,
+                Vec3::Z * 5.2,
+                Gait::Sprinting,
+                2.1333334,
+                4.0,
+                5.0,
+            ),
         ] {
             {
                 let mut assets = app.world_mut().resource_mut::<Assets<AlsMovementParams>>();
@@ -664,16 +817,34 @@ mod tests {
                 speeds.max_walk_backward_speed = back_walk;
                 speeds.max_run_backward_speed = back_run;
             }
-            app.world_mut().entity_mut(entity).insert(AlsActualVelocity { world_velocity: velocity, horizontal_speed: velocity.length() });
+            app.world_mut()
+                .entity_mut(entity)
+                .insert(AlsActualVelocity {
+                    world_velocity: velocity,
+                    horizontal_speed: velocity.length(),
+                });
             app.update();
-            assert_eq!(*app.world().get::<Gait>(entity).unwrap(), expected_gait,
-                "Source ActualGait uses the maximum directional speed: back_walk={back_walk} velocity={velocity:?}");
-            assert!((app.world().get::<AlsGaitAmount>(entity).unwrap().0 - expected_amount).abs() < 1e-6,
-                "Source GaitAmount retains directional interpolation: velocity={velocity:?}");
+            assert_eq!(
+                *app.world().get::<Gait>(entity).unwrap(),
+                expected_gait,
+                "Source ActualGait uses the maximum directional speed: back_walk={back_walk} velocity={velocity:?}"
+            );
+            assert!(
+                (app.world().get::<AlsGaitAmount>(entity).unwrap().0 - expected_amount).abs()
+                    < 1e-6,
+                "Source GaitAmount retains directional interpolation: velocity={velocity:?}"
+            );
             let assets = app.world().resource::<Assets<AlsMovementParams>>();
-            let limits = assets.get(&handle).unwrap().gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, velocity, 0.0);
-            assert!((limits.walk - walk_limit).abs() < 1e-6 && (limits.run - run_limit).abs() < 1e-6,
-                "Source movement limits retain directional interpolation: velocity={velocity:?}");
+            let limits = assets.get(&handle).unwrap().gait_speed_thresholds(
+                Stance::Standing,
+                RotationMode::ViewDirection,
+                velocity,
+                0.0,
+            );
+            assert!(
+                (limits.walk - walk_limit).abs() < 1e-6 && (limits.run - run_limit).abs() < 1e-6,
+                "Source movement limits retain directional interpolation: velocity={velocity:?}"
+            );
         }
     }
 
@@ -705,7 +876,11 @@ mod tests {
                 AlsGaitAmount::default(),
                 Gait::Walking,
                 AlsActualVelocity::default(),
-                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: -90.0, ..default() },
+                crate::actual_motion::AlsActualMotion {
+                    has_input: true,
+                    input_yaw_degrees: -90.0,
+                    ..default()
+                },
                 AlsMovementParamsHandle(handle),
             ))
             .id();
@@ -718,12 +893,17 @@ mod tests {
         assert_eq!(*app.world().get::<Gait>(entity).unwrap(), Gait::Walking);
 
         let velocity = Vec3::new(-1.714_544_9, 0.0, -4.188_258_6);
-        *app.world_mut().get_mut::<AlsActualVelocity>(entity).unwrap() = AlsActualVelocity {
+        *app.world_mut()
+            .get_mut::<AlsActualVelocity>(entity)
+            .unwrap() = AlsActualVelocity {
             world_velocity: velocity,
             horizontal_speed: crate::als::motion::source_horizontal_speed_meters(velocity),
         };
         app.update();
-        assert_eq!(app.world().get::<AlsGaitAmount>(entity).unwrap().0, 2.282_041);
+        assert_eq!(
+            app.world().get::<AlsGaitAmount>(entity).unwrap().0,
+            2.282_041
+        );
 
         *app.world_mut()
             .get_mut::<AlsActualVelocity>(entity)
@@ -738,7 +918,10 @@ mod tests {
             .get_mut::<AlsInputCommand>(entity)
             .unwrap()
             .move_dir = Vec2::ZERO;
-        app.world_mut().get_mut::<crate::actual_motion::AlsActualMotion>(entity).unwrap().has_input = false;
+        app.world_mut()
+            .get_mut::<crate::actual_motion::AlsActualMotion>(entity)
+            .unwrap()
+            .has_input = false;
         app.update();
         assert_eq!(
             app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,

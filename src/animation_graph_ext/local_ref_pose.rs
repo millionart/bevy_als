@@ -152,8 +152,9 @@ mod tests {
                 .unwrap()
                 .into_pose()
                 .unwrap();
-            let curves =
-                crate::extensions::animation_context::graph_output_context_state(graph, &context, "Pose");
+            let curves = crate::extensions::animation_context::graph_output_context_state(
+                graph, &context, "Pose",
+            );
             Ok((pose, curves))
         }
         let mut world = World::new();

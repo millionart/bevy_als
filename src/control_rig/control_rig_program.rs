@@ -30,7 +30,12 @@ fn read_field(value: &RigValue, path: &[usize]) -> Result<RigValue, String> {
     }
 }
 
-fn write_field(target: &mut RigValue, path: &[usize], value: RigValue, meters_per_unit: f64) -> Result<(), String> {
+fn write_field(
+    target: &mut RigValue,
+    path: &[usize],
+    value: RigValue,
+    meters_per_unit: f64,
+) -> Result<(), String> {
     let from_centimeters = 0.01 / meters_per_unit;
     let to_centimeters = 100.0 * meters_per_unit;
     if let Some((&index, rest)) = path.split_first() {
@@ -61,11 +66,19 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue, meters_pe
     match (&mut *target, value) {
         (RigValue::F32(target), RigValue::F64(value)) => *target = value as f32,
         (RigValue::F64(target), RigValue::F32(value)) => *target = value as f64,
-        (RigValue::Centimeters(target), RigValue::F64(value)) => *target = (value * to_centimeters) as f32,
-        (RigValue::F64(target), RigValue::Centimeters(value)) => *target = f64::from(value) * from_centimeters,
+        (RigValue::Centimeters(target), RigValue::F64(value)) => {
+            *target = (value * to_centimeters) as f32
+        }
+        (RigValue::F64(target), RigValue::Centimeters(value)) => {
+            *target = f64::from(value) * from_centimeters
+        }
         (RigValue::Centimeters64(target), RigValue::F64(value)) => *target = value * to_centimeters,
-        (RigValue::F64(target), RigValue::Centimeters64(value)) => *target = value * from_centimeters,
-        (RigValue::Centimeters64(target), RigValue::Centimeters(value)) => *target = f64::from(value),
+        (RigValue::F64(target), RigValue::Centimeters64(value)) => {
+            *target = value * from_centimeters
+        }
+        (RigValue::Centimeters64(target), RigValue::Centimeters(value)) => {
+            *target = f64::from(value)
+        }
         (RigValue::Centimeters(target), RigValue::Centimeters64(value)) => *target = value as f32,
         (target, value) if std::mem::discriminant(target) == std::mem::discriminant(&value) => {
             *target = value
@@ -235,7 +248,12 @@ impl RigProgram {
                             .iter()
                             .map(|input| input.read(values))
                             .collect::<Result<Vec<_>, _>>()?;
-                        output.write_in_units(values, self.literal_count, operation.evaluate_in_units(&inputs, meters_per_unit)?, meters_per_unit)?;
+                        output.write_in_units(
+                            values,
+                            self.literal_count,
+                            operation.evaluate_in_units(&inputs, meters_per_unit)?,
+                            meters_per_unit,
+                        )?;
                     }
                     RigInstruction::Call {
                         function,
@@ -258,16 +276,24 @@ impl RigProgram {
                             )?;
                         }
                     }
-                    RigInstruction::Copy { input, output } => {
-                        output.write_in_units(values, self.literal_count, input.read(values)?, meters_per_unit)?
-                    }
+                    RigInstruction::Copy { input, output } => output.write_in_units(
+                        values,
+                        self.literal_count,
+                        input.read(values)?,
+                        meters_per_unit,
+                    )?,
                     RigInstruction::Zero { output } => {
                         let value = match output.read(values)? {
                             RigValue::I32(_) => RigValue::I32(0),
                             RigValue::Name(_) => RigValue::Name(String::new()),
                             _ => return Err("rig zero requires a name or int32".to_owned()),
                         };
-                        output.write_in_units(values, self.literal_count, value, meters_per_unit)?;
+                        output.write_in_units(
+                            values,
+                            self.literal_count,
+                            value,
+                            meters_per_unit,
+                        )?;
                     }
                     RigInstruction::Jump { instruction } => next = *instruction,
                     RigInstruction::Branch { selector, branches } => {
@@ -306,18 +332,32 @@ mod tests {
     #[test]
     fn source_length_values_stay_in_centimeters_inside_the_program() {
         let mut values = [Vector(DVec3::ZERO), Centimeters64(0.0)];
-        let component = RigValueRef { register: 0, path: vec![1] };
-        component.write_in_units(&mut values, 0, Centimeters64(13.500000000000002), 0.01).unwrap();
+        let component = RigValueRef {
+            register: 0,
+            path: vec![1],
+        };
+        component
+            .write_in_units(&mut values, 0, Centimeters64(13.500000000000002), 0.01)
+            .unwrap();
         let height = component.read(&values).unwrap();
         assert_eq!(height, F64(13.500000000000002));
-        slot(1).write_in_units(&mut values, 0, height, 0.01).unwrap();
+        slot(1)
+            .write_in_units(&mut values, 0, height, 0.01)
+            .unwrap();
         assert_eq!(values[1], Centimeters64(13.500000000000002));
-        assert_eq!(RigMathOp::VectorScale.evaluate_in_units(
-            &[Vector(DVec3::Y), Centimeters(40.0)], 0.01,
-        ).unwrap(), Vector(DVec3::Y * 40.0));
+        assert_eq!(
+            RigMathOp::VectorScale
+                .evaluate_in_units(&[Vector(DVec3::Y), Centimeters(40.0)], 0.01,)
+                .unwrap(),
+            Vector(DVec3::Y * 40.0)
+        );
     }
 
-    fn branch(_instruction: usize, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
+    fn branch(
+        _instruction: usize,
+        function: &str,
+        arguments: &mut [RigValue],
+    ) -> Result<(), String> {
         if function != "Branch" {
             return Err("unknown fixture unit".to_owned());
         }
@@ -480,11 +520,16 @@ mod tests {
         vector.write(&mut nested, 1, Centimeters(offset)).unwrap();
         assert_eq!(vector.read(&nested).unwrap(), F64(f64::from(offset) * 0.01));
         let mut scalars = [Centimeters(0.0), F64(0.0)];
-        slot(0).write(&mut scalars, 0, vector.read(&nested).unwrap()).unwrap();
+        slot(0)
+            .write(&mut scalars, 0, vector.read(&nested).unwrap())
+            .unwrap();
         let value = slot(0).read(&scalars).unwrap();
         assert_eq!(value, Centimeters(offset));
         slot(1).write(&mut scalars, 0, value).unwrap();
-        assert_eq!(slot(1).read(&scalars).unwrap(), F64(f64::from(offset) * 0.01));
+        assert_eq!(
+            slot(1).read(&scalars).unwrap(),
+            F64(f64::from(offset) * 0.01)
+        );
         let quaternion = RigValueRef {
             register: 6,
             path: vec![1, 0],
@@ -581,25 +626,48 @@ mod tests {
 
         let source: Vec<serde_json::Value> = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d242/native-cdo-bones.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
             "../../assets/ALS/Character/CR_Als.program.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(source.len(), definition.bones.len());
-        let mut hierarchy = RigHierarchy::new(definition.bones.clone(), definition.translation_tolerance).unwrap();
+        let mut hierarchy =
+            RigHierarchy::new(definition.bones.clone(), definition.translation_tolerance).unwrap();
         for (index, (source, bone)) in source.iter().zip(&definition.bones).enumerate() {
             assert_eq!(source["name"].as_str(), Some(bone.name.as_str()));
             let transform = &source["initial_global_transform"];
             let component = |group: &str, axis: &str| transform[group][axis].as_f64().unwrap();
-            let translation = DVec3::new(component("translation", "x") * 0.01,
-                component("translation", "z") * 0.01, component("translation", "y") * 0.01);
-            let rotation = DQuat::from_xyzw(-component("rotation", "x"), -component("rotation", "z"),
-                -component("rotation", "y"), component("rotation", "w"));
-            let scale = DVec3::new(component("scale", "x"), component("scale", "z"), component("scale", "y"));
-            assert_eq!(bone.initial_global.translation, translation, "{}", bone.name);
+            let translation = DVec3::new(
+                component("translation", "x") * 0.01,
+                component("translation", "z") * 0.01,
+                component("translation", "y") * 0.01,
+            );
+            let rotation = DQuat::from_xyzw(
+                -component("rotation", "x"),
+                -component("rotation", "z"),
+                -component("rotation", "y"),
+                component("rotation", "w"),
+            );
+            let scale = DVec3::new(
+                component("scale", "x"),
+                component("scale", "z"),
+                component("scale", "y"),
+            );
+            assert_eq!(
+                bone.initial_global.translation, translation,
+                "{}",
+                bone.name
+            );
             assert_eq!(bone.initial_global.rotation, rotation, "{}", bone.name);
             assert_eq!(bone.initial_global.scale, scale, "{}", bone.name);
-            assert_eq!(hierarchy.transform(index, RigSpace::Global, true).unwrap(), bone.initial_global, "{}", bone.name);
+            assert_eq!(
+                hierarchy.transform(index, RigSpace::Global, true).unwrap(),
+                bone.initial_global,
+                "{}",
+                bone.name
+            );
         }
     }
 
@@ -638,21 +706,35 @@ mod tests {
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
             "../../assets/ALS/Character/CR_Als.program.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d165c/pelvis-history.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let program = &definition.program;
-        let pose: Vec<_> = definition.bones.iter().map(|bone| bone.initial_local).collect();
+        let pose: Vec<_> = definition
+            .bones
+            .iter()
+            .map(|bone| bone.initial_local)
+            .collect();
         let curves = crate::extensions::SourceCurveValues::from_iter([
-            ("PoseMoving".into(), 1.0), ("FootLeftIk".into(), 1.0), ("FootRightIk".into(), 1.0),
+            ("PoseMoving".into(), 1.0),
+            ("FootLeftIk".into(), 1.0),
+            ("FootRightIk".into(), 1.0),
         ]);
         for history in fixture.histories {
             let mut hierarchy = RigHierarchy::new(definition.bones.clone(), 0.0).unwrap();
             let pelvis = hierarchy.index("pelvis").unwrap();
             let mut values = program.initial_values.clone();
             let input = &definition.externals["RigInput"];
-            input.write(&mut values, program.literal_count, history.frames[0].rig_input.clone()).unwrap();
+            input
+                .write(
+                    &mut values,
+                    program.literal_count,
+                    history.frames[0].rig_input.clone(),
+                )
+                .unwrap();
             let mut context = RigUnitContext {
                 hierarchy: &mut hierarchy,
                 curves: &curves,
@@ -663,48 +745,79 @@ mod tests {
                 to_world: RigTransform::default(),
                 line_trace: None,
             };
-            program.execute("Construction", &mut values, |_, name, args| context.call(name, args)).unwrap();
+            program
+                .execute("Construction", &mut values, |_, name, args| {
+                    context.call(name, args)
+                })
+                .unwrap();
             for frame in history.frames {
                 let label = (&history.name, frame.query);
-                input.write(&mut values, program.literal_count, frame.rig_input).unwrap();
+                input
+                    .write(&mut values, program.literal_count, frame.rig_input)
+                    .unwrap();
                 context.hierarchy.set_input_pose(&pose).unwrap();
-                let mut before = context.hierarchy.transform(pelvis, RigSpace::Global, false).unwrap();
+                let mut before = context
+                    .hierarchy
+                    .transform(pelvis, RigSpace::Global, false)
+                    .unwrap();
                 before.translation = DVec3::from_array(frame.pelvis_before);
-                context.hierarchy.set_transform(pelvis, RigSpace::Global, false, before, true).unwrap();
+                context
+                    .hierarchy
+                    .set_transform(pelvis, RigSpace::Global, false, before, true)
+                    .unwrap();
                 context.delta_seconds = frame.delta_seconds;
                 let mut feet = Vec::new();
-                program.execute("Forwards Solve", &mut values, |pc, name, args| {
-                    match pc {
-                        31 | 40 => {
-                            args[8] = Centimeters(frame.trace_offsets[usize::from(pc == 40)]);
-                            args[9] = Vector(DVec3::Y);
-                            return Ok(());
+                program
+                    .execute("Forwards Solve", &mut values, |pc, name, args| {
+                        match pc {
+                            31 | 40 => {
+                                args[8] = Centimeters(frame.trace_offsets[usize::from(pc == 40)]);
+                                args[9] = Vector(DVec3::Y);
+                                return Ok(());
+                            }
+                            54 => {
+                                assert_eq!(args[0], Centimeters(frame.spring_target), "{label:?}")
+                            }
+                            66 => {
+                                let Vector(translation) = args[3] else {
+                                    panic!("pelvis translation is missing");
+                                };
+                                assert!(
+                                    translation.distance(DVec3::from_array(frame.pelvis_desired))
+                                        < 1e-12,
+                                    "{label:?}: {translation:?}"
+                                );
+                            }
+                            83 | 113 => {
+                                feet.push(pc);
+                                assert_eq!(args[4], Centimeters(frame.writer), "{label:?}");
+                            }
+                            _ => {}
                         }
-                        54 => assert_eq!(args[0], Centimeters(frame.spring_target), "{label:?}"),
-                        66 => {
-                            let Vector(translation) = args[3] else {
-                                panic!("pelvis translation is missing");
-                            };
-                            assert!(translation.distance(DVec3::from_array(frame.pelvis_desired)) < 1e-12,
-                                "{label:?}: {translation:?}");
+                        context.call(name, args)?;
+                        if pc == 54 {
+                            let (previous, velocity, valid) = frame.spring_state;
+                            assert_eq!(args[8], Centimeters(frame.spring_result), "{label:?}");
+                            assert_eq!(args[9], Centimeters(velocity), "{label:?}");
+                            assert_eq!(args[10], Centimeters(frame.spring_result), "{label:?}");
+                            assert_eq!(
+                                args[11],
+                                List(vec![
+                                    Centimeters(previous),
+                                    Centimeters(velocity),
+                                    Bool(valid)
+                                ]),
+                                "{label:?}"
+                            );
                         }
-                        83 | 113 => {
-                            feet.push(pc);
-                            assert_eq!(args[4], Centimeters(frame.writer), "{label:?}");
-                        }
-                        _ => {}
-                    }
-                    context.call(name, args)?;
-                    if pc == 54 {
-                        let (previous, velocity, valid) = frame.spring_state;
-                        assert_eq!(args[8], Centimeters(frame.spring_result), "{label:?}");
-                        assert_eq!(args[9], Centimeters(velocity), "{label:?}");
-                        assert_eq!(args[10], Centimeters(frame.spring_result), "{label:?}");
-                        assert_eq!(args[11], List(vec![Centimeters(previous), Centimeters(velocity), Bool(valid)]), "{label:?}");
-                    }
-                    Ok(())
-                }).unwrap();
-                assert_eq!(definition.externals["PelvisOffset"].read(&values).unwrap(), Centimeters(frame.writer), "{label:?}");
+                        Ok(())
+                    })
+                    .unwrap();
+                assert_eq!(
+                    definition.externals["PelvisOffset"].read(&values).unwrap(),
+                    Centimeters(frame.writer),
+                    "{label:?}"
+                );
                 assert_eq!(feet, frame.feet, "{label:?}");
             }
         }
@@ -793,7 +906,10 @@ mod tests {
         };
         let upper_cm = segment_cm("thigh_l", "calf_l") as f32;
         let length_cm = (f64::from(upper_cm) + segment_cm("calf_l", "foot_l")) as f32;
-        assert_eq!(external("LegLength", &values), Centimeters64(f64::from(length_cm)));
+        assert_eq!(
+            external("LegLength", &values),
+            Centimeters64(f64::from(length_cm))
+        );
         let constructed = values.clone();
         let mut pose: Vec<_> = definition
             .bones
@@ -950,7 +1066,10 @@ mod tests {
                 Name("VB foot_root".to_owned())
             ])
         );
-        assert_eq!(external("PelvisOffset", &independent_values), Centimeters(0.0));
+        assert_eq!(
+            external("PelvisOffset", &independent_values),
+            Centimeters(0.0)
+        );
         assert_eq!(
             external("FootLeftOffsetLocationZ", &independent_values),
             Centimeters64(0.0)

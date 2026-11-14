@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::camera::Exposure;
 use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::post_process::auto_exposure::AutoExposure;
 use bevy::image::Image;
 use bevy::light::{CascadeShadowConfig, NotShadowCaster};
+use bevy::post_process::auto_exposure::AutoExposure;
 use bevy::prelude::*;
 use bevy::render::view::ColorGrading;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
@@ -232,21 +232,48 @@ fn stats_collector(
         With<PlaygroundTextLabel>,
     >,
     world_text_meshes: Query<
-        (Option<&MeshMaterial3d<StandardMaterial>>, Option<&MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>, &PlaygroundTextGlyphColor),
+        (
+            Option<&MeshMaterial3d<StandardMaterial>>,
+            Option<
+                &MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>,
+            >,
+            &PlaygroundTextGlyphColor,
+        ),
         With<PlaygroundWorldTextMesh>,
     >,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
     sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig, &Transform)>,
-    cameras: Query<(&Exposure, &ColorGrading, &Tonemapping, Option<&AutoExposure>, Has<bevy::camera::Hdr>), With<Camera3d>>,
+    cameras: Query<
+        (
+            &Exposure,
+            &ColorGrading,
+            &Tonemapping,
+            Option<&AutoExposure>,
+            Has<bevy::camera::Hdr>,
+        ),
+        With<Camera3d>,
+    >,
     skies: Query<(), With<PlaygroundSky>>,
     material_roles: Query<(&PlaygroundMaterialApplied, Has<NotShadowCaster>), With<Mesh3d>>,
     extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
     cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
-    materials: (Res<Assets<StandardMaterial>>, Res<Assets<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>),
+    materials: (
+        Res<Assets<StandardMaterial>>,
+        Res<Assets<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>,
+    ),
     tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
 ) {
-    let material = |standard: Option<&MeshMaterial3d<StandardMaterial>>, receiver: Option<&MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>| {
-        standard.and_then(|handle| materials.0.get(&handle.0)).or_else(|| receiver.and_then(|handle| materials.1.get(&handle.0)).map(|material| &material.base))
+    let material = |standard: Option<&MeshMaterial3d<StandardMaterial>>,
+                    receiver: Option<
+        &MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>,
+    >| {
+        standard
+            .and_then(|handle| materials.0.get(&handle.0))
+            .or_else(|| {
+                receiver
+                    .and_then(|handle| materials.1.get(&handle.0))
+                    .map(|material| &material.base)
+            })
     };
     stats.static_count = statics.iter().count() as u32;
     stats.text_count = texts.iter().count() as u32;
@@ -410,7 +437,16 @@ fn stats_collector(
         .fold(f32::INFINITY, f32::min);
     stats.sun_illuminance_error = sun_lights
         .iter()
-        .map(|(light, _, _)| (light.illuminance - serde_json::from_str::<serde_json::Value>(include_str!("../fixtures/playground_light_source.json")).unwrap()["intensity_lux"].as_f64().unwrap() as f32).abs())
+        .map(|(light, _, _)| {
+            (light.illuminance
+                - serde_json::from_str::<serde_json::Value>(include_str!(
+                    "../fixtures/playground_light_source.json"
+                ))
+                .unwrap()["intensity_lux"]
+                    .as_f64()
+                    .unwrap() as f32)
+                .abs()
+        })
         .fold(f32::INFINITY, f32::min);
     stats.sun_contact_depth_bias = sun_lights
         .iter()
@@ -429,7 +465,10 @@ fn stats_collector(
         .any(|(light, _, _)| light.contact_shadows_enabled);
     stats.camera_exposure_count = cameras.iter().count() as u32;
     stats.camera_hdr_count = cameras.iter().filter(|(_, _, _, _, hdr)| *hdr).count() as u32;
-    stats.camera_auto_exposure_count = cameras.iter().filter(|(_, _, _, exposure, _)| exposure.is_some()).count() as u32;
+    stats.camera_auto_exposure_count = cameras
+        .iter()
+        .filter(|(_, _, _, exposure, _)| exposure.is_some())
+        .count() as u32;
     stats.camera_exposure_error = cameras
         .iter()
         .map(|(exposure, _, _, _, _)| (exposure.exposure() - 1.0).abs())
@@ -841,7 +880,8 @@ fn verdict_system(
         && stats.sun_shadow_normal_bias_error < 1e-6
         && !stats.sun_contact_shadows_enabled;
     let ok_camera_exposure = stats.camera_exposure_count == 1
-        && stats.camera_hdr_count == 1 && stats.camera_auto_exposure_count == 1
+        && stats.camera_hdr_count == 1
+        && stats.camera_auto_exposure_count == 1
         && stats.camera_exposure_error < 1e-4
         && stats.camera_contrast_error < 1e-4
         && stats.camera_source_tone_count == 1;

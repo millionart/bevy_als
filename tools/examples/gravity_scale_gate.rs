@@ -1,13 +1,13 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsEffectiveGravity};
-use bevy_als::als::control_scheme::AlsControlSchemeConfig;
-use bevy_als::als::params::AlsMovementParams;
 use avian3d::prelude::{Gravity, GravityScale, LinearVelocity};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsEffectiveGravity};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::params::AlsMovementParams;
 use bevy_tnua::{TnuaGravity, TnuaRigidBodyTracker};
 
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
@@ -60,7 +60,11 @@ fn setup(
     let characters = std::array::from_fn(|index| {
         let (scale, custom_gravity) = SAMPLES[index];
         let params = params_assets.add(AlsMovementParams::default());
-        let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, AlsControlSchemeConfig::default());
+        let mut bundle = AlsCharacterBundle::new(
+            params,
+            &mut config_assets,
+            AlsControlSchemeConfig::default(),
+        );
         bundle.transform = Transform::from_xyz(index as f32 * 8.0, 12.0, 0.0);
         let mut entity = commands.spawn((bundle, GravityScale(scale)));
         if let Some(custom_gravity) = custom_gravity {

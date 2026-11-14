@@ -1,6 +1,10 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
+use bevy::prelude::*;
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
+use bevy::ui::Display;
+use bevy::window::WindowResolution;
 use bevy_als::als::character::AlsCharacter;
 use bevy_als::als::input::{
     AlsInputCommand, AlsInputMap, NextOverlayModeAction, OnFoot, OverlayMenuAction,
@@ -8,17 +12,13 @@ use bevy_als::als::input::{
 };
 use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use bevy_als::als::transition::AlsStateRequest;
-use bevy::prelude::*;
-use bevy::render::view::screenshot::{Screenshot, save_to_disk};
-use bevy::ui::Display;
-use bevy::window::WindowResolution;
 use bevy_als::als_hud::{
     AlsHudColorTarget, AlsHudDebugSection, AlsHudInputSection, AlsHudPlugin, COLOR_DISABLED,
     COLOR_ENABLED,
 };
 use bevy_als::overlay_mode_menu::{
-    MENU_DILATION, OverlayMenuOption, OverlayMenuState,
-    OverlayModeMenuPlugin, menu_display_order, option_label,
+    MENU_DILATION, OverlayMenuOption, OverlayMenuState, OverlayModeMenuPlugin, menu_display_order,
+    option_label,
 };
 use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
 use bevy_enhanced_input::prelude::*;
@@ -139,7 +139,9 @@ fn main() {
             }),
     );
     app.add_plugins((
-        bevy_gameplay_tag::GameplayTagsPlugin::with_data_path("assets/ALS/Data/als_gameplay_tags.json"),
+        bevy_gameplay_tag::GameplayTagsPlugin::with_data_path(
+            "assets/ALS/Data/als_gameplay_tags.json",
+        ),
         EnhancedInputPlugin,
         bevy_als::als::input::AlsInputPlugin,
         bevy_als::als::transition::AlsStateTransitionPlugin,
@@ -436,12 +438,7 @@ fn script_driver(world: &mut World) {
             let all_gray = world
                 .query::<(&AlsHudColorTarget, &TextColor)>()
                 .iter(world)
-                .filter(|(target, _)| {
-                    matches!(
-                        target,
-                        AlsHudColorTarget::Category(_)
-                    )
-                })
+                .filter(|(target, _)| matches!(target, AlsHudColorTarget::Category(_)))
                 .all(|(_, color)| color.0 == COLOR_DISABLED);
             GateFlags::check(
                 &mut flags.debug_master_off_gray,
@@ -469,8 +466,13 @@ fn script_driver(world: &mut World) {
             };
             let option_count = world.query::<&OverlayMenuOption>().iter(world).count();
             let speed = world.resource::<Time<Virtual>>().relative_speed();
-            let open_ok =
-                menu_is_open && menu_rooted && option_count == menu_display_order(world.resource::<bevy_gameplay_tag::GameplayTagsManager>()).len();
+            let open_ok = menu_is_open
+                && menu_rooted
+                && option_count
+                    == menu_display_order(
+                        world.resource::<bevy_gameplay_tag::GameplayTagsManager>(),
+                    )
+                    .len();
             GateFlags::check(
                 &mut flags.menu_open,
                 "menu_open",
@@ -491,10 +493,11 @@ fn script_driver(world: &mut World) {
                 })
                 .collect();
             labels.sort_by_key(|(index, _)| *index);
-            let expected: Vec<String> = menu_display_order(world.resource::<bevy_gameplay_tag::GameplayTagsManager>())
-                .iter()
-                .map(|state| option_label(*state))
-                .collect();
+            let expected: Vec<String> =
+                menu_display_order(world.resource::<bevy_gameplay_tag::GameplayTagsManager>())
+                    .iter()
+                    .map(|state| option_label(*state))
+                    .collect();
             let actual: Vec<String> = labels.into_iter().map(|(_, text)| text).collect();
             GateFlags::check(
                 &mut flags.menu_order,
@@ -632,7 +635,12 @@ fn script_driver(world: &mut World) {
             );
             let menu_still_open = world.resource::<OverlayMenuState>().open;
             let root = world.resource::<OverlayMenuState>().root;
-            let menu_hidden = !menu_still_open && root.is_some_and(|entity| world.get::<Node>(entity).is_some_and(|node| node.display == Display::None));
+            let menu_hidden = !menu_still_open
+                && root.is_some_and(|entity| {
+                    world
+                        .get::<Node>(entity)
+                        .is_some_and(|node| node.display == Display::None)
+                });
             GateFlags::check(
                 &mut flags.menu_hidden,
                 "menu_hidden",

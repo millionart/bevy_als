@@ -4,7 +4,10 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::{control_rig_math::{RigValue, rig_quat_product}, source_math::source_rotate_vector};
+use crate::extensions::{
+    control_rig_math::{RigValue, rig_quat_product},
+    source_math::source_rotate_vector,
+};
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigTransform {
@@ -26,7 +29,9 @@ impl Default for RigTransform {
 pub fn rig_normalize(rotation: DQuat) -> DQuat {
     #[cfg(target_arch = "aarch64")]
     {
-        use std::arch::aarch64::{vdupq_n_f64, vgetq_lane_f64, vmulq_f64, vrsqrteq_f64, vrsqrtsq_f64};
+        use std::arch::aarch64::{
+            vdupq_n_f64, vgetq_lane_f64, vmulq_f64, vrsqrteq_f64, vrsqrtsq_f64,
+        };
 
         let squared = rotation.y.mul_add(rotation.y, rotation.x * rotation.x)
             + rotation.w.mul_add(rotation.w, rotation.z * rotation.z);
@@ -34,8 +39,10 @@ pub fn rig_normalize(rotation: DQuat) -> DQuat {
             let reciprocal = unsafe {
                 let value = vdupq_n_f64(squared);
                 let estimate = vrsqrteq_f64(value);
-                let estimate = vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
-                let estimate = vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
+                let estimate =
+                    vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
+                let estimate =
+                    vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
                 vgetq_lane_f64::<0>(estimate)
             };
             rotation * reciprocal
@@ -208,7 +215,8 @@ impl RigTransform {
         }
         Self {
             rotation: rig_normalize(rig_quat_product(parent.rotation, self.rotation)),
-            translation: source_rotate_vector(parent.rotation, parent.scale * self.translation) + parent.translation,
+            translation: source_rotate_vector(parent.rotation, parent.scale * self.translation)
+                + parent.translation,
             scale,
         }
     }
@@ -234,7 +242,10 @@ impl RigTransform {
         let inverse_rotation = parent.rotation.conjugate();
         Self {
             rotation: rig_normalize(rig_quat_product(inverse_rotation, self.rotation)),
-            translation: source_rotate_vector(inverse_rotation, self.translation - parent.translation) * reciprocal,
+            translation: source_rotate_vector(
+                inverse_rotation,
+                self.translation - parent.translation,
+            ) * reciprocal,
             scale,
         }
     }
@@ -874,7 +885,10 @@ mod tests {
         };
         assert_eq!(transform.inverse_transform_vector(DVec3::Y), DVec3::Y);
         assert_eq!(transform.transform_point(DVec3::Y), DVec3::Y);
-        let child = RigTransform { translation: DVec3::Y, ..Default::default() };
+        let child = RigTransform {
+            translation: DVec3::Y,
+            ..Default::default()
+        };
         assert_eq!(child.global(transform).translation, DVec3::Y);
     }
 
@@ -882,42 +896,108 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn rig_normalization_matches_native_arm64_quaternions() {
         for (input, expected) in [
-            (DQuat::IDENTITY, DQuat::from_xyzw(0.0, 0.0, 0.0, 0.999_999_999_950_951_3)),
-            (DQuat::from_xyzw(0.073_906_391_859_054_57, 0.073_906_391_859_054_57,
-                0.703_233_897_686_004_6, 0.703_233_897_686_004_6),
-                DQuat::from_xyzw(0.073_906_386_710_638_58, 0.073_906_386_710_638_58,
-                    0.703_233_848_697_811, 0.703_233_848_697_811)),
-            (DQuat::from_xyzw(-0.703_233_957_290_649_4, 0.703_233_838_081_359_9,
-                -0.073_906_227_946_281_43, 0.073_906_272_649_765_01),
-                DQuat::from_xyzw(-0.703_233_923_017_270_8, 0.703_233_803_807_987_1,
-                    -0.073_906_224_344_327_77, 0.073_906_269_047_809_17)),
-            (DQuat::from_xyzw(0.082_567_840_814_590_45, 0.078_878_626_227_378_85,
-                0.702_785_491_943_359_4, 0.702_177_524_566_650_4),
-                DQuat::from_xyzw(0.082_567_840_409_883_48, 0.078_878_625_840_754_58,
-                    0.702_785_488_498_650_3, 0.702_177_521_124_921_3)),
+            (
+                DQuat::IDENTITY,
+                DQuat::from_xyzw(0.0, 0.0, 0.0, 0.999_999_999_950_951_3),
+            ),
+            (
+                DQuat::from_xyzw(
+                    0.073_906_391_859_054_57,
+                    0.073_906_391_859_054_57,
+                    0.703_233_897_686_004_6,
+                    0.703_233_897_686_004_6,
+                ),
+                DQuat::from_xyzw(
+                    0.073_906_386_710_638_58,
+                    0.073_906_386_710_638_58,
+                    0.703_233_848_697_811,
+                    0.703_233_848_697_811,
+                ),
+            ),
+            (
+                DQuat::from_xyzw(
+                    -0.703_233_957_290_649_4,
+                    0.703_233_838_081_359_9,
+                    -0.073_906_227_946_281_43,
+                    0.073_906_272_649_765_01,
+                ),
+                DQuat::from_xyzw(
+                    -0.703_233_923_017_270_8,
+                    0.703_233_803_807_987_1,
+                    -0.073_906_224_344_327_77,
+                    0.073_906_269_047_809_17,
+                ),
+            ),
+            (
+                DQuat::from_xyzw(
+                    0.082_567_840_814_590_45,
+                    0.078_878_626_227_378_85,
+                    0.702_785_491_943_359_4,
+                    0.702_177_524_566_650_4,
+                ),
+                DQuat::from_xyzw(
+                    0.082_567_840_409_883_48,
+                    0.078_878_625_840_754_58,
+                    0.702_785_488_498_650_3,
+                    0.702_177_521_124_921_3,
+                ),
+            ),
         ] {
             assert_eq!(rig_normalize(input), expected);
         }
-        assert_eq!(RigTransform::default().global(RigTransform::default()).rotation.w,
-            0.999_999_999_950_951_3);
+        assert_eq!(
+            RigTransform::default()
+                .global(RigTransform::default())
+                .rotation
+                .w,
+            0.999_999_999_950_951_3
+        );
     }
 
     #[test]
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn rig_slerp_preserves_source_partial_weight_scalar_order() {
         for (before, solved, unnormalized) in [
-            (DQuat::from_xyzw(0.633_735_685_482_602, -0.736_975_225_023_681_4,
-                0.193_413_863_622_010_02, -0.133_557_762_439_721_62),
-                DQuat::from_xyzw(0.631_203_251_261_262, -0.728_302_773_287_365_3,
-                    0.231_574_036_973_998_34, -0.132_404_650_291_106_93),
-                DQuat::from_xyzw(0.633_193_895_569_690_7, -0.734_912_962_656_805_3,
-                    0.202_984_118_571_771_62, -0.133_288_692_261_303_35)),
-            (DQuat::from_xyzw(0.695_247_581_071_448, -0.695_145_745_365_060_7,
-                0.129_272_117_010_432_8, -0.129_197_187_975_249_87),
-                DQuat::from_xyzw(0.703_233_957_290_649_4, -0.703_233_838_081_359_9,
-                    0.073_906_227_946_281_43, -0.073_906_272_649_765_01),
-                DQuat::from_xyzw(0.697_654_066_685_290_4, -0.697_577_625_220_709_1,
-                    0.115_492_958_476_517_05, -0.115_436_747_242_431_15)),
+            (
+                DQuat::from_xyzw(
+                    0.633_735_685_482_602,
+                    -0.736_975_225_023_681_4,
+                    0.193_413_863_622_010_02,
+                    -0.133_557_762_439_721_62,
+                ),
+                DQuat::from_xyzw(
+                    0.631_203_251_261_262,
+                    -0.728_302_773_287_365_3,
+                    0.231_574_036_973_998_34,
+                    -0.132_404_650_291_106_93,
+                ),
+                DQuat::from_xyzw(
+                    0.633_193_895_569_690_7,
+                    -0.734_912_962_656_805_3,
+                    0.202_984_118_571_771_62,
+                    -0.133_288_692_261_303_35,
+                ),
+            ),
+            (
+                DQuat::from_xyzw(
+                    0.695_247_581_071_448,
+                    -0.695_145_745_365_060_7,
+                    0.129_272_117_010_432_8,
+                    -0.129_197_187_975_249_87,
+                ),
+                DQuat::from_xyzw(
+                    0.703_233_957_290_649_4,
+                    -0.703_233_838_081_359_9,
+                    0.073_906_227_946_281_43,
+                    -0.073_906_272_649_765_01,
+                ),
+                DQuat::from_xyzw(
+                    0.697_654_066_685_290_4,
+                    -0.697_577_625_220_709_1,
+                    0.115_492_958_476_517_05,
+                    -0.115_436_747_242_431_15,
+                ),
+            ),
         ] {
             let expected = rig_normalize(unnormalized);
             assert_eq!(rig_slerp(before, solved, 0.25), expected);
@@ -1014,7 +1094,8 @@ mod tests {
             } else {
                 DQuat::from_rotation_y(angle * 0.25)
             };
-            let cosine = result.dot(expected).abs() / (result.length_squared() * expected.length_squared()).sqrt();
+            let cosine = result.dot(expected).abs()
+                / (result.length_squared() * expected.length_squared()).sqrt();
             assert!(cosine > 1.0 - 1e-14);
         }
     }

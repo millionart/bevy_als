@@ -127,7 +127,10 @@ fn crouch_target_yaw_speed_curves_preserve_the_source_cubic_shape_between_keys()
         let ext = read_extension(path);
         let (_, value) = ext.iter().next().expect("one animation entry");
         let curves = parse_curves(value).expect("parses");
-        let source = curves.0.get(&SourceCurveName::from("RotationYawSpeed")).expect("source curve");
+        let source = curves
+            .0
+            .get(&SourceCurveName::from("RotationYawSpeed"))
+            .expect("source curve");
         let target = curves
             .0
             .get(&SourceCurveName::from("RotationYawSpeedTarget"))
@@ -149,7 +152,10 @@ fn walk_forward_foot_planted_stays_in_expected_range() {
     let ext = read_extension(WALK_FORWARD);
     let (_, value) = ext.iter().next().unwrap();
     let curves = parse_curves(value).unwrap();
-    let foot = curves.0.get(&SourceCurveName::from("FootPlanted")).expect("FootPlanted present");
+    let foot = curves
+        .0
+        .get(&SourceCurveName::from("FootPlanted"))
+        .expect("FootPlanted present");
     let min_v = foot.values.iter().cloned().fold(f32::INFINITY, f32::min);
     let max_v = foot
         .values

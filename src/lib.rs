@@ -2,6 +2,8 @@ pub mod als;
 pub mod als_camera;
 pub mod extensions;
 
+#[path = "als/character/animation_instances/ab_als_provider.rs"]
+pub mod ab_als_provider;
 #[path = "als/character/animation_instances/ab_als_root.rs"]
 pub mod ab_als_root;
 #[path = "als/character/animation_instances/actual_motion.rs"]
@@ -16,16 +18,16 @@ pub mod anim_probe;
 pub mod animation_context_projection;
 #[path = "als/notifies/animation_events.rs"]
 pub mod animation_events;
-#[path = "../tools/animation_visual_validation.rs"]
-pub mod animation_visual_validation;
-#[path = "als/character/character_assembly.rs"]
-pub mod character_assembly;
-#[path = "als_camera/camera_component.rs"]
-pub mod camera_component;
-#[path = "als/character/character_runtime.rs"]
-pub mod character_runtime;
 #[path = "als/character/animation_instances/animation_visibility.rs"]
 pub mod animation_visibility;
+#[path = "../tools/animation_visual_validation.rs"]
+pub mod animation_visual_validation;
+#[path = "als_camera/camera_component.rs"]
+pub mod camera_component;
+#[path = "als/character/character_assembly.rs"]
+pub mod character_assembly;
+#[path = "als/character/character_runtime.rs"]
+pub mod character_runtime;
 #[path = "als/character/control_rig_apply.rs"]
 pub mod control_rig_apply;
 #[path = "als/character/animation_instances/crouching_layer.rs"]
@@ -44,10 +46,6 @@ pub mod footprint;
 pub mod gait_layer;
 #[path = "als_extras/core/game_mode.rs"]
 pub mod game_mode;
-#[path = "als/character/animation_instances/ab_als_provider.rs"]
-pub mod ab_als_provider;
-#[path = "als/notifies/transition_notify.rs"]
-pub mod transition_notify;
 #[path = "als/character/actions/get_up.rs"]
 pub mod get_up;
 #[path = "als/character/animation_instances/grounded_layer.rs"]
@@ -98,6 +96,8 @@ pub mod standing_layer;
 pub mod standing_source;
 #[path = "als/character/actions/stop_link.rs"]
 pub mod stop_link;
+#[path = "als/notifies/transition_notify.rs"]
+pub mod transition_notify;
 #[path = "als/character/animation_instances/turn_layer.rs"]
 pub mod turn_layer;
 #[path = "als/character/animation_instances/view_layer.rs"]

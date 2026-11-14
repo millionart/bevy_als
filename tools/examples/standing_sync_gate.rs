@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy::window::ExitCondition;
 use bevy_als::extensions::{
     AlsExtPlugin, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
     marker_phase_sample_time, marker_position_at_time,
 };
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
-use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, TimeUpdate},
@@ -18,7 +18,8 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const GRAPH_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
+const GRAPH_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
 const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const EPSILON: f32 = 1e-4;
 

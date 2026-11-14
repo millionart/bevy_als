@@ -35,28 +35,26 @@ pub fn aim_rotation_mode_system(
             &mut RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
         ),
-        (With<crate::als::character::AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
+        (
+            With<crate::als::character::AlsCharacter>,
+            Without<crate::als::character::AlsBirthAnimationPending>,
+        ),
     >,
     mut commands: Commands,
 ) {
-    if time.is_paused() { return; }
-    for (
-        entity,
-        cmd,
-        ovr,
-        max_allowed,
-        _,
-        loco,
-        first_person,
-        mut current,
-        last_free,
-    ) in &mut q
-    {
+    if time.is_paused() {
+        return;
+    }
+    for (entity, cmd, ovr, max_allowed, _, loco, first_person, mut current, last_free) in &mut q {
         let free = last_free.as_deref().map(|lf| lf.0).unwrap_or_else(|| {
-            if *current == RotationMode::Aiming { RotationMode::ViewDirection } else { *current }
+            if *current == RotationMode::Aiming {
+                RotationMode::ViewDirection
+            } else {
+                *current
+            }
         });
-        let want_aim = crate::als::motion::effective_input(cmd, ovr).aim_held
-            || free == RotationMode::Aiming;
+        let want_aim =
+            crate::als::motion::effective_input(cmd, ovr).aim_held || free == RotationMode::Aiming;
         if last_free.is_none() && *current != RotationMode::Aiming {
             commands
                 .entity(entity)
@@ -113,13 +111,15 @@ pub struct AlsAimPlugin;
 
 impl Plugin for AlsAimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<AimStateChanged>().add_message::<StateTransitionEvent>().add_systems(
-            PostUpdate,
-            aim_rotation_mode_system
-                .after(crate::als::gait::refresh_gait_system)
-                .before(crate::als::motion::AlsRotationResponseSet)
-                .before(crate::gait_layer::AlsGaitLayerSet),
-        );
+        app.add_message::<AimStateChanged>()
+            .add_message::<StateTransitionEvent>()
+            .add_systems(
+                PostUpdate,
+                aim_rotation_mode_system
+                    .after(crate::als::gait::refresh_gait_system)
+                    .before(crate::als::motion::AlsRotationResponseSet)
+                    .before(crate::gait_layer::AlsGaitLayerSet),
+            );
     }
 }
 
@@ -140,8 +140,8 @@ mod tests {
     use crate::als::character::AlsCharacter;
     use crate::als::motion::AlsInputOverride;
     use crate::als::state::{Gait, LocomotionState, OverlayState, Stance};
-    use crate::als::transition::AlsStateTransitionPlugin;
     use crate::als::transition::AlsStateRequest;
+    use crate::als::transition::AlsStateTransitionPlugin;
     use bevy::MinimalPlugins;
 
     fn spawn_character(app: &mut App, aim_held: bool, initial: RotationMode) -> Entity {
@@ -251,35 +251,143 @@ mod tests {
     #[test]
     fn desired_aiming_intent_survives_button_release_and_source_mode_branches() {
         let cases = [
-            (LocomotionState::Grounded, Stance::Standing, false, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Grounded, Stance::Crouching, false, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Air, Stance::Standing, false, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Air, Stance::Crouching, false, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Grounded, Stance::Standing, true, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Air, Stance::Standing, true, Gait::Running, RotationMode::Aiming),
-            (LocomotionState::Grounded, Stance::Standing, false, Gait::Sprinting, RotationMode::VelocityDirection),
-            (LocomotionState::Grounded, Stance::Standing, true, Gait::Sprinting, RotationMode::ViewDirection),
-            (LocomotionState::Grounded, Stance::Crouching, false, Gait::Sprinting, RotationMode::VelocityDirection),
-            (LocomotionState::Air, Stance::Standing, false, Gait::Sprinting, RotationMode::Aiming),
-            (LocomotionState::Custom, Stance::Standing, false, Gait::Sprinting, RotationMode::VelocityDirection),
-            (LocomotionState::Custom, Stance::Crouching, true, Gait::Sprinting, RotationMode::ViewDirection),
-            (LocomotionState::None, Stance::Standing, false, Gait::Sprinting, RotationMode::VelocityDirection),
-            (LocomotionState::None, Stance::Crouching, true, Gait::Sprinting, RotationMode::ViewDirection),
-            (LocomotionState::Custom, Stance::Standing, false, Gait::Running, RotationMode::Aiming),
+            (
+                LocomotionState::Grounded,
+                Stance::Standing,
+                false,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Grounded,
+                Stance::Crouching,
+                false,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Air,
+                Stance::Standing,
+                false,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Air,
+                Stance::Crouching,
+                false,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Grounded,
+                Stance::Standing,
+                true,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Air,
+                Stance::Standing,
+                true,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Grounded,
+                Stance::Standing,
+                false,
+                Gait::Sprinting,
+                RotationMode::VelocityDirection,
+            ),
+            (
+                LocomotionState::Grounded,
+                Stance::Standing,
+                true,
+                Gait::Sprinting,
+                RotationMode::ViewDirection,
+            ),
+            (
+                LocomotionState::Grounded,
+                Stance::Crouching,
+                false,
+                Gait::Sprinting,
+                RotationMode::VelocityDirection,
+            ),
+            (
+                LocomotionState::Air,
+                Stance::Standing,
+                false,
+                Gait::Sprinting,
+                RotationMode::Aiming,
+            ),
+            (
+                LocomotionState::Custom,
+                Stance::Standing,
+                false,
+                Gait::Sprinting,
+                RotationMode::VelocityDirection,
+            ),
+            (
+                LocomotionState::Custom,
+                Stance::Crouching,
+                true,
+                Gait::Sprinting,
+                RotationMode::ViewDirection,
+            ),
+            (
+                LocomotionState::None,
+                Stance::Standing,
+                false,
+                Gait::Sprinting,
+                RotationMode::VelocityDirection,
+            ),
+            (
+                LocomotionState::None,
+                Stance::Crouching,
+                true,
+                Gait::Sprinting,
+                RotationMode::ViewDirection,
+            ),
+            (
+                LocomotionState::Custom,
+                Stance::Standing,
+                false,
+                Gait::Running,
+                RotationMode::Aiming,
+            ),
         ];
         for (locomotion, stance, first_person, gait, expected) in cases {
             let (mut app, entity) = app_with_character(false, RotationMode::ViewDirection);
-            app.world_mut().entity_mut(entity).insert((locomotion, stance,
-                AlsLastFreeRotationMode(RotationMode::Aiming), AlsMaxAllowedGait(gait)));
+            app.world_mut().entity_mut(entity).insert((
+                locomotion,
+                stance,
+                AlsLastFreeRotationMode(RotationMode::Aiming),
+                AlsMaxAllowedGait(gait),
+            ));
             if first_person {
-                app.world_mut().entity_mut(entity).insert(crate::als::input_request::AlsFirstPersonView);
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(crate::als::input_request::AlsFirstPersonView);
             }
             for aim_held in [false, true, false] {
-                app.world_mut().get_mut::<AlsInputCommand>(entity).unwrap().aim_held = aim_held;
+                app.world_mut()
+                    .get_mut::<AlsInputCommand>(entity)
+                    .unwrap()
+                    .aim_held = aim_held;
                 app.update();
-                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
-                    "locomotion={locomotion:?} stance={stance:?} first_person={first_person} gait={gait:?} button={aim_held}");
-                assert_eq!(app.world().get::<AlsLastFreeRotationMode>(entity).unwrap().0, RotationMode::Aiming);
+                assert_eq!(
+                    *app.world().get::<RotationMode>(entity).unwrap(),
+                    expected,
+                    "locomotion={locomotion:?} stance={stance:?} first_person={first_person} gait={gait:?} button={aim_held}"
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<AlsLastFreeRotationMode>(entity)
+                        .unwrap()
+                        .0,
+                    RotationMode::Aiming
+                );
             }
         }
     }
@@ -290,18 +398,37 @@ mod tests {
             for stance in [Stance::Standing, Stance::Crouching] {
                 for first_person in [false, true] {
                     let (mut app, entity) = app_with_character(false, RotationMode::ViewDirection);
-                    app.world_mut().entity_mut(entity).insert((mode, stance,
-                        AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsMaxAllowedGait(Gait::Sprinting)));
+                    app.world_mut().entity_mut(entity).insert((
+                        mode,
+                        stance,
+                        AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                        AlsMaxAllowedGait(Gait::Sprinting),
+                    ));
                     if first_person {
-                        app.world_mut().entity_mut(entity).insert(crate::als::input_request::AlsFirstPersonView);
+                        app.world_mut()
+                            .entity_mut(entity)
+                            .insert(crate::als::input_request::AlsFirstPersonView);
                     }
                     for aim_held in [false, true, false] {
-                        app.world_mut().get_mut::<AlsInputCommand>(entity).unwrap().aim_held = aim_held;
+                        app.world_mut()
+                            .get_mut::<AlsInputCommand>(entity)
+                            .unwrap()
+                            .aim_held = aim_held;
                         app.update();
-                        let expected = if first_person { RotationMode::ViewDirection } else { RotationMode::VelocityDirection };
-                        assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
-                            "mode={mode:?} stance={stance:?} first_person={first_person} aim={aim_held}");
-                        assert_eq!(app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0, Gait::Sprinting);
+                        let expected = if first_person {
+                            RotationMode::ViewDirection
+                        } else {
+                            RotationMode::VelocityDirection
+                        };
+                        assert_eq!(
+                            *app.world().get::<RotationMode>(entity).unwrap(),
+                            expected,
+                            "mode={mode:?} stance={stance:?} first_person={first_person} aim={aim_held}"
+                        );
+                        assert_eq!(
+                            app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,
+                            Gait::Sprinting
+                        );
                     }
                 }
             }
@@ -310,36 +437,67 @@ mod tests {
 
     #[test]
     fn retained_sprint_rotation_reaches_the_loaded_animation_graph() {
-        use avian3d::prelude::Position;
-        use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
         use crate::als::mantle::{AlsMantleState, MantleKind};
         use crate::extensions::SourceAnimationInputs;
+        use avian3d::prelude::Position;
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let origin = app.world().get::<Position>(character).unwrap().0;
         let mut mantle = AlsMantleState::default();
-        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        mantle.begin(
+            MantleKind::High,
+            origin,
+            origin + Vec3::new(0.0, 1.5, -0.8),
+            1.5,
+            0.0,
+            0.0,
+        );
         app.world_mut().entity_mut(character).insert((
             mantle,
             LocomotionState::Custom,
             AlsMaxAllowedGait(Gait::Sprinting),
             AlsLastFreeRotationMode(RotationMode::ViewDirection),
-            AlsInputCommand { aim_held: true, ..default() },
+            AlsInputCommand {
+                aim_held: true,
+                ..default()
+            },
         ));
         app.update();
         assert!(app.world().get::<AlsMantleState>(character).unwrap().active);
-        assert_eq!(*app.world().get::<RotationMode>(character).unwrap(), RotationMode::VelocityDirection);
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let tag = app.world().get::<SourceAnimationInputs>(player).unwrap().gameplay_tag_input("rotation_mode").unwrap();
+        assert_eq!(
+            *app.world().get::<RotationMode>(character).unwrap(),
+            RotationMode::VelocityDirection
+        );
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let tag = app
+            .world()
+            .get::<SourceAnimationInputs>(player)
+            .unwrap()
+            .gameplay_tag_input("rotation_mode")
+            .unwrap();
         assert_eq!(tag.as_str(), "Als.RotationMode.VelocityDirection");
     }
 
     #[test]
     fn actual_aiming_without_saved_intent_keeps_source_default_intent() {
         let (mut app, entity) = app_with_character(false, RotationMode::Aiming);
-        assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), RotationMode::ViewDirection);
+        assert_eq!(
+            *app.world().get::<RotationMode>(entity).unwrap(),
+            RotationMode::ViewDirection
+        );
         app.update();
-        assert_eq!(app.world().get::<AlsLastFreeRotationMode>(entity).unwrap().0, RotationMode::ViewDirection);
+        assert_eq!(
+            app.world()
+                .get::<AlsLastFreeRotationMode>(entity)
+                .unwrap()
+                .0,
+            RotationMode::ViewDirection
+        );
     }
 
     #[test]

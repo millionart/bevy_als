@@ -1,6 +1,12 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
-use bevy::{math::{DQuat, DVec3}, prelude::*};
+use bevy::{
+    math::{DQuat, DVec3},
+    prelude::*,
+};
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -46,7 +52,9 @@ pub(crate) fn source_pose_rotation_product(left: Quat, right: Quat) -> Quat {
 pub(crate) fn normalize_pose_rotation(rotation: Quat) -> Quat {
     #[cfg(target_arch = "aarch64")]
     {
-        use std::arch::aarch64::{vdupq_n_f32, vgetq_lane_f32, vmulq_f32, vrsqrteq_f32, vrsqrtsq_f32};
+        use std::arch::aarch64::{
+            vdupq_n_f32, vgetq_lane_f32, vmulq_f32, vrsqrteq_f32, vrsqrtsq_f32,
+        };
 
         let reciprocal = unsafe {
             let value = vdupq_n_f32(rotation.length_squared());
@@ -203,7 +211,9 @@ fn merge_root_motion(
 
 fn accumulate_local_root_motion(base: &mut Pose, additive: &Pose, alpha: f32) {
     if let Some(additive_motion) = &additive.root_motion {
-        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);
+        let motion = base
+            .root_motion
+            .get_or_insert_with(RootMotionDelta::default);
         motion.translation += additive_motion.translation * alpha;
         motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);
     }
@@ -256,18 +266,34 @@ pub(crate) fn apply_source_additive_pose(
     outer_normalization: bool,
 ) -> Option<Arc<SourcePose>> {
     let source = precise.and_then(|(source, delta)| {
-        if base.bones.iter().chain(&additive.bones).any(|bone| bone.weights.is_some()) {
+        if base
+            .bones
+            .iter()
+            .chain(&additive.bones)
+            .any(|bone| bone.weights.is_some())
+        {
             return None;
         }
         let mut result = source.clone();
-        let parents = if mesh_space { Some(source.parent_indices(skeleton)?) } else { None };
-        accumulate_source_additive(&mut result, delta, alpha, parents.as_deref(), 1 + usize::from(outer_normalization))?;
+        let parents = if mesh_space {
+            Some(source.parent_indices(skeleton)?)
+        } else {
+            None
+        };
+        accumulate_source_additive(
+            &mut result,
+            delta,
+            alpha,
+            parents.as_deref(),
+            1 + usize::from(outer_normalization),
+        )?;
         Some(result)
     });
     if let Some(source) = source {
         source.project_into(base);
         if mesh_space {
-            base.root_motion = merge_root_motion(base.root_motion.take(), additive.root_motion.clone(), alpha);
+            base.root_motion =
+                merge_root_motion(base.root_motion.take(), additive.root_motion.clone(), alpha);
         } else {
             accumulate_local_root_motion(base, additive, alpha);
         }
@@ -284,14 +310,24 @@ pub(crate) fn apply_source_additive_pose(
     None
 }
 
-pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {
-    if alpha.abs() <= ALPHA_THRESHOLD { return; }
+pub fn apply_local_space_additive(
+    base: &mut Pose,
+    additive: &Pose,
+    alpha: f32,
+    skeleton: &Skeleton,
+) {
+    if alpha.abs() <= ALPHA_THRESHOLD {
+        return;
+    }
     for (bone, additive_index) in &additive.paths {
         if !base.paths.contains_key(bone)
-            && let Some(transform) = skeleton.default_transforms(*bone) {
+            && let Some(transform) = skeleton.default_transforms(*bone)
+        {
             base.add_bone(BonePose::from_transform(transform.local), *bone);
         }
-        let Some(base_index) = base.paths.get(bone).copied() else { continue; };
+        let Some(base_index) = base.paths.get(bone).copied() else {
+            continue;
+        };
         let additive_bone = &additive.bones[*additive_index];
         let base_rotation = base_local_rotation(base, skeleton, *bone);
         let base_bone = &mut base.bones[base_index];
@@ -363,11 +399,13 @@ pub fn apply_mesh_space_additive(
         let Some(rotation) = mesh_rotations.get(bone).copied() else {
             continue;
         };
-        let local = normalize_pose_rotation(skeleton
-            .parent(bone)
-            .and_then(|parent| mesh_rotations.get(&parent).copied())
-            .map(|parent| source_pose_rotation_product(parent.inverse(), rotation))
-            .unwrap_or(rotation));
+        let local = normalize_pose_rotation(
+            skeleton
+                .parent(bone)
+                .and_then(|parent| mesh_rotations.get(&parent).copied())
+                .map(|parent| source_pose_rotation_product(parent.inverse(), rotation))
+                .unwrap_or(rotation),
+        );
         if let Some(base_index) = base.paths.get(bone).copied() {
             base.bones[base_index].rotation = Some(local);
         }
@@ -385,7 +423,9 @@ pub fn compose_mesh_space_additives<'a>(
 ) -> Option<Pose> {
     let mut output: Option<Pose> = None;
     for (pose, weight) in samples {
-        if weight <= ALPHA_THRESHOLD { continue; }
+        if weight <= ALPHA_THRESHOLD {
+            continue;
+        }
         let output = output.get_or_insert_with(|| Pose {
             skeleton: pose.skeleton.clone(),
             ..default()
@@ -394,24 +434,35 @@ pub fn compose_mesh_space_additives<'a>(
         for (bone, index) in &pose.paths {
             let additive = &pose.bones[*index];
             if !output.paths.contains_key(bone) {
-                output.add_bone(BonePose {
-                    translation: Some(Vec3::ZERO),
-                    rotation: Some(Quat::IDENTITY),
-                    scale: Some(Vec3::ONE),
-                    weights: None,
-                }, *bone);
+                output.add_bone(
+                    BonePose {
+                        translation: Some(Vec3::ZERO),
+                        rotation: Some(Quat::IDENTITY),
+                        scale: Some(Vec3::ONE),
+                        weights: None,
+                    },
+                    *bone,
+                );
             }
             let index = output.paths[bone];
             let target = &mut output.bones[index];
             if let Some(rotation) = additive.rotation {
-                target.rotation = Some(blend_additive_rotation(target.rotation.unwrap(), rotation, weight));
+                target.rotation = Some(blend_additive_rotation(
+                    target.rotation.unwrap(),
+                    rotation,
+                    weight,
+                ));
             }
             if target.weights.is_none() {
-                target.weights = additive.weights.as_ref().map(|weights| vec![0.0; weights.len()]);
+                target.weights = additive
+                    .weights
+                    .as_ref()
+                    .map(|weights| vec![0.0; weights.len()]);
             }
             merge_non_rotation(target, additive, weight);
         }
-        output.root_motion = merge_root_motion(output.root_motion.take(), pose.root_motion.clone(), weight);
+        output.root_motion =
+            merge_root_motion(output.root_motion.take(), pose.root_motion.clone(), weight);
     }
     if let Some(output) = output.as_mut() {
         for bone in &mut output.bones {
@@ -511,17 +562,27 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn mesh_space_additive_uses_source_reciprocal_for_actual_head_chain() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"), "/docs/audit/bf144/d248b1/head-fixture.json"
-        ))).unwrap();
+            env!("CARGO_MANIFEST_DIR"),
+            "/docs/audit/bf144/d248b1/head-fixture.json"
+        )))
+        .unwrap();
         let quaternion = |value: &serde_json::Value| {
             let values = value.as_array().unwrap();
-            Quat::from_xyzw(values[0].as_f64().unwrap() as f32, values[1].as_f64().unwrap() as f32,
-                values[2].as_f64().unwrap() as f32, values[3].as_f64().unwrap() as f32)
+            Quat::from_xyzw(
+                values[0].as_f64().unwrap() as f32,
+                values[1].as_f64().unwrap() as f32,
+                values[2].as_f64().unwrap() as f32,
+                values[3].as_f64().unwrap() as f32,
+            )
         };
         let nodes = fixture["nodes"].as_array().unwrap();
         let mut mesh: Vec<Quat> = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let local = if node["base_rotation"].is_null() { Quat::IDENTITY } else { quaternion(&node["base_rotation"]) };
+            let local = if node["base_rotation"].is_null() {
+                Quat::IDENTITY
+            } else {
+                quaternion(&node["base_rotation"])
+            };
             mesh.push(mesh.last().map_or(local, |parent| *parent * local));
         }
         for (rotation, node) in mesh.iter_mut().zip(nodes) {
@@ -552,21 +613,46 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d163c/layered.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let (skeleton, root, child) = test_skeleton();
         let delta = Quat::from_xyzw(0.5, -0.5, 0.5, -0.5);
         let weighted = normalize_pose_rotation(Quat::from_xyzw(0.25, -0.25, 0.25, -0.75));
         let mut additive = Pose::default();
-        additive.add_bone(BonePose { rotation: Some(delta), ..default() }, child);
+        additive.add_bone(
+            BonePose {
+                rotation: Some(delta),
+                ..default()
+            },
+            child,
+        );
         for case in fixture.cases {
             let parent = Quat::from_array(case.parent);
             let mut base = Pose::default();
-            base.add_bone(BonePose { rotation: Some(parent), ..default() }, root);
-            base.add_bone(BonePose { rotation: Some(Quat::from_array(case.child)), ..default() }, child);
+            base.add_bone(
+                BonePose {
+                    rotation: Some(parent),
+                    ..default()
+                },
+                root,
+            );
+            base.add_bone(
+                BonePose {
+                    rotation: Some(Quat::from_array(case.child)),
+                    ..default()
+                },
+                child,
+            );
             let mesh = source_pose_rotation_product(weighted, Quat::from_array(case.mesh));
-            let expected = normalize_pose_rotation(source_pose_rotation_product(parent.inverse(), mesh));
+            let expected =
+                normalize_pose_rotation(source_pose_rotation_product(parent.inverse(), mesh));
             apply_mesh_space_additive(&mut base, &additive, 0.5, &skeleton);
-            assert_eq!(base.get_bone(child).unwrap().rotation, Some(expected), "{}", case.name);
+            assert_eq!(
+                base.get_bone(child).unwrap().rotation,
+                Some(expected),
+                "{}",
+                case.name
+            );
         }
     }
 
@@ -595,7 +681,8 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d170/additive.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let (skeleton, root, _) = test_skeleton();
         for case in fixture.cases {
             let base_rotation = Quat::from_array(case.base);
@@ -604,25 +691,52 @@ mod tests {
             let full = source_pose_rotation_product(additive_rotation * case.weight, base_rotation);
             assert_eq!(raw == full, case.full, "{}", case.name);
             let mut base = Pose::default();
-            base.add_bone(BonePose::from_transform(Transform {
-                translation: Vec3::from_array(case.base_translation), rotation: base_rotation,
-                scale: Vec3::from_array(case.base_scale),
-            }), root);
+            base.add_bone(
+                BonePose::from_transform(Transform {
+                    translation: Vec3::from_array(case.base_translation),
+                    rotation: base_rotation,
+                    scale: Vec3::from_array(case.base_scale),
+                }),
+                root,
+            );
             let mut additive = Pose::default();
-            additive.add_bone(BonePose::from_transform(Transform {
-                translation: Vec3::from_array(case.delta_translation), rotation: additive_rotation,
-                scale: Vec3::from_array(case.scale_delta),
-            }), root);
-            for apply in [apply_local_space_additive as fn(&mut Pose, &Pose, f32, &Skeleton), apply_mesh_space_additive] {
+            additive.add_bone(
+                BonePose::from_transform(Transform {
+                    translation: Vec3::from_array(case.delta_translation),
+                    rotation: additive_rotation,
+                    scale: Vec3::from_array(case.scale_delta),
+                }),
+                root,
+            );
+            for apply in [
+                apply_local_space_additive as fn(&mut Pose, &Pose, f32, &Skeleton),
+                apply_mesh_space_additive,
+            ] {
                 let mut output = base.clone();
                 apply(&mut output, &additive, case.weight, &skeleton);
                 let bone = output.get_bone(root).unwrap();
                 let expected = Quat::from_array(case.expected_rotation);
                 let rotation = bone.rotation.unwrap();
-                assert!((rotation - expected).length().min((rotation + expected).length()) < 3e-7,
-                    "{}: {rotation:?}", case.name);
-                assert!(bone.translation.unwrap().distance(Vec3::from_array(case.expected_translation)) < 1e-7);
-                assert!(bone.scale.unwrap().distance(Vec3::from_array(case.expected_scale)) < 3e-7);
+                assert!(
+                    (rotation - expected)
+                        .length()
+                        .min((rotation + expected).length())
+                        < 3e-7,
+                    "{}: {rotation:?}",
+                    case.name
+                );
+                assert!(
+                    bone.translation
+                        .unwrap()
+                        .distance(Vec3::from_array(case.expected_translation))
+                        < 1e-7
+                );
+                assert!(
+                    bone.scale
+                        .unwrap()
+                        .distance(Vec3::from_array(case.expected_scale))
+                        < 3e-7
+                );
             }
         }
     }
@@ -640,11 +754,16 @@ mod tests {
     fn head_mesh_output_drops_historical_component_normalization() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d241/head-product-fixture.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let quaternion = |value: &serde_json::Value| {
             let values = value.as_array().unwrap();
-            Quat::from_xyzw(values[0].as_f64().unwrap() as f32, values[1].as_f64().unwrap() as f32,
-                values[2].as_f64().unwrap() as f32, values[3].as_f64().unwrap() as f32)
+            Quat::from_xyzw(
+                values[0].as_f64().unwrap() as f32,
+                values[1].as_f64().unwrap() as f32,
+                values[2].as_f64().unwrap() as f32,
+                values[3].as_f64().unwrap() as f32,
+            )
         };
         let mut path = EntityPath::default();
         let mut skeleton = Skeleton::default();
@@ -652,16 +771,30 @@ mod tests {
         let mut additive = Pose::default();
         for (index, node) in fixture["nodes"].as_array().unwrap().iter().enumerate() {
             path = path.child(node["name"].as_str().unwrap().to_owned());
-            if index == 0 { skeleton.set_root(path.id()); }
+            if index == 0 {
+                skeleton.set_root(path.id());
+            }
             skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY);
-            for (pose, key) in [(&mut base, "base_rotation"), (&mut additive, "additive_rotation")] {
+            for (pose, key) in [
+                (&mut base, "base_rotation"),
+                (&mut additive, "additive_rotation"),
+            ] {
                 if !node[key].is_null() {
-                    pose.add_bone(BonePose { rotation: Some(quaternion(&node[key])), ..default() }, path.id());
+                    pose.add_bone(
+                        BonePose {
+                            rotation: Some(quaternion(&node[key])),
+                            ..default()
+                        },
+                        path.id(),
+                    );
                 }
             }
         }
         apply_mesh_space_additive(&mut base, &additive, 1.0, &skeleton);
-        assert_ne!(base.get_bone(path.id()).unwrap().rotation.unwrap(), quaternion(&fixture["historical_rotation"]));
+        assert_ne!(
+            base.get_bone(path.id()).unwrap().rotation.unwrap(),
+            quaternion(&fixture["historical_rotation"])
+        );
     }
 
     #[test]
@@ -671,27 +804,43 @@ mod tests {
         let mut first = Pose::default();
         let mut second = Pose::default();
         for bone in [root, child] {
-            base.add_bone(BonePose::from_transform(Transform {
-                translation: Vec3::new(0.4, 1.2, -0.8),
-                rotation: Quat::from_rotation_z(0.7),
-                scale: Vec3::new(0.8, 1.2, 1.1),
-            }), bone);
-            first.add_bone(BonePose {
-                translation: Some(Vec3::new(0.2, -0.1, 0.3)),
-                rotation: Some(Quat::from_rotation_x(0.8)),
-                scale: Some(Vec3::new(0.1, -0.2, 0.3)),
-                weights: Some(vec![0.3]),
-            }, bone);
-            second.add_bone(BonePose {
-                translation: Some(Vec3::new(-0.3, 0.4, 0.1)),
-                rotation: Some(-Quat::from_rotation_y(0.6)),
-                scale: Some(Vec3::new(-0.2, 0.3, 0.1)),
-                weights: Some(vec![-0.1]),
-            }, bone);
+            base.add_bone(
+                BonePose::from_transform(Transform {
+                    translation: Vec3::new(0.4, 1.2, -0.8),
+                    rotation: Quat::from_rotation_z(0.7),
+                    scale: Vec3::new(0.8, 1.2, 1.1),
+                }),
+                bone,
+            );
+            first.add_bone(
+                BonePose {
+                    translation: Some(Vec3::new(0.2, -0.1, 0.3)),
+                    rotation: Some(Quat::from_rotation_x(0.8)),
+                    scale: Some(Vec3::new(0.1, -0.2, 0.3)),
+                    weights: Some(vec![0.3]),
+                },
+                bone,
+            );
+            second.add_bone(
+                BonePose {
+                    translation: Some(Vec3::new(-0.3, 0.4, 0.1)),
+                    rotation: Some(-Quat::from_rotation_y(0.6)),
+                    scale: Some(Vec3::new(-0.2, 0.3, 0.1)),
+                    weights: Some(vec![-0.1]),
+                },
+                bone,
+            );
             base.bones.last_mut().unwrap().weights = Some(vec![0.5]);
         }
-        for (left, right) in [(1.0, 0.0), (0.84375, 0.15625), (0.5, 0.5), (0.0, 1.0), (0.2, 0.3)] {
-            let combined = compose_mesh_space_additives([(&first, left), (&second, right)]).unwrap();
+        for (left, right) in [
+            (1.0, 0.0),
+            (0.84375, 0.15625),
+            (0.5, 0.5),
+            (0.0, 1.0),
+            (0.2, 0.3),
+        ] {
+            let combined =
+                compose_mesh_space_additives([(&first, left), (&second, right)]).unwrap();
             let mut expected = base.clone();
             apply_mesh_space_additive(&mut expected, &first, left, &skeleton);
             apply_mesh_space_additive(&mut expected, &second, right, &skeleton);
@@ -700,10 +849,23 @@ mod tests {
             for bone in [root, child] {
                 let expected = expected.get_bone(bone).unwrap();
                 let actual = actual.get_bone(bone).unwrap();
-                assert!(close_rotation(expected.rotation.unwrap(), actual.rotation.unwrap()));
-                assert!(expected.translation.unwrap().distance(actual.translation.unwrap()) < 1e-6);
+                assert!(close_rotation(
+                    expected.rotation.unwrap(),
+                    actual.rotation.unwrap()
+                ));
+                assert!(
+                    expected
+                        .translation
+                        .unwrap()
+                        .distance(actual.translation.unwrap())
+                        < 1e-6
+                );
                 assert!(expected.scale.unwrap().distance(actual.scale.unwrap()) < 1e-6);
-                assert!((expected.weights.as_ref().unwrap()[0] - actual.weights.as_ref().unwrap()[0]).abs() < 1e-6);
+                assert!(
+                    (expected.weights.as_ref().unwrap()[0] - actual.weights.as_ref().unwrap()[0])
+                        .abs()
+                        < 1e-6
+                );
             }
         }
         assert!(compose_mesh_space_additives([(&first, 0.0)]).is_none());

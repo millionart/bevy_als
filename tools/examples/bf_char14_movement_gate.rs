@@ -109,7 +109,11 @@ fn setup(
     ));
     let params_value = AlsMovementParams::default();
     let params = params_assets.add(params_value.clone());
-    let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, initial_als_control_scheme_config(&params_value));
+    let mut bundle = AlsCharacterBundle::new(
+        params,
+        &mut config_assets,
+        initial_als_control_scheme_config(&params_value),
+    );
     bundle.transform = Transform::from_xyz(0.0, 0.925, 0.0);
     commands.spawn((
         bundle,

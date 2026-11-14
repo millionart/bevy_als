@@ -4,11 +4,11 @@ use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 
-use bevy_als::als_camera::{AlsCameraRig, AlsCameraTarget};
 use bevy_als::als::character::{AlsCharacter, AlsCharacterPlugin};
 use bevy_als::als::control_scheme::AlsControlSchemeConfig;
 use bevy_als::als::params::AlsMovementParams;
 use bevy_als::als::view::AlsViewPitch;
+use bevy_als::als_camera::{AlsCameraRig, AlsCameraTarget};
 use bevy_als::character_assembly::{
     AlsCharacterAssembly, AlsCharacterAvatar, AlsCharacterBlueprint, AlsCharacterCamera,
     AlsPlayerCharacter, spawn_als_character_with_materials,

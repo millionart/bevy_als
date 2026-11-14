@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
-use bevy_als::extensions::{AlsExtPlugin, GlobalF32InputNode};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::extensions::{AlsExtPlugin, GlobalF32InputNode};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, TimeUpdate},

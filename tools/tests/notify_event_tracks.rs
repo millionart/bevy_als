@@ -4,12 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bevy_als::extensions::RootMotionClipNode;
 use bevy::{
     asset::{Assets, Handle},
     ecs::system::{Res, ResMut, SystemParamItem},
     platform::collections::HashMap,
 };
+use bevy_als::extensions::RootMotionClipNode;
 use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
 use bevy_animation_graph::core::{
     animation_clip::{GraphClip, loader::GraphClipSerial},

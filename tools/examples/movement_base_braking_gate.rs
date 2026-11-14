@@ -129,7 +129,8 @@ fn spawn_character(
     translation: Vec3,
 ) -> Entity {
     let params = params_assets.add(AlsMovementParams::default());
-    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
+    let mut bundle =
+        AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation);
     commands.spawn(bundle).id()
 }

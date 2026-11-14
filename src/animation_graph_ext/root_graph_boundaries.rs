@@ -76,15 +76,25 @@ pub struct ControlRigNodeState {
 
 impl ControlRigNodeState {
     pub fn value(&self, reference: &RigValueRef) -> Result<RigValue, String> {
-        reference.read(&self.runtime.as_ref().ok_or("rig is not initialized")?.values)
+        reference.read(
+            &self
+                .runtime
+                .as_ref()
+                .ok_or("rig is not initialized")?
+                .values,
+        )
     }
 
     pub fn snapshot_hierarchy(&self) -> Option<RigHierarchy> {
-        self.runtime.as_ref().map(|runtime| runtime.hierarchy.clone())
+        self.runtime
+            .as_ref()
+            .map(|runtime| runtime.hierarchy.clone())
     }
 
     pub fn meters_per_unit(&self) -> f64 {
-        self.runtime.as_ref().map_or(1.0, |runtime| runtime.definition.geometry.meters_per_unit)
+        self.runtime
+            .as_ref()
+            .map_or(1.0, |runtime| runtime.definition.geometry.meters_per_unit)
     }
 }
 
@@ -100,14 +110,24 @@ pub fn current_control_rig<'a>(
     let arena = player.get_context_arena()?;
     let mut found = None;
     for id in arena.iter_context_ids() {
-        let Some(context) = arena.get_context(id) else { continue; };
-        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+        let Some(context) = arena.get_context(id) else {
+            continue;
+        };
+        let Some(graph) = graphs.get(context.get_graph_id()) else {
+            continue;
+        };
         for node in graph.nodes.values() {
-            if node.try_inner_downcast_ref::<ControlRigBoundaryNode>().is_some()
+            if node
+                .try_inner_downcast_ref::<ControlRigBoundaryNode>()
+                .is_some()
                 && context.node_caches.is_updated(node.id, StateKey::Default)
-                && let Ok(state) = context.node_states.get::<ControlRigNodeState>(node.id, StateKey::Default)
+                && let Ok(state) = context
+                    .node_states
+                    .get::<ControlRigNodeState>(node.id, StateKey::Default)
             {
-                if found.is_some() { return None; }
+                if found.is_some() {
+                    return None;
+                }
                 found = Some((context, node, state));
             }
         }
@@ -149,7 +169,9 @@ fn merge_upstream_pose_context(
 ) {
     if let Some(source) = source {
         merge_missing_context_curves(target, &source);
-        if target.cached_pose_request_route.is_none() { target.cached_pose_request_route = source.cached_pose_request_route; }
+        if target.cached_pose_request_route.is_none() {
+            target.cached_pose_request_route = source.cached_pose_request_route;
+        }
     }
 }
 
@@ -237,7 +259,10 @@ impl ControlRigBoundaryNode {
         let meters_per_unit = definition.geometry.meters_per_unit;
         let mut rig_to_world = to_world;
         rig_to_world.translation *= meters_per_unit.recip();
-        let rebuild = state.runtime.as_ref().is_none_or(|runtime| runtime.definition != *definition);
+        let rebuild = state
+            .runtime
+            .as_ref()
+            .is_none_or(|runtime| runtime.definition != *definition);
         if rebuild {
             state.runtime = Some(ControlRigRuntime {
                 definition: definition.clone(),
@@ -273,7 +298,9 @@ impl ControlRigBoundaryNode {
                     .trace_in_units(start, end, channel, complex, meters_per_unit)?;
                 if capture {
                     traces.push(RigTraceSample {
-                        instruction: instruction.get(), start: start * meters_per_unit, end: end * meters_per_unit,
+                        instruction: instruction.get(),
+                        start: start * meters_per_unit,
+                        end: end * meters_per_unit,
                         hit: hit.map(|(point, normal)| (point * meters_per_unit, normal)),
                     });
                 }
@@ -287,30 +314,55 @@ impl ControlRigBoundaryNode {
                 delta_seconds,
                 geometry: &definition.geometry,
                 to_world: rig_to_world,
-                line_trace: query
-                    .map(|_| &mut trace as &mut crate::extensions::control_rig_units::RigLineTrace<'_>),
+                line_trace: query.map(|_| {
+                    &mut trace as &mut crate::extensions::control_rig_units::RigLineTrace<'_>
+                }),
             };
             definition
                 .program
-                .execute_in_units(entry, &mut runtime.values, meters_per_unit, |pc, name, args| {
-                    let bones_before = if capture {
-                        instruction.set(pc);
-                        let indices = args.iter().filter_map(|value| context.hierarchy.item_index(value).ok().flatten()).collect::<Vec<_>>();
-                        if indices.is_empty() {
-                            Vec::new()
+                .execute_in_units(
+                    entry,
+                    &mut runtime.values,
+                    meters_per_unit,
+                    |pc, name, args| {
+                        let bones_before = if capture {
+                            instruction.set(pc);
+                            let indices = args
+                                .iter()
+                                .filter_map(|value| {
+                                    context.hierarchy.item_index(value).ok().flatten()
+                                })
+                                .collect::<Vec<_>>();
+                            if indices.is_empty() {
+                                Vec::new()
+                            } else {
+                                let mut snapshot = context.hierarchy.clone();
+                                indices
+                                    .into_iter()
+                                    .filter_map(|index| {
+                                        Some((
+                                            index,
+                                            snapshot
+                                                .transform(index, RigSpace::Global, false)
+                                                .ok()?,
+                                        ))
+                                    })
+                                    .collect()
+                            }
                         } else {
-                            let mut snapshot = context.hierarchy.clone();
-                            indices.into_iter().filter_map(|index| Some((index, snapshot.transform(index, RigSpace::Global, false).ok()?))).collect()
+                            Vec::new()
+                        };
+                        let result = context.call(name, args);
+                        if capture {
+                            calls.push(RigCallSample {
+                                instruction: pc,
+                                arguments: args.to_vec(),
+                                bones_before,
+                            });
                         }
-                    } else {
-                        Vec::new()
-                    };
-                    let result = context.call(name, args);
-                    if capture {
-                        calls.push(RigCallSample { instruction: pc, arguments: args.to_vec(), bones_before });
-                    }
-                    result
-                })
+                        result
+                    },
+                )
                 .map_err(|error| {
                     format!(
                         "{error}; operation {:?}",
@@ -342,8 +394,14 @@ impl ControlRigBoundaryNode {
             mapping.push(matched);
         }
         let mut source_pose = state.context.source_pose.take().map(Arc::unwrap_or_clone);
-        let source_indices: bevy::platform::collections::HashMap<_, _> = source_pose.iter()
-            .flat_map(|pose| pose.bones.iter().enumerate().map(|(index, (bone, _))| (*bone, index)))
+        let source_indices: bevy::platform::collections::HashMap<_, _> = source_pose
+            .iter()
+            .flat_map(|pose| {
+                pose.bones
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (bone, _))| (*bone, index))
+            })
             .collect();
         if self.transfer_input_pose {
             let mut local = Vec::with_capacity(mapping.len());
@@ -363,7 +421,10 @@ impl ControlRigBoundaryNode {
                 if let Some(source) = &source_pose
                     && let Some(&index) = source_indices.get(&id)
                 {
-                    local.push(pose_rig_transform(source.bones[index].1, source.length_scale / meters_per_unit));
+                    local.push(pose_rig_transform(
+                        source.bones[index].1,
+                        source.length_scale / meters_per_unit,
+                    ));
                     continue;
                 }
                 let defaults = skeleton
@@ -400,7 +461,8 @@ impl ControlRigBoundaryNode {
             if let Some(source) = &mut source_pose
                 && let Some(&index) = source_indices.get(&id)
             {
-                source.bones[index].1 = pose_rig_transform(transform, meters_per_unit / source.length_scale);
+                source.bones[index].1 =
+                    pose_rig_transform(transform, meters_per_unit / source.length_scale);
             }
             let mut output = BonePose::from_transform(Transform {
                 rotation: transform.rotation.as_quat(),
@@ -414,7 +476,9 @@ impl ControlRigBoundaryNode {
                 pose.add_bone(output, id);
             }
         }
-        state.context.source_pose = source_pose.filter(|source| source.matches_projection(pose)).map(Arc::new);
+        state.context.source_pose = source_pose
+            .filter(|source| source.matches_projection(pose))
+            .map(Arc::new);
         Ok(())
     }
 }
@@ -449,7 +513,10 @@ impl NodeLike for ControlRigBoundaryNode {
         if !meters_per_unit.is_finite() || meters_per_unit <= 0.0 {
             return Err(failure("rig length unit is invalid".to_owned()));
         }
-        let foot_locations = crate::extensions::source_gameplay_tag_input::active_rig_foot_locations_cm(ctx.graph_context.root_entity);
+        let foot_locations =
+            crate::extensions::source_gameplay_tag_input::active_rig_foot_locations_cm(
+                ctx.graph_context.root_entity,
+            );
         let inputs = self
             .input_bindings
             .iter()
@@ -465,18 +532,25 @@ impl NodeLike for ControlRigBoundaryNode {
                         ))
                     })?;
                 target.path.extend_from_slice(&binding.path);
-                let foot_location = foot_locations.and_then(|locations| match binding.property.as_str() {
-                    "control_rig_input.foot_left_location" => Some(locations[0]),
-                    "control_rig_input.foot_right_location" => Some(locations[1]),
-                    _ => None,
-                });
+                let foot_location =
+                    foot_locations.and_then(|locations| match binding.property.as_str() {
+                        "control_rig_input.foot_left_location" => Some(locations[0]),
+                        "control_rig_input.foot_right_location" => Some(locations[1]),
+                        _ => None,
+                    });
                 if let Some(location) = foot_location {
                     let units_per_centimeter = 0.01 / meters_per_unit;
-                    return Ok((target, RigValue::Vector(location.as_dvec3() * units_per_centimeter)));
+                    return Ok((
+                        target,
+                        RigValue::Vector(location.as_dvec3() * units_per_centimeter),
+                    ));
                 }
                 let value = source_input_data(&ctx, &binding.property)
                     .ok_or_else(|| GraphError::GlobalInputDataMissing(binding.property.clone()))?;
-                Ok((target, input_value(value, meters_per_unit).map_err(&failure)?))
+                Ok((
+                    target,
+                    input_value(value, meters_per_unit).map_err(&failure)?,
+                ))
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
         let game_world = match source_input_data(&ctx, RIG_GAME_WORLD_KEY) {
@@ -487,11 +561,13 @@ impl NodeLike for ControlRigBoundaryNode {
             Some(value) => value.as_bool()?,
             None => false,
         };
-        let delta_seconds =
-            crate::extensions::global_f32_input::global_f32_or_root_default(&ctx, &self.delta_seconds_key)?
-                as f64;
-        let query =
-            crate::extensions::source_gameplay_tag_input::active_rig_query_context(ctx.graph_context.root_entity);
+        let delta_seconds = crate::extensions::global_f32_input::global_f32_or_root_default(
+            &ctx,
+            &self.delta_seconds_key,
+        )? as f64;
+        let query = crate::extensions::source_gameplay_tag_input::active_rig_query_context(
+            ctx.graph_context.root_entity,
+        );
         let update = if self.internalize_time {
             context_time_update(&ctx)?
         } else {
@@ -533,7 +609,10 @@ impl NodeLike for ControlRigBoundaryNode {
             }
         }
         let upstream = pose_input_context_state(&ctx, &self.pose_input);
-        state.source_pose = upstream.as_ref().and_then(|context| context.source_pose_for(&pose)).cloned();
+        state.source_pose = upstream
+            .as_ref()
+            .and_then(|context| context.source_pose_for(&pose))
+            .cloned();
         merge_upstream_pose_context(&mut state, upstream);
         let resources = ctx.graph_context.resources;
         let skeleton = resources
@@ -595,11 +674,16 @@ mod tests {
     fn hot_swap_definition() -> RigDefinition {
         let mut definition: RigDefinition = serde_json::from_str(include_str!(
             "../../assets/ALS/Character/CR_Als.program.json"
-        )).unwrap();
+        ))
+        .unwrap();
         definition.program = RigProgram {
             initial_values: vec![RigValue::F32(1.0)],
             literal_count: 1,
-            entries: [("Construction".to_owned(), 0), ("Forwards Solve".to_owned(), 1)].into(),
+            entries: [
+                ("Construction".to_owned(), 0),
+                ("Forwards Solve".to_owned(), 1),
+            ]
+            .into(),
             instructions: vec![RigInstruction::Exit, RigInstruction::Exit],
         };
         definition.bones.clear();
@@ -610,29 +694,44 @@ mod tests {
 
     #[test]
     fn loaded_control_rig_uses_generated_initial_globals() {
-        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph};
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
+        };
 
         let (app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let player = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let player = app
+            .world()
+            .get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player)
+            .unwrap();
         let graphs = app.world().resource::<Assets<AnimationGraph>>();
         let (_, node, _) = current_control_rig(player, graphs).unwrap();
-        let node = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();
+        let node = node
+            .try_inner_downcast_ref::<ControlRigBoundaryNode>()
+            .unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d232e/rig.centimeters.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(node.definition.as_ref().unwrap().bones, definition.bones);
     }
 
     #[test]
     fn control_rig_local_transfer_retains_source_centimeters_until_output() {
-        use bevy_animation_graph::core::animation_clip::EntityPath;
         use crate::extensions::{control_rig_hierarchy::RigBone, source_pose::SourcePose};
+        use bevy_animation_graph::core::animation_clip::EntityPath;
 
         let mut definition = hot_swap_definition();
         definition.geometry.meters_per_unit = 0.01;
         definition.bones.push(RigBone {
-            name: "root".into(), parent: None, initial_local: default(), initial_global: default(),
+            name: "root".into(),
+            parent: None,
+            initial_local: default(),
+            initial_global: default(),
         });
         let path = EntityPath::default().child("root");
         let root = path.id();
@@ -643,77 +742,224 @@ mod tests {
             translation: DVec3::new(0.1352923745746292, -3.420399962835745, 94.18533515463514),
             ..default()
         };
-        let source = Arc::new(SourcePose { bones: vec![(root, transform)], length_scale: 0.01 });
+        let source = Arc::new(SourcePose {
+            bones: vec![(root, transform)],
+            length_scale: 0.01,
+        });
         let mut pose = Pose::default();
         source.project_into(&mut pose);
         let mut state = ControlRigNodeState::default();
         state.context.source_pose = Some(source);
-        ControlRigBoundaryNode::default().solve(&definition, &mut state, &mut pose, &skeleton, &[],
-            false, 0.0, RigTransform::default(), None, false).unwrap();
-        let actual = state.snapshot_hierarchy().unwrap().transform(0, RigSpace::Local, false).unwrap();
+        ControlRigBoundaryNode::default()
+            .solve(
+                &definition,
+                &mut state,
+                &mut pose,
+                &skeleton,
+                &[],
+                false,
+                0.0,
+                RigTransform::default(),
+                None,
+                false,
+            )
+            .unwrap();
+        let actual = state
+            .snapshot_hierarchy()
+            .unwrap()
+            .transform(0, RigSpace::Local, false)
+            .unwrap();
         assert_eq!(actual, pose_rig_transform(transform, 1.0));
-        assert_eq!(state.context.source_pose_for(&pose).unwrap().bones[0].1, transform);
+        assert_eq!(
+            state.context.source_pose_for(&pose).unwrap().bones[0].1,
+            transform
+        );
     }
 
     #[test]
     fn control_rig_hot_swap_rebuilds_values_and_hierarchy() {
         let mut definition = hot_swap_definition();
-        let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };
+        let node = ControlRigBoundaryNode {
+            transfer_input_pose: false,
+            transfer_input_curves: false,
+            ..default()
+        };
         let mut state = ControlRigNodeState::default();
         let mut pose = Pose::default();
         let skeleton = Skeleton::default();
-        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
-            RigTransform::default(), None, false).unwrap();
-        assert_eq!(state.value(&RigValueRef { register: 0, path: vec![] }).unwrap(), RigValue::F32(1.0));
-        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
-            RigTransform::default(), None, false).unwrap();
+        node.solve(
+            &definition,
+            &mut state,
+            &mut pose,
+            &skeleton,
+            &[],
+            false,
+            1.0 / 60.0,
+            RigTransform::default(),
+            None,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            state
+                .value(&RigValueRef {
+                    register: 0,
+                    path: vec![]
+                })
+                .unwrap(),
+            RigValue::F32(1.0)
+        );
+        node.solve(
+            &definition,
+            &mut state,
+            &mut pose,
+            &skeleton,
+            &[],
+            false,
+            1.0 / 60.0,
+            RigTransform::default(),
+            None,
+            false,
+        )
+        .unwrap();
         assert_eq!(state.initialization_count, 1);
         let source: RigDefinition = serde_json::from_str(include_str!(
             "../../assets/ALS/Character/CR_Als.program.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let bone = source.bones[0].clone();
         definition.program.initial_values[0] = RigValue::F32(2.0);
         definition.bones.push(bone.clone());
-        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
-            RigTransform::default(), None, false).unwrap();
-        assert_eq!(state.value(&RigValueRef { register: 0, path: vec![] }).unwrap(), RigValue::F32(2.0));
-        assert!(state.snapshot_hierarchy().unwrap().index(&bone.name).is_some());
+        node.solve(
+            &definition,
+            &mut state,
+            &mut pose,
+            &skeleton,
+            &[],
+            false,
+            1.0 / 60.0,
+            RigTransform::default(),
+            None,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            state
+                .value(&RigValueRef {
+                    register: 0,
+                    path: vec![]
+                })
+                .unwrap(),
+            RigValue::F32(2.0)
+        );
+        assert!(
+            state
+                .snapshot_hierarchy()
+                .unwrap()
+                .index(&bone.name)
+                .is_some()
+        );
         assert_eq!(state.initialization_count, 2);
     }
 
     #[test]
     fn control_rig_hot_swap_rebuilds_register_layout() {
         let mut definition = hot_swap_definition();
-        let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };
+        let node = ControlRigBoundaryNode {
+            transfer_input_pose: false,
+            transfer_input_curves: false,
+            ..default()
+        };
         let mut state = ControlRigNodeState::default();
         let mut pose = Pose::default();
         let skeleton = Skeleton::default();
-        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
-            RigTransform::default(), None, false).unwrap();
+        node.solve(
+            &definition,
+            &mut state,
+            &mut pose,
+            &skeleton,
+            &[],
+            false,
+            1.0 / 60.0,
+            RigTransform::default(),
+            None,
+            false,
+        )
+        .unwrap();
         definition.program.initial_values.push(RigValue::F32(3.0));
         definition.program.literal_count = 2;
-        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
-            RigTransform::default(), None, false).unwrap();
-        assert_eq!(state.value(&RigValueRef { register: 1, path: vec![] }).unwrap(), RigValue::F32(3.0));
+        node.solve(
+            &definition,
+            &mut state,
+            &mut pose,
+            &skeleton,
+            &[],
+            false,
+            1.0 / 60.0,
+            RigTransform::default(),
+            None,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            state
+                .value(&RigValueRef {
+                    register: 1,
+                    path: vec![]
+                })
+                .unwrap(),
+            RigValue::F32(3.0)
+        );
         assert_eq!(state.initialization_count, 2);
     }
 
     #[test]
     fn disabled_rig_input_curves_keep_noncurve_animation_context() {
-        use crate::extensions::animation_context::{SourceAssetSample, SourceRelevantAsset, SourceInertializationRequest};
+        use crate::extensions::animation_context::{
+            SourceAssetSample, SourceInertializationRequest, SourceRelevantAsset,
+        };
         let mut source = AnimationContextState {
-            relevant_asset: Some(SourceRelevantAsset { duration: 1.0, position: 0.4, previous_position: 0.3,
-                has_previous_position: true, delta_seconds: 0.1, playback_delta_seconds: 0.1, weight: 1.0, ..default() }),
-            asset_samples: vec![SourceAssetSample { identity: "Footstep".into(), notify_instance_id: 42,
-                clock: SourceRelevantAsset { position: 0.4, previous_position: 0.3, weight: 1.0, ..default() }, ..default() }],
-            inertialization_request: Some(SourceInertializationRequest { frame: 8, duration: 0.2, ..default() }),
-            skipped_cached_pose_request: Some(SourceInertializationRequest { frame: 8, duration: 0.3, ..default() }),
+            relevant_asset: Some(SourceRelevantAsset {
+                duration: 1.0,
+                position: 0.4,
+                previous_position: 0.3,
+                has_previous_position: true,
+                delta_seconds: 0.1,
+                playback_delta_seconds: 0.1,
+                weight: 1.0,
+                ..default()
+            }),
+            asset_samples: vec![SourceAssetSample {
+                identity: "Footstep".into(),
+                notify_instance_id: 42,
+                clock: SourceRelevantAsset {
+                    position: 0.4,
+                    previous_position: 0.3,
+                    weight: 1.0,
+                    ..default()
+                },
+                ..default()
+            }],
+            inertialization_request: Some(SourceInertializationRequest {
+                frame: 8,
+                duration: 0.2,
+                ..default()
+            }),
+            skipped_cached_pose_request: Some(SourceInertializationRequest {
+                frame: 8,
+                duration: 0.3,
+                ..default()
+            }),
             ..default()
         };
         source.curves.insert("RigInput".into(), 0.75);
         let mut target = AnimationContextState::default();
         merge_upstream_pose_context(&mut target, Some(source));
-        assert_eq!(target.asset_samples.len(), 1, "Disabling rig input curves lost the upstream notify sample");
+        assert_eq!(
+            target.asset_samples.len(),
+            1,
+            "Disabling rig input curves lost the upstream notify sample"
+        );
         assert_eq!(target.asset_samples[0].notify_instance_id, 42);
         assert_eq!(target.relevant_asset.unwrap().position, 0.4);
         assert_eq!(target.inertialization_request.unwrap().frame, 8);
@@ -724,65 +970,220 @@ mod tests {
     fn rig_curve_transfer_only_controls_hierarchy_input_during_graph_evaluation() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::platform::collections::HashMap;
-        use bevy_animation_graph::core::{animation_clip::GraphClip,
-            animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
-                graph_context_arena::GraphContextArena, new_context::GraphContext, system_resources::SystemResources},
-            state_machine::high_level::StateMachine};
         use bevy_animation_graph::core::animation_graph::GraphInputPin;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            state_machine::high_level::StateMachine,
+        };
         struct PoseInputEnv(Pose);
         impl bevy_animation_graph::core::context::io_env::GraphIoEnv for PoseInputEnv {
-            fn get_data_back(&self, pin: GraphInputPin, _: GraphContext) -> Result<DataValue, GraphError> {
+            fn get_data_back(
+                &self,
+                pin: GraphInputPin,
+                _: GraphContext,
+            ) -> Result<DataValue, GraphError> {
                 assert_eq!(pin, GraphInputPin::passthrough("source"));
                 Ok(DataValue::Pose(self.0.clone()))
             }
-            fn get_duration_back(&self, _: GraphInputPin, _: GraphContext)
-                -> Result<bevy_animation_graph::core::duration_data::DurationData, GraphError> { Ok(None) }
-            fn get_time_fwd(&self, _: GraphContext) -> Result<TimeUpdate, GraphError> { Ok(TimeUpdate::Delta(0.02)) }
+            fn get_duration_back(
+                &self,
+                _: GraphInputPin,
+                _: GraphContext,
+            ) -> Result<bevy_animation_graph::core::duration_data::DurationData, GraphError>
+            {
+                Ok(None)
+            }
+            fn get_time_fwd(&self, _: GraphContext) -> Result<TimeUpdate, GraphError> {
+                Ok(TimeUpdate::Delta(0.02))
+            }
         }
-        fn query(In((handle, skeleton)): In<(Handle<AnimationGraph>, Handle<Skeleton>)>, resources: SystemResources) {
+        fn query(
+            In((handle, skeleton)): In<(Handle<AnimationGraph>, Handle<Skeleton>)>,
+            resources: SystemResources,
+        ) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
-            let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<ControlRigBoundaryNode>().is_some()).unwrap();
-            let transfer = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap().transfer_input_curves;
+            let node = graph
+                .nodes
+                .values()
+                .find(|node| {
+                    node.try_inner_downcast_ref::<ControlRigBoundaryNode>()
+                        .is_some()
+                })
+                .unwrap();
+            let transfer = node
+                .try_inner_downcast_ref::<ControlRigBoundaryNode>()
+                .unwrap()
+                .transfer_input_curves;
             let mut arena = GraphContextArena::new(handle.id());
-            let env = PoseInputEnv(Pose { skeleton: skeleton.clone(), ..default() }); let entities = HashMap::default(); let mut gizmos = DeferredGizmos::default();
-            let inputs = HashMap::from([("source".into(), DataValue::Pose(Pose { skeleton: skeleton.clone(), ..default() })),
-                ("animation.delta_seconds".into(), DataValue::F32(0.02))]);
+            let env = PoseInputEnv(Pose {
+                skeleton: skeleton.clone(),
+                ..default()
+            });
+            let entities = HashMap::default();
+            let mut gizmos = DeferredGizmos::default();
+            let inputs = HashMap::from([
+                (
+                    "source".into(),
+                    DataValue::Pose(Pose {
+                        skeleton: skeleton.clone(),
+                        ..default()
+                    }),
+                ),
+                ("animation.delta_seconds".into(), DataValue::F32(0.02)),
+            ]);
             let source_inputs = crate::extensions::SourceAnimationInputs::default();
             for frame in 0..3 {
-                let mut context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
-                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let mut context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
                 let mut upstream = AnimationContextState::default();
                 upstream.curves.insert("RigInput".into(), 0.75);
-                upstream.relevant_asset = Some(crate::extensions::animation_context::SourceRelevantAsset {
-                    duration: 1.0, position: frame as f32 * 0.02, delta_seconds: 0.02, weight: 1.0, ..default() });
-                upstream.skipped_cached_pose_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.3, ..default() });
+                upstream.relevant_asset =
+                    Some(crate::extensions::animation_context::SourceRelevantAsset {
+                        duration: 1.0,
+                        position: frame as f32 * 0.02,
+                        delta_seconds: 0.02,
+                        weight: 1.0,
+                        ..default()
+                    });
+                upstream.skipped_cached_pose_request = Some(
+                    crate::extensions::animation_context::SourceInertializationRequest {
+                        frame,
+                        duration: 0.3,
+                        ..default()
+                    },
+                );
                 let route = crate::extensions::animation_context::SourceCachedPoseRequestRoute {
-                    frame, caller: (context.context_id, node.id, bevy_animation_graph::core::context::node_states::StateKey::Default), forward: true,
+                    frame,
+                    caller: (
+                        context.context_id,
+                        node.id,
+                        bevy_animation_graph::core::context::node_states::StateKey::Default,
+                    ),
+                    forward: true,
                 };
                 upstream.cached_pose_request_route = Some(route);
-                upstream.asset_samples.push(crate::extensions::animation_context::SourceAssetSample { identity: "Footstep".into(),
-                    notify_instance_id: 42, clock: crate::extensions::animation_context::SourceRelevantAsset { weight: 1.0, position: frame as f32 * 0.02, ..default() }, ..default() });
-                upstream.inertialization_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.2, ..default() });
-                for (identity, role) in [(node.id, crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysLeader),
-                    (bevy_animation_graph::core::animation_graph::NodeId::default(), crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower)] {
-                    upstream.sync_players.push(crate::extensions::sync_group_phase::SourceSyncPlayerTick { identity: (context.context_id, identity),
-                        key: "Locomotion".into(), role, weight: 1.0, phase: frame as f32 * 0.02, ..default() });
+                upstream.asset_samples.push(
+                    crate::extensions::animation_context::SourceAssetSample {
+                        identity: "Footstep".into(),
+                        notify_instance_id: 42,
+                        clock: crate::extensions::animation_context::SourceRelevantAsset {
+                            weight: 1.0,
+                            position: frame as f32 * 0.02,
+                            ..default()
+                        },
+                        ..default()
+                    },
+                );
+                upstream.inertialization_request = Some(
+                    crate::extensions::animation_context::SourceInertializationRequest {
+                        frame,
+                        duration: 0.2,
+                        ..default()
+                    },
+                );
+                for (identity, role) in [
+                    (
+                        node.id,
+                        crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysLeader,
+                    ),
+                    (
+                        bevy_animation_graph::core::animation_graph::NodeId::default(),
+                        crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower,
+                    ),
+                ] {
+                    upstream.sync_players.push(
+                        crate::extensions::sync_group_phase::SourceSyncPlayerTick {
+                            identity: (context.context_id, identity),
+                            key: "Locomotion".into(),
+                            role,
+                            weight: 1.0,
+                            phase: frame as f32 * 0.02,
+                            ..default()
+                        },
+                    );
                 }
-                crate::extensions::animation_context::write_linked_input_context(&mut context, GraphInputPin::passthrough("source"), upstream).unwrap();
-                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)).unwrap();
-                let state = arena.get_toplevel().node_states.get::<ControlRigNodeState>(node.id,
-                    bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
-                assert_eq!(state.runtime.as_ref().unwrap().curves.get(&crate::extensions::SourceCurveName::from("RigInput")).copied(), if transfer { Some(0.75) } else { None });
-                assert_eq!(state.context.curves[&crate::extensions::SourceCurveName::from("RigInput")], 0.75);
+                crate::extensions::animation_context::write_linked_input_context(
+                    &mut context,
+                    GraphInputPin::passthrough("source"),
+                    upstream,
+                )
+                .unwrap();
+                source_inputs
+                    .evaluate(context.root_entity, || {
+                        graph.query_with_context(
+                            QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                            context,
+                        )
+                    })
+                    .unwrap();
+                let state = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<ControlRigNodeState>(
+                        node.id,
+                        bevy_animation_graph::core::context::node_states::StateKey::Default,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    state
+                        .runtime
+                        .as_ref()
+                        .unwrap()
+                        .curves
+                        .get(&crate::extensions::SourceCurveName::from("RigInput"))
+                        .copied(),
+                    if transfer { Some(0.75) } else { None }
+                );
+                assert_eq!(
+                    state.context.curves[&crate::extensions::SourceCurveName::from("RigInput")],
+                    0.75
+                );
                 assert_eq!(state.context.asset_samples.len(), 1);
                 assert_eq!(state.context.asset_samples[0].notify_instance_id, 42);
                 assert_eq!(state.context.sync_players.len(), 2);
                 assert_eq!(state.context.sync_players[0].phase, frame as f32 * 0.02);
-                assert_eq!(state.context.sync_players[1].role, crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower);
-                assert_eq!(state.context.inertialization_request.as_ref().unwrap().frame, frame);
-                assert_eq!(state.context.skipped_cached_pose_request.as_ref().unwrap().frame, frame);
-                assert_eq!(state.context.relevant_asset.as_ref().unwrap().position, frame as f32 * 0.02);
+                assert_eq!(
+                    state.context.sync_players[1].role,
+                    crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower
+                );
+                assert_eq!(
+                    state
+                        .context
+                        .inertialization_request
+                        .as_ref()
+                        .unwrap()
+                        .frame,
+                    frame
+                );
+                assert_eq!(
+                    state
+                        .context
+                        .skipped_cached_pose_request
+                        .as_ref()
+                        .unwrap()
+                        .frame,
+                    frame
+                );
+                assert_eq!(
+                    state.context.relevant_asset.as_ref().unwrap().position,
+                    frame as f32 * 0.02
+                );
                 assert_eq!(state.context.cached_pose_request_route, Some(route));
                 arena.next_frame();
             }
@@ -790,19 +1191,48 @@ mod tests {
         for capture_context in [false, true] {
             for transfer_input_curves in [false, true] {
                 let mut world = World::new();
-                world.insert_resource(Assets::<AnimationGraph>::default()); world.insert_resource(Assets::<GraphClip>::default());
-                world.insert_resource(Assets::<Skeleton>::default()); world.insert_resource(Assets::<StateMachine>::default());
-                let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
-                let mut definition = hot_swap_definition(); definition.curves.insert("RigInput".into(), None);
-                let rig = AnimationNode::new("Control Rig", ControlRigBoundaryNode { definition: Some(definition),
-                    transfer_input_pose: false, transfer_input_curves, capture_context, internalize_time: true, ..default() });
-                let source = AnimationNode::new("Source pose", crate::extensions::source_pose_passthrough::SourcePosePassthroughNode { output_time: false, ..default() });
-                let mut graph = AnimationGraph::new(); graph.add_node(source.clone()); graph.add_node(rig.clone());
-                graph.add_input_data_edge(GraphInputPin::passthrough("source"), source.id, "Source");
+                world.insert_resource(Assets::<AnimationGraph>::default());
+                world.insert_resource(Assets::<GraphClip>::default());
+                world.insert_resource(Assets::<Skeleton>::default());
+                world.insert_resource(Assets::<StateMachine>::default());
+                let skeleton = world
+                    .resource_mut::<Assets<Skeleton>>()
+                    .add(Skeleton::default());
+                let mut definition = hot_swap_definition();
+                definition.curves.insert("RigInput".into(), None);
+                let rig = AnimationNode::new(
+                    "Control Rig",
+                    ControlRigBoundaryNode {
+                        definition: Some(definition),
+                        transfer_input_pose: false,
+                        transfer_input_curves,
+                        capture_context,
+                        internalize_time: true,
+                        ..default()
+                    },
+                );
+                let source = AnimationNode::new(
+                    "Source pose",
+                    crate::extensions::source_pose_passthrough::SourcePosePassthroughNode {
+                        output_time: false,
+                        ..default()
+                    },
+                );
+                let mut graph = AnimationGraph::new();
+                graph.add_node(source.clone());
+                graph.add_node(rig.clone());
+                graph.add_input_data_edge(
+                    GraphInputPin::passthrough("source"),
+                    source.id,
+                    "Source",
+                );
                 graph.add_node_parameter_edge(source.id, "Pose", rig.id, "source_pose");
-                graph.add_output_data("Pose".into(), DataSpec::Pose); graph.add_output_data_edge(rig.id, "Pose", "Pose");
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(rig.id, "Pose", "Pose");
                 let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
-                world.run_system_once_with(query, (handle, skeleton)).unwrap();
+                world
+                    .run_system_once_with(query, (handle, skeleton))
+                    .unwrap();
             }
         }
     }
@@ -815,13 +1245,28 @@ mod tests {
         source.curves.insert("Explicit".into(), 0.25);
         source.curves.insert("Transferred".into(), 0.75);
         merge_upstream_pose_context(&mut context, Some(source));
-        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Explicit")), Some(&0.5));
-        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Transferred")), Some(&0.75));
+        assert_eq!(
+            context
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("Explicit")),
+            Some(&0.5)
+        );
+        assert_eq!(
+            context
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("Transferred")),
+            Some(&0.75)
+        );
 
         let mut ignored = AnimationContextState::default();
         ignored.curves.insert("Ignored".into(), 1.0);
         merge_upstream_pose_context(&mut context, Some(ignored));
-        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Ignored")), Some(&1.0));
+        assert_eq!(
+            context
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("Ignored")),
+            Some(&1.0)
+        );
     }
 
     #[test]
@@ -926,11 +1371,13 @@ mod tests {
                         &mut gizmos,
                         &inputs,
                     );
-                    let output = source_inputs.evaluate(context.root_entity, || graph
-                        .query_with_context(
-                            QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
-                            context,
-                        ))
+                    let output = source_inputs
+                        .evaluate(context.root_entity, || {
+                            graph.query_with_context(
+                                QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                                context,
+                            )
+                        })
                         .unwrap()
                         .remove("Pose")
                         .unwrap()
@@ -951,11 +1398,12 @@ mod tests {
                     assert!(state.traces.is_empty());
                     let mut value = definition.externals["RigInput"].clone();
                     value.path.push(3);
+                    assert_eq!(state.value(&value).unwrap(), RigValue::F32(forward));
                     assert_eq!(
-                        state.value(&value).unwrap(),
-                        RigValue::F32(forward)
+                        state.context.curves
+                            [&crate::extensions::SourceCurveName::from("PoseMoving")],
+                        1.0
                     );
-                    assert_eq!(state.context.curves[&crate::extensions::SourceCurveName::from("PoseMoving")], 1.0);
                     let foot_height = definition
                         .bones
                         .iter()
@@ -966,7 +1414,9 @@ mod tests {
                         .y;
                     assert_eq!(
                         state.value(&definition.externals["FootHeight"]).unwrap(),
-                        RigValue::Centimeters64(foot_height * (definition.geometry.meters_per_unit * 100.0))
+                        RigValue::Centimeters64(
+                            foot_height * (definition.geometry.meters_per_unit * 100.0)
+                        )
                     );
                     let amount = if instance == 0 { 0.4 } else { 0.2 };
                     let scale = scale.unwrap_or(1.5);
@@ -1016,8 +1466,13 @@ mod tests {
                     &mut gizmos,
                     &inputs,
                 );
-                let error = source_inputs.evaluate(context.root_entity, || graph
-                    .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context))
+                let error = source_inputs
+                    .evaluate(context.root_entity, || {
+                        graph.query_with_context(
+                            QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                            context,
+                        )
+                    })
                     .unwrap_err();
                 let GraphError::UnknownErrorNode { node, error, .. } = error else {
                     panic!("rig failure lost its node identity")
@@ -1032,26 +1487,53 @@ mod tests {
                 }
             }
             let query_root = Entity::from_raw_u32(812907).unwrap();
-            source_inputs.set_rig_query_context(
-                Some(crate::extensions::control_rig_query::RigQueryContext {
-                    world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld::default()),
+            source_inputs.set_rig_query_context(Some(
+                crate::extensions::control_rig_query::RigQueryContext {
+                    world: std::sync::Arc::new(
+                        crate::extensions::control_rig_query::RigQueryWorld::default(),
+                    ),
                     to_world: default(),
                     channel: "ECC_Visibility".into(),
                     filter: default(),
-                }),
-            );
+                },
+            ));
             let mut inputs = inputs.clone();
             inputs.insert("rig.foot_valid".into(), DataValue::Bool(true));
             let mut outcomes = Vec::new();
             for capture in [true, false] {
                 inputs.insert(RIG_CAPTURE_KEY.into(), DataValue::Bool(capture));
                 let mut arena = GraphContextArena::new(handle.id());
-                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
-                    &resources, &env, query_root, &entities, &mut gizmos, &inputs);
-                let output = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context))
-                    .unwrap().remove("Pose").unwrap().into_pose().unwrap();
-                let captured = arena.get_toplevel().node_states.get::<ControlRigNodeState>(rig_node.id,
-                    bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    query_root,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
+                let output = source_inputs
+                    .evaluate(context.root_entity, || {
+                        graph.query_with_context(
+                            QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                            context,
+                        )
+                    })
+                    .unwrap()
+                    .remove("Pose")
+                    .unwrap()
+                    .into_pose()
+                    .unwrap();
+                let captured = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<ControlRigNodeState>(
+                        rig_node.id,
+                        bevy_animation_graph::core::context::node_states::StateKey::Default,
+                    )
+                    .unwrap();
                 assert_eq!(captured.traces.len(), usize::from(capture));
                 assert_eq!(captured.elapsed_seconds > 0.0, capture);
                 if capture {
@@ -1059,24 +1541,75 @@ mod tests {
                     assert!(trace.hit.is_none());
                     assert_eq!(trace.start.y, 0.5);
                     assert_eq!(trace.end.y, -0.8);
-                    let call = captured.calls.iter().find(|call| call.instruction == trace.instruction).unwrap();
+                    let call = captured
+                        .calls
+                        .iter()
+                        .find(|call| call.instruction == trace.instruction)
+                        .unwrap();
                     assert_eq!(call.arguments[6], RigValue::Bool(true));
-                    let branches = captured.calls.iter().filter_map(|call| {
-                        let crate::extensions::control_rig_program::RigInstruction::Call { function, .. } = &definition.program.instructions[call.instruction] else { return None; };
-                        (function == "FAlsRigVMFunction_IsGameWorld::Execute").then(|| call.arguments[0].clone())
-                    }).collect::<Vec<_>>();
-                    assert_eq!(branches, vec![RigValue::Name("True".into()), RigValue::Name("Completed".into())]);
-                    assert!(captured.calls.iter().flat_map(|call| &call.bones_before).any(|(index, before)| {
-                        captured.snapshot_hierarchy().unwrap().transform(*index, RigSpace::Global, false).unwrap() != *before
-                    }));
+                    let branches = captured
+                        .calls
+                        .iter()
+                        .filter_map(|call| {
+                            let crate::extensions::control_rig_program::RigInstruction::Call {
+                                function,
+                                ..
+                            } = &definition.program.instructions[call.instruction]
+                            else {
+                                return None;
+                            };
+                            (function == "FAlsRigVMFunction_IsGameWorld::Execute")
+                                .then(|| call.arguments[0].clone())
+                        })
+                        .collect::<Vec<_>>();
+                    assert_eq!(
+                        branches,
+                        vec![
+                            RigValue::Name("True".into()),
+                            RigValue::Name("Completed".into())
+                        ]
+                    );
+                    assert!(
+                        captured
+                            .calls
+                            .iter()
+                            .flat_map(|call| &call.bones_before)
+                            .any(|(index, before)| {
+                                captured
+                                    .snapshot_hierarchy()
+                                    .unwrap()
+                                    .transform(*index, RigSpace::Global, false)
+                                    .unwrap()
+                                    != *before
+                            })
+                    );
                 } else {
                     assert!(captured.calls.is_empty());
                 }
-                outcomes.push((captured.runtime.as_ref().unwrap().values.clone(), format!("{:?}", captured.runtime.as_ref().unwrap().hierarchy), output.paths.clone(),
-                    output.bones.iter().map(|bone| (bone.translation, bone.rotation, bone.scale, bone.weights.clone())).collect::<Vec<_>>(),
-                    output.timestamp, output.root_motion));
+                outcomes.push((
+                    captured.runtime.as_ref().unwrap().values.clone(),
+                    format!("{:?}", captured.runtime.as_ref().unwrap().hierarchy),
+                    output.paths.clone(),
+                    output
+                        .bones
+                        .iter()
+                        .map(|bone| {
+                            (
+                                bone.translation,
+                                bone.rotation,
+                                bone.scale,
+                                bone.weights.clone(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    output.timestamp,
+                    output.root_motion,
+                ));
             }
-            assert!(outcomes[0] == outcomes[1], "capture changed rig values, hierarchy caches, or output pose");
+            assert!(
+                outcomes[0] == outcomes[1],
+                "capture changed rig values, hierarchy caches, or output pose"
+            );
             source_inputs.set_rig_query_context(None);
             assert!(source_inputs.rig_query_context().is_none());
             outputs
@@ -1150,10 +1683,12 @@ mod tests {
         let writer = AnimationNode::new(
             "late input write",
             crate::extensions::source_instance::SourcePropertyWriteNode {
-                assignments: vec![crate::extensions::source_instance::SourcePropertyAssignment {
-                    property: "rig.forward".into(),
-                    value: DataValue::F32(0.9),
-                }],
+                assignments: vec![
+                    crate::extensions::source_instance::SourcePropertyAssignment {
+                        property: "rig.forward".into(),
+                        value: DataValue::F32(0.9),
+                    },
+                ],
                 ..default()
             },
         );
@@ -1243,11 +1778,23 @@ mod tests {
         registry.register::<ControlRigBoundaryNode>();
         let encoded = ron::ser::to_string(&ReflectSerializer::new(&node, &registry)).unwrap();
         let graph: bevy_animation_graph::core::animation_graph::serial::AnimationGraphDeserializer =
-            ron::from_str(include_str!("../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron")).unwrap();
-        let generated = graph.nodes.iter().find(|node| node.inner.get_ron().contains("als_ext::ControlRigBoundaryNode")).unwrap();
+            ron::from_str(include_str!(
+                "../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron"
+            ))
+            .unwrap();
+        let generated = graph
+            .nodes
+            .iter()
+            .find(|node| {
+                node.inner
+                    .get_ron()
+                    .contains("als_ext::ControlRigBoundaryNode")
+            })
+            .unwrap();
         let centimeters: RigDefinition = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d232e/rig.centimeters.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let cases = [
             (encoded.as_str(), node.definition.as_ref().unwrap()),
             (generated.inner.get_ron(), &centimeters),
@@ -1257,17 +1804,28 @@ mod tests {
             let reflected = ReflectDeserializer::new(&registry)
                 .deserialize(&mut deserializer)
                 .unwrap_or_else(|error| panic!("{}", deserializer.span_error(error)));
-            let decoded = ControlRigBoundaryNode::from_reflect(reflected.as_partial_reflect()).unwrap();
-            let actual = decoded.definition.expect("generated rig definition is missing");
+            let decoded =
+                ControlRigBoundaryNode::from_reflect(reflected.as_partial_reflect()).unwrap();
+            let actual = decoded
+                .definition
+                .expect("generated rig definition is missing");
             assert_eq!(actual.bones.len(), expected.bones.len());
             for (actual, expected) in actual.bones.iter().zip(&expected.bones) {
-                assert_eq!(serde_json::to_value(actual).unwrap(), serde_json::to_value(expected).unwrap(), "source {source}, bone {}", actual.name);
+                assert_eq!(
+                    serde_json::to_value(actual).unwrap(),
+                    serde_json::to_value(expected).unwrap(),
+                    "source {source}, bone {}",
+                    actual.name
+                );
             }
             assert_eq!(actual.program, expected.program);
             assert_eq!(actual.externals, expected.externals);
             assert_eq!(actual.curves, expected.curves);
             assert_eq!(actual.translation_tolerance, expected.translation_tolerance);
-            assert_eq!(serde_json::to_value(actual.geometry).unwrap(), serde_json::to_value(&expected.geometry).unwrap());
+            assert_eq!(
+                serde_json::to_value(actual.geometry).unwrap(),
+                serde_json::to_value(&expected.geometry).unwrap()
+            );
         }
     }
 }

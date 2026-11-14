@@ -2,22 +2,26 @@ use std::sync::LazyLock;
 
 mod canvas;
 
-use crate::als_camera::{AlsCameraMode, AlsCameraRig};
 use crate::als::character::AlsCharacter;
 use crate::als::gait::AlsDesiredGait;
 use crate::als::input::AlsInputCommand;
 use crate::als::mantle::AlsMantleState;
 use crate::als::motion::AlsInputOverride;
 use crate::als::roll::AlsRollState;
-use crate::als::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use crate::als::state::{
+    AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance,
+};
 #[cfg(test)]
 use crate::als::transition::AlsStateRequest;
+use crate::als_camera::{AlsCameraMode, AlsCameraRig};
+use crate::{
+    animation_context_projection::AlsRootAnimationContext,
+    camera_component::AlsSourceCameraComponent,
+    character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar},
+};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use crate::{animation_context_projection::AlsRootAnimationContext,
-    camera_component::AlsSourceCameraComponent,
-    character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar}};
 
 include!("../../../../assets/ALS/Character/als_debug_canvas.runtime.rs");
 const BODY_FONT_PX: f32 = HEADER_FONT_PX * 0.75;
@@ -72,7 +76,9 @@ impl DebugCategory {
     }
 }
 
-#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Resource, Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize,
+)]
 #[serde(default)]
 pub struct AlsShowDebugHudState {
     #[serde(skip)]
@@ -342,10 +348,17 @@ impl CharacterSnapshot {
         let has_input = motion.is_some_and(|motion| motion.has_input);
         let input_yaw_angle = motion.map(|motion| motion.input_yaw_degrees);
         let horizontal_speed = motion.map(|motion| motion.horizontal_speed);
-        let has_velocity = motion.is_some_and(|motion| crate::als::motion::locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0);
-        let velocity_direction = motion.map(|motion| if motion.world_velocity.length_squared() < 1e-12 {
-            Vec3::ZERO
-        } else { motion.world_velocity.normalize_or_zero() });
+        let has_velocity = motion.is_some_and(|motion| {
+            crate::als::motion::locomotion_movement_flags(motion.has_input, motion.horizontal_speed)
+                .0
+        });
+        let velocity_direction = motion.map(|motion| {
+            if motion.world_velocity.length_squared() < 1e-12 {
+                Vec3::ZERO
+            } else {
+                motion.world_velocity.normalize_or_zero()
+            }
+        });
         let velocity_yaw_angle = motion.map(|motion| motion.velocity_yaw_degrees);
         Self {
             first_person,
@@ -398,23 +411,35 @@ fn locomotion_mode_tag(locomotion_state: LocomotionState) -> &'static str {
     locomotion_state.as_str().rsplit('.').next().unwrap_or("")
 }
 
-fn rotation_mode_tag(mode: RotationMode) -> &'static str { mode.leaf_name() }
+fn rotation_mode_tag(mode: RotationMode) -> &'static str {
+    mode.leaf_name()
+}
 
-fn stance_tag(stance: Stance) -> &'static str { stance.leaf_name() }
+fn stance_tag(stance: Stance) -> &'static str {
+    stance.leaf_name()
+}
 
-fn gait_tag(gait: Gait) -> &'static str { gait.leaf_name() }
+fn gait_tag(gait: Gait) -> &'static str {
+    gait.leaf_name()
+}
 
-fn overlay_tag(overlay: OverlayState) -> &'static str { overlay.leaf_name() }
+fn overlay_tag(overlay: OverlayState) -> &'static str {
+    overlay.leaf_name()
+}
 
-fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str { snapshot.locomotion_action.leaf_name() }
+fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str {
+    snapshot.locomotion_action.leaf_name()
+}
 
-pub fn build_state_body(
-    snapshot: &CharacterSnapshot,
-) -> Vec<DebugRow> {
+pub fn build_state_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
     vec![
         DebugRow::pair(
             name_to_display_string("ViewMode", false),
-            tag_value(if snapshot.first_person { "FirstPerson" } else { "ThirdPerson" }),
+            tag_value(if snapshot.first_person {
+                "FirstPerson"
+            } else {
+                "ThirdPerson"
+            }),
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -484,7 +509,13 @@ pub fn build_state_body(
 pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
     let rotation_value = snapshot
         .view_rotation_deg
-        .map(|(roll, pitch, yaw)| format!("R: {:.2}P: {pitch:.2}Y: {:.2}", if roll == 0.0 { 0.0 } else { -roll }, source_heading(yaw)))
+        .map(|(roll, pitch, yaw)| {
+            format!(
+                "R: {:.2}P: {pitch:.2}Y: {:.2}",
+                if roll == 0.0 { 0.0 } else { -roll },
+                source_heading(yaw)
+            )
+        })
         .unwrap_or_else(|| NA_VALUE.into());
     let input_color = if snapshot.has_input {
         orange()
@@ -542,7 +573,10 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
         ),
         DebugRow::pair(
             name_to_display_string("SmoothTargetYawAngle", false),
-            snapshot.smooth_target_yaw_angle.map(|value| format!("{:.2}", source_heading(value))).unwrap_or_else(|| NA_VALUE.into()),
+            snapshot
+                .smooth_target_yaw_angle
+                .map(|value| format!("{:.2}", source_heading(value)))
+                .unwrap_or_else(|| NA_VALUE.into()),
             cyan(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -650,8 +684,21 @@ fn source_heading(value: f32) -> f32 {
     crate::als::turn_in_place::wrap_angle_degrees(-90.0 - value)
 }
 
-fn append_section(column: &mut DebugColumn, y: &mut f32, category: DebugCategory, active: bool, rows: Vec<DebugRow>) {
-    let mut header = DebugRow::header_row(category.header(), if active { header_active_color() } else { header_inactive_color() });
+fn append_section(
+    column: &mut DebugColumn,
+    y: &mut f32,
+    category: DebugCategory,
+    active: bool,
+    rows: Vec<DebugRow>,
+) {
+    let mut header = DebugRow::header_row(
+        category.header(),
+        if active {
+            header_active_color()
+        } else {
+            header_inactive_color()
+        },
+    );
     header.y = *y;
     column.push(header);
     *y += 15.0;
@@ -671,22 +718,53 @@ pub fn layout_character_block(
     snapshot: &CharacterSnapshot,
     curves_rows: &[DebugRow],
 ) -> DebugBlock {
-    let mut columns = vec![vec![DebugRow::header_row(HEADER_DEBUG_MODE, header_active_color())]];
-    if ![DebugCategory::Curves, DebugCategory::State, DebugCategory::Shapes, DebugCategory::Traces, DebugCategory::Mantling]
-        .into_iter().any(|category| state.is_active(category)) { return columns; }
+    let mut columns = vec![vec![DebugRow::header_row(
+        HEADER_DEBUG_MODE,
+        header_active_color(),
+    )]];
+    if ![
+        DebugCategory::Curves,
+        DebugCategory::State,
+        DebugCategory::Shapes,
+        DebugCategory::Traces,
+        DebugCategory::Mantling,
+    ]
+    .into_iter()
+    .any(|category| state.is_active(category))
+    {
+        return columns;
+    }
     let mut y = 27.0;
     let curves_active = state.is_active(DebugCategory::Curves);
-    append_section(&mut columns[0], &mut y, DebugCategory::Curves, curves_active, curves_rows.to_vec());
-    if curves_active { columns.push(Vec::new()); y = 27.0; }
-    for category in [DebugCategory::State, DebugCategory::Shapes, DebugCategory::Traces, DebugCategory::Mantling] {
+    append_section(
+        &mut columns[0],
+        &mut y,
+        DebugCategory::Curves,
+        curves_active,
+        curves_rows.to_vec(),
+    );
+    if curves_active {
+        columns.push(Vec::new());
+        y = 27.0;
+    }
+    for category in [
+        DebugCategory::State,
+        DebugCategory::Shapes,
+        DebugCategory::Traces,
+        DebugCategory::Mantling,
+    ] {
         let active = state.is_active(category);
-        let rows = if active { match category {
-            DebugCategory::State => build_state_body(snapshot),
-            DebugCategory::Shapes => build_shapes_body(snapshot),
-            DebugCategory::Traces => build_traces_body(),
-            DebugCategory::Mantling => build_mantling_body(),
-            _ => Vec::new(),
-        }} else { Vec::new() };
+        let rows = if active {
+            match category {
+                DebugCategory::State => build_state_body(snapshot),
+                DebugCategory::Shapes => build_shapes_body(snapshot),
+                DebugCategory::Traces => build_traces_body(),
+                DebugCategory::Mantling => build_mantling_body(),
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
         append_section(columns.last_mut().unwrap(), &mut y, category, active, rows);
     }
     columns
@@ -697,27 +775,61 @@ pub fn layout_camera_block(
     camera: &CameraSnapshot,
     camera_curves_rows: &[DebugRow],
 ) -> DebugBlock {
-    if camera.rig_mode.is_none() || ![DebugCategory::CameraCurves, DebugCategory::CameraShapes, DebugCategory::CameraTraces]
-        .into_iter().any(|category| state.is_active(category)) { return Vec::new(); }
+    if camera.rig_mode.is_none()
+        || ![
+            DebugCategory::CameraCurves,
+            DebugCategory::CameraShapes,
+            DebugCategory::CameraTraces,
+        ]
+        .into_iter()
+        .any(|category| state.is_active(category))
+    {
+        return Vec::new();
+    }
     let mut columns = vec![Vec::new()];
     let mut y = 0.0;
     let curves_active = state.is_active(DebugCategory::CameraCurves);
-    append_section(&mut columns[0], &mut y, DebugCategory::CameraCurves, curves_active, camera_curves_rows.to_vec());
-    if curves_active { columns.push(Vec::new()); y = 0.0; }
+    append_section(
+        &mut columns[0],
+        &mut y,
+        DebugCategory::CameraCurves,
+        curves_active,
+        camera_curves_rows.to_vec(),
+    );
+    if curves_active {
+        columns.push(Vec::new());
+        y = 0.0;
+    }
     for category in [DebugCategory::CameraShapes, DebugCategory::CameraTraces] {
         let active = state.is_active(category);
-        let rows = if active { match category {
-            DebugCategory::CameraShapes => build_camera_shapes_body(camera),
-            DebugCategory::CameraTraces => build_camera_traces_body(),
-            _ => Vec::new(),
-        }} else { Vec::new() };
+        let rows = if active {
+            match category {
+                DebugCategory::CameraShapes => build_camera_shapes_body(camera),
+                DebugCategory::CameraTraces => build_camera_traces_body(),
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
         append_section(columns.last_mut().unwrap(), &mut y, category, active, rows);
     }
     columns
 }
 
 fn block_height(block: &DebugBlock) -> f32 {
-    block.iter().filter_map(|column| column.last()).map(|row| row.y + (if row.font_px == HEADER_FONT_PX { 15.0 } else { 12.0 }) + 12.0).fold(0.0, f32::max)
+    block
+        .iter()
+        .filter_map(|column| column.last())
+        .map(|row| {
+            row.y
+                + (if row.font_px == HEADER_FONT_PX {
+                    15.0
+                } else {
+                    12.0
+                })
+                + 12.0
+        })
+        .fold(0.0, f32::max)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -730,7 +842,8 @@ struct CanvasMetrics {
 impl CanvasMetrics {
     fn new(physical_size: Vec2, dpi: f32, ui_scale: f32) -> Self {
         Self {
-            als_scale: (physical_size.x / (1280.0 * dpi)).min(physical_size.y / (720.0 * dpi)) / ui_scale,
+            als_scale: (physical_size.x / (1280.0 * dpi)).min(physical_size.y / (720.0 * dpi))
+                / ui_scale,
             canvas_to_ui: 1.0 / ui_scale,
             host_scale: (physical_size.x / (1920.0 * dpi)).max(1.0) / ui_scale,
         }
@@ -755,15 +868,20 @@ pub struct AlsShowDebugHudPlugin;
 
 impl Plugin for AlsShowDebugHudPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() { app.add_plugins(crate::debug_target::AlsDebugTargetPlugin); }
+        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() {
+            app.add_plugins(crate::debug_target::AlsDebugTargetPlugin);
+        }
         app.init_resource::<AlsShowDebugHudState>()
             .init_resource::<canvas::ColumnNavigation>()
             .configure_sets(
                 PostUpdate,
-                AlsShowDebugHudSet::Sync.after(crate::animation_context_projection::AlsRootAnimationContextSet)
-                    .after(bevy::text::load_font_assets_into_font_collection).before(bevy::text::detect_text_needs_rerender)
+                AlsShowDebugHudSet::Sync
+                    .after(crate::animation_context_projection::AlsRootAnimationContextSet)
+                    .after(bevy::text::load_font_assets_into_font_collection)
+                    .before(bevy::text::detect_text_needs_rerender)
                     .after(crate::actual_motion::AlsActualMotionSet)
-                    .after(crate::als_camera::AlsCameraSet).after(crate::als::motion::AlsRotationResponseSet)
+                    .after(crate::als_camera::AlsCameraSet)
+                    .after(crate::als::motion::AlsRotationResponseSet)
                     .before(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate)
                     .before(bevy::ui::UiSystems::Stack)
                     .before(bevy::ui::UiSystems::Prepare),
@@ -774,21 +892,35 @@ impl Plugin for AlsShowDebugHudPlugin {
     }
 }
 
-fn load_debug_categories(file: Option<Res<AlsShowDebugSettingsFile>>, mut state: ResMut<AlsShowDebugHudState>) {
-    let Some(file) = file else { return; };
+fn load_debug_categories(
+    file: Option<Res<AlsShowDebugSettingsFile>>,
+    mut state: ResMut<AlsShowDebugHudState>,
+) {
+    let Some(file) = file else {
+        return;
+    };
     match std::fs::read_to_string(&file.0) {
         Ok(text) => match ron::from_str(&text) {
             Ok(saved) => *state = saved,
             Err(error) => warn!("Debug category settings could not be parsed: {error}"),
         },
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => warn!("Debug category settings could not be read: {error}"),
     }
 }
 
-fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDebugHudState>, mut columns: ResMut<canvas::ColumnNavigation>, file: Option<Res<AlsShowDebugSettingsFile>>) {
-    if keys.just_pressed(KeyCode::ShiftRight) { columns.selected = (columns.selected + 1).min(columns.max_columns); }
-    if keys.just_pressed(KeyCode::ShiftLeft) { columns.selected = columns.selected.saturating_sub(1); }
+fn keyboard_system(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut state: ResMut<AlsShowDebugHudState>,
+    mut columns: ResMut<canvas::ColumnNavigation>,
+    file: Option<Res<AlsShowDebugSettingsFile>>,
+) {
+    if keys.just_pressed(KeyCode::ShiftRight) {
+        columns.selected = (columns.selected + 1).min(columns.max_columns);
+    }
+    if keys.just_pressed(KeyCode::ShiftLeft) {
+        columns.selected = columns.selected.saturating_sub(1);
+    }
     let shift_held = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
     for code in [
         KeyCode::Digit0,
@@ -801,8 +933,10 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
         KeyCode::Digit7,
         KeyCode::Digit8,
     ] {
-        if keys.just_pressed(code) && apply_show_debug_key(&mut state, shift_held, code)
-            && code != KeyCode::Digit0 && let Some(file) = file.as_ref()
+        if keys.just_pressed(code)
+            && apply_show_debug_key(&mut state, shift_held, code)
+            && code != KeyCode::Digit0
+            && let Some(file) = file.as_ref()
         {
             let save = || -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(parent) = file.0.parent().filter(|path| !path.as_os_str().is_empty()) {
@@ -811,7 +945,9 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
                 std::fs::write(&file.0, ron::to_string(&*state)?)?;
                 Ok(())
             };
-            if let Err(error) = save() { warn!("Debug category settings could not be saved: {error}"); }
+            if let Err(error) = save() {
+                warn!("Debug category settings could not be saved: {error}");
+            }
         }
     }
 }
@@ -822,12 +958,26 @@ fn build_camera_snapshot(
     context: Option<&AlsRootAnimationContext>,
 ) -> CameraSnapshot {
     let debug_info = debug_info.filter(|info| info.valid);
-    static MAPPINGS: LazyLock<std::collections::HashMap<crate::extensions::SourceCurveName, (String, f32)>> = LazyLock::new(||
-        serde_json::from_str(include_str!("../../../../assets/ALSCamera/als_camera_curves.runtime.json")).expect("Camera display mappings are valid"));
-    let mut camera_curves: Vec<_> = context.into_iter().flat_map(|context| &context.curves).map(|(name, value)| {
-        let (name, value) = MAPPINGS.get(name).map_or((name.to_string(), *value), |(source, scale)| (source.clone(), value * scale));
-        (name, if value == 0.0 { 0.0 } else { value })
-    }).collect();
+    static MAPPINGS: LazyLock<
+        std::collections::HashMap<crate::extensions::SourceCurveName, (String, f32)>,
+    > = LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../../../../assets/ALSCamera/als_camera_curves.runtime.json"
+        ))
+        .expect("Camera display mappings are valid")
+    });
+    let mut camera_curves: Vec<_> = context
+        .into_iter()
+        .flat_map(|context| &context.curves)
+        .map(|(name, value)| {
+            let (name, value) = MAPPINGS
+                .get(name)
+                .map_or((name.to_string(), *value), |(source, scale)| {
+                    (source.clone(), value * scale)
+                });
+            (name, if value == 0.0 { 0.0 } else { value })
+        })
+        .collect();
     camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
     CameraSnapshot {
         rig_mode: rig.map(|rig| rig.mode),
@@ -862,26 +1012,67 @@ fn hud_sync_system(
             Option<&'static AlsMantleState>,
             Option<&'static AlsNotifyLocomotionAction>,
         ),
-        (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>),
+        (
+            With<AlsCharacter>,
+            With<crate::debug_target::AlsDebugTarget>,
+        ),
     >,
     assemblies: Query<&AlsCharacterAssembly>,
-    views: Query<(&crate::als_camera::AlsCameraViewSource, &crate::als_camera::AlsCharacterCamera)>,
-    camera_components: Query<(&AlsSourceCameraComponent, &crate::als_camera::AlsCharacterCamera, &AlsCameraRig, &crate::als_camera::AlsCameraDebugInfo, Option<&AnimatedSceneInstance>)>,
+    views: Query<(
+        &crate::als_camera::AlsCameraViewSource,
+        &crate::als_camera::AlsCharacterCamera,
+    )>,
+    camera_components: Query<(
+        &AlsSourceCameraComponent,
+        &crate::als_camera::AlsCharacterCamera,
+        &AlsCameraRig,
+        &crate::als_camera::AlsCameraDebugInfo,
+        Option<&AnimatedSceneInstance>,
+    )>,
     q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
-    details: Query<(Option<&crate::als::motion::AlsRotationResponseState>, Option<&crate::als::motion::AlsViewYaw>, Option<&crate::als::view::AlsViewPitch>,
-        Option<&crate::als::aim::AlsLastFreeRotationMode>, Option<&crate::als::transition::AlsDesiredStance>, Has<crate::als::input_request::AlsFirstPersonView>)>,
+    details: Query<(
+        Option<&crate::als::motion::AlsRotationResponseState>,
+        Option<&crate::als::motion::AlsViewYaw>,
+        Option<&crate::als::view::AlsViewPitch>,
+        Option<&crate::als::aim::AlsLastFreeRotationMode>,
+        Option<&crate::als::transition::AlsDesiredStance>,
+        Has<crate::als::input_request::AlsFirstPersonView>,
+    )>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     ui_scale: Option<Res<UiScale>>,
-    entities: Query<(Option<&Name>, Option<&GlobalTransform>, Option<&ChildOf>, Has<crate::als::input::OnFoot>)>,
+    entities: Query<(
+        Option<&Name>,
+        Option<&GlobalTransform>,
+        Option<&ChildOf>,
+        Has<crate::als::input::OnFoot>,
+    )>,
     mut text_measure: canvas::TextMeasure,
     mut navigation: ResMut<canvas::ColumnNavigation>,
 ) {
     let character_item = q_character.single().ok();
-    let metrics = windows.single().ok().map(|window| CanvasMetrics::new(
-        Vec2::new(window.physical_width() as f32, window.physical_height() as f32), window.scale_factor(),
-        ui_scale.as_ref().map_or(1.0, |scale| scale.0))).unwrap_or_else(|| CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0));
-    let clip_y = windows.single().ok().map(|window| window.physical_height() as f32 / (window.scale_factor() * ui_scale.as_ref().map_or(1.0, |scale| scale.0))).unwrap_or(720.0);
+    let metrics = windows
+        .single()
+        .ok()
+        .map(|window| {
+            CanvasMetrics::new(
+                Vec2::new(
+                    window.physical_width() as f32,
+                    window.physical_height() as f32,
+                ),
+                window.scale_factor(),
+                ui_scale.as_ref().map_or(1.0, |scale| scale.0),
+            )
+        })
+        .unwrap_or_else(|| CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0));
+    let clip_y = windows
+        .single()
+        .ok()
+        .map(|window| {
+            window.physical_height() as f32
+                / (window.scale_factor() * ui_scale.as_ref().map_or(1.0, |scale| scale.0))
+        })
+        .unwrap_or(720.0);
     let target = if state.visible && character_item.is_some() {
         let item = character_item.unwrap();
         let (
@@ -900,8 +1091,12 @@ fn hud_sync_system(
             action,
         ) = item;
 
-        let aiming = input_override.map(|o| &o.0).or(input).is_some_and(|input| input.aim_held);
-        let (response, yaw, pitch, desired_rotation, desired_stance, first_person) = details.get(character).unwrap();
+        let aiming = input_override
+            .map(|o| &o.0)
+            .or(input)
+            .is_some_and(|input| input.aim_held);
+        let (response, yaw, pitch, desired_rotation, desired_stance, first_person) =
+            details.get(character).unwrap();
         let mut snapshot = CharacterSnapshot::from_components(
             *locomotion_state,
             *rotation_mode,
@@ -915,22 +1110,40 @@ fn hud_sync_system(
             actual_motion,
             aiming,
             action.copied().unwrap_or_else(|| {
-                if mantle.is_some_and(|m| m.active) { AlsNotifyLocomotionAction::Mantling }
-                else if roll.is_some_and(|r| r.active) { AlsNotifyLocomotionAction::Rolling }
-                else { AlsNotifyLocomotionAction::None }
+                if mantle.is_some_and(|m| m.active) {
+                    AlsNotifyLocomotionAction::Mantling
+                } else if roll.is_some_and(|r| r.active) {
+                    AlsNotifyLocomotionAction::Rolling
+                } else {
+                    AlsNotifyLocomotionAction::None
+                }
             }),
         );
 
-        snapshot.smooth_target_yaw_angle = response.map(|response| response.smooth_target_yaw.to_degrees());
-        snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
+        snapshot.smooth_target_yaw_angle =
+            response.map(|response| response.smooth_target_yaw.to_degrees());
+        snapshot.view_rotation_deg = yaw
+            .zip(pitch)
+            .map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
         let assembly = assemblies.get(character).ok();
-        let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| views.get(entity).ok())
+        let camera = assembly
+            .and_then(|assembly| assembly.camera)
+            .and_then(|entity| views.get(entity).ok())
             .filter(|(_, owner)| owner.character == character)
             .and_then(|(source, _)| camera_components.get(source.0).ok())
-            .filter(|(component, owner, _, _, _)| component.is_active() && owner.character == character);
-        let camera_context = camera.and_then(|(_, _, _, _, instance)| instance).and_then(|instance| q_players.get(instance.player_entity()).ok());
-        let camera_snapshot = build_camera_snapshot(camera.map(|(_, _, rig, _, _)| rig), camera.map(|(_, _, _, info, _)| info), camera_context);
-        let context = assembly.and_then(|assembly| q_instances.get(assembly.avatar).ok())
+            .filter(|(component, owner, _, _, _)| {
+                component.is_active() && owner.character == character
+            });
+        let camera_context = camera
+            .and_then(|(_, _, _, _, instance)| instance)
+            .and_then(|instance| q_players.get(instance.player_entity()).ok());
+        let camera_snapshot = build_camera_snapshot(
+            camera.map(|(_, _, rig, _, _)| rig),
+            camera.map(|(_, _, _, info, _)| info),
+            camera_context,
+        );
+        let context = assembly
+            .and_then(|assembly| q_instances.get(assembly.avatar).ok())
             .filter(|(owner, _)| owner.character == character)
             .and_then(|(_, instance)| q_players.get(instance.player_entity()).ok());
         let character_curve_rows = evaluated_character_curve_rows(context);
@@ -952,10 +1165,23 @@ fn hud_sync_system(
             layout_character_block(&state, &snapshot, &character_curve_rows),
         ];
         let (name, transform, parent, on_foot) = entities.get(character).unwrap();
-        let name = name.map(|name| name.to_string()).unwrap_or_else(|| format!("AlsCharacter {character}"));
-        let parent = parent.map(|parent| entities.get(parent.parent()).ok().and_then(|(name, _, _, _)| name)
-            .map(|name| name.to_string()).unwrap_or_else(|| parent.parent().to_string())).unwrap_or_else(|| "None".into());
-        let mut diagnostics = vec![(format!("ENTITY {name} [{character}]"), linear(1.0, 0.0, 0.0))];
+        let name = name
+            .map(|name| name.to_string())
+            .unwrap_or_else(|| format!("AlsCharacter {character}"));
+        let parent = parent
+            .map(|parent| {
+                entities
+                    .get(parent.parent())
+                    .ok()
+                    .and_then(|(name, _, _, _)| name)
+                    .map(|name| name.to_string())
+                    .unwrap_or_else(|| parent.parent().to_string())
+            })
+            .unwrap_or_else(|| "None".into());
+        let mut diagnostics = vec![(
+            format!("ENTITY {name} [{character}]"),
+            linear(1.0, 0.0, 0.0),
+        )];
         if let Some(transform) = transform {
             let position = transform.translation();
             let rotation = transform.rotation();
@@ -964,21 +1190,60 @@ fn hud_sync_system(
             diagnostics.push((format!("Location (cm): X={:.2} Y={:.2} Z={:.2} Rotation (deg): P={:.2} Y={:.2} R={:.2}",
                 position.x * 100.0, position.z * 100.0, position.y * 100.0, -pitch.to_degrees(), yaw.to_degrees(), -roll.to_degrees()), white()));
         }
-        diagnostics.push((format!("Owner: {parent} Instigator: {name} [{character}]"), white()));
-        diagnostics.push((format!("INPUT CONTEXT {}", if on_foot { "OnFoot" } else { "None" }), linear(1.0, 0.0, 0.0)));
-        diagnostics.push((format!("STATE {}", if on_foot { "Active" } else { "No input context" }), linear(1.0, 1.0, 0.0)));
+        diagnostics.push((
+            format!("Owner: {parent} Instigator: {name} [{character}]"),
+            white(),
+        ));
+        diagnostics.push((
+            format!("INPUT CONTEXT {}", if on_foot { "OnFoot" } else { "None" }),
+            linear(1.0, 0.0, 0.0),
+        ));
+        diagnostics.push((
+            format!(
+                "STATE {}",
+                if on_foot {
+                    "Active"
+                } else {
+                    "No input context"
+                }
+            ),
+            linear(1.0, 1.0, 0.0),
+        ));
         let body_height = blocks.iter().map(block_height).sum::<f32>() * metrics.als_scale;
-        let host = canvas::host_layout(metrics, clip_y, &name, body_height, &diagnostics, &mut navigation, &mut text_measure);
+        let host = canvas::host_layout(
+            metrics,
+            clip_y,
+            &name,
+            body_height,
+            &diagnostics,
+            &mut navigation,
+            &mut text_measure,
+        );
         HudCache::Shown(blocks, metrics, host)
     } else if state.visible {
-        HudCache::Shown(Vec::new(), metrics, canvas::host_layout(metrics, clip_y, "None", 0.0, &[], &mut navigation, &mut text_measure))
+        HudCache::Shown(
+            Vec::new(),
+            metrics,
+            canvas::host_layout(
+                metrics,
+                clip_y,
+                "None",
+                0.0,
+                &[],
+                &mut navigation,
+                &mut text_measure,
+            ),
+        )
     } else {
         HudCache::Hidden
     };
 
     let unchanged = match (cache.as_ref(), &target) {
         (Some(HudCache::Hidden), HudCache::Hidden) => true,
-        (Some(HudCache::Shown(current, current_scale, current_name)), HudCache::Shown(next, next_scale, next_name)) => current == next && current_scale == next_scale && current_name == next_name,
+        (
+            Some(HudCache::Shown(current, current_scale, current_name)),
+            HudCache::Shown(next, next_scale, next_name),
+        ) => current == next && current_scale == next_scale && current_name == next_name,
         _ => false,
     };
     if unchanged {
@@ -992,7 +1257,9 @@ fn hud_sync_system(
         }
         HudCache::Hidden => {
             commands.entity(root).insert(Visibility::Hidden);
-            for entity in leaves.drain(..) { commands.entity(entity).despawn(); }
+            for entity in leaves.drain(..) {
+                commands.entity(entity).despawn();
+            }
         }
     }
     *cache = Some(target);
@@ -1000,15 +1267,39 @@ fn hud_sync_system(
 
 fn evaluated_character_curve_rows(context: Option<&AlsRootAnimationContext>) -> Vec<DebugRow> {
     static NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
-        let data: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
-        data["curves"].as_array().unwrap().iter().map(|name| name.as_str().unwrap().to_owned()).collect()
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../assets/ALS/Character/als_character_curves.runtime.json"
+        ))
+        .unwrap();
+        data["curves"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap().to_owned())
+            .collect()
     });
-    NAMES.iter().map(|name| {
-        let value = context.map(|context| context.f32(name).unwrap_or(0.0));
-        let value = value.map(|value| if value != 0.0 && matches!(name.as_str(), "RotationYawOffset" | "RotationYawSpeed") { -value } else { value });
-        DebugRow::pair(name_to_display_string(name, false), value.map(|value| format!("{value:.2}")).unwrap_or_else(|| NA_VALUE.into()),
-            curve_color(value.unwrap_or(0.0), false), LABEL_WIDTH_CURVES_PX)
-    }).collect()
+    NAMES
+        .iter()
+        .map(|name| {
+            let value = context.map(|context| context.f32(name).unwrap_or(0.0));
+            let value = value.map(|value| {
+                if value != 0.0 && matches!(name.as_str(), "RotationYawOffset" | "RotationYawSpeed")
+                {
+                    -value
+                } else {
+                    value
+                }
+            });
+            DebugRow::pair(
+                name_to_display_string(name, false),
+                value
+                    .map(|value| format!("{value:.2}"))
+                    .unwrap_or_else(|| NA_VALUE.into()),
+                curve_color(value.unwrap_or(0.0), false),
+                LABEL_WIDTH_CURVES_PX,
+            )
+        })
+        .collect()
 }
 
 fn spawn_hidden_root(commands: &mut Commands) -> Entity {
@@ -1021,7 +1312,9 @@ fn spawn_hidden_root(commands: &mut Commands) -> Entity {
                 height: Val::Percent(100.0),
                 ..default()
             },
-            bevy::ui::LayoutConfig { use_rounding: false },
+            bevy::ui::LayoutConfig {
+                use_rounding: false,
+            },
             BackgroundColor(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)),
             GlobalZIndex(20),
             Pickable::IGNORE,
@@ -1031,7 +1324,12 @@ fn spawn_hidden_root(commands: &mut Commands) -> Entity {
 }
 
 #[cfg(test)]
-fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], metrics: CanvasMetrics, target_name: &str) -> Entity {
+fn spawn_panel(
+    commands: &mut Commands,
+    blocks: &[DebugBlock],
+    metrics: CanvasMetrics,
+    target_name: &str,
+) -> Entity {
     let host = canvas::HostLayout {
         actor_y: metrics.actor_start_y(),
         lines: [format!("Showing Debug for {target_name}, Press [PageUp] and [PageDown] to cycle between targets."),
@@ -1044,47 +1342,108 @@ fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], metrics: CanvasMe
     root
 }
 
-fn sync_panel_with_host(commands: &mut Commands, root: Entity, leaves: &mut Vec<Entity>, blocks: &[DebugBlock], metrics: CanvasMetrics, host: &canvas::HostLayout) {
-    commands.entity(root).insert(Visibility::Visible).with_children(|parent| {
-        let mut previous = std::mem::take(leaves).into_iter();
-        let mut leaf = |text: &str, color: Color, font_px: f32, position: Vec2, weight: FontWeight, name: Option<Name>| {
-            let entity = previous.next().unwrap_or_else(|| parent.spawn_empty().id());
-            let mut commands = parent.commands();
-            let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((
-                Text::new(text),
-                TextFont { font_size: FontSize::Px(font_px), weight, ..default() },
-                TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
-                TextColor(color),
-                Pickable::IGNORE,
-                TextShadow { offset: Vec2::splat(metrics.canvas_to_ui), color: Color::BLACK },
-                Node { position_type: PositionType::Absolute, left: Val::Px(position.x), top: Val::Px(position.y), ..default() },
-            ));
-            if let Some(name) = name { entity_commands.insert(name); } else { entity_commands.remove::<Name>(); }
-            leaves.push(entity);
-        };
-        for (index, (text, color, position)) in host.lines.iter().enumerate() {
-            leaf(text, *color, HOST_FONT_PX * metrics.host_scale, *position, FontWeight::LIGHT,
-                Some(Name::new(if index == 0 { "DebugHostTarget" } else if index == 1 { "DebugHostHelp" } else { "DebugHostIdentity" })));
-        }
-        let mut y = host.actor_y;
-        let scale = metrics.als_scale;
-        for block in blocks {
-            for (index, column) in block.iter().enumerate() {
-                for row in column {
-                    let position = Vec2::new((ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX) * scale, y + row.y * scale);
-                    leaf(&row.label, row.color, row.font_px * scale, position, FontWeight::NORMAL,
-                        (row.font_px == HEADER_FONT_PX).then(|| Name::new(format!("DebugHeader:{}", row.label))));
-                    if row.label_width_px > 0.0 {
-                        leaf(&row.value, row.color, row.font_px * scale,
-                            position + Vec2::X * row.label_width_px * scale, FontWeight::NORMAL, Some(Name::new(row.label.clone())));
+fn sync_panel_with_host(
+    commands: &mut Commands,
+    root: Entity,
+    leaves: &mut Vec<Entity>,
+    blocks: &[DebugBlock],
+    metrics: CanvasMetrics,
+    host: &canvas::HostLayout,
+) {
+    commands
+        .entity(root)
+        .insert(Visibility::Visible)
+        .with_children(|parent| {
+            let mut previous = std::mem::take(leaves).into_iter();
+            let mut leaf = |text: &str,
+                            color: Color,
+                            font_px: f32,
+                            position: Vec2,
+                            weight: FontWeight,
+                            name: Option<Name>| {
+                let entity = previous.next().unwrap_or_else(|| parent.spawn_empty().id());
+                let mut commands = parent.commands();
+                let mut entity_commands = commands.entity(entity);
+                entity_commands.insert((
+                    Text::new(text),
+                    TextFont {
+                        font_size: FontSize::Px(font_px),
+                        weight,
+                        ..default()
+                    },
+                    TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
+                    TextColor(color),
+                    Pickable::IGNORE,
+                    TextShadow {
+                        offset: Vec2::splat(metrics.canvas_to_ui),
+                        color: Color::BLACK,
+                    },
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(position.x),
+                        top: Val::Px(position.y),
+                        ..default()
+                    },
+                ));
+                if let Some(name) = name {
+                    entity_commands.insert(name);
+                } else {
+                    entity_commands.remove::<Name>();
+                }
+                leaves.push(entity);
+            };
+            for (index, (text, color, position)) in host.lines.iter().enumerate() {
+                leaf(
+                    text,
+                    *color,
+                    HOST_FONT_PX * metrics.host_scale,
+                    *position,
+                    FontWeight::LIGHT,
+                    Some(Name::new(if index == 0 {
+                        "DebugHostTarget"
+                    } else if index == 1 {
+                        "DebugHostHelp"
+                    } else {
+                        "DebugHostIdentity"
+                    })),
+                );
+            }
+            let mut y = host.actor_y;
+            let scale = metrics.als_scale;
+            for block in blocks {
+                for (index, column) in block.iter().enumerate() {
+                    for row in column {
+                        let position = Vec2::new(
+                            (ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX) * scale,
+                            y + row.y * scale,
+                        );
+                        leaf(
+                            &row.label,
+                            row.color,
+                            row.font_px * scale,
+                            position,
+                            FontWeight::NORMAL,
+                            (row.font_px == HEADER_FONT_PX)
+                                .then(|| Name::new(format!("DebugHeader:{}", row.label))),
+                        );
+                        if row.label_width_px > 0.0 {
+                            leaf(
+                                &row.value,
+                                row.color,
+                                row.font_px * scale,
+                                position + Vec2::X * row.label_width_px * scale,
+                                FontWeight::NORMAL,
+                                Some(Name::new(row.label.clone())),
+                            );
+                        }
                     }
                 }
+                y += block_height(block) * scale;
             }
-            y += block_height(block) * scale;
-        }
-        for entity in previous { parent.commands().entity(entity).despawn(); }
-    });
+            for entity in previous {
+                parent.commands().entity(entity).despawn();
+            }
+        });
 }
 #[cfg(test)]
 mod tests {
@@ -1093,50 +1452,141 @@ mod tests {
     #[test]
     fn enabled_host_remains_visible_without_an_actor_target() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin)).init_resource::<ButtonInput<KeyCode>>();
-        app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = true;
+        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>();
+        app.world_mut()
+            .resource_mut::<AlsShowDebugHudState>()
+            .visible = true;
         app.update();
-        assert!(app.world_mut().query::<&Text>().iter(app.world()).any(|text| text.0.starts_with("Showing Debug for None,")));
-        app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = false;
+        assert!(
+            app.world_mut()
+                .query::<&Text>()
+                .iter(app.world())
+                .any(|text| text.0.starts_with("Showing Debug for None,"))
+        );
+        app.world_mut()
+            .resource_mut::<AlsShowDebugHudState>()
+            .visible = false;
         app.update();
-        assert!(!app.world_mut().query::<&Text>().iter(app.world()).any(|text| text.0.starts_with("Showing Debug for")));
+        assert!(
+            !app.world_mut()
+                .query::<&Text>()
+                .iter(app.world())
+                .any(|text| text.0.starts_with("Showing Debug for"))
+        );
     }
 
     #[test]
     fn native_font_host_diagnostics_and_column_keys_use_the_live_ecs_target() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default(), bevy::text::TextPlugin, AlsShowDebugHudPlugin))
-            .init_resource::<ButtonInput<KeyCode>>();
-        let actor = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, Name::new("DiagnosticActor"),
-            GlobalTransform::from_translation(Vec3::new(1.0, 2.0, 3.0)), LocomotionState::Grounded,
-            RotationMode::VelocityDirection, Stance::Standing, Gait::Walking, OverlayState::Default,
-            AlsStateRequest::default(), crate::als::input::OnFoot)).id();
-        *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState { visible: true, curves: true, state: true, shapes: true, ..default() };
-        for _ in 0..4 { app.update(); }
-        let labels: Vec<_> = app.world_mut().query::<&Text>().iter(app.world()).map(|text| text.0.clone()).collect();
-        assert!(labels.iter().any(|text| text.starts_with("ENTITY DiagnosticActor")));
-        assert!(labels.iter().any(|text| text.contains("X=100.00 Y=300.00 Z=200.00")));
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::asset::AssetPlugin::default(),
+            bevy::text::TextPlugin,
+            AlsShowDebugHudPlugin,
+        ))
+        .init_resource::<ButtonInput<KeyCode>>();
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                crate::character_assembly::AlsPlayerCharacter,
+                Name::new("DiagnosticActor"),
+                GlobalTransform::from_translation(Vec3::new(1.0, 2.0, 3.0)),
+                LocomotionState::Grounded,
+                RotationMode::VelocityDirection,
+                Stance::Standing,
+                Gait::Walking,
+                OverlayState::Default,
+                AlsStateRequest::default(),
+                crate::als::input::OnFoot,
+            ))
+            .id();
+        *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState {
+            visible: true,
+            curves: true,
+            state: true,
+            shapes: true,
+            ..default()
+        };
+        for _ in 0..4 {
+            app.update();
+        }
+        let labels: Vec<_> = app
+            .world_mut()
+            .query::<&Text>()
+            .iter(app.world())
+            .map(|text| text.0.clone())
+            .collect();
+        assert!(
+            labels
+                .iter()
+                .any(|text| text.starts_with("ENTITY DiagnosticActor"))
+        );
+        assert!(
+            labels
+                .iter()
+                .any(|text| text.contains("X=100.00 Y=300.00 Z=200.00"))
+        );
         assert!(labels.iter().any(|text| text == "INPUT CONTEXT OnFoot"));
-        let root = app.world_mut().query_filtered::<Entity, With<AlsShowDebugHudRoot>>().single(app.world()).unwrap();
+        let root = app
+            .world_mut()
+            .query_filtered::<Entity, With<AlsShowDebugHudRoot>>()
+            .single(app.world())
+            .unwrap();
         let leaves = app.world().get::<Children>(root).unwrap().to_vec();
         for x in [2.0, 3.0] {
-            app.world_mut().entity_mut(actor).insert(GlobalTransform::from_translation(Vec3::new(x, 2.0, 3.0)));
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(GlobalTransform::from_translation(Vec3::new(x, 2.0, 3.0)));
             app.update();
-            assert_eq!(app.world_mut().query_filtered::<Entity, With<AlsShowDebugHudRoot>>().single(app.world()).unwrap(), root);
+            assert_eq!(
+                app.world_mut()
+                    .query_filtered::<Entity, With<AlsShowDebugHudRoot>>()
+                    .single(app.world())
+                    .unwrap(),
+                root
+            );
             assert_eq!(app.world().get::<Children>(root).unwrap().to_vec(), leaves);
             let expected = format!("X={:.2} Y=300.00 Z=200.00", x * 100.0);
-            assert!(app.world_mut().query::<&Text>().iter(app.world()).any(|text| text.0.contains(&expected)));
+            assert!(
+                app.world_mut()
+                    .query::<&Text>()
+                    .iter(app.world())
+                    .any(|text| text.0.contains(&expected))
+            );
         }
-        assert!(app.world().resource::<canvas::ColumnNavigation>().max_columns > 0);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftRight);
+        assert!(
+            app.world()
+                .resource::<canvas::ColumnNavigation>()
+                .max_columns
+                > 0
+        );
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ShiftRight);
         app.update();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
         app.update();
-        let header_x = |world: &mut World| world.query::<(&Name, &Node)>().iter(world).find(|(name, _)| name.as_str() == "DebugHostTarget").unwrap().1.left;
+        let header_x = |world: &mut World| {
+            world
+                .query::<(&Name, &Node)>()
+                .iter(world)
+                .find(|(name, _)| name.as_str() == "DebugHostTarget")
+                .unwrap()
+                .1
+                .left
+        };
         assert!(matches!(header_x(app.world_mut()), Val::Px(x) if x < 0.0));
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftLeft);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ShiftLeft);
         app.update();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
         app.update();
         assert_eq!(header_x(app.world_mut()), Val::Px(4.0));
     }
@@ -1145,42 +1595,77 @@ mod tests {
     fn host_frame_has_the_source_backdrop_and_header_before_als_rows() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
-        let root = world.run_system_once(|mut commands: Commands| {
-            spawn_panel(&mut commands, &[], CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0), "TestActor")
-        }).unwrap();
-        assert_eq!(world.get::<BackgroundColor>(root).map(|color| color.0), Some(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)));
+        let root = world
+            .run_system_once(|mut commands: Commands| {
+                spawn_panel(
+                    &mut commands,
+                    &[],
+                    CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0),
+                    "TestActor",
+                )
+            })
+            .unwrap();
+        assert_eq!(
+            world.get::<BackgroundColor>(root).map(|color| color.0),
+            Some(Color::linear_rgba(0.0, 0.0, 0.0, 0.2))
+        );
         assert_eq!(world.get::<GlobalZIndex>(root).unwrap().0, 20);
         let labels: Vec<_> = world.query::<(&Text, &Node)>().iter(&world).collect();
-        let (_, first) = labels.iter().find(|(text, _)| text.0.starts_with("Showing Debug for ")).expect("The AHUD entry header must be drawn");
+        let (_, first) = labels
+            .iter()
+            .find(|(text, _)| text.0.starts_with("Showing Debug for "))
+            .expect("The AHUD entry header must be drawn");
         assert_eq!(first.left, Val::Px(4.0));
         assert_eq!(first.top, Val::Px(50.0));
-        assert!(labels.iter().any(|(text, _)| text.0.starts_with("Press [Right Shift]")));
+        assert!(
+            labels
+                .iter()
+                .any(|(text, _)| text.0.starts_with("Press [Right Shift]"))
+        );
     }
 
     #[test]
     fn debug_keyboard_accepts_extra_modifiers_and_only_fires_on_press() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin)).init_resource::<ButtonInput<KeyCode>>();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit0);
+        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit0);
         app.update();
         assert!(!app.world().resource::<AlsShowDebugHudState>().visible);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().reset_all();
-        for key in [KeyCode::ShiftRight, KeyCode::ControlLeft, KeyCode::AltLeft, KeyCode::SuperLeft, KeyCode::Digit0] {
-            app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(key);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .reset_all();
+        for key in [
+            KeyCode::ShiftRight,
+            KeyCode::ControlLeft,
+            KeyCode::AltLeft,
+            KeyCode::SuperLeft,
+            KeyCode::Digit0,
+        ] {
+            app.world_mut()
+                .resource_mut::<ButtonInput<KeyCode>>()
+                .press(key);
         }
         app.update();
         assert!(app.world().resource::<AlsShowDebugHudState>().visible);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
         app.update();
         assert!(app.world().resource::<AlsShowDebugHudState>().visible);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit0);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::Digit0);
         app.update();
         assert!(app.world().resource::<AlsShowDebugHudState>().visible);
     }
 
     #[test]
     fn categories_survive_restart_but_master_does_not() {
-        let path = std::env::temp_dir().join(format!("als-debug-settings-{}.ron", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("als-debug-settings-{}.ron", std::process::id()));
         std::fs::write(&path, "(curves:true,state:false,shapes:false,traces:false,mantling:false,camera_curves:false,camera_shapes:false,camera_traces:false)").unwrap();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
@@ -1190,15 +1675,24 @@ mod tests {
         assert!(app.world().resource::<AlsShowDebugHudState>().curves);
         assert!(!app.world().resource::<AlsShowDebugHudState>().visible);
         let before = std::fs::read_to_string(&path).unwrap();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftRight);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit0);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ShiftRight);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit0);
         app.update();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit2);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit2);
         app.update();
         let mut restarted = App::new();
-        restarted.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+        restarted
+            .add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
             .init_resource::<ButtonInput<KeyCode>>()
             .insert_resource(AlsShowDebugSettingsFile(path.clone()));
         restarted.update();
@@ -1312,8 +1806,14 @@ mod tests {
             RotationMode::ViewDirection,
             Stance::Standing,
             false,
-            Some(&crate::actual_motion::AlsActualMotion { world_velocity: Vec3::new(3.0, 0.0, -4.0), horizontal_speed: 5.0,
-                has_input: true, input_yaw_degrees: 90.0, velocity_yaw_degrees: -36.869_896, ..default() }),
+            Some(&crate::actual_motion::AlsActualMotion {
+                world_velocity: Vec3::new(3.0, 0.0, -4.0),
+                horizontal_speed: 5.0,
+                has_input: true,
+                input_yaw_degrees: 90.0,
+                velocity_yaw_degrees: -36.869_896,
+                ..default()
+            }),
             true,
             AlsNotifyLocomotionAction::None,
         )
@@ -1321,90 +1821,249 @@ mod tests {
 
     #[test]
     fn hud_reads_the_controlled_character_current_instance_and_final_curves() {
-        use bevy::ecs::system::RunSystemOnce;
-        use crate::{animation_context_projection::AlsRootAnimationContext,
+        use crate::{
+            animation_context_projection::AlsRootAnimationContext,
             camera_component::AlsSourceCameraComponent,
-            character_assembly::{AlsCharacterAssembly, AlsPlayerCharacter, ALS_LINKED_ANIMATED_SCENE, attach_avatar}};
+            character_assembly::{
+                ALS_LINKED_ANIMATED_SCENE, AlsCharacterAssembly, AlsPlayerCharacter, attach_avatar,
+            },
+        };
+        use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, old_avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
-        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap().pause();
-        let avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, server: Res<AssetServer>| {
-            attach_avatar(&mut commands, &server, character, ALS_LINKED_ANIMATED_SCENE)
-        }, character).unwrap();
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        let old_player = app
+            .world()
+            .get::<AnimatedSceneInstance>(old_avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(old_player)
+            .unwrap()
+            .pause();
+        let avatar = app
+            .world_mut()
+            .run_system_once_with(
+                |In(character): In<Entity>, mut commands: Commands, server: Res<AssetServer>| {
+                    attach_avatar(&mut commands, &server, character, ALS_LINKED_ANIMATED_SCENE)
+                },
+                character,
+            )
+            .unwrap();
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar = avatar;
         let player = crate::roll_drive::tests::ready_roll_player(&mut app, avatar);
-        let marked: Vec<_> = app.world_mut().query_filtered::<Entity, With<AlsPlayerCharacter>>().iter(app.world()).collect();
-        for entity in marked { app.world_mut().entity_mut(entity).remove::<AlsPlayerCharacter>(); }
-        app.world_mut().entity_mut(character).insert((AlsPlayerCharacter, crate::debug_target::AlsDebugTarget, Stance::Crouching,
-            crate::als::motion::AlsRotationResponseState { initialized: true, smooth_target_yaw: 70.0_f32.to_radians(), ..default() },
-            crate::als::motion::AlsViewYaw(40.0_f32.to_radians()), crate::als::view::AlsViewPitch(-15.0_f32.to_radians())));
-        app.world_mut().entity_mut(old_player).insert(AlsRootAnimationContext { curves: [("PoseGait".into(), 9.5)].into() });
-        app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [("PoseGait".into(), 2.25), ("FootLeftIk".into(), 0.73)].into() });
+        let marked: Vec<_> = app
+            .world_mut()
+            .query_filtered::<Entity, With<AlsPlayerCharacter>>()
+            .iter(app.world())
+            .collect();
+        for entity in marked {
+            app.world_mut()
+                .entity_mut(entity)
+                .remove::<AlsPlayerCharacter>();
+        }
+        app.world_mut().entity_mut(character).insert((
+            AlsPlayerCharacter,
+            crate::debug_target::AlsDebugTarget,
+            Stance::Crouching,
+            crate::als::motion::AlsRotationResponseState {
+                initialized: true,
+                smooth_target_yaw: 70.0_f32.to_radians(),
+                ..default()
+            },
+            crate::als::motion::AlsViewYaw(40.0_f32.to_radians()),
+            crate::als::view::AlsViewPitch(-15.0_f32.to_radians()),
+        ));
+        app.world_mut()
+            .entity_mut(old_player)
+            .insert(AlsRootAnimationContext {
+                curves: [("PoseGait".into(), 9.5)].into(),
+            });
+        app.world_mut()
+            .entity_mut(player)
+            .insert(AlsRootAnimationContext {
+                curves: [("PoseGait".into(), 2.25), ("FootLeftIk".into(), 0.73)].into(),
+            });
         let mut component = AlsSourceCameraComponent::default();
         component.activate(false);
-        let camera = app.world_mut().spawn((component, crate::als_camera::AlsCharacterCamera { character }, AlsCameraRig::default(),
-            crate::als_camera::AlsCameraDebugInfo { valid: true, field_of_view_deg: 53.0, ..default() })).id();
-        let view = app.world_mut().spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(camera), crate::als_camera::AlsCharacterCamera { character })).id();
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(view);
+        let camera = app
+            .world_mut()
+            .spawn((
+                component,
+                crate::als_camera::AlsCharacterCamera { character },
+                AlsCameraRig::default(),
+                crate::als_camera::AlsCameraDebugInfo {
+                    valid: true,
+                    field_of_view_deg: 53.0,
+                    ..default()
+                },
+            ))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(camera),
+                crate::als_camera::AlsCharacterCamera { character },
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .camera = Some(view);
         #[derive(Component)]
         struct LateDebugTarget;
-        app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RotationMode::Aiming, Stance::Standing,
-            Gait::Sprinting, OverlayState::Rifle, AlsStateRequest::default()));
-        app.world_mut().entity_mut(character).insert(LateDebugTarget);
-        app.world_mut().entity_mut(character).insert((AlsInputCommand { aim_held: true, ..default() }, AlsInputOverride::default()));
+        app.world_mut().spawn((
+            AlsCharacter,
+            LocomotionState::Air,
+            RotationMode::Aiming,
+            Stance::Standing,
+            Gait::Sprinting,
+            OverlayState::Rifle,
+            AlsStateRequest::default(),
+        ));
+        app.world_mut()
+            .entity_mut(character)
+            .insert(LateDebugTarget);
+        app.world_mut().entity_mut(character).insert((
+            AlsInputCommand {
+                aim_held: true,
+                ..default()
+            },
+            AlsInputOverride::default(),
+        ));
         app.init_resource::<AlsShowDebugHudState>();
         app.init_resource::<canvas::ColumnNavigation>();
         *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState {
-            visible: true, curves: true, state: true, shapes: true, camera_shapes: true, ..default()
+            visible: true,
+            curves: true,
+            state: true,
+            shapes: true,
+            camera_shapes: true,
+            ..default()
         };
         let system = app.world_mut().register_system(hud_sync_system);
-        let texts = |world: &mut World| world.query::<&Text>().iter(world).map(|text| text.0.clone()).collect::<Vec<_>>();
+        let texts = |world: &mut World| {
+            world
+                .query::<&Text>()
+                .iter(world)
+                .map(|text| text.0.clone())
+                .collect::<Vec<_>>()
+        };
         app.world_mut().run_system(system).unwrap();
         let rendered = texts(app.world_mut());
-        assert!(app.world_mut().query::<(&Name, &Text)>().iter(app.world())
-            .any(|(name, text)| name.as_str() == "Desired Aiming" && text.0 == "False"));
-        for expected in ["Crouching", "-160.00", "53.00", "2.25", "0.73", "R: 0.00P: -15.00Y: -130.00"] {
-            assert!(rendered.iter().any(|text| text == expected), "Missing current value {expected}: {rendered:?}");
+        assert!(
+            app.world_mut()
+                .query::<(&Name, &Text)>()
+                .iter(app.world())
+                .any(|(name, text)| name.as_str() == "Desired Aiming" && text.0 == "False")
+        );
+        for expected in [
+            "Crouching",
+            "-160.00",
+            "53.00",
+            "2.25",
+            "0.73",
+            "R: 0.00P: -15.00Y: -130.00",
+        ] {
+            assert!(
+                rendered.iter().any(|text| text == expected),
+                "Missing current value {expected}: {rendered:?}"
+            );
         }
-        let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../assets/ALS/Character/als_character_curves.runtime.json"
+        ))
+        .unwrap();
         for name in metadata["curves"].as_array().unwrap() {
             assert!(rendered.contains(&name_to_display_string(name.as_str().unwrap(), false)));
         }
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = old_avatar;
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar = old_avatar;
         app.world_mut().run_system(system).unwrap();
         let rendered = texts(app.world_mut());
         assert!(rendered.iter().any(|text| text == "9.50"));
         assert!(!rendered.iter().any(|text| text == "2.25"));
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = Entity::PLACEHOLDER;
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar = Entity::PLACEHOLDER;
         app.world_mut().run_system(system).unwrap();
         assert!(!texts(app.world_mut()).iter().any(|text| text == "9.50"));
     }
 
     #[test]
     fn state_rows_read_persistent_intent_and_view_without_a_render_camera() {
-        use crate::als::{aim::AlsLastFreeRotationMode, input_request::AlsFirstPersonView, transition::AlsDesiredStance};
+        use crate::als::{
+            aim::AlsLastFreeRotationMode, input_request::AlsFirstPersonView,
+            transition::AlsDesiredStance,
+        };
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
             .init_resource::<ButtonInput<KeyCode>>()
-            .insert_resource(AlsShowDebugHudState { visible: true, state: true, ..default() });
-        let actor = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter,
-            LocomotionState::Grounded, RotationMode::Aiming, Stance::Crouching, Gait::Running,
-            AlsDesiredStance(Stance::Standing), AlsLastFreeRotationMode(RotationMode::ViewDirection),
-            AlsDesiredGait(Gait::Sprinting), AlsFirstPersonView, OverlayState::Rifle,
-            AlsInputCommand { aim_held: true, ..default() },
-            AlsStateRequest { stance: Some(Stance::Crouching), rotation_mode: Some(RotationMode::VelocityDirection), ..default() })).id();
+            .insert_resource(AlsShowDebugHudState {
+                visible: true,
+                state: true,
+                ..default()
+            });
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                crate::character_assembly::AlsPlayerCharacter,
+                LocomotionState::Grounded,
+                RotationMode::Aiming,
+                Stance::Crouching,
+                Gait::Running,
+                AlsDesiredStance(Stance::Standing),
+                AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsDesiredGait(Gait::Sprinting),
+                AlsFirstPersonView,
+                OverlayState::Rifle,
+                AlsInputCommand {
+                    aim_held: true,
+                    ..default()
+                },
+                AlsStateRequest {
+                    stance: Some(Stance::Crouching),
+                    rotation_mode: Some(RotationMode::VelocityDirection),
+                    ..default()
+                },
+            ))
+            .id();
         app.update();
-        let values = |world: &mut World| world.query::<(&Name, &Text)>().iter(world)
-            .map(|(name, text)| (name.to_string(), text.0.clone())).collect::<std::collections::HashMap<_, _>>();
+        let values = |world: &mut World| {
+            world
+                .query::<(&Name, &Text)>()
+                .iter(world)
+                .map(|(name, text)| (name.to_string(), text.0.clone()))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
         let rows = values(app.world_mut());
-        for (name, expected) in [("View Mode", "First Person"), ("Desired Stance", "Standing"), ("Stance", "Crouching"),
-            ("Desired Rotation Mode", "View Direction"), ("Rotation Mode", "Aiming"), ("Desired Gait", "Sprinting"), ("Gait", "Running")] {
+        for (name, expected) in [
+            ("View Mode", "First Person"),
+            ("Desired Stance", "Standing"),
+            ("Stance", "Crouching"),
+            ("Desired Rotation Mode", "View Direction"),
+            ("Rotation Mode", "Aiming"),
+            ("Desired Gait", "Sprinting"),
+            ("Gait", "Running"),
+        ] {
             assert_eq!(rows[name], expected, "{name}");
         }
-        app.world_mut().entity_mut(actor).remove::<AlsFirstPersonView>().insert((
-            AlsDesiredStance(Stance::new("Als.Stance.CustomLean").unwrap()),
-            AlsLastFreeRotationMode(RotationMode::new("Als.RotationMode.CustomFacing").unwrap()),
-            AlsNotifyLocomotionAction::None));
+        app.world_mut()
+            .entity_mut(actor)
+            .remove::<AlsFirstPersonView>()
+            .insert((
+                AlsDesiredStance(Stance::new("Als.Stance.CustomLean").unwrap()),
+                AlsLastFreeRotationMode(
+                    RotationMode::new("Als.RotationMode.CustomFacing").unwrap(),
+                ),
+                AlsNotifyLocomotionAction::None,
+            ));
         app.update();
         let rows = values(app.world_mut());
         assert_eq!(rows["View Mode"], "Third Person");
@@ -1460,11 +2119,28 @@ mod tests {
         assert_eq!(rows[4].value, "0.00");
         assert_eq!(rows[5].value, "180.00");
         for speed in [0.0, 0.5e-6, 2.0e-6] {
-            let motion = crate::actual_motion::AlsActualMotion { world_velocity: Vec3::Y * speed, ..default() };
-            let snapshot = CharacterSnapshot::from_components(LocomotionState::Grounded, RotationMode::ViewDirection,
-                Stance::Standing, Gait::Running, Gait::Running, OverlayState::Default, RotationMode::ViewDirection,
-                Stance::Standing, false, Some(&motion), false, AlsNotifyLocomotionAction::None);
-            assert_eq!(snapshot.velocity_direction, Some(if speed < 1e-6 { Vec3::ZERO } else { Vec3::Y }));
+            let motion = crate::actual_motion::AlsActualMotion {
+                world_velocity: Vec3::Y * speed,
+                ..default()
+            };
+            let snapshot = CharacterSnapshot::from_components(
+                LocomotionState::Grounded,
+                RotationMode::ViewDirection,
+                Stance::Standing,
+                Gait::Running,
+                Gait::Running,
+                OverlayState::Default,
+                RotationMode::ViewDirection,
+                Stance::Standing,
+                false,
+                Some(&motion),
+                false,
+                AlsNotifyLocomotionAction::None,
+            );
+            assert_eq!(
+                snapshot.velocity_direction,
+                Some(if speed < 1e-6 { Vec3::ZERO } else { Vec3::Y })
+            );
         }
     }
 
@@ -1539,35 +2215,88 @@ mod tests {
     #[test]
     fn source_canvas_coordinates_font_sizes_and_dpi_match_the_draw_contract() {
         use bevy::ecs::system::RunSystemOnce;
-        let state = AlsShowDebugHudState { visible: true, curves: true, state: true, shapes: true, traces: true, mantling: true,
-            camera_curves: true, camera_shapes: true, camera_traces: true };
-        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
-        let mut camera_curves: Vec<_> = crate::als_camera::CAMERA_CURVE_NAMES.iter().map(|name| (name.to_string(), 0.0)).collect();
+        let state = AlsShowDebugHudState {
+            visible: true,
+            curves: true,
+            state: true,
+            shapes: true,
+            traces: true,
+            mantling: true,
+            camera_curves: true,
+            camera_shapes: true,
+            camera_traces: true,
+        };
+        let camera = CameraSnapshot {
+            rig_mode: Some(AlsCameraMode::ThirdPerson),
+            ..default()
+        };
+        let mut camera_curves: Vec<_> = crate::als_camera::CAMERA_CURVE_NAMES
+            .iter()
+            .map(|name| (name.to_string(), 0.0))
+            .collect();
         camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
-        let camera_block = layout_camera_block(&state, &camera, &build_curves_body(&camera_curves, true));
-        let character_block = layout_character_block(&state, &sample_snapshot(), &evaluated_character_curve_rows(None));
+        let camera_block =
+            layout_camera_block(&state, &camera, &build_curves_body(&camera_curves, true));
+        let character_block = layout_character_block(
+            &state,
+            &sample_snapshot(),
+            &evaluated_character_curve_rows(None),
+        );
         assert_eq!(block_height(&camera_block), 187.0);
         assert_eq!(block_height(&character_block), 574.0);
-        for (size, dpi, ui_scale) in [(Vec2::new(1280.0, 720.0), 1.0, 1.0), (Vec2::new(960.0, 540.0), 1.0, 1.0),
-            (Vec2::new(960.0, 540.0), 2.0, 1.0), (Vec2::new(2560.0, 1440.0), 1.5, 1.25)] {
+        for (size, dpi, ui_scale) in [
+            (Vec2::new(1280.0, 720.0), 1.0, 1.0),
+            (Vec2::new(960.0, 540.0), 1.0, 1.0),
+            (Vec2::new(960.0, 540.0), 2.0, 1.0),
+            (Vec2::new(2560.0, 1440.0), 1.5, 1.25),
+        ] {
             let metrics = CanvasMetrics::new(size, dpi, ui_scale);
             let expected_scale = (size.x / 1280.0).min(size.y / 720.0);
             let mut world = World::new();
             let blocks = vec![camera_block.clone(), character_block.clone()];
-            world.run_system_once(move |mut commands: Commands| { spawn_panel(&mut commands, &blocks, metrics, "TestActor"); }).unwrap();
+            world
+                .run_system_once(move |mut commands: Commands| {
+                    spawn_panel(&mut commands, &blocks, metrics, "TestActor");
+                })
+                .unwrap();
             for (name, point, font) in [
-                ("DebugHeader:Als.CameraShapes (Shift + 7)", Vec2::new(205.0, 5.0), HEADER_FONT_PX),
+                (
+                    "DebugHeader:Als.CameraShapes (Shift + 7)",
+                    Vec2::new(205.0, 5.0),
+                    HEADER_FONT_PX,
+                ),
                 ("Camera Offset X", Vec2::new(150.0, 24.0), BODY_FONT_PX),
-                ("DebugHeader:Debug mode is enabled! Press (Shift + 0) to disable.", Vec2::new(5.0, 192.0), HEADER_FONT_PX),
-                ("DebugHeader:Als.State (Shift + 2)", Vec2::new(205.0, 219.0), HEADER_FONT_PX),
+                (
+                    "DebugHeader:Debug mode is enabled! Press (Shift + 0) to disable.",
+                    Vec2::new(5.0, 192.0),
+                    HEADER_FONT_PX,
+                ),
+                (
+                    "DebugHeader:Als.State (Shift + 2)",
+                    Vec2::new(205.0, 219.0),
+                    HEADER_FONT_PX,
+                ),
                 ("Allow Transitions", Vec2::new(150.0, 238.0), BODY_FONT_PX),
                 ("View Block", Vec2::new(150.0, 742.0), BODY_FONT_PX),
             ] {
-                let (_, node, text_font, layout) = world.query::<(&Name, &Node, &TextFont, &TextLayout)>().iter(&world)
-                    .find(|(key, _, _, _)| key.as_str() == name).unwrap();
-                let (Val::Px(x), Val::Px(y), FontSize::Px(font_px)) = (node.left, node.top, text_font.font_size) else { panic!("Canvas values must use explicit logical pixels") };
-                let expected_y = (50.0 * dpi + 29.9 * (size.x / 1920.0).max(dpi) + (point.y - 5.0) * expected_scale) / (dpi * ui_scale);
-                assert!(Vec2::new(x, y).abs_diff_eq(Vec2::new(point.x * expected_scale / (dpi * ui_scale), expected_y), 1e-4));
+                let (_, node, text_font, layout) = world
+                    .query::<(&Name, &Node, &TextFont, &TextLayout)>()
+                    .iter(&world)
+                    .find(|(key, _, _, _)| key.as_str() == name)
+                    .unwrap();
+                let (Val::Px(x), Val::Px(y), FontSize::Px(font_px)) =
+                    (node.left, node.top, text_font.font_size)
+                else {
+                    panic!("Canvas values must use explicit logical pixels")
+                };
+                let expected_y = (50.0 * dpi
+                    + 29.9 * (size.x / 1920.0).max(dpi)
+                    + (point.y - 5.0) * expected_scale)
+                    / (dpi * ui_scale);
+                assert!(Vec2::new(x, y).abs_diff_eq(
+                    Vec2::new(point.x * expected_scale / (dpi * ui_scale), expected_y),
+                    1e-4
+                ));
                 assert!((font_px * dpi * ui_scale - font * expected_scale).abs() < 1e-4);
                 assert_eq!(layout.linebreak, bevy::text::LineBreak::NoWrap);
             }
@@ -1576,23 +2305,42 @@ mod tests {
 
     #[test]
     fn source_camera_curves_split_columns_and_inactive_blocks_stay_empty() {
-        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
-        let mut state = AlsShowDebugHudState { visible: true, camera_curves: true, camera_shapes: true, ..default() };
+        let camera = CameraSnapshot {
+            rig_mode: Some(AlsCameraMode::ThirdPerson),
+            ..default()
+        };
+        let mut state = AlsShowDebugHudState {
+            visible: true,
+            camera_curves: true,
+            camera_shapes: true,
+            ..default()
+        };
         let rows = build_curves_body(&[("CameraOffsetX".into(), 1.0)], true);
         let block = layout_camera_block(&state, &camera, &rows);
-        assert_eq!(block.len(), 2, "Active camera curves must occupy their own source column");
+        assert_eq!(
+            block.len(),
+            2,
+            "Active camera curves must occupy their own source column"
+        );
         assert_eq!(block[0][0].label, DebugCategory::CameraCurves.header());
         assert_eq!(block[1][0].label, DebugCategory::CameraShapes.header());
         state.camera_curves = false;
         state.camera_shapes = false;
         assert!(layout_camera_block(&state, &camera, &[]).is_empty());
         let character = layout_character_block(&state, &sample_snapshot(), &[]);
-        assert_eq!(character[0].len(), 1, "Disabled character categories retain only the source master header");
+        assert_eq!(
+            character[0].len(),
+            1,
+            "Disabled character categories retain only the source master header"
+        );
     }
 
     #[test]
     fn layout_splits_second_column_only_when_first_category_active() {
-        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
+        let camera = CameraSnapshot {
+            rig_mode: Some(AlsCameraMode::ThirdPerson),
+            ..default()
+        };
         let mut flags = AlsShowDebugHudState {
             visible: true,
             ..Default::default()
@@ -1655,65 +2403,179 @@ mod tests {
     #[test]
     fn native_turn_curves_reach_hud_with_source_heading_sign() {
         let app = crate::standing_source::tests::loaded_montage_app();
-        let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
-        let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
-        let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
-        for name in crate::standing_source::MONTAGES.keys().filter(|name| name.contains("_Turn_")) {
-            let (_, context) = crate::standing_source::sample_source_montage(name, 0.4, assets, clips, skeletons).unwrap();
-            let runtime = context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
-            let rows = evaluated_character_curve_rows(Some(&AlsRootAnimationContext { curves: context.curves.into_iter().collect() }));
-            let row = rows.iter().find(|row| row.label == "Rotation Yaw Speed").unwrap();
+        let assets = app
+            .world()
+            .resource::<crate::standing_source::SourceMontageAssets>();
+        let clips = app
+            .world()
+            .resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+        let skeletons = app
+            .world()
+            .resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+        for name in crate::standing_source::MONTAGES
+            .keys()
+            .filter(|name| name.contains("_Turn_"))
+        {
+            let (_, context) =
+                crate::standing_source::sample_source_montage(name, 0.4, assets, clips, skeletons)
+                    .unwrap();
+            let runtime =
+                context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
+            let rows = evaluated_character_curve_rows(Some(&AlsRootAnimationContext {
+                curves: context.curves.into_iter().collect(),
+            }));
+            let row = rows
+                .iter()
+                .find(|row| row.label == "Rotation Yaw Speed")
+                .unwrap();
             assert_eq!(row.value, format!("{:.2}", -runtime));
-            assert_eq!(row.color, if name.ends_with("_Left") { gray() } else { white() });
+            assert_eq!(
+                row.color,
+                if name.ends_with("_Left") {
+                    gray()
+                } else {
+                    white()
+                }
+            );
         }
     }
 
     #[test]
     fn camera_hud_reads_all_current_instance_curves_in_source_units() {
         let (mut app, character, camera, _) = crate::camera_component::tests::loaded_camera_scene();
-        let player = app.world().get::<AnimatedSceneInstance>(camera).unwrap().player_entity();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(camera)
+            .unwrap()
+            .player_entity();
         let projected = app.world().get::<AlsRootAnimationContext>(player).unwrap();
         assert_eq!(projected.f32("FootLeftIk"), Some(0.0));
-        assert!(!projected.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")), "Default reads must not invent active camera curves");
-        app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [
-            ("CameraOffsetZ".into(), -1.0), ("CameraOffsetX".into(), 2.0),
-            ("PivotOffsetZ".into(), 0.5), ("LocationLagZ".into(), 0.3), ("CustomCameraCurve".into(), -0.5)].into() });
-        app.world_mut().get_mut::<AlsSourceCameraComponent>(camera).unwrap().activate(false);
-        app.world_mut().entity_mut(camera).insert(crate::als_camera::AlsCameraDebugInfo { valid: true, curve_values: [999.0; crate::als_camera::CAMERA_CURVE_COUNT], ..default() });
-        let view = app.world_mut().spawn((Camera3d::default(), Camera { is_active: false, ..default() },
-            crate::als_camera::AlsCameraViewSource(camera), crate::als_camera::AlsCharacterCamera { character })).id();
-        app.world_mut().entity_mut(character).insert((AlsCharacter, crate::debug_target::AlsDebugTarget,
-            OverlayState::Default, AlsStateRequest::default(), AlsCharacterAssembly { avatar: Entity::PLACEHOLDER, camera: Some(view) }));
-        app.insert_resource(AlsShowDebugHudState { visible: true, camera_curves: true, ..default() })
-            .init_resource::<canvas::ColumnNavigation>();
+        assert!(
+            !projected
+                .curves
+                .contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")),
+            "Default reads must not invent active camera curves"
+        );
+        app.world_mut()
+            .entity_mut(player)
+            .insert(AlsRootAnimationContext {
+                curves: [
+                    ("CameraOffsetZ".into(), -1.0),
+                    ("CameraOffsetX".into(), 2.0),
+                    ("PivotOffsetZ".into(), 0.5),
+                    ("LocationLagZ".into(), 0.3),
+                    ("CustomCameraCurve".into(), -0.5),
+                ]
+                .into(),
+            });
+        app.world_mut()
+            .get_mut::<AlsSourceCameraComponent>(camera)
+            .unwrap()
+            .activate(false);
+        app.world_mut()
+            .entity_mut(camera)
+            .insert(crate::als_camera::AlsCameraDebugInfo {
+                valid: true,
+                curve_values: [999.0; crate::als_camera::CAMERA_CURVE_COUNT],
+                ..default()
+            });
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                Camera {
+                    is_active: false,
+                    ..default()
+                },
+                crate::als_camera::AlsCameraViewSource(camera),
+                crate::als_camera::AlsCharacterCamera { character },
+            ))
+            .id();
+        app.world_mut().entity_mut(character).insert((
+            AlsCharacter,
+            crate::debug_target::AlsDebugTarget,
+            OverlayState::Default,
+            AlsStateRequest::default(),
+            AlsCharacterAssembly {
+                avatar: Entity::PLACEHOLDER,
+                camera: Some(view),
+            },
+        ));
+        app.insert_resource(AlsShowDebugHudState {
+            visible: true,
+            camera_curves: true,
+            ..default()
+        })
+        .init_resource::<canvas::ColumnNavigation>();
         let system = app.world_mut().register_system(hud_sync_system);
         app.world_mut().run_system(system).unwrap();
-        let values: std::collections::HashMap<_, _> = app.world_mut().query::<(&Name, &Text)>().iter(app.world())
-            .map(|(name, text)| (name.to_string(), text.0.clone())).collect();
-        for (name, value) in [("Camera Offset X", "100.00"), ("Camera Offset Y", "200.00"),
-            ("Pivot Offset Y", "50.00"), ("Location Lag X", "0.30"), ("Custom Camera Curve", "-0.50")] {
+        let values: std::collections::HashMap<_, _> = app
+            .world_mut()
+            .query::<(&Name, &Text)>()
+            .iter(app.world())
+            .map(|(name, text)| (name.to_string(), text.0.clone()))
+            .collect();
+        for (name, value) in [
+            ("Camera Offset X", "100.00"),
+            ("Camera Offset Y", "200.00"),
+            ("Pivot Offset Y", "50.00"),
+            ("Location Lag X", "0.30"),
+            ("Custom Camera Curve", "-0.50"),
+        ] {
             assert_eq!(values.get(name).map(String::as_str), Some(value), "{name}");
         }
-        assert!(!values.contains_key("Camera Offset Z"), "Inactive curves must not be fabricated");
-        assert!(app.world_mut().query::<(&Name, &TextColor)>().iter(app.world()).any(|(name, color)|
-            name.as_str() == "Custom Camera Curve" && color.0 == linear(0.75, 0.75, 0.75)));
-        app.world_mut().get_mut::<AlsSourceCameraComponent>(camera).unwrap().deactivate();
+        assert!(
+            !values.contains_key("Camera Offset Z"),
+            "Inactive curves must not be fabricated"
+        );
+        assert!(
+            app.world_mut()
+                .query::<(&Name, &TextColor)>()
+                .iter(app.world())
+                .any(|(name, color)| name.as_str() == "Custom Camera Curve"
+                    && color.0 == linear(0.75, 0.75, 0.75))
+        );
+        app.world_mut()
+            .get_mut::<AlsSourceCameraComponent>(camera)
+            .unwrap()
+            .deactivate();
         app.world_mut().run_system(system).unwrap();
-        assert!(!app.world_mut().query::<&Name>().iter(app.world()).any(|name| name.as_str() == "Custom Camera Curve"));
+        assert!(
+            !app.world_mut()
+                .query::<&Name>()
+                .iter(app.world())
+                .any(|name| name.as_str() == "Custom Camera Curve")
+        );
     }
 
     #[test]
     fn angular_curve_labels_and_colors_restore_source_heading_sign() {
-        for (runtime, expected, color) in [(-42.0, "42.00", white()), (42.0, "-42.00", gray()), (0.0, "0.00", gray())] {
-            let context = AlsRootAnimationContext { curves: [("RotationYawOffset".into(), runtime),
-                ("RotationYawSpeed".into(), runtime), ("PoseGait".into(), 2.25)].into() };
+        for (runtime, expected, color) in [
+            (-42.0, "42.00", white()),
+            (42.0, "-42.00", gray()),
+            (0.0, "0.00", gray()),
+        ] {
+            let context = AlsRootAnimationContext {
+                curves: [
+                    ("RotationYawOffset".into(), runtime),
+                    ("RotationYawSpeed".into(), runtime),
+                    ("PoseGait".into(), 2.25),
+                ]
+                .into(),
+            };
             let rows = evaluated_character_curve_rows(Some(&context));
             for label in ["Rotation Yaw Offset", "Rotation Yaw Speed"] {
                 let row = rows.iter().find(|row| row.label == label).unwrap();
                 assert_eq!(row.value, expected);
                 assert_eq!(row.color, color);
             }
-            assert_eq!(rows.iter().find(|row| row.label == "Pose Gait").unwrap().value, "2.25");
+            assert_eq!(
+                rows.iter()
+                    .find(|row| row.label == "Pose Gait")
+                    .unwrap()
+                    .value,
+                "2.25"
+            );
         }
     }
 

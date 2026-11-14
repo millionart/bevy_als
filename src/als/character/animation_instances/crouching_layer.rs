@@ -70,7 +70,9 @@ impl Plugin for CrouchingLayerPlugin {
             AlsCrouchingLayerSet
                 .after(crate::standing_layer::AlsStandingLayerSet)
                 .before(AlsRotationResponseSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         )
         .configure_sets(
             PostUpdate,
@@ -223,7 +225,11 @@ fn capture_crouching_graph_telemetry(
                 .get_global_input_data("crouching_state.play_rate")
                 .and_then(|value| value.as_f32().ok()),
             graph_marker_phase: player.get_context_arena().and_then(|arena| {
-                crate::extensions::sync_group_phase::source_sync_phase(arena, &graphs, MOVEMENT_SYNC_GROUP)
+                crate::extensions::sync_group_phase::source_sync_phase(
+                    arena,
+                    &graphs,
+                    MOVEMENT_SYNC_GROUP,
+                )
             }),
             graph_pose_moving: context.and_then(|state| state.f32("PoseMoving")),
             graph_turn_curve_direct_yaw_speed_target: context
@@ -288,7 +294,8 @@ fn crouching_layer_writer(
     players: Query<Option<&AlsRootAnimationContext>, With<AnimationGraphPlayer>>,
 ) {
     for (avatar, instance) in &avatars {
-        let Ok((stance, motion, input, input_override, roll)) = characters.get(avatar.character) else {
+        let Ok((stance, motion, input, input_override, roll)) = characters.get(avatar.character)
+        else {
             continue;
         };
         if *stance != Stance::Crouching {
@@ -302,8 +309,11 @@ fn crouching_layer_writer(
             .move_dir
             .length_squared()
             > f32::EPSILON;
-        let (speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
-            .map_or((motion.horizontal_speed, has_input), |locomotion| (locomotion.speed, locomotion.has_input));
+        let (speed, has_input) = roll
+            .and_then(|roll| roll.animation_locomotion)
+            .map_or((motion.horizontal_speed, has_input), |locomotion| {
+                (locomotion.speed, locomotion.has_input)
+            });
         commands
             .entity(avatar.character)
             .insert(crouching_curve_outputs(

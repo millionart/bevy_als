@@ -48,7 +48,13 @@ fn setup(mut commands: Commands) {
 fn verify_overlay_lifecycle(
     mut phase: Local<u8>,
     mut frames: Local<u32>,
-    mut characters: Query<(&mut bevy_als::als::state::AlsNotifyLocomotionAction, &mut AlsMantleState), With<AlsCharacter>>,
+    mut characters: Query<
+        (
+            &mut bevy_als::als::state::AlsNotifyLocomotionAction,
+            &mut AlsMantleState,
+        ),
+        With<AlsCharacter>,
+    >,
     props: Query<&AlsOverlayObject>,
     mut exit: MessageWriter<AppExit>,
 ) {

@@ -1,11 +1,6 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 
-use crate::als_camera::{
-    AlsCameraFieldOfView,
-    AlsCameraSocketBinding, AlsCameraSocketLocations,
-    AlsCameraTarget,
-};
 use crate::als::character::AlsCharacterBundle;
 use crate::als::control_scheme::AlsControlSchemeConfig;
 use crate::als::input::{AlsInputMap, spawn_als_actions};
@@ -13,6 +8,9 @@ use crate::als::motion::{AlsViewYaw, initial_als_control_scheme_config};
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::params::AlsMovementParams;
 use crate::als::view::AlsViewPitch;
+use crate::als_camera::{
+    AlsCameraFieldOfView, AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
+};
 use crate::extensions::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
 
 use crate::animation_events::{
@@ -65,21 +63,45 @@ pub fn avatar_transform() -> Transform {
 
 pub(crate) fn sync_avatar_stance_offset(
     params_assets: Res<Assets<AlsMovementParams>>,
-    characters: Query<(Ref<crate::als::state::Stance>, &crate::als::character::AlsMovementParamsHandle), With<crate::als::character::AlsCharacter>>,
+    characters: Query<
+        (
+            Ref<crate::als::state::Stance>,
+            &crate::als::character::AlsMovementParamsHandle,
+        ),
+        With<crate::als::character::AlsCharacter>,
+    >,
     mut avatars: Query<(Ref<AlsCharacterAvatar>, &ChildOf, &mut Transform)>,
 ) {
     for (avatar, parent, mut transform) in &mut avatars {
-        let Ok((stance, handle)) = characters.get(parent.parent()) else { continue };
-        if !avatar.is_added() && !stance.is_changed() { continue; }
-        let Some(params) = params_assets.get(handle.id()) else { continue };
-        transform.translation.y = AVATAR_CAPSULE_BOTTOM_OFFSET + if *stance == crate::als::state::Stance::Crouching {
-            params.crouch.standing_capsule_half_height - params.crouch.actual_crouched_half_height()
-        } else { 0.0 };
+        let Ok((stance, handle)) = characters.get(parent.parent()) else {
+            continue;
+        };
+        if !avatar.is_added() && !stance.is_changed() {
+            continue;
+        }
+        let Some(params) = params_assets.get(handle.id()) else {
+            continue;
+        };
+        transform.translation.y = AVATAR_CAPSULE_BOTTOM_OFFSET
+            + if *stance == crate::als::state::Stance::Crouching {
+                params.crouch.standing_capsule_half_height
+                    - params.crouch.actual_crouched_half_height()
+            } else {
+                0.0
+            };
     }
 }
 
-pub(crate) fn character_mesh_entity(avatar: Entity, player: Entity, parents: &Query<&ChildOf>) -> Entity {
-    if parents.get(player).is_err() || parents.iter_ancestors(player).any(|parent| parent == avatar) {
+pub(crate) fn character_mesh_entity(
+    avatar: Entity,
+    player: Entity,
+    parents: &Query<&ChildOf>,
+) -> Entity {
+    if parents.get(player).is_err()
+        || parents
+            .iter_ancestors(player)
+            .any(|parent| parent == avatar)
+    {
         player
     } else {
         avatar
@@ -281,7 +303,9 @@ fn spawn_als_character_internal(
                 ..default()
             },
             AlsCameraTarget,
-            crate::als_camera::AlsCameraDefinitionHandle(assets.load("ALSCamera/Data/als_camera.camera_component.ron")),
+            crate::als_camera::AlsCameraDefinitionHandle(
+                assets.load("ALSCamera/Data/als_camera.camera_component.ron"),
+            ),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,
             AlsNotifyRootMotionScale::default(),
@@ -306,7 +330,9 @@ fn spawn_als_character_internal(
                 main_material.clone(),
             )));
         Some(main_material)
-    } else { None };
+    } else {
+        None
+    };
     commands.entity(character).insert((
         AlsCameraSocketBinding::new(avatar),
         AlsCameraSocketLocations::default(),
@@ -319,7 +345,9 @@ fn spawn_als_character_internal(
         ChildOf(avatar),
         Visibility::Hidden,
     ));
-    if let Some(material) = camera_material { component.insert(AvatarMaterialOverride(vec![material])); }
+    if let Some(material) = camera_material {
+        component.insert(AvatarMaterialOverride(vec![material]));
+    }
     let component_entity = component.id();
     let camera = if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
@@ -423,56 +451,137 @@ mod tests {
     #[test]
     fn pitched_spawn_initializes_the_actual_source_camera_view_direction() {
         use bevy::ecs::system::RunSystemOnce;
-        for (yaw, pitch) in [(0.7, 0.35), (-2.0, -0.35), (0.0, 0.0), (-std::f32::consts::FRAC_PI_2, 0.0)] {
-        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
-        let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
-        let character = app.world_mut().run_system_once(move |mut commands: Commands,
-            assets: Res<AssetServer>, mut params: ResMut<Assets<AlsMovementParams>>,
-            mut configs: ResMut<Assets<AlsControlSchemeConfig>>| {
-            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
-                AlsCharacterBlueprint { spawn_input: false, spawn_camera: true,
-                    ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0).with_rotation(rotation)) })
-        }).unwrap();
-        assert_eq!(app.world().get::<Transform>(character).unwrap().rotation, rotation);
-        assert_eq!(app.world().get::<avian3d::prelude::Rotation>(character).unwrap().0, rotation);
-        let expected = rotation * Vec3::NEG_Z;
-        let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
-        let response = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();
-        assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
-        assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
-        assert!(crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4);
-        assert!(crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs() < 1e-4);
-        let camera = app.world().get::<AlsCharacterAssembly>(character).unwrap().camera.unwrap();
-        let component = app.world().get::<crate::als_camera::AlsCameraViewSource>(camera).unwrap().0;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
-        let mut ready = false;
-        let mut valid_frames = 0;
-        while std::time::Instant::now() < deadline {
-            app.update();
-            if let Some(view) = app.world().get::<crate::als_camera::AlsCameraViewInfo>(component)
-                && view.valid {
-                if valid_frames == 0 {
-                    let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
-                    let response = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();
-                    assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
-                    assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
-                    assert!(crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4);
-                    assert!(crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs() < 1e-4);
-                    assert_eq!(*app.world().get::<crate::als::state::Stance>(character).unwrap(), crate::als::state::Stance::Standing);
-                    assert_eq!(*app.world().get::<crate::als::gait::AlsDesiredGait>(character).unwrap(), crate::als::gait::AlsDesiredGait(crate::als::state::Gait::Running));
-                    assert_eq!(*app.world().get::<crate::als::state::RotationMode>(character).unwrap(), crate::als::state::RotationMode::ViewDirection);
+        for (yaw, pitch) in [
+            (0.7, 0.35),
+            (-2.0, -0.35),
+            (0.0, 0.0),
+            (-std::f32::consts::FRAC_PI_2, 0.0),
+        ] {
+            let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+            let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+            let character = app
+                .world_mut()
+                .run_system_once(
+                    move |mut commands: Commands,
+                          assets: Res<AssetServer>,
+                          mut params: ResMut<Assets<AlsMovementParams>>,
+                          mut configs: ResMut<Assets<AlsControlSchemeConfig>>| {
+                        spawn_als_character(
+                            &mut commands,
+                            &assets,
+                            &mut params,
+                            &mut configs,
+                            AlsCharacterBlueprint {
+                                spawn_input: false,
+                                spawn_camera: true,
+                                ..AlsCharacterBlueprint::new(
+                                    Transform::from_xyz(0.0, 1.5, 0.0).with_rotation(rotation),
+                                )
+                            },
+                        )
+                    },
+                )
+                .unwrap();
+            assert_eq!(
+                app.world().get::<Transform>(character).unwrap().rotation,
+                rotation
+            );
+            assert_eq!(
+                app.world()
+                    .get::<avian3d::prelude::Rotation>(character)
+                    .unwrap()
+                    .0,
+                rotation
+            );
+            let expected = rotation * Vec3::NEG_Z;
+            let motion = app
+                .world()
+                .get::<crate::actual_motion::AlsActualMotion>(character)
+                .unwrap();
+            let response = app
+                .world()
+                .get::<crate::als::motion::AlsRotationResponseState>(character)
+                .unwrap();
+            assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+            assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+            assert!(crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4);
+            assert!(crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs() < 1e-4);
+            let camera = app
+                .world()
+                .get::<AlsCharacterAssembly>(character)
+                .unwrap()
+                .camera
+                .unwrap();
+            let component = app
+                .world()
+                .get::<crate::als_camera::AlsCameraViewSource>(camera)
+                .unwrap()
+                .0;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            let mut ready = false;
+            let mut valid_frames = 0;
+            while std::time::Instant::now() < deadline {
+                app.update();
+                if let Some(view) = app
+                    .world()
+                    .get::<crate::als_camera::AlsCameraViewInfo>(component)
+                    && view.valid
+                {
+                    if valid_frames == 0 {
+                        let motion = app
+                            .world()
+                            .get::<crate::actual_motion::AlsActualMotion>(character)
+                            .unwrap();
+                        let response = app
+                            .world()
+                            .get::<crate::als::motion::AlsRotationResponseState>(character)
+                            .unwrap();
+                        assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+                        assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+                        assert!(
+                            crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4
+                        );
+                        assert!(
+                            crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs()
+                                < 1e-4
+                        );
+                        assert_eq!(
+                            *app.world()
+                                .get::<crate::als::state::Stance>(character)
+                                .unwrap(),
+                            crate::als::state::Stance::Standing
+                        );
+                        assert_eq!(
+                            *app.world()
+                                .get::<crate::als::gait::AlsDesiredGait>(character)
+                                .unwrap(),
+                            crate::als::gait::AlsDesiredGait(crate::als::state::Gait::Running)
+                        );
+                        assert_eq!(
+                            *app.world()
+                                .get::<crate::als::state::RotationMode>(character)
+                                .unwrap(),
+                            crate::als::state::RotationMode::ViewDirection
+                        );
+                    }
+                    valid_frames += 1;
+                    if valid_frames < 30 {
+                        continue;
+                    }
+                    let actual = view.rotation * Vec3::NEG_Z;
+                    assert!(
+                        actual.abs_diff_eq(expected, 1e-4),
+                        "Source spawn camera inherits actor view pitch and yaw: expected={expected:?} actual={actual:?}"
+                    );
+                    ready = true;
+                    break;
                 }
-                valid_frames += 1;
-                if valid_frames < 30 { continue; }
-                let actual = view.rotation * Vec3::NEG_Z;
-                assert!(actual.abs_diff_eq(expected, 1e-4),
-                    "Source spawn camera inherits actor view pitch and yaw: expected={expected:?} actual={actual:?}");
-                ready = true;
-                break;
+                std::thread::sleep(std::time::Duration::from_millis(5));
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        assert!(ready, "Actual source camera must become ready after pitched spawn");
+            assert!(
+                ready,
+                "Actual source camera must become ready after pitched spawn"
+            );
         }
     }
 
@@ -487,33 +596,88 @@ mod tests {
     fn stance_changes_preserve_the_mesh_world_origin() {
         use crate::als::{character::AlsCharacter, state::Stance};
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::transform::TransformPlugin, crate::stance_layer::StanceLayerPlugin))
-            .init_resource::<Assets<AlsMovementParams>>();
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::transform::TransformPlugin,
+            crate::stance_layer::StanceLayerPlugin,
+        ))
+        .init_resource::<Assets<AlsMovementParams>>();
         let params = AlsMovementParams::default();
-        let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params.clone());
         let actors = [0.0, 2.0].map(|floor| {
-            let character = app.world_mut().spawn((
-                AlsCharacter, Stance::Standing,
-                crate::als::character::AlsMovementParamsHandle(handle.clone()),
-                Transform::from_xyz(floor, floor + params.crouch.standing_capsule_half_height, 0.0),
-            )).id();
-            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character), avatar_transform())).id();
+            let character = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    Stance::Standing,
+                    crate::als::character::AlsMovementParamsHandle(handle.clone()),
+                    Transform::from_xyz(
+                        floor,
+                        floor + params.crouch.standing_capsule_half_height,
+                        0.0,
+                    ),
+                ))
+                .id();
+            let avatar = app
+                .world_mut()
+                .spawn((
+                    AlsCharacterAvatar { character },
+                    ChildOf(character),
+                    avatar_transform(),
+                ))
+                .id();
             (character, avatar, floor)
         });
-        for stance in [Stance::Standing, Stance::Crouching, Stance::Standing, Stance::Crouching] {
+        for stance in [
+            Stance::Standing,
+            Stance::Crouching,
+            Stance::Standing,
+            Stance::Crouching,
+        ] {
             for (character, _, floor) in actors {
                 app.world_mut().entity_mut(character).insert(stance);
-                app.world_mut().get_mut::<Transform>(character).unwrap().translation.y = floor + if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+                app.world_mut()
+                    .get_mut::<Transform>(character)
+                    .unwrap()
+                    .translation
+                    .y = floor
+                    + if stance == Stance::Crouching {
+                        params.crouch.crouched_capsule_half_height
+                    } else {
+                        params.crouch.standing_capsule_half_height
+                    };
             }
             app.update();
-            let observed = actors.map(|(_, avatar, floor)| app.world().get::<GlobalTransform>(avatar).unwrap().translation().y - floor);
-            assert!(observed.iter().all(|height| (*height - AVATAR_MESH_ROOT_WORLD_Y).abs() < 1e-6), "{stance:?}: {observed:?}");
+            let observed = actors.map(|(_, avatar, floor)| {
+                app.world()
+                    .get::<GlobalTransform>(avatar)
+                    .unwrap()
+                    .translation()
+                    .y
+                    - floor
+            });
+            assert!(
+                observed
+                    .iter()
+                    .all(|height| (*height - AVATAR_MESH_ROOT_WORLD_Y).abs() < 1e-6),
+                "{stance:?}: {observed:?}"
+            );
         }
         let avatar = actors[0].1;
         let original = app.world().get::<Transform>(avatar).unwrap().translation;
-        app.world_mut().get_mut::<Transform>(avatar).unwrap().translation.y += 0.2;
+        app.world_mut()
+            .get_mut::<Transform>(avatar)
+            .unwrap()
+            .translation
+            .y += 0.2;
         app.update();
-        assert!((app.world().get::<Transform>(avatar).unwrap().translation.y - original.y - 0.2).abs() < 1e-6);
+        assert!(
+            (app.world().get::<Transform>(avatar).unwrap().translation.y - original.y - 0.2).abs()
+                < 1e-6
+        );
     }
 
     #[test]
@@ -549,7 +713,11 @@ mod tests {
         let source_camera = app.world_mut().query_filtered::<(Entity, &ChildOf, &AlsCharacterCamera), With<crate::camera_component::AlsSourceCameraComponent>>()
             .iter(app.world()).find(|(_, _, owner)| owner.character == character).map(|(entity, parent, _)| (entity, parent.parent())).unwrap();
         assert_eq!(source_camera.1, assembly.avatar);
-        assert!(app.world().get::<avian3d::prelude::Collider>(source_camera.0).is_none());
+        assert!(
+            app.world()
+                .get::<avian3d::prelude::Collider>(source_camera.0)
+                .is_none()
+        );
         assert_eq!(
             app.world()
                 .get::<AlsCharacterAvatar>(assembly.avatar)
@@ -566,7 +734,17 @@ mod tests {
             character
         );
         assert!(app.world().get::<Camera3d>(camera).is_some());
-        assert!(app.world().get::<crate::als_camera::AlsCameraRig>(source_camera.0).is_some());
-        assert_eq!(app.world().get::<crate::als_camera::AlsCameraViewSource>(camera).unwrap().0, source_camera.0);
+        assert!(
+            app.world()
+                .get::<crate::als_camera::AlsCameraRig>(source_camera.0)
+                .is_some()
+        );
+        assert_eq!(
+            app.world()
+                .get::<crate::als_camera::AlsCameraViewSource>(camera)
+                .unwrap()
+                .0,
+            source_camera.0
+        );
     }
 }

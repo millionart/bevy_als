@@ -2,10 +2,22 @@
 pub mod als_curves;
 #[path = "animation_graph_ext/animation_context.rs"]
 pub mod animation_context;
-#[path = "animation_graph_ext/post_physics_animation.rs"]
-pub mod post_physics_animation;
 #[path = "animation_graph_ext/blend_space_1d.rs"]
 pub mod blend_space_1d;
+#[path = "control_rig/control_rig_hierarchy.rs"]
+pub mod control_rig_hierarchy;
+#[path = "control_rig/control_rig_ik.rs"]
+pub mod control_rig_ik;
+#[path = "control_rig/control_rig_math.rs"]
+pub mod control_rig_math;
+#[path = "control_rig/control_rig_mesh_ray.rs"]
+pub mod control_rig_mesh_ray;
+#[path = "control_rig/control_rig_program.rs"]
+pub mod control_rig_program;
+#[path = "control_rig/control_rig_query.rs"]
+pub mod control_rig_query;
+#[path = "control_rig/control_rig_units.rs"]
+pub mod control_rig_units;
 #[path = "tnua_ext/crouch_transaction.rs"]
 pub mod crouch_transaction;
 #[path = "animation_graph_ext/curve.rs"]
@@ -14,22 +26,6 @@ pub mod curve;
 pub mod curve_bundle;
 #[path = "animation_graph_ext/curve_weighted_samples.rs"]
 pub mod curve_weighted_samples;
-#[path = "bevy_ext/source_math.rs"]
-pub(crate) mod source_math;
-#[path = "control_rig/control_rig_math.rs"]
-pub mod control_rig_math;
-#[path = "control_rig/control_rig_program.rs"]
-pub mod control_rig_program;
-#[path = "control_rig/control_rig_hierarchy.rs"]
-pub mod control_rig_hierarchy;
-#[path = "control_rig/control_rig_ik.rs"]
-pub mod control_rig_ik;
-#[path = "control_rig/control_rig_units.rs"]
-pub mod control_rig_units;
-#[path = "control_rig/control_rig_query.rs"]
-pub mod control_rig_query;
-#[path = "control_rig/control_rig_mesh_ray.rs"]
-pub mod control_rig_mesh_ray;
 #[path = "animation_graph_ext/direct_transition_event.rs"]
 pub mod direct_transition_event;
 #[path = "animation_graph_ext/distance_match.rs"]
@@ -104,25 +100,31 @@ pub mod playground;
 pub mod playground_materials;
 #[path = "als_extras/environment/playground_sky.rs"]
 pub mod playground_sky;
-#[path = "bevy_ext/projected_decal.rs"]
-pub mod projected_decal;
 #[path = "animation_graph_ext/pose_timestamp.rs"]
 pub mod pose_timestamp;
+#[path = "animation_graph_ext/post_physics_animation.rs"]
+pub mod post_physics_animation;
 #[path = "animation_graph_ext/profile_blend.rs"]
 pub mod profile_blend;
+#[path = "bevy_ext/projected_decal.rs"]
+pub mod projected_decal;
+#[path = "avian_ext/query_collision.rs"]
+pub mod query_collision;
 #[path = "avian_ext/ragdoll_angular_drive.rs"]
 pub mod ragdoll_angular_drive;
 #[path = "animation_graph_ext/ragdoll_config_node.rs"]
 pub mod ragdoll_config_node;
-#[path = "avian_ext/query_collision.rs"]
-pub mod query_collision;
+#[path = "bevy_ext/source_math.rs"]
+pub(crate) mod source_math;
 pub use query_collision::ComplexCollider;
-#[path = "avian_ext/source_capsule_sweep.rs"]
-pub(crate) mod source_capsule_sweep;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]
 pub mod ragdolling_tag_blend;
+#[path = "animation_graph_ext/raw_curve_sampling.rs"]
+pub(crate) mod raw_curve_sampling;
+#[path = "animation_graph_ext/raw_sequence_sampling.rs"]
+pub(crate) mod raw_sequence_sampling;
 #[path = "animation_graph_ext/reference_local_difference.rs"]
 pub mod reference_local_difference;
 #[path = "animation_graph_ext/reference_mesh_difference.rs"]
@@ -145,6 +147,10 @@ pub mod slot_node;
 pub mod source_animation_state_getter;
 #[path = "animation_graph_ext/source_cached_pose.rs"]
 pub mod source_cached_pose;
+#[path = "avian_ext/source_capsule_sweep.rs"]
+pub(crate) mod source_capsule_sweep;
+#[path = "animation_graph_ext/source_compression.rs"]
+pub(crate) mod source_compression;
 #[path = "animation_graph_ext/source_gameplay_tag_input.rs"]
 pub mod source_gameplay_tag_input;
 #[path = "animation_graph_ext/source_instance.rs"]
@@ -157,48 +163,43 @@ pub mod source_movement_nodes;
 pub mod source_native_refresh;
 #[path = "avian_ext/source_physics_joint.rs"]
 pub mod source_physics_joint;
-#[path = "animation_graph_ext/source_pose_nodes.rs"]
-pub mod source_pose_nodes;
 #[path = "animation_graph_ext/source_pose.rs"]
 pub(crate) mod source_pose;
-#[path = "animation_graph_ext/static_skeleton.rs"]
-pub mod static_skeleton;
-#[path = "animation_graph_ext/static_animated_scene.rs"]
-pub mod static_animated_scene;
+#[path = "animation_graph_ext/source_pose_nodes.rs"]
+pub mod source_pose_nodes;
 #[path = "animation_graph_ext/source_pose_passthrough.rs"]
 pub mod source_pose_passthrough;
 #[path = "animation_graph_ext/source_scalar_expression.rs"]
 pub mod source_scalar_expression;
 #[path = "animation_graph_ext/source_sequence_evaluator.rs"]
 pub mod source_sequence_evaluator;
-#[path = "animation_graph_ext/source_compression.rs"]
-pub(crate) mod source_compression;
-#[path = "animation_graph_ext/raw_sequence_sampling.rs"]
-pub(crate) mod raw_sequence_sampling;
-#[path = "animation_graph_ext/raw_curve_sampling.rs"]
-pub(crate) mod raw_curve_sampling;
 #[path = "animation_graph_ext/source_sequence_player.rs"]
 pub mod source_sequence_player;
 #[path = "animation_graph_ext/source_slot.rs"]
 pub mod source_slot;
 #[path = "animation_graph_ext/source_stop_nodes.rs"]
 pub mod source_stop_nodes;
-#[path = "animation_graph_ext/state_label_event.rs"]
-pub mod state_label_event;
-#[path = "animation_graph_ext/sync_group_phase.rs"]
-pub mod sync_group_phase;
-#[path = "bevy_ext/time_dilation.rs"]
-pub mod time_dilation;
 #[path = "bevy_ext/source_world_time.rs"]
 pub mod source_world_time;
+#[path = "animation_graph_ext/state_label_event.rs"]
+pub mod state_label_event;
+#[path = "animation_graph_ext/static_animated_scene.rs"]
+pub mod static_animated_scene;
+#[path = "animation_graph_ext/static_skeleton.rs"]
+pub mod static_skeleton;
+#[path = "animation_graph_ext/sync_group_phase.rs"]
+pub mod sync_group_phase;
 #[path = "bevy_ext/text_overflow.rs"]
 pub mod text_overflow;
+#[path = "bevy_ext/time_dilation.rs"]
+pub mod time_dilation;
 #[path = "animation_graph_ext/time_position.rs"]
 pub mod time_position;
 
 pub use als_curves::{
     ALS_CURVES_EXTENSION, ALS_CURVES_LABEL, AlsAnimCurves, AlsCurvesHandler, AlsCurvesParseError,
-    AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, SourceCurveName, SourceCurveValues, parse_curves,
+    AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, SourceCurveName,
+    SourceCurveValues, parse_curves,
 };
 pub use animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextState, SourceRelevantAsset,
@@ -303,15 +304,15 @@ pub use playground::{
     PlaygroundRotator, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing, PlaygroundTextFit,
     PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
     PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
-    is_engine_basic, moving_object_curve_input, moving_object_position,
-    playground_collider_kind, playground_moving_object_system, playground_setup_system,
-    ue_directional_light_ray_to_bevy, ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy,
-    ue_rotator_to_bevy_quat, ue_scale_to_bevy, ue_yaw_to_bevy_quat,
+    is_engine_basic, moving_object_curve_input, moving_object_position, playground_collider_kind,
+    playground_moving_object_system, playground_setup_system, ue_directional_light_ray_to_bevy,
+    ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy, ue_rotator_to_bevy_quat,
+    ue_scale_to_bevy, ue_yaw_to_bevy_quat,
 };
 pub use pose_timestamp::PoseTimestampNode;
 pub use profile_blend::{
-    AlphaBlendMode, BlendProfileMode, BoneBlendScale, SourceBlendProfile, ProfiledBlendNode, curve_a_input, curve_b_input,
-    profile_target_weight, transition_alpha,
+    AlphaBlendMode, BlendProfileMode, BoneBlendScale, ProfiledBlendNode, SourceBlendProfile,
+    curve_a_input, curve_b_input, profile_target_weight, transition_alpha,
 };
 pub use ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDrivePlugin,
@@ -320,10 +321,10 @@ pub use ragdoll_angular_drive::{
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use ragdoll_physics_profile::{
     RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
-    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile, RagdollShapeCollisionMode,
-    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied, RagdollSpatialQuery,
-    RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet,
-    SourceCollisionIgnorePawn, SourceCollisionPawn,
+    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
+    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied,
+    RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet, RagdollShapeCollisionMode,
+    RagdollSpatialQuery, SourceCollisionIgnorePawn, SourceCollisionPawn,
 };
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};
@@ -343,7 +344,9 @@ pub use source_cached_pose::{
     SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceContextDefault,
     SourceScopedCachedPoseUseNode, resolve_cached_pose, resolve_scoped_cached_pose,
 };
-pub use source_gameplay_tag_input::{SourceGameplayTagInputNode, SourceAnimationInputs, SourceAnimationInputsPlugin};
+pub use source_gameplay_tag_input::{
+    SourceAnimationInputs, SourceAnimationInputsPlugin, SourceGameplayTagInputNode,
+};
 pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_physics_joint::{
@@ -351,9 +354,9 @@ pub use source_physics_joint::{
     SourcePhysicsJoint, SourcePhysicsJointPlugin, SourcePhysicsJointSolverData,
 };
 pub use source_pose_nodes::{
-    SourceAlphaMapping, SourceApplyAdditiveNode, SourceCurveModifyNode, SourceCurvesBlendMode,
-    SourceCurvesBlendNode, SourceGameplayTagBlendNode, SourceBoolBlendNode, SourceMakeDynamicAdditiveNode,
-    SourceMeshSpaceAdditiveNode, SourceTwoWayBlendNode,
+    SourceAlphaMapping, SourceApplyAdditiveNode, SourceBoolBlendNode, SourceCurveModifyNode,
+    SourceCurvesBlendMode, SourceCurvesBlendNode, SourceGameplayTagBlendNode,
+    SourceMakeDynamicAdditiveNode, SourceMeshSpaceAdditiveNode, SourceTwoWayBlendNode,
 };
 pub use source_pose_passthrough::SourcePosePassthroughNode;
 pub use source_scalar_expression::{
@@ -384,7 +387,9 @@ pub struct AlsExtPlugin;
 
 impl Plugin for AlsExtPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<SourceAnimationInputsPlugin>() { app.add_plugins(SourceAnimationInputsPlugin); }
+        if !app.is_plugin_added::<SourceAnimationInputsPlugin>() {
+            app.add_plugins(SourceAnimationInputsPlugin);
+        }
         app.register_asset_loader(CurveAssetLoader)
             .init_asset::<CurveAsset>()
             .init_asset_loader::<static_skeleton::StaticSkeletonLoader>()

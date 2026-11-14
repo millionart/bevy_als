@@ -191,33 +191,52 @@ impl RigMathOp {
         self.evaluate_in_units(inputs, 1.0)
     }
 
-    pub(crate) fn evaluate_in_units(self, inputs: &[RigValue], meters_per_unit: f64) -> Result<RigValue, String> {
+    pub(crate) fn evaluate_in_units(
+        self,
+        inputs: &[RigValue],
+        meters_per_unit: f64,
+    ) -> Result<RigValue, String> {
         use RigValue::*;
         Ok(match (self, inputs) {
             (Self::F32Add, [F32(a), F32(b)]) => F32(a + b),
             (Self::F32Add, [Centimeters(a), Centimeters(b)]) => Centimeters(a + b),
             (Self::F32Mul, [F32(a), F32(b)]) => F32(a * b),
-            (Self::F32Mul, [Centimeters(a), F32(b)] | [F32(a), Centimeters(b)]) => Centimeters(a * b),
+            (Self::F32Mul, [Centimeters(a), F32(b)] | [F32(a), Centimeters(b)]) => {
+                Centimeters(a * b)
+            }
             (Self::F32Min, [F32(a), F32(b)]) => F32(if a < b { *a } else { *b }),
-            (Self::F32Min, [Centimeters(a), Centimeters(b)]) => Centimeters(if a < b { *a } else { *b }),
+            (Self::F32Min, [Centimeters(a), Centimeters(b)]) => {
+                Centimeters(if a < b { *a } else { *b })
+            }
             (Self::F32Clamp01, [F32(value)]) => F32(rig_clamp01(*value)),
             (Self::F64Add, [F64(a), F64(b)]) => F64(a + b),
             (Self::F64Add, [Centimeters64(a), Centimeters64(b)]) => Centimeters64(a + b),
             (Self::F64Sub, [F64(a), F64(b)]) => F64(a - b),
             (Self::F64Sub, [Centimeters64(a), Centimeters64(b)]) => Centimeters64(a - b),
             (Self::F64Mul, [F64(a), F64(b)]) => F64(a * b),
-            (Self::F64Mul, [Centimeters64(a), F64(b)] | [F64(a), Centimeters64(b)]) => Centimeters64(a * b),
+            (Self::F64Mul, [Centimeters64(a), F64(b)] | [F64(a), Centimeters64(b)]) => {
+                Centimeters64(a * b)
+            }
             (Self::F64Abs, [F64(value)]) => F64(value.abs()),
             (Self::F64Abs, [Centimeters64(value)]) => Centimeters64(value.abs()),
             (Self::F64Clamp, [F64(value), F64(minimum), F64(maximum)]) => {
                 F64(rig_clamp_f64(*value, *minimum, *maximum))
             }
-            (Self::F64Clamp, [Centimeters64(value), Centimeters64(minimum), Centimeters64(maximum)]) => {
-                Centimeters64(rig_clamp_f64(*value, *minimum, *maximum))
-            }
+            (
+                Self::F64Clamp,
+                [
+                    Centimeters64(value),
+                    Centimeters64(minimum),
+                    Centimeters64(maximum),
+                ],
+            ) => Centimeters64(rig_clamp_f64(*value, *minimum, *maximum)),
             (Self::F64Lerp, [F64(a), F64(b), F64(t)]) => F64(a + t * (b - a)),
-            (Self::F64Lerp, [Centimeters64(a), Centimeters64(b), F64(t)]) => Centimeters64(a + t * (b - a)),
-            (Self::F64GreaterEqual, [F64(a), F64(b)] | [Centimeters64(a), Centimeters64(b)]) => Bool(a >= b),
+            (Self::F64Lerp, [Centimeters64(a), Centimeters64(b), F64(t)]) => {
+                Centimeters64(a + t * (b - a))
+            }
+            (Self::F64GreaterEqual, [F64(a), F64(b)] | [Centimeters64(a), Centimeters64(b)]) => {
+                Bool(a >= b)
+            }
             (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),
             (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),
             (Self::VectorScale, [Vector(value), Centimeters(factor)]) => {
@@ -249,21 +268,62 @@ mod tests {
     #[test]
     fn control_rig_quaternion_preserves_native_constructor_grouping() {
         for (input, expected) in [
-            (DVec3::new(-6.547_454_357_147_217, -34.043_178_558_349_61, 9.512_281_417_846_68),
-                DQuat::from_xyzw(-0.078_648_914_469_597_38, -0.295_775_520_917_375_36,
-                    0.062_494_240_386_112_565, 0.949_960_872_561_271_3)),
-            (DVec3::new(-13.009_467_124_938_965, 0.514_994_800_090_789_8, -0.432_090_520_858_764_65),
-                DQuat::from_xyzw(-0.113_300_186_182_874_53, 0.004_892_359_080_218_457,
-                    -0.003_237_261_626_034_576, 0.993_543_483_079_991_2)),
-            (DVec3::new(-15.028_626_441_955_566, 0.020_022_543_147_206_306, 0.086_365_029_215_812_68),
-                DQuat::from_xyzw(-0.130_773_694_097_085_78, 0.000_074_667_811_716_492_4,
-                    0.000_770_054_631_790_078_2, 0.991_411_943_832_019_7)),
-            (DVec3::new(381.0, 443.0, 397.0),
-                DQuat::from_xyzw(0.336_164_954_622_312_44, 0.661_163_764_996_504_5,
-                    0.119_154_870_823_217_57, 0.660_043_722_717_312)),
+            (
+                DVec3::new(
+                    -6.547_454_357_147_217,
+                    -34.043_178_558_349_61,
+                    9.512_281_417_846_68,
+                ),
+                DQuat::from_xyzw(
+                    -0.078_648_914_469_597_38,
+                    -0.295_775_520_917_375_36,
+                    0.062_494_240_386_112_565,
+                    0.949_960_872_561_271_3,
+                ),
+            ),
+            (
+                DVec3::new(
+                    -13.009_467_124_938_965,
+                    0.514_994_800_090_789_8,
+                    -0.432_090_520_858_764_65,
+                ),
+                DQuat::from_xyzw(
+                    -0.113_300_186_182_874_53,
+                    0.004_892_359_080_218_457,
+                    -0.003_237_261_626_034_576,
+                    0.993_543_483_079_991_2,
+                ),
+            ),
+            (
+                DVec3::new(
+                    -15.028_626_441_955_566,
+                    0.020_022_543_147_206_306,
+                    0.086_365_029_215_812_68,
+                ),
+                DQuat::from_xyzw(
+                    -0.130_773_694_097_085_78,
+                    0.000_074_667_811_716_492_4,
+                    0.000_770_054_631_790_078_2,
+                    0.991_411_943_832_019_7,
+                ),
+            ),
+            (
+                DVec3::new(381.0, 443.0, 397.0),
+                DQuat::from_xyzw(
+                    0.336_164_954_622_312_44,
+                    0.661_163_764_996_504_5,
+                    0.119_154_870_823_217_57,
+                    0.660_043_722_717_312,
+                ),
+            ),
         ] {
             assert_eq!(rig_quaternion(input), expected);
-            assert_eq!(QuaternionFromEulerYzx.evaluate(&[EulerDegrees(input)]).unwrap(), Quaternion(expected));
+            assert_eq!(
+                QuaternionFromEulerYzx
+                    .evaluate(&[EulerDegrees(input)])
+                    .unwrap(),
+                Quaternion(expected)
+            );
         }
     }
 
@@ -283,12 +343,17 @@ mod tests {
 
         let cases: NativeCases = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d163a/rotator.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in cases.cases {
             let rotation = DQuat::from_array(case.runtime_quaternion);
             let expected = DVec3::from_array(case.native_euler);
             let actual = rig_euler(rotation);
-            assert!(actual.distance(expected) < 1e-12, "Wrong native Rotator for {}: {actual:?}", case.case);
+            assert!(
+                actual.distance(expected) < 1e-12,
+                "Wrong native Rotator for {}: {actual:?}",
+                case.case
+            );
         }
     }
 
@@ -379,10 +444,22 @@ mod tests {
             (F32Mul, vec![F32(-0.25), F32(3.0)], F32(-0.75)),
             (F32Min, vec![F32(-0.25), F32(-0.5)], F32(-0.5)),
             (F32Min, vec![F32(f32::NAN), F32(2.0)], F32(2.0)),
-            (F32Add, vec![Centimeters(16_777_216.0), Centimeters(1.0)], Centimeters(16_777_216.0)),
+            (
+                F32Add,
+                vec![Centimeters(16_777_216.0), Centimeters(1.0)],
+                Centimeters(16_777_216.0),
+            ),
             (F32Mul, vec![Centimeters(-5.0), F32(0.5)], Centimeters(-2.5)),
-            (F32Min, vec![Centimeters(-3.0), Centimeters(-5.0)], Centimeters(-5.0)),
-            (VectorScale, vec![Vector(DVec3::Y), Centimeters(40.0)], Vector(DVec3::Y * 0.4)),
+            (
+                F32Min,
+                vec![Centimeters(-3.0), Centimeters(-5.0)],
+                Centimeters(-5.0),
+            ),
+            (
+                VectorScale,
+                vec![Vector(DVec3::Y), Centimeters(40.0)],
+                Vector(DVec3::Y * 0.4),
+            ),
             (F32Clamp01, vec![F32(-0.25)], F32(0.0)),
             (F32Clamp01, vec![F32(0.25)], F32(0.25)),
             (F32Clamp01, vec![F32(1.25)], F32(1.0)),
@@ -391,13 +468,41 @@ mod tests {
             (F64Sub, vec![F64(2.0), F64(3.0)], F64(-1.0)),
             (F64Mul, vec![F64(-0.5), F64(3.0)], F64(-1.5)),
             (F64Abs, vec![F64(-1.5)], F64(1.5)),
-            (F64Add, vec![Centimeters64(95.0), Centimeters64(-0.25)], Centimeters64(94.75)),
-            (F64Sub, vec![Centimeters64(10.0), Centimeters64(15.0)], Centimeters64(-5.0)),
-            (F64Mul, vec![Centimeters64(-12.000143051147461), F64(0.75)], Centimeters64(-9.000107288360596)),
+            (
+                F64Add,
+                vec![Centimeters64(95.0), Centimeters64(-0.25)],
+                Centimeters64(94.75),
+            ),
+            (
+                F64Sub,
+                vec![Centimeters64(10.0), Centimeters64(15.0)],
+                Centimeters64(-5.0),
+            ),
+            (
+                F64Mul,
+                vec![Centimeters64(-12.000143051147461), F64(0.75)],
+                Centimeters64(-9.000107288360596),
+            ),
             (F64Abs, vec![Centimeters64(-1.5)], Centimeters64(1.5)),
-            (F64Clamp, vec![Centimeters64(-45.0), Centimeters64(-30.0), Centimeters64(40.0)], Centimeters64(-30.0)),
-            (F64Lerp, vec![Centimeters64(20.0), Centimeters64(50.0), F64(0.5)], Centimeters64(35.0)),
-            (F64GreaterEqual, vec![Centimeters64(2.0), Centimeters64(2.0)], Bool(true)),
+            (
+                F64Clamp,
+                vec![
+                    Centimeters64(-45.0),
+                    Centimeters64(-30.0),
+                    Centimeters64(40.0),
+                ],
+                Centimeters64(-30.0),
+            ),
+            (
+                F64Lerp,
+                vec![Centimeters64(20.0), Centimeters64(50.0), F64(0.5)],
+                Centimeters64(35.0),
+            ),
+            (
+                F64GreaterEqual,
+                vec![Centimeters64(2.0), Centimeters64(2.0)],
+                Bool(true),
+            ),
             (F64Clamp, vec![F64(0.2), F64(0.3), F64(0.6)], F64(0.3)),
             (F64Clamp, vec![F64(0.9), F64(0.3), F64(0.6)], F64(0.6)),
             (F64Clamp, vec![F64(0.4), F64(0.6), F64(0.3)], F64(0.6)),

@@ -2,20 +2,19 @@ use crate::als::character::AlsCollisionLayer;
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-mod stairs;
-mod uphill;
-mod moving_base;
 mod bow;
-mod overlays;
 mod footprints;
 mod hud_layout;
-mod reroute;
-mod ragdoll_debug;
-mod machine_weight;
 mod lighting;
+mod machine_weight;
+mod moving_base;
+mod overlays;
+mod ragdoll_debug;
+mod reroute;
+mod stairs;
+mod uphill;
 pub use lighting::LightingProbePlugin;
 
-use crate::als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use crate::als::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE, AlsCharacter,
     AlsMovementParamsHandle,
@@ -37,8 +36,12 @@ use crate::als::start_stop::{StartStopPhase, StartStopState};
 use crate::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::als::transition::{AlsDesiredStance, AlsStateRequest};
 use crate::als::view::AlsViewPitch;
-use crate::extensions::source_instance::SourceInstanceProperties;
+use crate::als_camera::{
+    AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding,
+    AlsCameraSocketLocations,
+};
 use crate::extensions::source_cached_pose::CACHED_POSE_VALUE;
+use crate::extensions::source_instance::SourceInstanceProperties;
 use crate::extensions::{
     ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfile,
     RagdollPhysicsProfileApplied, SourcePhysicsJoint,
@@ -50,7 +53,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::reflect::PartialReflect;
 use bevy::time::{Real, Virtual};
-use bevy_animation_graph::core::animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::{
+    AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance,
+};
 use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin};
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
@@ -71,10 +76,7 @@ use crate::animation_visual_validation::AnimationVisualValidationProgress;
 use crate::character_assembly::{
     ALS_LINKED_ANIMATED_SCENE, AlsCharacterAssembly, AlsCharacterAvatar, avatar_transform,
 };
-use crate::control_rig_apply::{
-    AlsControlRigExecution, AlsControlRigInput,
-    AlsControlRigState,
-};
+use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, AlsControlRigState};
 use crate::crouching_layer::{AlsCrouchingGraphTelemetry, AlsCrouchingTelemetrySet};
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::foot_ik_apply::{
@@ -82,7 +84,6 @@ use crate::foot_ik_apply::{
     AlsFootIkWeightOverride, AlsFootLockTeleportTelemetry, FootIkApplySet,
 };
 use crate::game_mode::AlsPlayerAdmissionComplete;
-use crate::transition_notify::TransitionNotifyTelemetry;
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::head_layer::AlsHeadState;
@@ -100,10 +101,11 @@ use crate::show_debug_hud::{
 use crate::stance_layer::AlsStanceBlend;
 use crate::standing_layer::{AlsPivotNotify, AlsStandingGraphTelemetry};
 use crate::stop_link::{
-    AlsRootTransitionSlotRuntime, AlsTransitionKind, AlsTransitionPlayback, AlsTransitionMontageStack,
-    RIGHT_TRANSITION_START_TIME, STOP_TRANSITION_BLEND_IN, STOP_TRANSITION_BLEND_OUT,
-    STOP_TRANSITION_PLAY_RATE,
+    AlsRootTransitionSlotRuntime, AlsTransitionKind, AlsTransitionMontageStack,
+    AlsTransitionPlayback, RIGHT_TRANSITION_START_TIME, STOP_TRANSITION_BLEND_IN,
+    STOP_TRANSITION_BLEND_OUT, STOP_TRANSITION_PLAY_RATE,
 };
+use crate::transition_notify::TransitionNotifyTelemetry;
 use crate::turn_layer::{
     AlsStandingTurnSlotRuntime, AlsTurnDrive, AlsTurnMontageStack, AlsTurnSlotBridgeSet,
     TURN_DUR_90,
@@ -206,37 +208,126 @@ fn generated_stop_quick_input_step(
 }
 
 fn generated_stop_quick_observed(baseline: &mut Option<u32>, released: bool, count: u32) -> bool {
-    if !released { *baseline = Some(count); }
+    if !released {
+        *baseline = Some(count);
+    }
     released && baseline.is_some_and(|previous| count > previous)
 }
 
 const STANDING_STOP_CASES: [(&str, &str, Vec2, RotationMode, f32); 7] = [
-    ("stop_lock_left", "Lock Left Foot", Vec2::Y, RotationMode::Aiming, 0.0),
-    ("stop_lock_right", "Lock Right Foot", Vec2::Y, RotationMode::Aiming, 1.0),
-    ("stop_plant_left", "Plant Left Foot", Vec2::Y, RotationMode::Aiming, 0.0),
-    ("stop_plant_right", "Plant Right Foot", Vec2::Y, RotationMode::Aiming, 1.0),
-    ("quick_stop_default", "Move to Idle", Vec2::Y, RotationMode::Aiming, 0.0),
-    ("quick_stop_left", "Move to Idle", Vec2::NEG_X, RotationMode::VelocityDirection, 0.0),
-    ("quick_stop_right", "Move to Idle", Vec2::X, RotationMode::VelocityDirection, 1.0),
+    (
+        "stop_lock_left",
+        "Lock Left Foot",
+        Vec2::Y,
+        RotationMode::Aiming,
+        0.0,
+    ),
+    (
+        "stop_lock_right",
+        "Lock Right Foot",
+        Vec2::Y,
+        RotationMode::Aiming,
+        1.0,
+    ),
+    (
+        "stop_plant_left",
+        "Plant Left Foot",
+        Vec2::Y,
+        RotationMode::Aiming,
+        0.0,
+    ),
+    (
+        "stop_plant_right",
+        "Plant Right Foot",
+        Vec2::Y,
+        RotationMode::Aiming,
+        1.0,
+    ),
+    (
+        "quick_stop_default",
+        "Move to Idle",
+        Vec2::Y,
+        RotationMode::Aiming,
+        0.0,
+    ),
+    (
+        "quick_stop_left",
+        "Move to Idle",
+        Vec2::NEG_X,
+        RotationMode::VelocityDirection,
+        0.0,
+    ),
+    (
+        "quick_stop_right",
+        "Move to Idle",
+        Vec2::X,
+        RotationMode::VelocityDirection,
+        1.0,
+    ),
 ];
 
 const CROUCHING_STOP_CASES: [(&str, &str, Vec2, RotationMode, f32); 4] = [
-    ("crouch_stop_right", "Stop", Vec2::Y, RotationMode::Aiming, 1.0),
-    ("crouch_quick_stop_default", "Move to Idle", Vec2::Y, RotationMode::Aiming, 0.0),
-    ("crouch_quick_stop_left", "Move to Idle", Vec2::new(-0.1, 1.0), RotationMode::VelocityDirection, 0.0),
-    ("crouch_quick_stop_right", "Move to Idle", Vec2::new(0.1, 1.0), RotationMode::VelocityDirection, 1.0),
+    (
+        "crouch_stop_right",
+        "Stop",
+        Vec2::Y,
+        RotationMode::Aiming,
+        1.0,
+    ),
+    (
+        "crouch_quick_stop_default",
+        "Move to Idle",
+        Vec2::Y,
+        RotationMode::Aiming,
+        0.0,
+    ),
+    (
+        "crouch_quick_stop_left",
+        "Move to Idle",
+        Vec2::new(-0.1, 1.0),
+        RotationMode::VelocityDirection,
+        0.0,
+    ),
+    (
+        "crouch_quick_stop_right",
+        "Move to Idle",
+        Vec2::new(0.1, 1.0),
+        RotationMode::VelocityDirection,
+        1.0,
+    ),
 ];
 
 fn stop_cases(crouching: bool) -> &'static [(&'static str, &'static str, Vec2, RotationMode, f32)] {
-    if crouching { &CROUCHING_STOP_CASES } else { &STANDING_STOP_CASES }
+    if crouching {
+        &CROUCHING_STOP_CASES
+    } else {
+        &STANDING_STOP_CASES
+    }
 }
 
-fn action_graph_state(crouching: bool, standing: Option<&AlsStandingGraphTelemetry>, crouch: Option<&AlsCrouchingGraphTelemetry>) -> (Option<u8>, Option<bool>, Option<bool>) {
+fn action_graph_state(
+    crouching: bool,
+    standing: Option<&AlsStandingGraphTelemetry>,
+    crouch: Option<&AlsCrouchingGraphTelemetry>,
+) -> (Option<u8>, Option<bool>, Option<bool>) {
     if crouching {
-        crouch.map(|graph| (graph.actual_outer_state, graph.actual_outer_transition_active, graph.actual_outer_pose_ready))
+        crouch.map(|graph| {
+            (
+                graph.actual_outer_state,
+                graph.actual_outer_transition_active,
+                graph.actual_outer_pose_ready,
+            )
+        })
     } else {
-        standing.map(|graph| (graph.actual_standing_state, graph.actual_standing_transition_active, graph.actual_standing_pose_ready))
-    }.unwrap_or_default()
+        standing.map(|graph| {
+            (
+                graph.actual_standing_state,
+                graph.actual_standing_transition_active,
+                graph.actual_standing_pose_ready,
+            )
+        })
+    }
+    .unwrap_or_default()
 }
 
 const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
@@ -250,35 +341,65 @@ const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
     ("aim_continuous", "", 0.0),
 ];
 
-const STANDING_DYNAMIC_CASES: [(&str, f32); 2] = [
-    ("dynamic_right", 1.0),
-    ("dynamic_left", 0.0),
-];
+const STANDING_DYNAMIC_CASES: [(&str, f32); 2] = [("dynamic_right", 1.0), ("dynamic_left", 0.0)];
 
-fn standing_dynamic_command(body_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
+fn standing_dynamic_command(
+    body_yaw: f32,
+    view_yaw: f32,
+    current: RotationMode,
+) -> crate::als::input::AlsInputCommand {
     crate::als::input::AlsInputCommand {
         rotation_mode_pressed: current != RotationMode::VelocityDirection,
-        look_delta: Vec2::new(-crate::als::motion::wrap_yaw_radians(body_yaw - view_yaw)
-            / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT, 0.0),
+        look_delta: Vec2::new(
+            -crate::als::motion::wrap_yaw_radians(body_yaw - view_yaw)
+                / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT,
+            0.0,
+        ),
         ..default()
     }
 }
 
-fn crouching_dynamic_command(index: usize, started: bool, released: bool, base_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
-    let mut command = standing_stop_command(if index == 0 { 6 } else { 5 }, current, started && !released, false);
+fn crouching_dynamic_command(
+    index: usize,
+    started: bool,
+    released: bool,
+    base_yaw: f32,
+    view_yaw: f32,
+    current: RotationMode,
+) -> crate::als::input::AlsInputCommand {
+    let mut command = standing_stop_command(
+        if index == 0 { 6 } else { 5 },
+        current,
+        started && !released,
+        false,
+    );
     if !started {
-        command.look_delta = Vec2::new(-crate::als::motion::wrap_yaw_radians(base_yaw - view_yaw)
-            / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT, 0.0);
+        command.look_delta = Vec2::new(
+            -crate::als::motion::wrap_yaw_radians(base_yaw - view_yaw)
+                / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT,
+            0.0,
+        );
     }
     command
 }
 
-fn standing_dynamic_foot_restored(unlocked: bool, foot: Option<&crate::als::foot_ik::AlsFootLockFootState>, scale: f32) -> bool {
-    unlocked && foot.is_some_and(|foot| foot.lock_amount >= 1.0 - 1e-5
-        && dynamic_distance_squared_cm(foot.target_location, foot.lock_location) <= dynamic_threshold_squared_cm(scale))
+fn standing_dynamic_foot_restored(
+    unlocked: bool,
+    foot: Option<&crate::als::foot_ik::AlsFootLockFootState>,
+    scale: f32,
+) -> bool {
+    unlocked
+        && foot.is_some_and(|foot| {
+            foot.lock_amount >= 1.0 - 1e-5
+                && dynamic_distance_squared_cm(foot.target_location, foot.lock_location)
+                    <= dynamic_threshold_squared_cm(scale)
+        })
 }
 
-fn dynamic_distance_squared_cm(target: impl Into<bevy::math::DVec3>, locked: impl Into<bevy::math::DVec3>) -> f64 {
+fn dynamic_distance_squared_cm(
+    target: impl Into<bevy::math::DVec3>,
+    locked: impl Into<bevy::math::DVec3>,
+) -> f64 {
     let delta = target.into() * 100.0 - locked.into() * 100.0;
     delta.x.powi(2) + delta.z.powi(2) + delta.y.powi(2)
 }
@@ -287,14 +408,31 @@ fn dynamic_threshold_squared_cm(scale: f32) -> f64 {
     f64::from((8.0 * scale).powi(2))
 }
 
-fn standing_dynamic_observed<'a>(stack: Option<&'a AlsTransitionMontageStack>, previous: Option<&AlsTransitionPlayback>, kind: AlsTransitionKind, index: f32) -> Option<&'a AlsTransitionPlayback> {
-    stack.and_then(|stack| stack.entries.iter().rev().find(|playback| playback.kind == kind && playback.index == index
-        && previous.is_none_or(|previous| previous.instance_id == playback.instance_id)))
+fn standing_dynamic_observed<'a>(
+    stack: Option<&'a AlsTransitionMontageStack>,
+    previous: Option<&AlsTransitionPlayback>,
+    kind: AlsTransitionKind,
+    index: f32,
+) -> Option<&'a AlsTransitionPlayback> {
+    stack.and_then(|stack| {
+        stack.entries.iter().rev().find(|playback| {
+            playback.kind == kind
+                && playback.index == index
+                && previous.is_none_or(|previous| previous.instance_id == playback.instance_id)
+        })
+    })
 }
 
-fn standing_dynamic_stopped(branch_seen: bool, previous: Option<&AlsTransitionPlayback>, current: Option<&AlsTransitionPlayback>, idle: bool) -> bool {
-    branch_seen && previous.is_some_and(|playback| playback.clip_time > 0.8)
-        && current.is_none_or(|playback| !playback.active) && idle
+fn standing_dynamic_stopped(
+    branch_seen: bool,
+    previous: Option<&AlsTransitionPlayback>,
+    current: Option<&AlsTransitionPlayback>,
+    idle: bool,
+) -> bool {
+    branch_seen
+        && previous.is_some_and(|playback| playback.clip_time > 0.8)
+        && current.is_none_or(|playback| !playback.active)
+        && idle
 }
 
 fn dynamic_transition_side(crouching: bool, sequence: f32) -> f32 {
@@ -316,14 +454,26 @@ struct StandingTurnProbe {
     yaw_travel: [f32; 2],
 }
 
-fn standing_turn_mouse_command(index: usize, elapsed: Option<f32>, base_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
+fn standing_turn_mouse_command(
+    index: usize,
+    elapsed: Option<f32>,
+    base_yaw: f32,
+    view_yaw: f32,
+    current: RotationMode,
+) -> crate::als::input::AlsInputCommand {
     let aiming = matches!(index, 4 | 5 | 7);
     let offset = elapsed.map(|elapsed| {
         if index == 7 {
-            if elapsed < 4.0 { 720.0 * elapsed }
-            else if elapsed < 8.0 { 720.0 * (8.0 - elapsed) }
-            else if elapsed < 12.0 { let phase = (elapsed - 8.0) % 0.5; 720.0 * phase.min(0.5 - phase) }
-            else { 0.0 }
+            if elapsed < 4.0 {
+                720.0 * elapsed
+            } else if elapsed < 8.0 {
+                720.0 * (8.0 - elapsed)
+            } else if elapsed < 12.0 {
+                let phase = (elapsed - 8.0) % 0.5;
+                720.0 * phase.min(0.5 - phase)
+            } else {
+                0.0
+            }
         } else if index == 6 {
             [75.0_f32, -75.0, 75.0, -75.0, 75.0, -75.0, 0.0][((elapsed / 1.2) as usize).min(6)]
         } else if aiming {
@@ -335,29 +485,60 @@ fn standing_turn_mouse_command(index: usize, elapsed: Option<f32>, base_yaw: f32
     crate::als::input::AlsInputCommand {
         aim_held: aiming,
         rotation_mode_pressed: !aiming && current == RotationMode::VelocityDirection,
-        look_delta: offset.map_or(Vec2::ZERO, |offset| Vec2::new(
-            -crate::als::turn_in_place::wrap_angle_degrees((base_yaw - view_yaw).to_degrees() + offset).to_radians()
-                / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT,
-            0.0,
-        )),
+        look_delta: offset.map_or(Vec2::ZERO, |offset| {
+            Vec2::new(
+                -crate::als::turn_in_place::wrap_angle_degrees(
+                    (base_yaw - view_yaw).to_degrees() + offset,
+                )
+                .to_radians()
+                    / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT,
+                0.0,
+            )
+        }),
         ..default()
     }
 }
 
-fn standing_turn_completed(index: usize, probe: &StandingTurnProbe, idle: bool, slot_idle: bool, epoch: f32, elapsed: f32) -> bool {
-    probe.started_at.is_some() && probe.active_seen && !probe.invalid_rate && idle && slot_idle
+fn standing_turn_completed(
+    index: usize,
+    probe: &StandingTurnProbe,
+    idle: bool,
+    slot_idle: bool,
+    epoch: f32,
+    elapsed: f32,
+) -> bool {
+    probe.started_at.is_some()
+        && probe.active_seen
+        && !probe.invalid_rate
+        && idle
+        && slot_idle
         && if index == 7 {
-            elapsed > 12.0 && probe.clip_peak > 0.9 && probe.max_play_rate > 2.9
-                && probe.sides_mask == 3 && probe.yaw_travel.iter().all(|angle| *angle > 6.0 * std::f32::consts::TAU)
+            elapsed > 12.0
+                && probe.clip_peak > 0.9
+                && probe.max_play_rate > 2.9
+                && probe.sides_mask == 3
+                && probe
+                    .yaw_travel
+                    .iter()
+                    .all(|angle| *angle > 6.0 * std::f32::consts::TAU)
         } else if matches!(index, 4 | 5) {
             probe.clip_peak > 0.9 && probe.max_play_rate > 1.3 && elapsed > 0.5
         } else {
-            probe.clip_peak > 1.9 && epoch > probe.epoch_baseline
-                && (index != 6 || (elapsed > 7.2 && epoch - probe.epoch_baseline >= 3.0 && probe.sides_mask == 3))
+            probe.clip_peak > 1.9
+                && epoch > probe.epoch_baseline
+                && (index != 6
+                    || (elapsed > 7.2
+                        && epoch - probe.epoch_baseline >= 3.0
+                        && probe.sides_mask == 3))
         }
 }
 
-fn standing_turn_rotation_settled(index: usize, yaw_error_degrees: f32, curve_speed: f32, rotate_active: bool) -> bool {
+fn standing_turn_rotation_settled(
+    index: usize,
+    yaw_error_degrees: f32,
+    curve_speed: f32,
+    rotate_active: bool,
+) -> bool {
     let threshold = if matches!(index, 4 | 5 | 7) {
         crate::als::rotate_in_place::RotateInPlaceConfig::default().view_yaw_angle_threshold_degrees
     } else {
@@ -376,7 +557,12 @@ fn standing_stop_release_phase(index: usize, foot_planted: Option<f32>) -> bool 
     })
 }
 
-fn standing_stop_command(index: usize, current: RotationMode, moving: bool, crouching: bool) -> crate::als::input::AlsInputCommand {
+fn standing_stop_command(
+    index: usize,
+    current: RotationMode,
+    moving: bool,
+    crouching: bool,
+) -> crate::als::input::AlsInputCommand {
     let (_, _, direction, mode, _) = stop_cases(crouching)[index];
     crate::als::input::AlsInputCommand {
         move_dir: if moving { direction } else { Vec2::ZERO },
@@ -396,9 +582,14 @@ fn standing_stop_completed(
     current: Option<&AlsTransitionPlayback>,
     idle: bool,
 ) -> bool {
-    branch_seen && previous.is_some_and(|playback| playback.clip_time > 0.8)
-        && current.is_some_and(|playback| !playback.active
-            && playback.clip_time == playback.duration - crate::extensions::profile_blend::MONTAGE_SECTION_END_OFFSET)
+    branch_seen
+        && previous.is_some_and(|playback| playback.clip_time > 0.8)
+        && current.is_some_and(|playback| {
+            !playback.active
+                && playback.clip_time
+                    == playback.duration
+                        - crate::extensions::profile_blend::MONTAGE_SECTION_END_OFFSET
+        })
         && idle
 }
 
@@ -528,18 +719,32 @@ struct CameraMovementProbe {
 }
 
 impl CameraMovementProbe {
-    fn observe(&mut self, view: Option<f32>, control: f32, input: Vec2, snapshot: Option<f32>, desired: Option<Vec3>) {
-        if input.length_squared() > 1e-6 && let Some(previous) = self.previous_view {
+    fn observe(
+        &mut self,
+        view: Option<f32>,
+        control: f32,
+        input: Vec2,
+        snapshot: Option<f32>,
+        desired: Option<Vec3>,
+    ) {
+        if input.length_squared() > 1e-6
+            && let Some(previous) = self.previous_view
+        {
             self.samples += 1;
             let expected = crate::als::motion::view_relative_move_input(input, previous);
-            self.invalid |= snapshot.is_none_or(|value| crate::als::motion::wrap_yaw_radians(value - previous).abs() > 1e-5)
-                || desired.is_none_or(|value| !value.abs_diff_eq(expected, 1e-5));
-            self.lagged |= view.is_some_and(|value| crate::als::motion::wrap_yaw_radians(value - control).abs() > 0.01);
+            self.invalid |= snapshot.is_none_or(|value| {
+                crate::als::motion::wrap_yaw_radians(value - previous).abs() > 1e-5
+            }) || desired.is_none_or(|value| !value.abs_diff_eq(expected, 1e-5));
+            self.lagged |= view.is_some_and(|value| {
+                crate::als::motion::wrap_yaw_radians(value - control).abs() > 0.01
+            });
         }
         self.previous_view = view;
     }
 
-    fn passed(&self) -> bool { self.samples >= 8 && self.lagged && !self.invalid }
+    fn passed(&self) -> bool {
+        self.samples >= 8 && self.lagged && !self.invalid
+    }
 }
 
 #[derive(Resource, Clone, Debug, Default, Serialize, PartialEq)]
@@ -582,39 +787,78 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             .init_resource::<ManualAnimationWindowEvidence>()
             .init_resource::<ManualRuntimePhaseEvidence>()
             .init_resource::<ManualIntegrationGateReport>()
-            .add_systems(Update, initialize_manual_integration.before(crate::als::view::AlsViewInputSet))
+            .add_systems(
+                Update,
+                initialize_manual_integration.before(crate::als::view::AlsViewInputSet),
+            )
             .add_systems(
                 PreUpdate,
                 drive_manual_integration
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
-            .add_systems(PreUpdate, drive_foot_ik_avatar_replacement.after(drive_manual_integration))
+            .add_systems(
+                PreUpdate,
+                drive_foot_ik_avatar_replacement.after(drive_manual_integration),
+            )
             .add_systems(
                 PreUpdate,
                 drive_crouch_direction_reference_frame
                     .after(drive_manual_integration)
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
-            .add_systems(PreUpdate, stairs::drive.after(drive_manual_integration)
-                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs))
-            .add_systems(PostUpdate, stairs::observe
-                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
-                .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
-                .before(observe_manual_integration).in_set(ManualIntegrationObservationSet))
-            .add_systems(PostUpdate, stairs::capture_move_prefix
-                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
-                .before(avian3d::prelude::PhysicsSystems::First))
-            .add_systems(PreUpdate, uphill::drive.after(drive_manual_integration)
-                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::UphillJump))
-            .add_systems(PostUpdate, uphill::observe
-                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::UphillJump)
-                .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
-                .before(observe_manual_integration).in_set(ManualIntegrationObservationSet))
+            .add_systems(
+                PreUpdate,
+                stairs::drive.after(drive_manual_integration).run_if(
+                    |state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs,
+                ),
+            )
+            .add_systems(
+                PostUpdate,
+                stairs::observe
+                    .run_if(|state: Res<ManualIntegrationState>| {
+                        state.phase == IntegrationPhase::Stairs
+                    })
+                    .after(AlsCameraSet)
+                    .after(AlsRotationResponseSet)
+                    .after(FootIkApplySet::Telemetry)
+                    .before(observe_manual_integration)
+                    .in_set(ManualIntegrationObservationSet),
+            )
+            .add_systems(
+                PostUpdate,
+                stairs::capture_move_prefix
+                    .run_if(|state: Res<ManualIntegrationState>| {
+                        state.phase == IntegrationPhase::Stairs
+                    })
+                    .before(avian3d::prelude::PhysicsSystems::First),
+            )
+            .add_systems(
+                PreUpdate,
+                uphill::drive.after(drive_manual_integration).run_if(
+                    |state: Res<ManualIntegrationState>| {
+                        state.phase == IntegrationPhase::UphillJump
+                    },
+                ),
+            )
+            .add_systems(
+                PostUpdate,
+                uphill::observe
+                    .run_if(|state: Res<ManualIntegrationState>| {
+                        state.phase == IntegrationPhase::UphillJump
+                    })
+                    .after(AlsCameraSet)
+                    .after(AlsRotationResponseSet)
+                    .after(FootIkApplySet::Telemetry)
+                    .before(observe_manual_integration)
+                    .in_set(ManualIntegrationObservationSet),
+            )
             .add_systems(
                 PostUpdate,
                 (drive_control_rig_view_offset, drive_manual_rig_curves)
                     .after(avian3d::prelude::PhysicsSystems::Last)
-                    .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs),
+                    .before(
+                        crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs,
+                    ),
             )
             .add_systems(
                 PostUpdate,
@@ -635,8 +879,20 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(AlsRotationResponseSet)
                     .in_set(ManualIntegrationObservationSet),
             );
-        app.add_systems(PostUpdate, observe_animation_clock.after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final).before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
-        app.add_systems(PostUpdate, observe_visibility_case.after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final).before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
+        app.add_systems(
+            PostUpdate,
+            observe_animation_clock
+                .after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final)
+                .before(observe_manual_integration)
+                .in_set(ManualIntegrationObservationSet),
+        );
+        app.add_systems(
+            PostUpdate,
+            observe_visibility_case
+                .after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final)
+                .before(observe_manual_integration)
+                .in_set(ManualIntegrationObservationSet),
+        );
         moving_base::install(app);
         footprints::install(app);
         hud_layout::install(app);
@@ -644,13 +900,19 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         ragdoll_debug::install(app);
         machine_weight::install(app);
         if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
-            app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
+            app.add_systems(
+                PreUpdate,
+                replace_ragdoll_player_once.after(drive_manual_integration),
+            );
         }
         if std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1") {
-            app.add_systems(PostUpdate, drive_control_rig_definition_hot_swap
-                .after(AlsCameraSet)
-                .after(FootIkApplySet::Telemetry)
-                .before(observe_manual_integration));
+            app.add_systems(
+                PostUpdate,
+                drive_control_rig_definition_hot_swap
+                    .after(AlsCameraSet)
+                    .after(FootIkApplySet::Telemetry)
+                    .before(observe_manual_integration),
+            );
         }
     }
 }
@@ -682,29 +944,64 @@ fn drive_control_rig_definition_hot_swap(
     players: Query<&AnimationGraphPlayer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    use crate::extensions::{control_rig_math::RigValue, control_rig_program::RigValueRef,
-        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig}};
+    use crate::extensions::{
+        control_rig_math::RigValue,
+        control_rig_program::RigValueRef,
+        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig},
+    };
     use bevy_animation_graph::core::animation_node::dyn_node_like::DynNodeLike;
-    if !state.initialized || state.scenario != IntegrationScenario::ControlRig
-        || state.phase != IntegrationPhase::ControlRig || state.phase_elapsed() < 0.5
-        || state.coverage.control_rig_definition_hot_swap { return; }
-    let Some(avatar) = state.avatar else { return; };
-    let Ok(instance) = avatars.get(avatar) else { return; };
-    let Ok(player) = players.get(instance.player_entity()) else { return; };
-    let Some((context, node, rig)) = current_control_rig(player, &graphs) else { return; };
+    if !state.initialized
+        || state.scenario != IntegrationScenario::ControlRig
+        || state.phase != IntegrationPhase::ControlRig
+        || state.phase_elapsed() < 0.5
+        || state.coverage.control_rig_definition_hot_swap
+    {
+        return;
+    }
+    let Some(avatar) = state.avatar else {
+        return;
+    };
+    let Ok(instance) = avatars.get(avatar) else {
+        return;
+    };
+    let Ok(player) = players.get(instance.player_entity()) else {
+        return;
+    };
+    let Some((context, node, rig)) = current_control_rig(player, &graphs) else {
+        return;
+    };
     let graph_id = context.get_graph_id();
     let node_id = node.id;
     let count = rig.initialization_count;
-    let value = (probe.stage > 0).then(|| rig.value(&RigValueRef {
-        register: probe.register, path: Vec::new(),
-    }).ok()).flatten();
-    if probe.stage > 0 && (probe.graph != Some(graph_id) || probe.node != Some(node_id)) { return; }
+    let value = (probe.stage > 0)
+        .then(|| {
+            rig.value(&RigValueRef {
+                register: probe.register,
+                path: Vec::new(),
+            })
+            .ok()
+        })
+        .flatten();
+    if probe.stage > 0 && (probe.graph != Some(graph_id) || probe.node != Some(node_id)) {
+        return;
+    }
     match probe.stage {
         0 if count > 0 => {
-            let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
-            let Some(node) = graph.nodes.get_mut(&node_id) else { return; };
-            let Some(mut rig) = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().cloned() else { return; };
-            let Some(definition) = rig.definition.as_mut() else { return; };
+            let Some(mut graph) = graphs.get_mut(graph_id) else {
+                return;
+            };
+            let Some(node) = graph.nodes.get_mut(&node_id) else {
+                return;
+            };
+            let Some(mut rig) = node
+                .try_inner_downcast_ref::<ControlRigBoundaryNode>()
+                .cloned()
+            else {
+                return;
+            };
+            let Some(definition) = rig.definition.as_mut() else {
+                return;
+            };
             probe.register = definition.program.initial_values.len();
             definition.program.initial_values.push(RigValue::F32(123.0));
             node.inner = DynNodeLike::new(rig);
@@ -712,22 +1009,44 @@ fn drive_control_rig_definition_hot_swap(
             probe.node = Some(node_id);
             probe.initialization_count = count;
             probe.stage = 1;
-            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=layout node={node_id:?} register={} initializations={count}", probe.register);
+            info!(
+                "[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=layout node={node_id:?} register={} initializations={count}",
+                probe.register
+            );
         }
         1 if count == probe.initialization_count + 1 && value == Some(RigValue::F32(123.0)) => {
-            let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
-            let Some(node) = graph.nodes.get_mut(&node_id) else { return; };
-            let Some(mut rig) = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().cloned() else { return; };
-            let Some(definition) = rig.definition.as_mut() else { return; };
-            let Some(register) = definition.program.initial_values.get_mut(probe.register) else { return; };
+            let Some(mut graph) = graphs.get_mut(graph_id) else {
+                return;
+            };
+            let Some(node) = graph.nodes.get_mut(&node_id) else {
+                return;
+            };
+            let Some(mut rig) = node
+                .try_inner_downcast_ref::<ControlRigBoundaryNode>()
+                .cloned()
+            else {
+                return;
+            };
+            let Some(definition) = rig.definition.as_mut() else {
+                return;
+            };
+            let Some(register) = definition.program.initial_values.get_mut(probe.register) else {
+                return;
+            };
             *register = RigValue::F32(124.0);
             node.inner = DynNodeLike::new(rig);
             probe.stage = 2;
-            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=constant node={node_id:?} register={} initializations={count}", probe.register);
+            info!(
+                "[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=constant node={node_id:?} register={} initializations={count}",
+                probe.register
+            );
         }
         2 if count == probe.initialization_count + 2 && value == Some(RigValue::F32(124.0)) => {
             state.coverage.control_rig_definition_hot_swap = true;
-            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=complete node={node_id:?} register={} initializations={count} -> PASS", probe.register);
+            info!(
+                "[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=complete node={node_id:?} register={} initializations={count} -> PASS",
+                probe.register
+            );
         }
         _ => {}
     }
@@ -738,7 +1057,10 @@ fn drive_control_rig_view_offset(
     mut characters: Query<(&Transform, &mut AlsViewYaw), With<AlsCharacter>>,
 ) {
     if state.scenario != IntegrationScenario::ControlRig
-        || !matches!(state.phase, IntegrationPhase::ControlRig | IntegrationPhase::Finish)
+        || !matches!(
+            state.phase,
+            IntegrationPhase::ControlRig | IntegrationPhase::Finish
+        )
     {
         return;
     }
@@ -752,9 +1074,17 @@ fn drive_control_rig_view_offset(
     view_yaw.0 = crate::als::orientation::world_forward_to_yaw(forward) + 60.0_f32.to_radians();
 }
 
-fn control_rig_action_evidence(player: &AnimationGraphPlayer, graphs: &Assets<AnimationGraph>, skeletons: &Assets<Skeleton>) -> Option<[f32; 3]> {
-    use crate::extensions::{control_rig_hierarchy::RigSpace, control_rig_math::RigValue, control_rig_program::RigInstruction,
-        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig}};
+fn control_rig_action_evidence(
+    player: &AnimationGraphPlayer,
+    graphs: &Assets<AnimationGraph>,
+    skeletons: &Assets<Skeleton>,
+) -> Option<[f32; 3]> {
+    use crate::extensions::{
+        control_rig_hierarchy::RigSpace,
+        control_rig_math::RigValue,
+        control_rig_program::RigInstruction,
+        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig},
+    };
     let (context, node, state) = current_control_rig(player, graphs)?;
     let rig = node.try_inner_downcast_ref::<ControlRigBoundaryNode>()?;
     let definition = rig.definition.as_ref()?;
@@ -766,20 +1096,54 @@ fn control_rig_action_evidence(player: &AnimationGraphPlayer, graphs: &Assets<An
                 && matches!(call.arguments.get(2), Some(RigValue::List(item))
                     if matches!(item.as_slice(), [RigValue::Name(kind), RigValue::Name(bone)] if kind == "Bone" && bone == name))
         })?;
-        let RigValue::F32(weight) = call.arguments.get(13)? else { return None; };
+        let RigValue::F32(weight) = call.arguments.get(13)? else {
+            return None;
+        };
         weights[index] = *weight;
     }
     let graph = graphs.get(context.get_graph_id())?;
-    let SourcePin::NodeData(source, pin) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone()))? else { return None; };
-    let DataValue::Pose(pose) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone())? else { return None; };
+    let SourcePin::NodeData(source, pin) = graph
+        .edges_inverted
+        .get(&TargetPin::NodeData(node.id, rig.pose_input.clone()))?
+    else {
+        return None;
+    };
+    let DataValue::Pose(pose) =
+        context
+            .node_caches
+            .get_output_data(*source, StateKey::Default, pin.clone())?
+    else {
+        return None;
+    };
     let skeleton = skeletons.get(&pose.skeleton)?;
-    let spine = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == "spine_01"))?;
-    let before = pose.get_bone(spine.id()).and_then(|bone| bone.rotation).unwrap_or(skeleton.default_transforms(spine.id())?.local.rotation);
-    let index = definition.bones.iter().position(|bone| bone.name == "spine_01")?;
-    let after = state.snapshot_hierarchy()?.transform(index, RigSpace::Local, false).ok()?.rotation;
-    let angle = before.as_dquat().normalize().angle_between(after.normalize()) as f32;
-    (weights.iter().all(|weight| weight.is_finite() && (*weight - 1.0).abs() <= 1e-5)
-        && angle.is_finite() && angle > 1e-4).then_some([weights[0], weights[1], angle])
+    let spine = skeleton.iter_paths().find(|path| {
+        path.parts
+            .last()
+            .is_some_and(|name| name.as_str() == "spine_01")
+    })?;
+    let before = pose
+        .get_bone(spine.id())
+        .and_then(|bone| bone.rotation)
+        .unwrap_or(skeleton.default_transforms(spine.id())?.local.rotation);
+    let index = definition
+        .bones
+        .iter()
+        .position(|bone| bone.name == "spine_01")?;
+    let after = state
+        .snapshot_hierarchy()?
+        .transform(index, RigSpace::Local, false)
+        .ok()?
+        .rotation;
+    let angle = before
+        .as_dquat()
+        .normalize()
+        .angle_between(after.normalize()) as f32;
+    (weights
+        .iter()
+        .all(|weight| weight.is_finite() && (*weight - 1.0).abs() <= 1e-5)
+        && angle.is_finite()
+        && angle > 1e-4)
+        .then_some([weights[0], weights[1], angle])
 }
 
 fn set_manual_rig_curve_input(
@@ -787,12 +1151,20 @@ fn set_manual_rig_curve_input(
     driver: &mut Option<NodeId>,
     values: &[(&str, f32)],
 ) {
+    use crate::extensions::{
+        root_graph_boundaries::ControlRigBoundaryNode, source_pose_nodes::SourceCurveModifyNode,
+    };
     use bevy_animation_graph::core::animation_node::{AnimationNode, dyn_node_like::DynNodeLike};
-    use crate::extensions::{root_graph_boundaries::ControlRigBoundaryNode, source_pose_nodes::SourceCurveModifyNode};
-    let (curve_names, pin_defaults): (Vec<_>, Vec<_>) = values.iter().map(|(name, value)| ((*name).to_owned(), *value)).unzip();
+    let (curve_names, pin_defaults): (Vec<_>, Vec<_>) = values
+        .iter()
+        .map(|(name, value)| ((*name).to_owned(), *value))
+        .unzip();
     if curve_names.is_empty() {
         if let Some(node) = driver.take() {
-            let target = graph.edges.get(&SourcePin::NodeData(node, "Pose".into())).cloned();
+            let target = graph
+                .edges
+                .get(&SourcePin::NodeData(node, "Pose".into()))
+                .cloned();
             let source = graph.remove_edge_by_target(&TargetPin::NodeData(node, "Source".into()));
             if let (Some(target), Some(source)) = (target, source) {
                 graph.remove_edge_by_target(&target);
@@ -802,14 +1174,26 @@ fn set_manual_rig_curve_input(
         }
         return;
     }
-    let modifier = SourceCurveModifyNode { source_pose_pin: "Source".into(), curve_names, pin_defaults, alpha: 1.0, ..default() };
+    let modifier = SourceCurveModifyNode {
+        source_pose_pin: "Source".into(),
+        curve_names,
+        pin_defaults,
+        alpha: 1.0,
+        ..default()
+    };
     if let Some(node) = driver.and_then(|node| graph.nodes.get_mut(&node)) {
         node.inner = DynNodeLike::new(modifier);
         return;
     }
-    let Some(target) = graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<ControlRigBoundaryNode>()
-        .map(|rig| TargetPin::NodeData(node.id, rig.pose_input.clone()))) else { return; };
-    let Some(source) = graph.remove_edge_by_target(&target) else { return; };
+    let Some(target) = graph.nodes.values().find_map(|node| {
+        node.try_inner_downcast_ref::<ControlRigBoundaryNode>()
+            .map(|rig| TargetPin::NodeData(node.id, rig.pose_input.clone()))
+    }) else {
+        return;
+    };
+    let Some(source) = graph.remove_edge_by_target(&target) else {
+        return;
+    };
     let node = AnimationNode::new("Manual Rig curve input", modifier);
     graph.add_edge(source, TargetPin::NodeData(node.id, "Source".into()));
     graph.add_edge(SourcePin::NodeData(node.id, "Pose".into()), target);
@@ -825,12 +1209,27 @@ fn drive_manual_rig_curves(
     mut graphs: ResMut<Assets<AnimationGraph>>,
     mut driver: Local<Option<(bevy::asset::AssetId<AnimationGraph>, NodeId)>>,
 ) {
-    let values: Vec<_> = if state.scenario == IntegrationScenario::FootIk && state.phase == IntegrationPhase::FootIkWeightRamp {
-        [("FootLeftIk", weights.left), ("FootRightIk", weights.right)].into_iter()
-            .filter_map(|(name, value)| value.map(|value| (name, value))).collect()
-    } else if state.scenario == IntegrationScenario::ControlRig && matches!(state.phase, IntegrationPhase::ControlRig | IntegrationPhase::Finish) {
-        vec![("PoseAiming", 1.0), ("HandLeftIk", 1.0), ("HandRightIk", 1.0)]
-    } else { Vec::new() };
+    let values: Vec<_> = if state.scenario == IntegrationScenario::FootIk
+        && state.phase == IntegrationPhase::FootIkWeightRamp
+    {
+        [("FootLeftIk", weights.left), ("FootRightIk", weights.right)]
+            .into_iter()
+            .filter_map(|(name, value)| value.map(|value| (name, value)))
+            .collect()
+    } else if state.scenario == IntegrationScenario::ControlRig
+        && matches!(
+            state.phase,
+            IntegrationPhase::ControlRig | IntegrationPhase::Finish
+        )
+    {
+        vec![
+            ("PoseAiming", 1.0),
+            ("HandLeftIk", 1.0),
+            ("HandRightIk", 1.0),
+        ]
+    } else {
+        Vec::new()
+    };
     if let Some((graph_id, node)) = driver.take() {
         if let Some(mut graph) = graphs.get_mut(graph_id) {
             let mut node = Some(node);
@@ -839,22 +1238,58 @@ fn drive_manual_rig_curves(
         }
         return;
     }
-    if values.is_empty() { return; }
-    let Some((_, instance)) = avatars.iter().find(|(parent, _)| Some(parent.parent()) == state.character) else { return; };
-    let Ok(player) = players.get(instance.player_entity()) else { return; };
-    let Some((context, _, _)) = crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
+    if values.is_empty() {
+        return;
+    }
+    let Some((_, instance)) = avatars
+        .iter()
+        .find(|(parent, _)| Some(parent.parent()) == state.character)
+    else {
+        return;
+    };
+    let Ok(player) = players.get(instance.player_entity()) else {
+        return;
+    };
+    let Some((context, _, _)) =
+        crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs)
+    else {
+        return;
+    };
     let graph_id = context.get_graph_id();
-    let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
+    let Some(mut graph) = graphs.get_mut(graph_id) else {
+        return;
+    };
     let mut node = None;
     set_manual_rig_curve_input(&mut graph, &mut node, &values);
-    if node.is_some() { info!("[MANUAL-INTEGRATION][RIG-CURVE-INPUT] values={values:?}"); }
+    if node.is_some() {
+        info!("[MANUAL-INTEGRATION][RIG-CURVE-INPUT] values={values:?}");
+    }
     *driver = node.map(|node| (graph_id, node));
 }
 
 #[cfg(test)]
-pub(crate) fn run_manual_rig_curve_fixture(world: &mut World, actor: Entity, weights: AlsFootIkWeightOverride, control_rig: bool) {
-    world.insert_resource(ManualIntegrationState { character: Some(actor), scenario: if control_rig { IntegrationScenario::ControlRig } else { IntegrationScenario::FootIk },
-        phase: if control_rig { IntegrationPhase::ControlRig } else if weights.left.is_some() || weights.right.is_some() { IntegrationPhase::FootIkWeightRamp } else { IntegrationPhase::FootIkTeleport }, ..default() });
+pub(crate) fn run_manual_rig_curve_fixture(
+    world: &mut World,
+    actor: Entity,
+    weights: AlsFootIkWeightOverride,
+    control_rig: bool,
+) {
+    world.insert_resource(ManualIntegrationState {
+        character: Some(actor),
+        scenario: if control_rig {
+            IntegrationScenario::ControlRig
+        } else {
+            IntegrationScenario::FootIk
+        },
+        phase: if control_rig {
+            IntegrationPhase::ControlRig
+        } else if weights.left.is_some() || weights.right.is_some() {
+            IntegrationPhase::FootIkWeightRamp
+        } else {
+            IntegrationPhase::FootIkTeleport
+        },
+        ..default()
+    });
     world.insert_resource(weights);
     world.run_system_cached(drive_manual_rig_curves).unwrap();
 }
@@ -1045,12 +1480,12 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
         IntegrationScenario::StandingResponse => IntegrationPhase::StandingResponse,
-        IntegrationScenario::StandingStop | IntegrationScenario::CrouchingActions => IntegrationPhase::StandingStop,
+        IntegrationScenario::StandingStop | IntegrationScenario::CrouchingActions => {
+            IntegrationPhase::StandingStop
+        }
         IntegrationScenario::StandingTurn => IntegrationPhase::StandingTurn,
         IntegrationScenario::StandingDynamic => IntegrationPhase::StandingDynamic,
-        IntegrationScenario::TransitionNotify => {
-            IntegrationPhase::TransitionNotify
-        }
+        IntegrationScenario::TransitionNotify => IntegrationPhase::TransitionNotify,
         IntegrationScenario::Grounded => IntegrationPhase::Roll,
         IntegrationScenario::LocomotionActions => IntegrationPhase::LocomotionActions,
         IntegrationScenario::Sprint => IntegrationPhase::Sprint,
@@ -1065,39 +1500,108 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Stairs => IntegrationPhase::Stairs,
         IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
-        IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => IntegrationPhase::MovingBase,
+        IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => {
+            IntegrationPhase::MovingBase
+        }
         IntegrationScenario::Interface => IntegrationPhase::Interface,
-        IntegrationScenario::Notify | IntegrationScenario::Visibility | IntegrationScenario::AnimationClock => IntegrationPhase::Notify,
+        IntegrationScenario::Notify
+        | IntegrationScenario::Visibility
+        | IntegrationScenario::AnimationClock => IntegrationPhase::Notify,
     }
 }
 
-const LOCOMOTION_ROOT: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
+const LOCOMOTION_ROOT: &str =
+    "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
 const LOCOMOTION_JUMP: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
 const LOCOMOTION_FALL: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
-const DEFAULT_OVERLAY_GRAPH: &str = "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
-const LAYERING_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
+const DEFAULT_OVERLAY_GRAPH: &str =
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
+const LAYERING_GRAPH: &str =
+    "ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
 const LAYERING_BOUNDARIES: [(&str, &str, &str); 11] = [
-    ("layering_locomotion", "Input Pose\nLocomotion Input", "Pose"), ("layering_overlay", "Input Pose\nOverlay Input", "Pose"),
-    ("layering_base_poses", "Save cached pose 'Base Poses'", CACHED_POSE_VALUE), ("layering_legs", "Save cached pose 'Legs'", CACHED_POSE_VALUE),
-    ("layering_pelvis", "Save cached pose 'Pelvis'", CACHED_POSE_VALUE), ("layering_spine", "Save cached pose 'Spine'", CACHED_POSE_VALUE),
-    ("layering_head", "Save cached pose 'Head'", CACHED_POSE_VALUE), ("layering_arm_left", "Save cached pose 'Arm Left'", CACHED_POSE_VALUE),
-    ("layering_arm_right", "Save cached pose 'Arm Right'", CACHED_POSE_VALUE), ("layering_fingers", "d650094f-41a3-2706-67fb-b5a5994b2139", "Pose"),
+    (
+        "layering_locomotion",
+        "Input Pose\nLocomotion Input",
+        "Pose",
+    ),
+    ("layering_overlay", "Input Pose\nOverlay Input", "Pose"),
+    (
+        "layering_base_poses",
+        "Save cached pose 'Base Poses'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_legs",
+        "Save cached pose 'Legs'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_pelvis",
+        "Save cached pose 'Pelvis'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_spine",
+        "Save cached pose 'Spine'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_head",
+        "Save cached pose 'Head'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_arm_left",
+        "Save cached pose 'Arm Left'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_arm_right",
+        "Save cached pose 'Arm Right'",
+        CACHED_POSE_VALUE,
+    ),
+    (
+        "layering_fingers",
+        "d650094f-41a3-2706-67fb-b5a5994b2139",
+        "Pose",
+    ),
     ("layering_output", "Output Pose\nAnimGraph", "Pose"),
 ];
 const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.secondary_motion.phase";
 const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
-    "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234", "3890697f-4347-5dd1-f323-f28f64443083",
-    "560a6265-48e4-0f6a-f34a-dbb080a5c73a", "8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0",
+    "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234",
+    "3890697f-4347-5dd1-f323-f28f64443083",
+    "560a6265-48e4-0f6a-f34a-dbb080a5c73a",
+    "8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0",
     "75971f25-4595-b9cd-095b-82b4a661595d",
 ];
-const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = ["default_idle", "default_walk", "default_crouch", "default_air", "default_prediction", "default_return"];
+const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = [
+    "default_idle",
+    "default_walk",
+    "default_crouch",
+    "default_air",
+    "default_prediction",
+    "default_return",
+];
 
 const HEAD_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron";
-const HEAD_WINDOWS: [&str; 7] = ["head_down", "head_forward", "head_up_desired_aiming", "head_velocity_input", "head_velocity_release", "head_first_person", "head_return"];
+const HEAD_WINDOWS: [&str; 7] = [
+    "head_down",
+    "head_forward",
+    "head_up_desired_aiming",
+    "head_velocity_input",
+    "head_velocity_release",
+    "head_first_person",
+    "head_return",
+];
 const HEAD_BOUNDARIES: [(&str, &str, &str); 5] = [
     ("head_look", "BS_Als_Look\nBlendspace Evaluator", "pose"),
     ("head_refresh", "RefreshHead\r\nOn Update", "Pose"),
-    ("head_initialize", "InitializeHead\r\nOn Become Relevant", "Pose"),
+    (
+        "head_initialize",
+        "InitializeHead\r\nOn Become Relevant",
+        "Pose",
+    ),
     ("head_additive", "Apply Mesh Space Additive", "Pose"),
     ("head_output", "Output Pose\nAnimGraph", "Pose"),
 ];
@@ -1138,102 +1642,256 @@ fn head_look_weights(pitch: f32) -> [f32; 3] {
 }
 
 fn head_weighted_pose(poses: [Option<Pose>; 3], weights: [f32; 3]) -> Option<Pose> {
-    poses.into_iter().zip(weights).filter(|(_, weight)| *weight > 1e-5)
-        .map(|(pose, weight)| pose.filter(|pose| !pose.bones.is_empty()).map(|pose| pose.scalar_mult(weight)))
-        .collect::<Option<Vec<_>>>()?.into_iter().reduce(|a, b| a.linear_add(&b)).map(|pose| pose.normalize_quat())
+    poses
+        .into_iter()
+        .zip(weights)
+        .filter(|(_, weight)| *weight > 1e-5)
+        .map(|(pose, weight)| {
+            pose.filter(|pose| !pose.bones.is_empty())
+                .map(|pose| pose.scalar_mult(weight))
+        })
+        .collect::<Option<Vec<_>>>()?
+        .into_iter()
+        .reduce(|a, b| a.linear_add(&b))
+        .map(|pose| pose.normalize_quat())
 }
 
 fn head_state_values(state: AlsHeadState) -> [f32; 4] {
-    [state.pitch_angle, state.yaw_angle, state.yaw_velocity, state.yaw_amount]
+    [
+        state.pitch_angle,
+        state.yaw_angle,
+        state.yaw_velocity,
+        state.yaw_amount,
+    ]
 }
 
-fn head_actor_world_inputs_match(player: &AnimationGraphPlayer, local: &Transform, world: &GlobalTransform) -> bool {
-    let expected_yaw = -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees();
+fn head_actor_world_inputs_match(
+    player: &AnimationGraphPlayer,
+    local: &Transform,
+    world: &GlobalTransform,
+) -> bool {
+    let expected_yaw =
+        -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees();
     world.rotation().angle_between(local.rotation).abs() > 0.5
         && graph_global_f32(player, "locomotion_state.rotation_yaw")
             .is_some_and(|yaw| crate::als::head::unwind_degrees(yaw - expected_yaw).abs() < 1e-3)
-        && player.get_global_input_data("locomotion_state.rotation_quaternion_world_space")
-            .and_then(|value| value.as_quat().ok()).is_some_and(|rotation|
-                rotation.abs_diff_eq(world.rotation(), 1e-6) || rotation.abs_diff_eq(-world.rotation(), 1e-6))
+        && player
+            .get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+            .and_then(|value| value.as_quat().ok())
+            .is_some_and(|rotation| {
+                rotation.abs_diff_eq(world.rotation(), 1e-6)
+                    || rotation.abs_diff_eq(-world.rotation(), 1e-6)
+            })
 }
 
-fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsHeadState, bool, f32)>) -> HeadGraphSample {
+fn head_graph_sample(
+    player: &AnimationGraphPlayer,
+    probe: &MotionProbe,
+    previous: Option<&(u64, AlsHeadState, bool, f32)>,
+) -> HeadGraphSample {
     use crate::als::head::{AlsHeadSettings, AlsHeadUpdateInput, update_head_state};
     use crate::extensions::normalized_blendspace::NormalizedBlendSpaceNode;
     use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose};
     let scalar = |key| graph_global_f32(player, key).unwrap_or(0.0);
-    let boolean = |key| player.get_global_input_data(key).and_then(|value| value.as_bool().ok()).unwrap_or(false);
+    let boolean = |key| {
+        player
+            .get_global_input_data(key)
+            .and_then(|value| value.as_bool().ok())
+            .unwrap_or(false)
+    };
     let state = crate::head_layer::head_state_from_player(player);
     let mut sample = HeadGraphSample {
-        alpha: scalar("view_state.head_blend_amount"), state: head_state_values(state), weights: head_look_weights(state.pitch_angle),
-        inputs: ["animation.delta_seconds", "animation.delta_seconds_without_time_dilation", "locomotion_state.input_yaw_angle_world_space",
-            "locomotion_state.target_yaw_angle_world_space", "locomotion_state.rotation_yaw", "locomotion_state.yaw_velocity_world_space",
-            "view_state.yaw_angle", "view_state.pitch_angle"].map(scalar),
-        modes: ["view_mode.first_person", "rotation_mode.velocity_direction", "locomotion_state.b_has_input"].map(boolean), ..default()
+        alpha: scalar("view_state.head_blend_amount"),
+        state: head_state_values(state),
+        weights: head_look_weights(state.pitch_angle),
+        inputs: [
+            "animation.delta_seconds",
+            "animation.delta_seconds_without_time_dilation",
+            "locomotion_state.input_yaw_angle_world_space",
+            "locomotion_state.target_yaw_angle_world_space",
+            "locomotion_state.rotation_yaw",
+            "locomotion_state.yaw_velocity_world_space",
+            "view_state.yaw_angle",
+            "view_state.pitch_angle",
+        ]
+        .map(scalar),
+        modes: [
+            "view_mode.first_person",
+            "rotation_mode.velocity_direction",
+            "locomotion_state.b_has_input",
+        ]
+        .map(boolean),
+        ..default()
     };
-    let Some(arena) = player.get_context_arena() else { return sample; };
+    let Some(arena) = player.get_context_arena() else {
+        return sample;
+    };
     sample.frame = arena.frame_index();
-    sample.refreshed = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
-        .is_ok_and(|properties| properties.write_frames.get("head_state.yaw_amount") == Some(&sample.frame));
-    if let Some((_, previous_state, refreshed, previous_alpha)) = previous.filter(|(frame, _, _, _)| frame + 1 == sample.frame) {
-        if (sample.alpha - previous_alpha).abs() > 1e-5 { sample.errors.push("head alpha did not consume previous root curves".into()); }
+    sample.refreshed = arena
+        .get_toplevel()
+        .node_states
+        .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .is_ok_and(|properties| {
+            properties.write_frames.get("head_state.yaw_amount") == Some(&sample.frame)
+        });
+    if let Some((_, previous_state, refreshed, previous_alpha)) =
+        previous.filter(|(frame, _, _, _)| frame + 1 == sample.frame)
+    {
+        if (sample.alpha - previous_alpha).abs() > 1e-5 {
+            sample
+                .errors
+                .push("head alpha did not consume previous root curves".into());
+        }
         let mut expected = *previous_state;
         if sample.refreshed {
-            if !refreshed { expected.initialization_required = true; }
-            update_head_state(&mut expected, AlsHeadUpdateInput {
-                delta_seconds: sample.inputs[0], delta_seconds_without_time_dilation: sample.inputs[1],
-                first_person: boolean("view_mode.first_person"), rotation_mode: if boolean("rotation_mode.velocity_direction") { RotationMode::VelocityDirection } else { RotationMode::ViewDirection },
-                has_input: boolean("locomotion_state.b_has_input"), input_yaw_world: sample.inputs[2], target_yaw_world: sample.inputs[3],
-                body_yaw_world: sample.inputs[4], body_yaw_velocity_world: sample.inputs[5], view_yaw_angle: sample.inputs[6], view_pitch_angle: sample.inputs[7],
-                movement_base_relative_yaw: if boolean("movement_base.b_has_relative_rotation") { scalar("movement_base.delta_yaw") } else { 0.0 },
-            }, AlsHeadSettings::default());
+            if !refreshed {
+                expected.initialization_required = true;
+            }
+            update_head_state(
+                &mut expected,
+                AlsHeadUpdateInput {
+                    delta_seconds: sample.inputs[0],
+                    delta_seconds_without_time_dilation: sample.inputs[1],
+                    first_person: boolean("view_mode.first_person"),
+                    rotation_mode: if boolean("rotation_mode.velocity_direction") {
+                        RotationMode::VelocityDirection
+                    } else {
+                        RotationMode::ViewDirection
+                    },
+                    has_input: boolean("locomotion_state.b_has_input"),
+                    input_yaw_world: sample.inputs[2],
+                    target_yaw_world: sample.inputs[3],
+                    body_yaw_world: sample.inputs[4],
+                    body_yaw_velocity_world: sample.inputs[5],
+                    view_yaw_angle: sample.inputs[6],
+                    view_pitch_angle: sample.inputs[7],
+                    movement_base_relative_yaw: if boolean("movement_base.b_has_relative_rotation")
+                    {
+                        scalar("movement_base.delta_yaw")
+                    } else {
+                        0.0
+                    },
+                },
+                AlsHeadSettings::default(),
+            );
         }
-        if head_state_values(expected).into_iter().zip(sample.state).any(|(a, b)| !b.is_finite() || (a - b).abs() > 1e-4)
-            || expected.initialization_required != state.initialization_required || expected.switching_look_sides != state.switching_look_sides {
-            sample.errors.push("Head callback output differs from source update".into());
+        if head_state_values(expected)
+            .into_iter()
+            .zip(sample.state)
+            .any(|(a, b)| !b.is_finite() || (a - b).abs() > 1e-4)
+            || expected.initialization_required != state.initialization_required
+            || expected.switching_look_sides != state.switching_look_sides
+        {
+            sample
+                .errors
+                .push("Head callback output differs from source update".into());
         }
     }
-    let check = |errors: &mut Vec<String>, label: &str, actual: Option<Pose>, expected: Option<Pose>| {
-        if actual.zip(expected).and_then(|(actual, expected)| default_overlay_pose_error(&actual, &expected)).is_none_or(|error| error > 2e-5) {
-            errors.push(format!("{label}: missing or incorrect Head pose"));
-        }
-    };
+    let check =
+        |errors: &mut Vec<String>, label: &str, actual: Option<Pose>, expected: Option<Pose>| {
+            if actual
+                .zip(expected)
+                .and_then(|(actual, expected)| default_overlay_pose_error(&actual, &expected))
+                .is_none_or(|error| error > 2e-5)
+            {
+                errors.push(format!("{label}: missing or incorrect Head pose"));
+            }
+        };
     for id in arena.iter_context_ids() {
-        let Some(context) = arena.get_context(id) else { continue; };
-        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(HEAD_GRAPH)) { continue; }
-        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
-        let data = |name: &str, output: &str| graph.nodes.values().find(|node| node.name == name)
-            .filter(|node| context.node_caches.is_updated(node.id, StateKey::Default))
-            .and_then(|node| context.node_caches.get_output_data(node.id, StateKey::Default, output.into()));
-        let pose = |name: &str, output: &str| data(name, output).and_then(|value| value.into_pose().ok());
+        let Some(context) = arena.get_context(id) else {
+            continue;
+        };
+        if probe
+            .asset_server
+            .get_path(context.get_graph_id())
+            .is_none_or(|path| path.path() != std::path::Path::new(HEAD_GRAPH))
+        {
+            continue;
+        }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        let data = |name: &str, output: &str| {
+            graph
+                .nodes
+                .values()
+                .find(|node| node.name == name)
+                .filter(|node| context.node_caches.is_updated(node.id, StateKey::Default))
+                .and_then(|node| {
+                    context
+                        .node_caches
+                        .get_output_data(node.id, StateKey::Default, output.into())
+                })
+        };
+        let pose =
+            |name: &str, output: &str| data(name, output).and_then(|value| value.into_pose().ok());
         let base = pose("Input Pose\nView Input", "Pose");
         let actual = pose("Apply Mesh Space Additive", "Pose");
-        if actual.is_none() { continue; }
-        if sample.refreshed != (sample.alpha > 1e-5) { sample.errors.push("Head callback relevance differs from additive alpha".into()); }
-        let look = graph.nodes.values().find(|node| node.name == HEAD_BOUNDARIES[0].1)
-            .and_then(|node| node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>().map(|space| (node.id, space)));
+        if actual.is_none() {
+            continue;
+        }
+        if sample.refreshed != (sample.alpha > 1e-5) {
+            sample
+                .errors
+                .push("Head callback relevance differs from additive alpha".into());
+        }
+        let look = graph
+            .nodes
+            .values()
+            .find(|node| node.name == HEAD_BOUNDARIES[0].1)
+            .and_then(|node| {
+                node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>()
+                    .map(|space| (node.id, space))
+            });
         let mut expected_samples: [Option<Pose>; 3] = default();
         let mut source_samples = Vec::new();
         for index in 0..3 {
-            if sample.weights[index] <= 1e-5 || sample.alpha <= 1e-5 { continue; }
+            if sample.weights[index] <= 1e-5 || sample.alpha <= 1e-5 {
+                continue;
+            }
             let name = format!("Blendspace sample {index}");
-            let Some(node) = graph.nodes.values().find(|node| node.name == name) else { continue; };
-            let Some(clip_node) = node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>() else { continue; };
+            let Some(node) = graph.nodes.values().find(|node| node.name == name) else {
+                continue;
+            };
+            let Some(clip_node) = node
+                .try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>(
+                )
+            else {
+                continue;
+            };
             let Some(clip) = clip_node.reflect_ref().as_struct().ok().and_then(|node| node.field("clip"))
                 .and_then(|field| field.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
                 .and_then(|handle| probe.clips.get(handle)) else { continue; };
             let time = state.yaw_amount.clamp(0.0, 1.0) * clip.duration;
-            if let Some((id, space)) = look && let Some(point) = space.points.get(index)
-                && let Some((source, PreparedPoseKind::MeshAdditive)) = sample_prepared_source_pose(clip, time) {
-                sample.times[index] = context.node_caches.get_input_time_update(id, StateKey::Default,
-                    NormalizedBlendSpaceNode::time_pin(&point.id)).ok().and_then(|update| match update {
-                        bevy_animation_graph::core::animation_graph::TimeUpdate::Absolute(value) => Some(value),
+            if let Some((id, space)) = look
+                && let Some(point) = space.points.get(index)
+                && let Some((source, PreparedPoseKind::MeshAdditive)) =
+                    sample_prepared_source_pose(clip, time)
+            {
+                sample.times[index] = context
+                    .node_caches
+                    .get_input_time_update(
+                        id,
+                        StateKey::Default,
+                        NormalizedBlendSpaceNode::time_pin(&point.id),
+                    )
+                    .ok()
+                    .and_then(|update| match update {
+                        bevy_animation_graph::core::animation_graph::TimeUpdate::Absolute(
+                            value,
+                        ) => Some(value),
                         _ => None,
                     });
                 if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) {
-                    sample.errors.push(format!("Look sample {index}: incorrect normalized time"));
+                    sample
+                        .errors
+                        .push(format!("Look sample {index}: incorrect normalized time"));
                 }
-                let mut prepared = Pose { skeleton: clip.skeleton.clone(), timestamp: time, ..default() };
+                let mut prepared = Pose {
+                    skeleton: clip.skeleton.clone(),
+                    timestamp: time,
+                    ..default()
+                };
                 source.project_into(&mut prepared);
                 expected_samples[index] = Some(prepared);
                 source_samples.push((source, sample.weights[index]));
@@ -1241,55 +1899,141 @@ fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previou
             }
             let clip_pose = pose(&name, "pose");
             sample.times[index] = clip_pose.as_ref().map(|pose| pose.timestamp);
-            if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) { sample.errors.push(format!("Look sample {index}: incorrect normalized time")); }
+            if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) {
+                sample
+                    .errors
+                    .push(format!("Look sample {index}: incorrect normalized time"));
+            }
             let expected = crate::extensions::source_sequence_player::sample_pose(clip, time);
             check(&mut sample.errors, &name, clip_pose, Some(expected.clone()));
             let difference_name = format!("additive difference {name}");
-            let reference = graph.nodes.values().find(|node| node.name == difference_name)
-                .and_then(|node| graph.edges_inverted.get(&TargetPin::NodeData(node.id, "reference_pose".into())))
-                .and_then(|pin| match pin { SourcePin::NodeData(node, pin) => context.node_caches.get_output_data(*node, StateKey::Default, pin.clone()), _ => None })
+            let reference = graph
+                .nodes
+                .values()
+                .find(|node| node.name == difference_name)
+                .and_then(|node| {
+                    graph
+                        .edges_inverted
+                        .get(&TargetPin::NodeData(node.id, "reference_pose".into()))
+                })
+                .and_then(|pin| match pin {
+                    SourcePin::NodeData(node, pin) => {
+                        context
+                            .node_caches
+                            .get_output_data(*node, StateKey::Default, pin.clone())
+                    }
+                    _ => None,
+                })
                 .and_then(|value| value.into_pose().ok());
             if let Some(reference) = reference
-                && let Some(skeleton) = probe.skeletons.get(&clip.skeleton) {
-                if reference.timestamp.abs() > 1e-5 { sample.errors.push("Look reference frame is not zero".into()); }
-                expected_samples[index] = Some(crate::extensions::mesh_space_difference::make_mesh_space_difference(&reference, &expected, skeleton));
-                check(&mut sample.errors, &difference_name, pose(&difference_name, "pose"), expected_samples[index].clone());
+                && let Some(skeleton) = probe.skeletons.get(&clip.skeleton)
+            {
+                if reference.timestamp.abs() > 1e-5 {
+                    sample
+                        .errors
+                        .push("Look reference frame is not zero".into());
+                }
+                expected_samples[index] = Some(
+                    crate::extensions::mesh_space_difference::make_mesh_space_difference(
+                        &reference, &expected, skeleton,
+                    ),
+                );
+                check(
+                    &mut sample.errors,
+                    &difference_name,
+                    pose(&difference_name, "pose"),
+                    expected_samples[index].clone(),
+                );
             }
         }
-        let source_additive = (source_samples.len() == sample.weights.iter().filter(|weight| **weight > 1e-5).count())
-            .then(|| crate::extensions::source_pose::blend_source_poses(
+        let source_additive = (source_samples.len()
+            == sample
+                .weights
+                .iter()
+                .filter(|weight| **weight > 1e-5)
+                .count())
+        .then(|| {
+            crate::extensions::source_pose::blend_source_poses(
                 source_samples.iter().map(|(pose, weight)| (pose, *weight)),
                 1 + usize::from(source_samples.len() > 1),
-            )).flatten();
+            )
+        })
+        .flatten();
         let additive = if let Some(source) = &source_additive {
-            expected_samples.into_iter().flatten().next().map(|mut pose| {
-                source.project_into(&mut pose);
-                pose
-            })
+            expected_samples
+                .into_iter()
+                .flatten()
+                .next()
+                .map(|mut pose| {
+                    source.project_into(&mut pose);
+                    pose
+                })
         } else {
             head_weighted_pose(expected_samples, sample.weights)
         };
-        sample.sample_time = data(HEAD_BOUNDARIES[0].1, "sample_time").and_then(|value| value.as_f32().ok());
+        sample.sample_time =
+            data(HEAD_BOUNDARIES[0].1, "sample_time").and_then(|value| value.as_f32().ok());
         if sample.alpha > 1e-5 {
-            for (_, name, output) in &HEAD_BOUNDARIES[..3] { check(&mut sample.errors, name, pose(name, output), additive.clone()); }
+            for (_, name, output) in &HEAD_BOUNDARIES[..3] {
+                check(
+                    &mut sample.errors,
+                    name,
+                    pose(name, output),
+                    additive.clone(),
+                );
+            }
         }
         if let Some(mut expected) = base
-            && let Some(skeleton) = probe.skeletons.get(&expected.skeleton) {
-            let source_base = graph.nodes.values().find(|node| node.name == "Input Pose\nView Input")
-                .and_then(|node| crate::extensions::animation_context::node_context_state(
-                    &context.node_states, StateKey::Default, node.id))
+            && let Some(skeleton) = probe.skeletons.get(&expected.skeleton)
+        {
+            let source_base = graph
+                .nodes
+                .values()
+                .find(|node| node.name == "Input Pose\nView Input")
+                .and_then(|node| {
+                    crate::extensions::animation_context::node_context_state(
+                        &context.node_states,
+                        StateKey::Default,
+                        node.id,
+                    )
+                })
                 .and_then(|state| state.source_pose_for(&expected).cloned());
             if source_base.is_none() {
-                crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut expected, skeleton);
+                crate::extensions::mesh_space_additive::materialize_missing_reference_bones(
+                    &mut expected,
+                    skeleton,
+                );
             }
-            sample.additive_effect = actual.as_ref().and_then(|actual| default_overlay_pose_error(actual, &expected));
+            sample.additive_effect = actual
+                .as_ref()
+                .and_then(|actual| default_overlay_pose_error(actual, &expected));
             if let Some(additive) = additive {
-                crate::extensions::mesh_space_additive::apply_source_additive_pose(&mut expected, &additive,
-                    source_base.as_deref().zip(source_additive.as_ref()), sample.alpha, skeleton, true, true);
+                crate::extensions::mesh_space_additive::apply_source_additive_pose(
+                    &mut expected,
+                    &additive,
+                    source_base.as_deref().zip(source_additive.as_ref()),
+                    sample.alpha,
+                    skeleton,
+                    true,
+                    true,
+                );
             }
-            check(&mut sample.errors, "mesh additive", actual.clone(), Some(expected));
-            check(&mut sample.errors, "Head output", pose("Output Pose\nAnimGraph", "Pose"), actual);
-            sample.ready = sample.alpha > 1e-5 && sample.refreshed && sample.sample_time.is_some() && sample.errors.is_empty();
+            check(
+                &mut sample.errors,
+                "mesh additive",
+                actual.clone(),
+                Some(expected),
+            );
+            check(
+                &mut sample.errors,
+                "Head output",
+                pose("Output Pose\nAnimGraph", "Pose"),
+                actual,
+            );
+            sample.ready = sample.alpha > 1e-5
+                && sample.refreshed
+                && sample.sample_time.is_some()
+                && sample.errors.is_empty();
         }
     }
     sample
@@ -1297,14 +2041,36 @@ fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previou
 
 fn head_window(index: usize, sample: &HeadGraphSample) -> ManualAnimationWindowEvidence {
     ManualAnimationWindowEvidence {
-        label: Some(HEAD_WINDOWS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
-        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-        source_node: Some("AB_Als_Head/AnimGraph"), source_state: Some(HEAD_WINDOWS[index]),
-        source_pose_chain: HEAD_BOUNDARIES.into_iter().enumerate().filter(|(boundary, _)| index != 4 || *boundary >= 3).map(|(_, (label, node, output))| ManualAnimationPoseBoundary {
-            label, graph: HEAD_GRAPH, node, output, minimum_translation_span: 0.0, minimum_rotation_span_radians: if index < 3 || index >= 5 { 0.001 } else { 0.0 },
-        }).collect(),
-        minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001, minimum_observation_seconds: 0.3,
-        observed_animation_clip_time: sample.sample_time, observed_animation_weight: Some(sample.alpha), observed_animation_play_rate: Some(0.0),
+        label: Some(HEAD_WINDOWS[index]),
+        index: Some(index),
+        settled: true,
+        capture_source_window: true,
+        capture_every_frame: true,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Head/AnimGraph"),
+        source_state: Some(HEAD_WINDOWS[index]),
+        source_pose_chain: HEAD_BOUNDARIES
+            .into_iter()
+            .enumerate()
+            .filter(|(boundary, _)| index != 4 || *boundary >= 3)
+            .map(|(_, (label, node, output))| ManualAnimationPoseBoundary {
+                label,
+                graph: HEAD_GRAPH,
+                node,
+                output,
+                minimum_translation_span: 0.0,
+                minimum_rotation_span_radians: if index < 3 || index >= 5 { 0.001 } else { 0.0 },
+            })
+            .collect(),
+        minimum_pre_rig_rotation_span_radians: 0.001,
+        minimum_final_rotation_span_radians: 0.001,
+        minimum_observation_seconds: 0.3,
+        observed_animation_clip_time: sample.sample_time,
+        observed_animation_weight: Some(sample.alpha),
+        observed_animation_play_rate: Some(0.0),
         ..default()
     }
 }
@@ -1351,29 +2117,44 @@ struct DefaultOverlayProbe {
 
 impl DefaultOverlayProbe {
     fn air_window(&self, prediction: Option<f32>) -> Option<usize> {
-        if !self.airborne_seen || !(self.case_index == 3 || self.case_index == 4) { return None; }
-        if prediction.is_some_and(|value| value < 0.1) { Some(3) }
-        else if prediction.is_some_and(|value| value > 0.1 && value < 0.99) { Some(4) }
-        else { None }
+        if !self.airborne_seen || !(self.case_index == 3 || self.case_index == 4) {
+            return None;
+        }
+        if prediction.is_some_and(|value| value < 0.1) {
+            Some(3)
+        } else if prediction.is_some_and(|value| value > 0.1 && value < 0.99) {
+            Some(4)
+        } else {
+            None
+        }
     }
 }
 
 fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
-    if actual.paths.len() != expected.paths.len() { return None; }
+    if actual.paths.len() != expected.paths.len() {
+        return None;
+    }
     let mut error = 0.0_f32;
     for (id, index) in &expected.paths {
         let actual = actual.get_bone(*id)?;
         let expected = expected.bones.get(*index)?;
-        for (a, b) in [(actual.translation, expected.translation), (actual.scale, expected.scale)] {
+        for (a, b) in [
+            (actual.translation, expected.translation),
+            (actual.scale, expected.scale),
+        ] {
             match (a, b) {
-                (Some(a), Some(b)) if a.is_finite() && b.is_finite() => error = error.max(a.distance(b)),
-                (None, None) => {},
+                (Some(a), Some(b)) if a.is_finite() && b.is_finite() => {
+                    error = error.max(a.distance(b))
+                }
+                (None, None) => {}
                 _ => return None,
             }
         }
         match (actual.rotation, expected.rotation) {
-            (Some(a), Some(b)) if a.is_finite() && b.is_finite() => error = error.max((a - b).length().min((a + b).length())),
-            (None, None) => {},
+            (Some(a), Some(b)) if a.is_finite() && b.is_finite() => {
+                error = error.max((a - b).length().min((a + b).length()))
+            }
+            (None, None) => {}
             _ => return None,
         }
     }
@@ -1381,14 +2162,36 @@ fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
 }
 
 fn active_layer_pose(player: &AnimationGraphPlayer, probe: &MotionProbe, path: &str) -> bool {
-    let Some(arena) = player.get_context_arena() else { return false; };
-    arena.iter_context_ids().filter_map(|id| arena.get_context(id)).any(|context| {
-        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|asset| asset.path() != std::path::Path::new(path)) { return false; }
-        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { return false; };
-        let Some(SourcePin::NodeData(node, pin)) = graph.edges_inverted.get(&TargetPin::OutputData("Result".to_owned())) else { return false; };
-        context.node_caches.is_updated(*node, StateKey::Default)
-            && context.node_caches.get_output_data(*node, StateKey::Default, pin.clone()).and_then(|value| value.into_pose().ok()).is_some_and(|pose| !pose.paths.is_empty())
-    })
+    let Some(arena) = player.get_context_arena() else {
+        return false;
+    };
+    arena
+        .iter_context_ids()
+        .filter_map(|id| arena.get_context(id))
+        .any(|context| {
+            if probe
+                .asset_server
+                .get_path(context.get_graph_id())
+                .is_none_or(|asset| asset.path() != std::path::Path::new(path))
+            {
+                return false;
+            }
+            let Some(graph) = probe.graphs.get(context.get_graph_id()) else {
+                return false;
+            };
+            let Some(SourcePin::NodeData(node, pin)) = graph
+                .edges_inverted
+                .get(&TargetPin::OutputData("Result".to_owned()))
+            else {
+                return false;
+            };
+            context.node_caches.is_updated(*node, StateKey::Default)
+                && context
+                    .node_caches
+                    .get_output_data(*node, StateKey::Default, pin.clone())
+                    .and_then(|value| value.into_pose().ok())
+                    .is_some_and(|pose| !pose.paths.is_empty())
+        })
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -1403,80 +2206,203 @@ struct LayeringGraphSample {
     errors: Vec<String>,
 }
 
-fn layering_input_sample(player: &AnimationGraphPlayer, previous: AlsLayeringState) -> std::collections::BTreeMap<String, (Option<f32>, f32)> {
-    crate::layering_layer::layering_state_inputs(previous).into_iter()
-        .map(|(key, expected)| (key.into(), (locomotion_source_scalar(player, key), expected))).collect()
+fn layering_input_sample(
+    player: &AnimationGraphPlayer,
+    previous: AlsLayeringState,
+) -> std::collections::BTreeMap<String, (Option<f32>, f32)> {
+    crate::layering_layer::layering_state_inputs(previous)
+        .into_iter()
+        .map(|(key, expected)| {
+            (
+                key.into(),
+                (locomotion_source_scalar(player, key), expected),
+            )
+        })
+        .collect()
 }
 
-fn layering_curve_error(actual: &crate::extensions::SourceCurveValues, expected: &crate::extensions::SourceCurveValues) -> Option<f32> {
-    if actual.len() != expected.len() { return None; }
-    expected.iter().try_fold(0.0_f32, |error, (name, expected)| {
-        let actual = actual.get(name)?;
-        (actual.is_finite() && expected.is_finite()).then_some(error.max((actual - expected).abs()))
-    })
+fn layering_curve_error(
+    actual: &crate::extensions::SourceCurveValues,
+    expected: &crate::extensions::SourceCurveValues,
+) -> Option<f32> {
+    if actual.len() != expected.len() {
+        return None;
+    }
+    expected
+        .iter()
+        .try_fold(0.0_f32, |error, (name, expected)| {
+            let actual = actual.get(name)?;
+            (actual.is_finite() && expected.is_finite())
+                .then_some(error.max((actual - expected).abs()))
+        })
 }
 
-fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsLayeringState)>) -> LayeringGraphSample {
+fn layering_graph_sample(
+    player: &AnimationGraphPlayer,
+    probe: &MotionProbe,
+    previous: Option<&(u64, AlsLayeringState)>,
+) -> LayeringGraphSample {
     let mut sample = LayeringGraphSample::default();
-    let Some(arena) = player.get_context_arena() else { return sample; };
+    let Some(arena) = player.get_context_arena() else {
+        return sample;
+    };
     sample.evaluation_frame = Some(arena.frame_index());
-    if let Some((frame, previous)) = previous.filter(|(frame, _)| *frame + 1 == arena.frame_index()) {
+    if let Some((frame, previous)) = previous.filter(|(frame, _)| *frame + 1 == arena.frame_index())
+    {
         sample.input_curve_frame = Some(*frame);
         sample.inputs = layering_input_sample(player, *previous);
         for (key, (actual, expected)) in &sample.inputs {
             if actual.is_none_or(|actual| (actual - expected).abs() > 1e-5) {
-                sample.errors.push(format!("{key}: previous curve input mismatch"));
+                sample
+                    .errors
+                    .push(format!("{key}: previous curve input mismatch"));
             }
         }
     }
     let mut contexts = 0;
     for context_id in arena.iter_context_ids() {
-        let Some(context) = arena.get_context(context_id) else { continue; };
-        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(LAYERING_GRAPH)) { continue; }
-        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
-        let pose = |id| context.node_caches.is_updated(id, StateKey::Default)
-            .then(|| context.node_caches.get_output_data(id, StateKey::Default, "Pose".into()))
-            .flatten().and_then(|value| value.into_pose().ok());
-        let input_id = |id, pin: &str| match graph.edges_inverted.get(&TargetPin::NodeData(id, pin.into())) {
-            Some(SourcePin::NodeData(source, _)) => Some(*source), _ => None,
+        let Some(context) = arena.get_context(context_id) else {
+            continue;
         };
-        if graph.nodes.values().find(|node| node.name == "Output Pose\nAnimGraph").and_then(|node| pose(node.id)).is_none() { continue; }
+        if probe
+            .asset_server
+            .get_path(context.get_graph_id())
+            .is_none_or(|path| path.path() != std::path::Path::new(LAYERING_GRAPH))
+        {
+            continue;
+        }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        let pose = |id| {
+            context
+                .node_caches
+                .is_updated(id, StateKey::Default)
+                .then(|| {
+                    context
+                        .node_caches
+                        .get_output_data(id, StateKey::Default, "Pose".into())
+                })
+                .flatten()
+                .and_then(|value| value.into_pose().ok())
+        };
+        let input_id = |id, pin: &str| match graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(id, pin.into()))
+        {
+            Some(SourcePin::NodeData(source, _)) => Some(*source),
+            _ => None,
+        };
+        if graph
+            .nodes
+            .values()
+            .find(|node| node.name == "Output Pose\nAnimGraph")
+            .and_then(|node| pose(node.id))
+            .is_none()
+        {
+            continue;
+        }
         contexts += 1;
         for (label, name, output) in LAYERING_BOUNDARIES {
-            if graph.nodes.values().find(|node| node.name == name || node.id.uuid().to_string() == name)
+            if graph
+                .nodes
+                .values()
+                .find(|node| node.name == name || node.id.uuid().to_string() == name)
                 .filter(|node| context.node_caches.is_updated(node.id, StateKey::Default))
-                .and_then(|node| context.node_caches.get_output_data(node.id, StateKey::Default, output.into()))
-                .and_then(|value| value.into_pose().ok()).is_some_and(|pose| !pose.paths.is_empty()) { sample.boundaries.push(label); }
+                .and_then(|node| {
+                    context
+                        .node_caches
+                        .get_output_data(node.id, StateKey::Default, output.into())
+                })
+                .and_then(|value| value.into_pose().ok())
+                .is_some_and(|pose| !pose.paths.is_empty())
+            {
+                sample.boundaries.push(label);
+            }
         }
         for node in graph.nodes.values() {
-            let Some(actual) = pose(node.id) else { continue; };
-            if let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequenceEvaluatorNode>() {
+            let Some(actual) = pose(node.id) else {
+                continue;
+            };
+            if let Some(sequence) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceSequenceEvaluatorNode>()
+            {
                 if let Some(clip) = probe.clips.get(&sequence.clip) {
-                    let time = ((sequence.explicit_value as f64 / sequence.frames_per_second) as f32).clamp(0.0, clip.duration);
-                    let expected = crate::extensions::source_sequence_player::sample_pose(clip, time);
-                    if (actual.timestamp - time).abs() > 1e-5 || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
-                        sample.errors.push(format!("{}: source base pose frame mismatch", node.id.uuid()));
+                    let time = ((sequence.explicit_value as f64 / sequence.frames_per_second)
+                        as f32)
+                        .clamp(0.0, clip.duration);
+                    let expected =
+                        crate::extensions::source_sequence_player::sample_pose(clip, time);
+                    if (actual.timestamp - time).abs() > 1e-5
+                        || default_overlay_pose_error(&actual, &expected)
+                            .is_none_or(|error| error > 2e-5)
+                    {
+                        sample.errors.push(format!(
+                            "{}: source base pose frame mismatch",
+                            node.id.uuid()
+                        ));
                     }
                     sample.base_evaluators += 1;
                 }
             }
-            if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
-                && !blend.alpha_key.is_empty() {
-                if let Ok(state) = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) {
-                    if locomotion_source_scalar(player, &blend.alpha_key).is_none_or(|value| (value - state.input_alpha).abs() > 1e-5) {
-                        sample.errors.push(format!("{}: consumed alpha mismatch", blend.alpha_key));
+            if let Some(blend) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+                && !blend.alpha_key.is_empty()
+            {
+                if let Ok(state) = context
+                    .node_states
+                    .get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(
+                    node.id,
+                    StateKey::Default,
+                ) {
+                    if locomotion_source_scalar(player, &blend.alpha_key)
+                        .is_none_or(|value| (value - state.input_alpha).abs() > 1e-5)
+                    {
+                        sample
+                            .errors
+                            .push(format!("{}: consumed alpha mismatch", blend.alpha_key));
                     }
-                } else { sample.errors.push(format!("{}: missing consumed alpha", blend.alpha_key)); }
+                } else {
+                    sample
+                        .errors
+                        .push(format!("{}: missing consumed alpha", blend.alpha_key));
+                }
             }
             let modify = node.try_inner_downcast_ref::<crate::extensions::SourceCurveModifyNode>();
             let blend = node.try_inner_downcast_ref::<crate::extensions::SourceCurvesBlendNode>();
-            if modify.is_none() && blend.is_none() { continue; }
+            if modify.is_none() && blend.is_none() {
+                continue;
+            }
             let base_pin = modify.map_or("BasePose", |node| node.source_pose_pin.as_str());
-            let Some(base_id) = input_id(node.id, base_pin) else { sample.errors.push("missing curve base edge".into()); continue; };
-            let Some(base) = pose(base_id) else { sample.errors.push("missing curve base pose".into()); continue; };
-            if default_overlay_pose_error(&actual, &base).is_none_or(|error| error > 2e-5) { sample.errors.push("curve operator changed its source pose".into()); }
-            let Some(base_context) = crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, base_id) else { sample.errors.push("missing base curve context".into()); continue; };
-            let Some(output_context) = crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, node.id) else { sample.errors.push("missing output curve context".into()); continue; };
+            let Some(base_id) = input_id(node.id, base_pin) else {
+                sample.errors.push("missing curve base edge".into());
+                continue;
+            };
+            let Some(base) = pose(base_id) else {
+                sample.errors.push("missing curve base pose".into());
+                continue;
+            };
+            if default_overlay_pose_error(&actual, &base).is_none_or(|error| error > 2e-5) {
+                sample
+                    .errors
+                    .push("curve operator changed its source pose".into());
+            }
+            let Some(base_context) = crate::extensions::animation_context::node_context_state(
+                &context.node_states,
+                StateKey::Default,
+                base_id,
+            ) else {
+                sample.errors.push("missing base curve context".into());
+                continue;
+            };
+            let Some(output_context) = crate::extensions::animation_context::node_context_state(
+                &context.node_states,
+                StateKey::Default,
+                node.id,
+            ) else {
+                sample.errors.push("missing output curve context".into());
+                continue;
+            };
             let mut expected = base_context.curves.clone();
             if let Some(modify) = modify {
                 for (name, value) in modify.curve_names.iter().zip(&modify.pin_defaults) {
@@ -1486,43 +2412,100 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
                 }
             }
             if let Some(blend) = blend {
-                let Some(curve_id) = input_id(node.id, "CurvePose") else { sample.errors.push("missing curve input edge".into()); continue; };
-                let Some(curve_context) = crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, curve_id) else { sample.errors.push("missing source curve context".into()); continue; };
-                if blend.blend_mode == crate::extensions::source_pose_nodes::SourceCurvesBlendMode::Override { expected.clear(); }
-                for (name, value) in &curve_context.curves { *expected.entry(name.clone()).or_default() += value * blend.blend_amount; }
+                let Some(curve_id) = input_id(node.id, "CurvePose") else {
+                    sample.errors.push("missing curve input edge".into());
+                    continue;
+                };
+                let Some(curve_context) = crate::extensions::animation_context::node_context_state(
+                    &context.node_states,
+                    StateKey::Default,
+                    curve_id,
+                ) else {
+                    sample.errors.push("missing source curve context".into());
+                    continue;
+                };
+                if blend.blend_mode
+                    == crate::extensions::source_pose_nodes::SourceCurvesBlendMode::Override
+                {
+                    expected.clear();
+                }
+                for (name, value) in &curve_context.curves {
+                    *expected.entry(name.clone()).or_default() += value * blend.blend_amount;
+                }
             }
-            if layering_curve_error(&output_context.curves, &expected).is_none_or(|error| error > 1e-5) {
-                sample.errors.push(format!("{}: source curve arithmetic mismatch", node.id.uuid()));
+            if layering_curve_error(&output_context.curves, &expected)
+                .is_none_or(|error| error > 1e-5)
+            {
+                sample.errors.push(format!(
+                    "{}: source curve arithmetic mismatch",
+                    node.id.uuid()
+                ));
             }
             sample.curve_operators += 1;
         }
     }
-    sample.ready = contexts == 1 && sample.input_curve_frame.is_some() && sample.boundaries.len() == LAYERING_BOUNDARIES.len()
-        && sample.base_evaluators > 0 && sample.curve_operators == 3;
+    sample.ready = contexts == 1
+        && sample.input_curve_frame.is_some()
+        && sample.boundaries.len() == LAYERING_BOUNDARIES.len()
+        && sample.base_evaluators > 0
+        && sample.curve_operators == 3;
     sample
 }
 
-fn default_overlay_prediction_alpha(previous: Option<f32>, raw: f32, delta: f32, mapping: &crate::extensions::source_pose_nodes::SourceAlphaMapping) -> f32 {
-    previous.map_or(raw, |previous| crate::extensions::f_interp_to(previous, raw, delta,
-        if raw >= previous { mapping.interpolate_speed_increasing } else { mapping.interpolate_speed_decreasing }))
+fn default_overlay_prediction_alpha(
+    previous: Option<f32>,
+    raw: f32,
+    delta: f32,
+    mapping: &crate::extensions::source_pose_nodes::SourceAlphaMapping,
+) -> f32 {
+    previous.map_or(raw, |previous| {
+        crate::extensions::f_interp_to(
+            previous,
+            raw,
+            delta,
+            if raw >= previous {
+                mapping.interpolate_speed_increasing
+            } else {
+                mapping.interpolate_speed_decreasing
+            },
+        )
+    })
 }
 
 fn default_overlay_foot_targets_ready(spaces: &AlsFootIkSpaceState) -> bool {
-    [spaces.left, spaces.right].iter().all(|side| side.solve_input.is_none()
-        || side.trace_target_world.distance(side.solver_reference_world) < 1e-5)
+    [spaces.left, spaces.right].iter().all(|side| {
+        side.solve_input.is_none()
+            || side
+                .trace_target_world
+                .distance(side.solver_reference_world)
+                < 1e-5
+    })
 }
 
 fn default_overlay_additive_pose(base: &Pose, delta: &Pose, alpha: f32) -> Pose {
-    use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator};
+    use bevy_animation_graph::core::{
+        edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator,
+    };
     let mut expected = base.clone();
-    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, alpha);
+    AdditiveInterpolator {
+        bone_mask: BoneMask::all(),
+    }
+    .interpolate_pose(&mut expected, &delta, alpha);
     for (bone, delta_index) in &delta.paths {
-        let Some(source) = base.get_bone(*bone) else { continue; };
-        let Some(index) = expected.paths.get(bone).copied() else { continue; };
+        let Some(source) = base.get_bone(*bone) else {
+            continue;
+        };
+        let Some(index) = expected.paths.get(bone).copied() else {
+            continue;
+        };
         let delta_bone = &delta.bones[*delta_index];
         if let (Some(rotation), Some(delta_rotation)) = (source.rotation, delta_bone.rotation) {
             let sign = if delta_rotation.w < 0.0 { -1.0 } else { 1.0 };
-            expected.bones[index].rotation = Some(((Quat::IDENTITY * (sign * (1.0 - alpha)) + delta_rotation * alpha).normalize() * rotation).normalize());
+            expected.bones[index].rotation = Some(
+                ((Quat::IDENTITY * (sign * (1.0 - alpha)) + delta_rotation * alpha).normalize()
+                    * rotation)
+                    .normalize(),
+            );
         }
         if let (Some(scale), Some(delta_scale)) = (source.scale, delta_bone.scale) {
             expected.bones[index].scale = Some(scale * (Vec3::ONE + delta_scale * alpha));
@@ -1532,94 +2515,246 @@ fn default_overlay_additive_pose(base: &Pose, delta: &Pose, alpha: f32) -> Pose 
 }
 
 fn default_overlay_stance_pose(poses: [Option<Pose>; 2], weights: [f32; 2]) -> Option<Pose> {
-    let poses = poses.into_iter().zip(weights).filter(|(_, weight)| *weight > 1e-5)
-        .map(|(pose, weight)| pose.map(|pose| pose.scalar_mult(weight))).collect::<Option<Vec<_>>>()?;
-    poses.into_iter().reduce(|a, b| a.linear_add(&b)).map(|pose| pose.normalize_quat())
+    let poses = poses
+        .into_iter()
+        .zip(weights)
+        .filter(|(_, weight)| *weight > 1e-5)
+        .map(|(pose, weight)| pose.map(|pose| pose.scalar_mult(weight)))
+        .collect::<Option<Vec<_>>>()?;
+    poses
+        .into_iter()
+        .reduce(|a, b| a.linear_add(&b))
+        .map(|pose| pose.normalize_quat())
 }
 
-fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
+fn default_overlay_graph_sample(
+    player: &AnimationGraphPlayer,
+    probe: &MotionProbe,
+    previous_prediction: Option<f32>,
+) -> DefaultOverlayGraphSample {
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut sample = DefaultOverlayGraphSample {
-        inputs: ["pose_state.standing_amount", "pose_state.crouching_amount", "pose_state.gait_walking_amount", "pose_state.in_air_amount"].map(scalar),
+        inputs: [
+            "pose_state.standing_amount",
+            "pose_state.crouching_amount",
+            "pose_state.gait_walking_amount",
+            "pose_state.in_air_amount",
+        ]
+        .map(scalar),
         ..default()
     };
-    let Some(arena) = player.get_context_arena() else { return sample; };
-    let ticks = crate::extensions::sync_group_phase::source_sync_players(arena, &probe.graphs, DEFAULT_OVERLAY_SYNC);
+    let Some(arena) = player.get_context_arena() else {
+        return sample;
+    };
+    let ticks = crate::extensions::sync_group_phase::source_sync_players(
+        arena,
+        &probe.graphs,
+        DEFAULT_OVERLAY_SYNC,
+    );
     for context_id in arena.iter_context_ids() {
-        let Some(context) = arena.get_context(context_id) else { continue; };
-        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(DEFAULT_OVERLAY_GRAPH)) { continue; }
-        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
-        let pose = |id| {
-            context.node_caches.is_updated(id, StateKey::Default).then(|| context.node_caches.get_output_data(id, StateKey::Default, "Pose".into()))
-                .flatten().and_then(|value| value.into_pose().ok())
+        let Some(context) = arena.get_context(context_id) else {
+            continue;
         };
-        let input = |id, pin: &str| match graph.edges_inverted.get(&TargetPin::NodeData(id, pin.into())) {
+        if probe
+            .asset_server
+            .get_path(context.get_graph_id())
+            .is_none_or(|path| path.path() != std::path::Path::new(DEFAULT_OVERLAY_GRAPH))
+        {
+            continue;
+        }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        let pose = |id| {
+            context
+                .node_caches
+                .is_updated(id, StateKey::Default)
+                .then(|| {
+                    context
+                        .node_caches
+                        .get_output_data(id, StateKey::Default, "Pose".into())
+                })
+                .flatten()
+                .and_then(|value| value.into_pose().ok())
+        };
+        let input = |id, pin: &str| match graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(id, pin.into()))
+        {
             Some(SourcePin::NodeData(source, output)) if output == "Pose" => pose(*source),
             _ => None,
         };
         let check = |errors: &mut Vec<String>, label: &str, actual: &Pose, expected: &Pose| {
-            if default_overlay_pose_error(actual, expected).is_none_or(|error| error > 2e-5) { errors.push(format!("{label}: pose mismatch")); }
+            if default_overlay_pose_error(actual, expected).is_none_or(|error| error > 2e-5) {
+                errors.push(format!("{label}: pose mismatch"));
+            }
         };
         for node in graph.nodes.values() {
-            let Some(actual) = pose(node.id) else { continue; };
-            if let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequenceEvaluatorNode>() {
-                let Some(index) = DEFAULT_OVERLAY_EVALUATORS.iter().position(|id| *id == node.id.uuid().to_string()) else { continue; };
-                let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
-                let expected_time = ((sequence.explicit_value as f64 / sequence.frames_per_second) as f32).clamp(0.0, clip.duration);
+            let Some(actual) = pose(node.id) else {
+                continue;
+            };
+            if let Some(sequence) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceSequenceEvaluatorNode>()
+            {
+                let Some(index) = DEFAULT_OVERLAY_EVALUATORS
+                    .iter()
+                    .position(|id| *id == node.id.uuid().to_string())
+                else {
+                    continue;
+                };
+                let Some(clip) = probe.clips.get(&sequence.clip) else {
+                    continue;
+                };
+                let expected_time = ((sequence.explicit_value as f64 / sequence.frames_per_second)
+                    as f32)
+                    .clamp(0.0, clip.duration);
                 sample.evaluator_times[index] = Some(actual.timestamp);
                 sample.expected_times[index] = Some(expected_time);
-                if (actual.timestamp - expected_time).abs() > 1e-5 { sample.errors.push(format!("evaluator_{index}: sample time mismatch")); }
-                check(&mut sample.errors, DEFAULT_OVERLAY_EVALUATORS[index], &actual, &crate::extensions::source_sequence_player::sample_pose(clip, expected_time));
+                if (actual.timestamp - expected_time).abs() > 1e-5 {
+                    sample
+                        .errors
+                        .push(format!("evaluator_{index}: sample time mismatch"));
+                }
+                check(
+                    &mut sample.errors,
+                    DEFAULT_OVERLAY_EVALUATORS[index],
+                    &actual,
+                    &crate::extensions::source_sequence_player::sample_pose(clip, expected_time),
+                );
             }
-            if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>() {
-                let Ok(state) = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
+            if let Some(blend) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+            {
+                let Ok(state) = context
+                    .node_states
+                    .get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(
+                    node.id,
+                    StateKey::Default,
+                ) else {
+                    continue;
+                };
                 let alpha = state.blend_alpha;
                 let raw = state.input_alpha;
                 let expected_alpha = if blend.mapping.interpolate_result {
-                    let expected = default_overlay_prediction_alpha(previous_prediction, raw, scalar("animation.delta_seconds").unwrap_or(0.0), &blend.mapping);
+                    let expected = default_overlay_prediction_alpha(
+                        previous_prediction,
+                        raw,
+                        scalar("animation.delta_seconds").unwrap_or(0.0),
+                        &blend.mapping,
+                    );
                     sample.prediction_input = Some(raw);
                     sample.prediction_alpha = Some(alpha);
                     sample.prediction_expected = Some(expected);
                     expected
-                } else { raw.clamp(0.0, 1.0) };
-                if (alpha - expected_alpha).abs() > 1e-4 { sample.errors.push(format!("{}: source alpha mismatch", blend.alpha_key)); }
-                let expected = if alpha <= 1e-5 { input(node.id, "A") }
-                    else if alpha >= 1.0 - 1e-5 { input(node.id, "B") }
-                    else { input(node.id, "A").zip(input(node.id, "B")).map(|(a, b)| {
-                        a.scalar_mult(1.0 - alpha).linear_add(&b.scalar_mult(alpha)).normalize_quat()
-                    }) };
-                if let Some(expected) = expected { check(&mut sample.errors, &node.id.uuid().to_string(), &actual, &expected); }
-                else { sample.errors.push(format!("{}: missing blend input pose", node.id.uuid())); }
+                } else {
+                    raw.clamp(0.0, 1.0)
+                };
+                if (alpha - expected_alpha).abs() > 1e-4 {
+                    sample
+                        .errors
+                        .push(format!("{}: source alpha mismatch", blend.alpha_key));
+                }
+                let expected = if alpha <= 1e-5 {
+                    input(node.id, "A")
+                } else if alpha >= 1.0 - 1e-5 {
+                    input(node.id, "B")
+                } else {
+                    input(node.id, "A").zip(input(node.id, "B")).map(|(a, b)| {
+                        a.scalar_mult(1.0 - alpha)
+                            .linear_add(&b.scalar_mult(alpha))
+                            .normalize_quat()
+                    })
+                };
+                if let Some(expected) = expected {
+                    check(
+                        &mut sample.errors,
+                        &node.id.uuid().to_string(),
+                        &actual,
+                        &expected,
+                    );
+                } else {
+                    sample
+                        .errors
+                        .push(format!("{}: missing blend input pose", node.id.uuid()));
+                }
             }
-            if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceMultiWayBlendNode>() {
-                let weights: Vec<f32> = blend.desired_alpha_keys.iter().filter_map(|key| scalar(key)).collect();
+            if let Some(blend) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceMultiWayBlendNode>()
+            {
+                let weights: Vec<f32> = blend
+                    .desired_alpha_keys
+                    .iter()
+                    .filter_map(|key| scalar(key))
+                    .collect();
                 let total = weights.iter().sum::<f32>();
-                if weights.len() != 2 || total <= 0.0 { continue; }
-                let expected = default_overlay_stance_pose([input(node.id, "Poses_0"), input(node.id, "Poses_1")], [weights[0] / total, weights[1] / total]);
-                if let Some(expected) = expected { check(&mut sample.errors, "stance blend", &actual, &expected); }
-                else { sample.errors.push("stance blend: missing input pose".into()); }
+                if weights.len() != 2 || total <= 0.0 {
+                    continue;
+                }
+                let expected = default_overlay_stance_pose(
+                    [input(node.id, "Poses_0"), input(node.id, "Poses_1")],
+                    [weights[0] / total, weights[1] / total],
+                );
+                if let Some(expected) = expected {
+                    check(&mut sample.errors, "stance blend", &actual, &expected);
+                } else {
+                    sample
+                        .errors
+                        .push("stance blend: missing input pose".into());
+                }
             }
-            if let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>() {
-                let tick = ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (context_id, node.id)));
+            if let Some(sequence) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()
+            {
+                let tick = ticks.and_then(|ticks| {
+                    ticks
+                        .iter()
+                        .find(|tick| tick.identity == (context_id, node.id))
+                });
                 sample.idle_time = Some(actual.timestamp);
                 sample.idle_duration = tick.map(|tick| tick.duration);
                 sample.idle_phase = tick.map(|tick| tick.phase);
                 sample.idle_weight = tick.map(|tick| tick.weight);
                 sample.idle_rate = tick.map(|tick| tick.play_rate);
-                if tick.is_none_or(|tick| (actual.timestamp - tick.phase * tick.duration).abs() > 1e-4) { sample.errors.push("idle: sync time mismatch".into()); }
+                if tick
+                    .is_none_or(|tick| (actual.timestamp - tick.phase * tick.duration).abs() > 1e-4)
+                {
+                    sample.errors.push("idle: sync time mismatch".into());
+                }
                 if let Some(clip) = probe.clips.get(&sequence.clip)
-                    && let Some(reference) = sequence.additive_reference.as_ref().and_then(|handle| probe.clips.get(handle))
-                    && let Some(skeleton) = probe.skeletons.get(&reference.skeleton) {
-                    let expected = crate::extensions::reference_local_difference::make_local_difference(
-                        &crate::extensions::source_sequence_player::sample_pose(reference, sequence.additive_reference_position),
-                        &crate::extensions::source_sequence_player::sample_pose(clip, actual.timestamp), skeleton);
-                    check(&mut sample.errors, "idle additive sequence", &actual, &expected);
+                    && let Some(reference) = sequence
+                        .additive_reference
+                        .as_ref()
+                        .and_then(|handle| probe.clips.get(handle))
+                    && let Some(skeleton) = probe.skeletons.get(&reference.skeleton)
+                {
+                    let expected =
+                        crate::extensions::reference_local_difference::make_local_difference(
+                            &crate::extensions::source_sequence_player::sample_pose(
+                                reference,
+                                sequence.additive_reference_position,
+                            ),
+                            &crate::extensions::source_sequence_player::sample_pose(
+                                clip,
+                                actual.timestamp,
+                            ),
+                            skeleton,
+                        );
+                    check(
+                        &mut sample.errors,
+                        "idle additive sequence",
+                        &actual,
+                        &expected,
+                    );
                 }
             }
-            if let Some(additive) = node.try_inner_downcast_ref::<crate::extensions::SourceApplyAdditiveNode>() {
+            if let Some(additive) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceApplyAdditiveNode>()
+            {
                 sample.additive_alpha = Some(additive.constant_alpha);
-                if let Some((base, delta)) = input(node.id, "Base").zip(input(node.id, "Additive")) {
-                    let expected = default_overlay_additive_pose(&base, &delta, additive.constant_alpha);
+                if let Some((base, delta)) = input(node.id, "Base").zip(input(node.id, "Additive"))
+                {
+                    let expected =
+                        default_overlay_additive_pose(&base, &delta, additive.constant_alpha);
                     check(&mut sample.errors, "apply additive", &actual, &expected);
                     sample.additive_effect = default_overlay_pose_error(&actual, &base);
                     sample.ready = !actual.bones.is_empty();
@@ -1631,56 +2766,160 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
     sample
 }
 
-fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> ManualAnimationWindowEvidence {
+fn default_overlay_window(
+    index: usize,
+    sample: &DefaultOverlayGraphSample,
+) -> ManualAnimationWindowEvidence {
     ManualAnimationWindowEvidence {
-        label: Some(DEFAULT_OVERLAY_WINDOWS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
-        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-        source_node: Some("AB_Als_Default/Overlay"), source_state: Some(DEFAULT_OVERLAY_WINDOWS[index]),
+        label: Some(DEFAULT_OVERLAY_WINDOWS[index]),
+        index: Some(index),
+        settled: true,
+        capture_source_window: true,
+        capture_every_frame: true,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Default/Overlay"),
+        source_state: Some(DEFAULT_OVERLAY_WINDOWS[index]),
         source_pose_chain: vec![
-            ManualAnimationPoseBoundary { label: "secondary_motion", graph: DEFAULT_OVERLAY_GRAPH, node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-            ManualAnimationPoseBoundary { label: "apply_additive", graph: DEFAULT_OVERLAY_GRAPH, node: "Apply Additive", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-            ManualAnimationPoseBoundary { label: "overlay_output", graph: DEFAULT_OVERLAY_GRAPH, node: "Output Pose\nOverlay", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-        ].into_iter().chain(LAYERING_BOUNDARIES.iter().filter(|(label, _, _)| *label != "layering_base_poses").map(|(label, node, output)| ManualAnimationPoseBoundary {
-            label, graph: LAYERING_GRAPH, node, output, minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: if *label == "layering_output" { 0.001 } else { 0.0 },
-        })).collect(),
-        minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001,
+            ManualAnimationPoseBoundary {
+                label: "secondary_motion",
+                graph: DEFAULT_OVERLAY_GRAPH,
+                node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion",
+                output: "Pose",
+                minimum_translation_span: 0.0,
+                minimum_rotation_span_radians: 0.001,
+            },
+            ManualAnimationPoseBoundary {
+                label: "apply_additive",
+                graph: DEFAULT_OVERLAY_GRAPH,
+                node: "Apply Additive",
+                output: "Pose",
+                minimum_translation_span: 0.0,
+                minimum_rotation_span_radians: 0.001,
+            },
+            ManualAnimationPoseBoundary {
+                label: "overlay_output",
+                graph: DEFAULT_OVERLAY_GRAPH,
+                node: "Output Pose\nOverlay",
+                output: "Pose",
+                minimum_translation_span: 0.0,
+                minimum_rotation_span_radians: 0.001,
+            },
+        ]
+        .into_iter()
+        .chain(
+            LAYERING_BOUNDARIES
+                .iter()
+                .filter(|(label, _, _)| *label != "layering_base_poses")
+                .map(|(label, node, output)| ManualAnimationPoseBoundary {
+                    label,
+                    graph: LAYERING_GRAPH,
+                    node,
+                    output,
+                    minimum_translation_span: 0.0,
+                    minimum_rotation_span_radians: if *label == "layering_output" {
+                        0.001
+                    } else {
+                        0.0
+                    },
+                }),
+        )
+        .collect(),
+        minimum_pre_rig_rotation_span_radians: 0.001,
+        minimum_final_rotation_span_radians: 0.001,
         minimum_observation_seconds: if index < 3 || index == 5 { 0.3 } else { 0.06 },
-        source_sync_group: Some("Secondary Motion"), sync_phase_global: Some(DEFAULT_OVERLAY_SYNC),
-        canonical_clip_time: sample.idle_duration.filter(|_| index < 3).map(|duration| duration * 0.35),
+        source_sync_group: Some("Secondary Motion"),
+        sync_phase_global: Some(DEFAULT_OVERLAY_SYNC),
+        canonical_clip_time: sample
+            .idle_duration
+            .filter(|_| index < 3)
+            .map(|duration| duration * 0.35),
         maximum_clip_time_distance: sample.idle_duration.unwrap_or(0.0) * 0.04,
-        direction_signature_group: (index < 3).then_some("default_ground_poses"), required_direction_signature_members: if index < 3 { 3 } else { 0 },
+        direction_signature_group: (index < 3).then_some("default_ground_poses"),
+        required_direction_signature_members: if index < 3 { 3 } else { 0 },
         minimum_direction_signature_rotation_radians: if index < 3 { 0.01 } else { 0.0 },
-        expected_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]), observed_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]),
-        expected_animation_variant: Some("A_Als_Idle"), observed_animation_variant: Some("A_Als_Idle"),
-        observed_animation_clip_time: sample.idle_time, observed_animation_weight: sample.additive_alpha, observed_animation_play_rate: sample.idle_rate,
+        expected_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]),
+        observed_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]),
+        expected_animation_variant: Some("A_Als_Idle"),
+        observed_animation_variant: Some("A_Als_Idle"),
+        observed_animation_clip_time: sample.idle_time,
+        observed_animation_weight: sample.additive_alpha,
+        observed_animation_play_rate: sample.idle_rate,
         ..default()
     }
 }
 
-fn default_overlay_should_timeout(covered: bool, elapsed: f32) -> bool { !covered && elapsed >= 12.0 }
+fn default_overlay_should_timeout(covered: bool, elapsed: f32) -> bool {
+    !covered && elapsed >= 12.0
+}
 
 const LOCOMOTION_LAND: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron";
 const LOCOMOTION_LAND_MOVEMENT: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron";
 const LOCOMOTION_WINDOW_LABELS: [&str; 14] = [
-    "jump_walk_left", "jump_walk_right", "jump_run_left", "jump_run_right",
-    "jump_loop", "jump_flail", "fall_fast", "fall", "fall_flail",
-    "ground_prediction", "land_light", "land_mixed", "land_movement", "land_complete",
+    "jump_walk_left",
+    "jump_walk_right",
+    "jump_run_left",
+    "jump_run_right",
+    "jump_loop",
+    "jump_flail",
+    "fall_fast",
+    "fall",
+    "fall_flail",
+    "ground_prediction",
+    "land_light",
+    "land_mixed",
+    "land_movement",
+    "land_complete",
 ];
 const LOCOMOTION_CLIPS: [(&str, &str); 13] = [
-    ("A_Als_Jump_Walk_Left", "A_Als_Jump_Walk_Left\nSequence Player\nSync group Jump"),
-    ("A_Als_Jump_Walk_Right", "A_Als_Jump_Walk_Right\nSequence Player\nSync group Jump"),
-    ("A_Als_Jump_Run_Left", "A_Als_Jump_Run_Left\nSequence Player\nSync group Jump"),
-    ("A_Als_Jump_Run_Right", "A_Als_Jump_Run_Right\nSequence Player\nSync group Jump"),
-    ("A_Als_Jump_Loop", "A_Als_Jump_Loop\nSequence Player\nSync group Flail"),
-    ("A_Als_Flail", "A_Als_Flail\nSequence Player\nSync group Flail"),
-    ("A_Als_Fall_Fast", "A_Als_Fall_Fast\nSequence Player\nSync group Fall"),
+    (
+        "A_Als_Jump_Walk_Left",
+        "A_Als_Jump_Walk_Left\nSequence Player\nSync group Jump",
+    ),
+    (
+        "A_Als_Jump_Walk_Right",
+        "A_Als_Jump_Walk_Right\nSequence Player\nSync group Jump",
+    ),
+    (
+        "A_Als_Jump_Run_Left",
+        "A_Als_Jump_Run_Left\nSequence Player\nSync group Jump",
+    ),
+    (
+        "A_Als_Jump_Run_Right",
+        "A_Als_Jump_Run_Right\nSequence Player\nSync group Jump",
+    ),
+    (
+        "A_Als_Jump_Loop",
+        "A_Als_Jump_Loop\nSequence Player\nSync group Flail",
+    ),
+    (
+        "A_Als_Flail",
+        "A_Als_Flail\nSequence Player\nSync group Flail",
+    ),
+    (
+        "A_Als_Fall_Fast",
+        "A_Als_Fall_Fast\nSequence Player\nSync group Fall",
+    ),
     ("A_Als_Fall", "A_Als_Fall\nSequence Player\nSync group Fall"),
     ("A_Als_Flail", "A_Als_Flail\nSequence Player"),
-    ("A_Als_Land_Light", "A_Als_Land_Light\nSequence Player\nSync group Land"),
-    ("A_Als_Land_Heavy", "A_Als_Land_Heavy\nSequence Player\nSync group Land"),
-    ("A_Als_Land_Light_Additive", "A_Als_Land_Light_Additive\nSequence Player\nSync group Land"),
-    ("A_Als_Land_Heavy_Additive", "A_Als_Land_Heavy_Additive\nSequence Player\nSync group Land"),
+    (
+        "A_Als_Land_Light",
+        "A_Als_Land_Light\nSequence Player\nSync group Land",
+    ),
+    (
+        "A_Als_Land_Heavy",
+        "A_Als_Land_Heavy\nSequence Player\nSync group Land",
+    ),
+    (
+        "A_Als_Land_Light_Additive",
+        "A_Als_Land_Light_Additive\nSequence Player\nSync group Land",
+    ),
+    (
+        "A_Als_Land_Heavy_Additive",
+        "A_Als_Land_Heavy_Additive\nSequence Player\nSync group Land",
+    ),
 ];
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -1728,17 +2967,26 @@ struct LocomotionActionProbe {
 
 impl LocomotionActionProbe {
     fn record_airborne(&mut self, actual: &LocomotionGraphSample, locomotion: LocomotionState) {
-        self.airborne_seen |= self.triggered && locomotion == LocomotionState::Air
+        self.airborne_seen |= self.triggered
+            && locomotion == LocomotionState::Air
             && (actual.outer_weights[1] > 0.05 || actual.outer_weights[2] > 0.05);
     }
 
     fn landing_completed(&self, actual: &LocomotionGraphSample, time: f64, notify: u32) -> bool {
-        actual.outer == Some(0) && actual.outer_transition == Some(false)
-            && self.landed_since.is_some_and(|(since, state)| time - since >= 0.35
-                && (state == 4 || notify > self.land_notify_start))
+        actual.outer == Some(0)
+            && actual.outer_transition == Some(false)
+            && self.landed_since.is_some_and(|(since, state)| {
+                time - since >= 0.35 && (state == 4 || notify > self.land_notify_start)
+            })
     }
 
-    fn record_window(&mut self, index: usize, window: &ManualAnimationWindowEvidence, sample: LocomotionClipSample, delta: f32) {
+    fn record_window(
+        &mut self,
+        index: usize,
+        window: &ManualAnimationWindowEvidence,
+        sample: LocomotionClipSample,
+        delta: f32,
+    ) {
         self.window_seconds[index] += delta;
         self.canonical_seen[index] |= locomotion_window_canonical(window, sample);
         self.covered[index] |= self.window_seconds[index] >= 0.18 && self.canonical_seen[index];
@@ -1747,51 +2995,92 @@ impl LocomotionActionProbe {
 
 fn locomotion_state_index(title: &str, label: &str) -> Option<u8> {
     let labels: &[&str] = match title {
-        "Locomotion States\nState Machine" => &["Grounded", "Fall", "Jump", "Land", "Land Movement"],
+        "Locomotion States\nState Machine" => {
+            &["Grounded", "Fall", "Jump", "Land", "Land Movement"]
+        }
         "Jump States\nState Machine" => &["Left Foot", "Right Foot", "Loop", "Flail"],
         _ => return None,
     };
-    labels.iter().position(|candidate| *candidate == label).map(|index| index as u8)
+    labels
+        .iter()
+        .position(|candidate| *candidate == label)
+        .map(|index| index as u8)
 }
 
 fn locomotion_source_scalar(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
-    crate::extensions::source_instance::source_player_property(player, key).and_then(|value| value.as_f32().ok())
+    crate::extensions::source_instance::source_player_property(player, key)
+        .and_then(|value| value.as_f32().ok())
         .or_else(|| graph_global_f32(player, key))
 }
 
 fn layering_crouching_input_ready(player: &AnimationGraphPlayer) -> bool {
-    locomotion_source_scalar(player, "pose_state.crouching_amount").is_some_and(|value| value > 1e-4)
+    locomotion_source_scalar(player, "pose_state.crouching_amount")
+        .is_some_and(|value| value > 1e-4)
 }
 
 fn locomotion_actions_should_timeout(probe: &LocomotionActionProbe, elapsed: f32) -> bool {
     !probe.completed && elapsed >= 12.0
 }
 
-fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -> LocomotionGraphSample {
+fn locomotion_graph_sample(
+    player: &AnimationGraphPlayer,
+    probe: &MotionProbe,
+) -> LocomotionGraphSample {
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut output = LocomotionGraphSample {
-        vertical: scalar("in_air_state.vertical_velocity_world_space").map(|value| (f64::from(value) * 0.01) as f32),
+        vertical: scalar("in_air_state.vertical_velocity_world_space")
+            .map(|value| (f64::from(value) * 0.01) as f32),
         foot_planted: scalar("feet_state.foot_planted_amount"),
         prediction: scalar("in_air_state.ground_prediction_amount"),
         ..default()
     };
-    let Some(arena) = player.get_context_arena() else { return output; };
+    let Some(arena) = player.get_context_arena() else {
+        return output;
+    };
     let ticks = ["jump", "fall", "flail", "land"].iter().find_map(|group| {
-        crate::extensions::sync_group_phase::source_sync_players(arena, &probe.graphs, &format!("sync_groups.{group}.phase"))
+        crate::extensions::sync_group_phase::source_sync_players(
+            arena,
+            &probe.graphs,
+            &format!("sync_groups.{group}.phase"),
+        )
     });
     let mut flail_alpha = None;
     let mut prediction_alpha = None;
     for id in arena.iter_context_ids() {
-        let Some(child) = arena.get_context(id) else { continue; };
-        let Some(path) = probe.asset_server.get_path(child.get_graph_id()) else { continue; };
-        if !path.path().starts_with("ALS/Character/AnimationInstances/AB_Als_Locomotion") { continue; }
-        let Some(graph) = probe.graphs.get(child.get_graph_id()) else { continue; };
+        let Some(child) = arena.get_context(id) else {
+            continue;
+        };
+        let Some(path) = probe.asset_server.get_path(child.get_graph_id()) else {
+            continue;
+        };
+        if !path
+            .path()
+            .starts_with("ALS/Character/AnimationInstances/AB_Als_Locomotion")
+        {
+            continue;
+        }
+        let Some(graph) = probe.graphs.get(child.get_graph_id()) else {
+            continue;
+        };
         for node in graph.nodes.values() {
-            if !child.node_caches.is_updated(node.id, StateKey::Default) { continue; }
-            if let Some(fsm) = node.try_inner_downcast_ref::<crate::extensions::InterruptibleFsmNode>() {
-                let Some(machine) = probe.machines.get(&fsm.fsm) else { continue; };
-                let Ok(mut states) = child.node_states.get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id) else { continue; };
-                let Some(state) = states.find(|state| state.last_output_pose().is_some()) else { continue; };
+            if !child.node_caches.is_updated(node.id, StateKey::Default) {
+                continue;
+            }
+            if let Some(fsm) =
+                node.try_inner_downcast_ref::<crate::extensions::InterruptibleFsmNode>()
+            {
+                let Some(machine) = probe.machines.get(&fsm.fsm) else {
+                    continue;
+                };
+                let Ok(mut states) = child
+                    .node_states
+                    .get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id)
+                else {
+                    continue;
+                };
+                let Some(state) = states.find(|state| state.last_output_pose().is_some()) else {
+                    continue;
+                };
                 let actual = match &state.state {
                     bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(id) => machine.states.get(id).and_then(|value| locomotion_state_index(&node.name, &value.label)),
                     _ => None,
@@ -1803,42 +3092,87 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
                 } else if node.name == "Jump States\nState Machine" {
                     output.jump = actual;
                     &mut output.jump_weights[..]
-                } else { continue; };
+                } else {
+                    continue;
+                };
                 for entry in machine.states.values() {
                     if let Some(index) = locomotion_state_index(&node.name, &entry.label) {
-                        weights[index as usize] = state.recorded_state_weight(&entry.id.uuid().to_string());
+                        weights[index as usize] =
+                            state.recorded_state_weight(&entry.id.uuid().to_string());
                     }
                 }
             }
-            if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
-                && let Ok(state) = child.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) {
-                output.blends.push((node.id.uuid().to_string(), state.blend_alpha));
+            if let Some(blend) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+                && let Ok(state) = child
+                    .node_states
+                    .get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(
+                    node.id,
+                    StateKey::Default,
+                )
+            {
+                output
+                    .blends
+                    .push((node.id.uuid().to_string(), state.blend_alpha));
                 if blend.alpha_key == "locomotion_state.speed"
-                    && let Some(side) = (0..2).find(|side| path.path() == std::path::Path::new(locomotion_clip_graph(*side))) {
+                    && let Some(side) = (0..2).find(|side| {
+                        path.path() == std::path::Path::new(locomotion_clip_graph(*side))
+                    })
+                {
                     output.jump_run_alpha[side] = Some(state.blend_alpha);
                 }
                 if path.path() == std::path::Path::new(LOCOMOTION_FALL) {
-                    if blend.alpha_key == "in_air_state.ground_prediction_amount" { prediction_alpha = Some(state.blend_alpha); }
-                    if blend.alpha_key == "in_air_state.vertical_velocity_world_space" && blend.mapping.input_min == -500.0 && blend.mapping.input_max == -3000.0 { flail_alpha = Some(state.blend_alpha); }
+                    if blend.alpha_key == "in_air_state.ground_prediction_amount" {
+                        prediction_alpha = Some(state.blend_alpha);
+                    }
+                    if blend.alpha_key == "in_air_state.vertical_velocity_world_space"
+                        && blend.mapping.input_min == -500.0
+                        && blend.mapping.input_max == -3000.0
+                    {
+                        flail_alpha = Some(state.blend_alpha);
+                    }
                 }
             }
-            if node.name.ends_with("Sequence Evaluator (by frame)") && node.name.starts_with("A_Als_Land_") {
-                output.prediction_pose_ready |= child.node_caches.get_output_data(node.id, StateKey::Default, "Pose".into()).is_some_and(|value| value.as_pose().is_ok_and(|pose| !pose.bones.is_empty()));
+            if node.name.ends_with("Sequence Evaluator (by frame)")
+                && node.name.starts_with("A_Als_Land_")
+            {
+                output.prediction_pose_ready |= child
+                    .node_caches
+                    .get_output_data(node.id, StateKey::Default, "Pose".into())
+                    .is_some_and(|value| value.as_pose().is_ok_and(|pose| !pose.bones.is_empty()));
             }
-            let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>() else { continue; };
-            let Some(index) = LOCOMOTION_CLIPS.iter().position(|(_, title)| *title == node.name) else { continue; };
-            let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
-            let tick = ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (id, node.id)));
+            let Some(sequence) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()
+            else {
+                continue;
+            };
+            let Some(index) = LOCOMOTION_CLIPS
+                .iter()
+                .position(|(_, title)| *title == node.name)
+            else {
+                continue;
+            };
+            let Some(clip) = probe.clips.get(&sequence.clip) else {
+                continue;
+            };
+            let tick =
+                ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (id, node.id)));
             output.clips.push(LocomotionClipSample {
-                index, time: child.node_states.get_time(node.id, StateKey::Default), duration: clip.duration,
-                weight: tick.map_or(0.0, |tick| tick.weight), phase: tick.map(|tick| tick.phase),
-                play_rate: tick.map_or(sequence.play_rate, |tick| tick.play_rate), looping: sequence.loop_animation,
+                index,
+                time: child.node_states.get_time(node.id, StateKey::Default),
+                duration: clip.duration,
+                weight: tick.map_or(0.0, |tick| tick.weight),
+                phase: tick.map(|tick| tick.phase),
+                play_rate: tick.map_or(sequence.play_rate, |tick| tick.play_rate),
+                looping: sequence.loop_animation,
             });
         }
     }
     for sample in &mut output.clips {
         if sample.index == 8 {
-            sample.weight = flail_alpha.unwrap_or(0.0) * (1.0 - prediction_alpha.unwrap_or(0.0)) * output.outer_weights[1];
+            sample.weight = flail_alpha.unwrap_or(0.0)
+                * (1.0 - prediction_alpha.unwrap_or(0.0))
+                * output.outer_weights[1];
         }
     }
     output
@@ -1846,43 +3180,85 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
 
 fn locomotion_jump_ready(index: usize, outer: Option<u8>, speed: f32, foot: Option<f32>) -> bool {
     outer == Some(0)
-        && if index < 2 { (1.0..=2.0).contains(&speed) } else { speed >= 3.6 }
-        && foot.is_some_and(|value| if index % 2 == 0 { value < -0.5 } else { value > 0.5 })
+        && if index < 2 {
+            (1.0..=2.0).contains(&speed)
+        } else {
+            speed >= 3.6
+        }
+        && foot.is_some_and(|value| {
+            if index % 2 == 0 {
+                value < -0.5
+            } else {
+                value > 0.5
+            }
+        })
 }
 
-fn locomotion_jump_weights_match(clips: &[LocomotionClipSample], run_alpha: [Option<f32>; 2]) -> bool {
+fn locomotion_jump_weights_match(
+    clips: &[LocomotionClipSample],
+    run_alpha: [Option<f32>; 2],
+) -> bool {
     for (walk, run) in [(0, 2), (1, 3)] {
-        let weight = |index| clips.iter().filter(|sample| sample.index == index).map(|sample| sample.weight).sum::<f32>();
+        let weight = |index| {
+            clips
+                .iter()
+                .filter(|sample| sample.index == index)
+                .map(|sample| sample.weight)
+                .sum::<f32>()
+        };
         let total = weight(walk) + weight(run);
-        if total > 0.05 && run_alpha[walk].is_none_or(|alpha| !alpha.is_finite() || (weight(run) / total - alpha).abs() > 0.015) { return false; }
+        if total > 0.05
+            && run_alpha[walk].is_none_or(|alpha| {
+                !alpha.is_finite() || (weight(run) / total - alpha).abs() > 0.015
+            })
+        {
+            return false;
+        }
     }
     true
 }
 
 fn locomotion_clip_graph(index: usize) -> &'static str {
     match index {
-        0 | 2 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
-        1 | 3 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
-        4 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
-        5 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
+        0 | 2 => {
+            "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron"
+        }
+        1 | 3 => {
+            "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron"
+        }
+        4 => {
+            "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron"
+        }
+        5 => {
+            "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron"
+        }
         6..=8 => LOCOMOTION_FALL,
         9 | 10 => LOCOMOTION_LAND,
         _ => LOCOMOTION_LAND_MOVEMENT,
     }
 }
 
-fn locomotion_window_canonical(window: &ManualAnimationWindowEvidence, sample: LocomotionClipSample) -> bool {
+fn locomotion_window_canonical(
+    window: &ManualAnimationWindowEvidence,
+    sample: LocomotionClipSample,
+) -> bool {
     if let Some(target) = window.canonical_sync_phase {
         sample.phase.is_some_and(|phase| {
             let distance = (phase - target).abs();
             distance.min(1.0 - distance) <= window.maximum_sync_phase_distance
         })
     } else {
-        window.canonical_clip_time.is_none_or(|target| (sample.time - target).abs() <= window.maximum_clip_time_distance)
+        window
+            .canonical_clip_time
+            .is_none_or(|target| (sample.time - target).abs() <= window.maximum_clip_time_distance)
     }
 }
 
-fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &LocomotionGraphSample) -> ManualAnimationWindowEvidence {
+fn locomotion_window(
+    index: usize,
+    sample: LocomotionClipSample,
+    actual: &LocomotionGraphSample,
+) -> ManualAnimationWindowEvidence {
     let graph = locomotion_clip_graph(sample.index);
     let group = match sample.index {
         0..=3 => Some(("Jump", "sync_groups.jump.phase")),
@@ -1892,27 +3268,118 @@ fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &Locomo
         _ => None,
     };
     let mut chain = vec![ManualAnimationPoseBoundary {
-        label: "sequence_player", graph, node: LOCOMOTION_CLIPS[sample.index].1, output: "Pose",
-        minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+        label: "sequence_player",
+        graph,
+        node: LOCOMOTION_CLIPS[sample.index].1,
+        output: "Pose",
+        minimum_translation_span: 0.0,
+        minimum_rotation_span_radians: 0.05,
     }];
     if sample.index <= 5 {
-        chain.push(ManualAnimationPoseBoundary { label: "jump_fsm", graph: LOCOMOTION_JUMP, node: "Jump States\nState Machine", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05 });
+        chain.push(ManualAnimationPoseBoundary {
+            label: "jump_fsm",
+            graph: LOCOMOTION_JUMP,
+            node: "Jump States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        });
     }
-    chain.push(ManualAnimationPoseBoundary { label: "locomotion_fsm", graph: LOCOMOTION_ROOT, node: "Locomotion States\nState Machine", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05 });
+    chain.push(ManualAnimationPoseBoundary {
+        label: "locomotion_fsm",
+        graph: LOCOMOTION_ROOT,
+        node: "Locomotion States\nState Machine",
+        output: "Pose",
+        minimum_translation_span: 0.0,
+        minimum_rotation_span_radians: 0.05,
+    });
     ManualAnimationWindowEvidence {
-        label: Some(LOCOMOTION_WINDOW_LABELS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
-        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-        source_node: Some("AB_Als_Locomotion/Locomotion States"), source_state: Some(if sample.index <= 5 { "Jump" } else if sample.index <= 8 { "Fall" } else if sample.index <= 10 { "Land" } else { "Land Movement" }),
-        source_pose_chain: chain, minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05, minimum_observation_seconds: 0.12,
-        source_sync_group: group.map(|value| value.0), sync_phase_global: group.map(|value| value.1),
-        canonical_sync_phase: (sample.index <= 7).then_some(if sample.index <= 3 { 0.35 } else { 0.65 }), maximum_sync_phase_distance: 0.04,
-        canonical_clip_time: (sample.index >= 8).then_some(0.2), maximum_clip_time_distance: 0.04,
-        direction_signature_group: if index <= 3 { Some("jump_starts") } else if matches!(index, 6 | 7) { Some("fall_sources") } else { None }, required_direction_signature_members: if index <= 3 { 4 } else if matches!(index, 6 | 7) { 2 } else { 0 }, minimum_direction_signature_rotation_radians: if index <= 3 || matches!(index, 6 | 7) { 0.05 } else { 0.0 },
-        expected_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[index]), observed_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[sample.index]),
-        expected_runtime_state: if index <= 3 { Some((index % 2) as u8) } else if matches!(index, 6 | 7) { Some(1) } else { None }, observed_runtime_state: if index <= 3 { actual.jump } else if matches!(index, 6 | 7) { actual.outer } else { None },
-        expected_parent_runtime_state: (!(6..=8).contains(&sample.index)).then_some(if sample.index <= 5 { 2 } else if sample.index <= 10 { 3 } else { 4 }), observed_parent_runtime_state: actual.outer, observed_parent_transition_active: actual.outer_transition,
-        expected_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0), observed_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0),
-        observed_animation_clip_time: Some(sample.time), observed_animation_weight: Some(sample.weight), observed_animation_play_rate: Some(sample.play_rate),
+        label: Some(LOCOMOTION_WINDOW_LABELS[index]),
+        index: Some(index),
+        settled: true,
+        capture_source_window: true,
+        capture_every_frame: true,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Locomotion/Locomotion States"),
+        source_state: Some(if sample.index <= 5 {
+            "Jump"
+        } else if sample.index <= 8 {
+            "Fall"
+        } else if sample.index <= 10 {
+            "Land"
+        } else {
+            "Land Movement"
+        }),
+        source_pose_chain: chain,
+        minimum_pre_rig_rotation_span_radians: 0.05,
+        minimum_final_rotation_span_radians: 0.05,
+        minimum_observation_seconds: 0.12,
+        source_sync_group: group.map(|value| value.0),
+        sync_phase_global: group.map(|value| value.1),
+        canonical_sync_phase: (sample.index <= 7).then_some(if sample.index <= 3 {
+            0.35
+        } else {
+            0.65
+        }),
+        maximum_sync_phase_distance: 0.04,
+        canonical_clip_time: (sample.index >= 8).then_some(0.2),
+        maximum_clip_time_distance: 0.04,
+        direction_signature_group: if index <= 3 {
+            Some("jump_starts")
+        } else if matches!(index, 6 | 7) {
+            Some("fall_sources")
+        } else {
+            None
+        },
+        required_direction_signature_members: if index <= 3 {
+            4
+        } else if matches!(index, 6 | 7) {
+            2
+        } else {
+            0
+        },
+        minimum_direction_signature_rotation_radians: if index <= 3 || matches!(index, 6 | 7) {
+            0.05
+        } else {
+            0.0
+        },
+        expected_direction: (index <= 3 || matches!(index, 6 | 7))
+            .then_some(LOCOMOTION_WINDOW_LABELS[index]),
+        observed_direction: (index <= 3 || matches!(index, 6 | 7))
+            .then_some(LOCOMOTION_WINDOW_LABELS[sample.index]),
+        expected_runtime_state: if index <= 3 {
+            Some((index % 2) as u8)
+        } else if matches!(index, 6 | 7) {
+            Some(1)
+        } else {
+            None
+        },
+        observed_runtime_state: if index <= 3 {
+            actual.jump
+        } else if matches!(index, 6 | 7) {
+            actual.outer
+        } else {
+            None
+        },
+        expected_parent_runtime_state: (!(6..=8).contains(&sample.index)).then_some(
+            if sample.index <= 5 {
+                2
+            } else if sample.index <= 10 {
+                3
+            } else {
+                4
+            },
+        ),
+        observed_parent_runtime_state: actual.outer,
+        observed_parent_transition_active: actual.outer_transition,
+        expected_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0),
+        observed_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0),
+        observed_animation_clip_time: Some(sample.time),
+        observed_animation_weight: Some(sample.weight),
+        observed_animation_play_rate: Some(sample.play_rate),
         ..default()
     }
 }
@@ -1932,18 +3399,36 @@ fn observe_locomotion_actions(
     let actual = locomotion_graph_sample(player, motion);
     let speed = graph_global_f32(player, "locomotion_state.speed").unwrap_or(0.0);
     let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
-    let notify = motion.transition_notify.get(character).ok().flatten().map_or(0, |value| value.land_to_grounded_count);
+    let notify = motion
+        .transition_notify
+        .get(character)
+        .ok()
+        .flatten()
+        .map_or(0, |value| value.land_to_grounded_count);
     let probe = &mut state.locomotion_probe;
     let index = probe.case_index;
-    if actual.outer == Some(0) && actual.outer_transition == Some(false) && locomotion == LocomotionState::Grounded && stance == Stance::Standing {
+    if actual.outer == Some(0)
+        && actual.outer_transition == Some(false)
+        && locomotion == LocomotionState::Grounded
+        && stance == Stance::Standing
+    {
         probe.ready_since.get_or_insert(state.game_time_seconds);
     } else {
         probe.ready_since = None;
     }
-    if !probe.airborne_seen { probe.land_notify_start = notify; }
+    if !probe.airborne_seen {
+        probe.land_notify_start = notify;
+    }
     probe.record_airborne(&actual, locomotion);
     probe.valid &= locomotion_jump_weights_match(&actual.clips, actual.jump_run_alpha);
-    let clip = |index| actual.clips.iter().copied().filter(|sample| sample.index == index && sample.weight > 0.05).max_by(|a, b| a.weight.total_cmp(&b.weight));
+    let clip = |index| {
+        actual
+            .clips
+            .iter()
+            .copied()
+            .filter(|sample| sample.index == index && sample.weight > 0.05)
+            .max_by(|a, b| a.weight.total_cmp(&b.weight))
+    };
     let mut selection = None;
     if index < 4 && actual.outer == Some(2) && actual.jump == Some((index % 2) as u8) {
         selection = clip(index).map(|sample| (index, sample));
@@ -1954,15 +3439,34 @@ fn observe_locomotion_actions(
     } else if index == 5 {
         let target = (6..=8).find(|target| !probe.covered[*target]);
         if let Some(target) = target {
-            selection = clip(target).filter(|_| target != 7 || actual.vertical.is_some_and(|value| value <= -10.0)).map(|sample| (target, sample));
+            selection = clip(target)
+                .filter(|_| target != 7 || actual.vertical.is_some_and(|value| value <= -10.0))
+                .map(|sample| (target, sample));
         }
-        if target.is_none() && actual.prediction.is_some_and(|amount| amount > 0.05) && actual.prediction_pose_ready && actual.outer == Some(1) {
+        if target.is_none()
+            && actual.prediction.is_some_and(|amount| amount > 0.05)
+            && actual.prediction_pose_ready
+            && actual.outer == Some(1)
+        {
             *window = ManualAnimationWindowEvidence {
-                label: Some(LOCOMOTION_WINDOW_LABELS[9]), settled: true, capture_source_window: true, capture_every_frame: true,
-                requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-                source_node: Some("AB_Als_Locomotion/Fall/GroundPrediction"), source_state: Some("Fall"),
-                source_pose_chain: vec![ManualAnimationPoseBoundary { label: "predicted_land_pose", graph: LOCOMOTION_FALL, node: "A_Als_Land_Heavy\nSequence Evaluator (by frame)", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }],
-                expected_runtime_state: Some(1), observed_runtime_state: actual.outer,
+                label: Some(LOCOMOTION_WINDOW_LABELS[9]),
+                settled: true,
+                capture_source_window: true,
+                capture_every_frame: true,
+                requires_non_reference_root_pose: true,
+                requires_source_pose_chain: true,
+                source_node: Some("AB_Als_Locomotion/Fall/GroundPrediction"),
+                source_state: Some("Fall"),
+                source_pose_chain: vec![ManualAnimationPoseBoundary {
+                    label: "predicted_land_pose",
+                    graph: LOCOMOTION_FALL,
+                    node: "A_Als_Land_Heavy\nSequence Evaluator (by frame)",
+                    output: "Pose",
+                    minimum_translation_span: 0.0,
+                    minimum_rotation_span_radians: 0.0,
+                }],
+                expected_runtime_state: Some(1),
+                observed_runtime_state: actual.outer,
                 minimum_observation_seconds: 0.06,
                 ..default()
             };
@@ -1973,19 +3477,41 @@ fn observe_locomotion_actions(
     }
     if locomotion == LocomotionState::Grounded && probe.airborne_seen {
         if let Some(landed_state @ (3 | 4)) = actual.outer {
-            probe.landed_since.get_or_insert((state.game_time_seconds, landed_state)).1 = landed_state;
-            if index == 0 && actual.outer == Some(3) { selection = clip(9).map(|sample| (10, sample)); }
-            if index == 6 && actual.outer == Some(3) { selection = clip(10).map(|sample| (11, sample)); }
-            if index == 2 && actual.outer == Some(4) { selection = clip(11).map(|sample| (12, sample)); }
+            probe
+                .landed_since
+                .get_or_insert((state.game_time_seconds, landed_state))
+                .1 = landed_state;
+            if index == 0 && actual.outer == Some(3) {
+                selection = clip(9).map(|sample| (10, sample));
+            }
+            if index == 6 && actual.outer == Some(3) {
+                selection = clip(10).map(|sample| (11, sample));
+            }
+            if index == 2 && actual.outer == Some(4) {
+                selection = clip(11).map(|sample| (12, sample));
+            }
         }
         if probe.landing_completed(&actual, state.game_time_seconds, notify) {
-            probe.completed = probe.ready_since.is_some_and(|since| state.game_time_seconds - since >= 0.12);
+            probe.completed = probe
+                .ready_since
+                .is_some_and(|since| state.game_time_seconds - since >= 0.12);
             if index == 0 {
                 probe.covered[13] |= probe.completed;
-                *window = ManualAnimationWindowEvidence { label: Some(LOCOMOTION_WINDOW_LABELS[13]), settled: true, capture_source_window: true, capture_every_frame: true,
-                    requires_non_reference_root_pose: true, source_node: Some("AB_Als_Locomotion/AnimNotify_LandToGrounded"), source_state: Some("Grounded"),
-                    expected_runtime_state: Some(0), observed_runtime_state: actual.outer, minimum_observation_seconds: 0.06,
-                    expected_lifecycle_stages: &["complete"], observed_lifecycle_stages: &["complete"], ..default() };
+                *window = ManualAnimationWindowEvidence {
+                    label: Some(LOCOMOTION_WINDOW_LABELS[13]),
+                    settled: true,
+                    capture_source_window: true,
+                    capture_every_frame: true,
+                    requires_non_reference_root_pose: true,
+                    source_node: Some("AB_Als_Locomotion/AnimNotify_LandToGrounded"),
+                    source_state: Some("Grounded"),
+                    expected_runtime_state: Some(0),
+                    observed_runtime_state: actual.outer,
+                    minimum_observation_seconds: 0.06,
+                    expected_lifecycle_stages: &["complete"],
+                    observed_lifecycle_stages: &["complete"],
+                    ..default()
+                };
             }
         }
     }
@@ -1993,7 +3519,17 @@ fn observe_locomotion_actions(
         *window = locomotion_window(target, selected, &actual);
         probe.record_window(target, window, selected, delta);
     }
-    let curves = ["PoseStanding", "PoseGrounded", "PoseInAir", "GroundPredictionBlock", "FootLeftIk", "FootRightIk", "FootLeftLock", "FootRightLock"].map(|key| (key, context.and_then(|value| value.f32(key))));
+    let curves = [
+        "PoseStanding",
+        "PoseGrounded",
+        "PoseInAir",
+        "GroundPredictionBlock",
+        "FootLeftIk",
+        "FootRightIk",
+        "FootLeftLock",
+        "FootRightLock",
+    ]
+    .map(|key| (key, context.and_then(|value| value.f32(key))));
     report.direction_trace.push(serde_json::json!({
         "case": index, "elapsed": state.game_time_seconds - state.phase_started_seconds,
         "position": transform.translation.to_array(), "speed": speed, "locomotion": format!("{locomotion:?}"),
@@ -2021,8 +3557,18 @@ const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 8] = [
         false,
         true,
     ),
-    ("grounded_standing_rapid_aim_stop", Stance::Standing, false, true),
-    ("grounded_crouching_rapid_aim_stop", Stance::Crouching, false, true),
+    (
+        "grounded_standing_rapid_aim_stop",
+        Stance::Standing,
+        false,
+        true,
+    ),
+    (
+        "grounded_crouching_rapid_aim_stop",
+        Stance::Crouching,
+        false,
+        true,
+    ),
 ];
 
 #[derive(Default)]
@@ -2065,7 +3611,13 @@ fn grounded_joint_command(
     view_yaw: f32,
 ) -> crate::als::input::AlsInputCommand {
     if index >= 6 {
-        return standing_turn_mouse_command(7, elapsed.map(|time| time + 8.0), base_yaw, view_yaw, RotationMode::Aiming);
+        return standing_turn_mouse_command(
+            7,
+            elapsed.map(|time| time + 8.0),
+            base_yaw,
+            view_yaw,
+            RotationMode::Aiming,
+        );
     }
     let (_, _, moving, aiming) = GROUNDED_JOINT_CASES[index];
     let elapsed = elapsed.unwrap_or(-1.0);
@@ -2310,9 +3862,16 @@ fn standing_response_step(elapsed: f32) -> (&'static str, Vec2) {
 }
 
 fn crouch_direction_regression_case(index: usize) -> Option<CrouchDirectionRegressionCase> {
-    let names = ["crouch_forward", "crouch_backward", "crouch_right_from_backward",
-        "crouch_left_from_right_backward", "crouch_forward_repeat", "crouch_backward_repeat",
-        "crouch_left_from_backward", "crouch_right_from_left_backward"];
+    let names = [
+        "crouch_forward",
+        "crouch_backward",
+        "crouch_right_from_backward",
+        "crouch_left_from_right_backward",
+        "crouch_forward_repeat",
+        "crouch_backward_repeat",
+        "crouch_left_from_backward",
+        "crouch_right_from_left_backward",
+    ];
     let case = direction_regression_case(index).filter(|_| index < names.len())?;
     Some(CrouchDirectionRegressionCase {
         name: names[index],
@@ -2444,18 +4003,25 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
 }
 
 fn generated_stop_quick_source_pose_chain(crouching: bool) -> Vec<ManualAnimationPoseBoundary> {
-    let mut chain = if crouching { crouch_turn_source_pose_chain() } else { generated_standing_source_pose_chain() }
-        .into_iter()
-        .filter(|boundary| {
-            matches!(
-                boundary.label,
-                "outer_fsm" | "refresh_rotate" | "root_entry" | "standing_states_fsm"
-                    | "standing_graph_output"
-                    | "grounded_standing_cache"
-                    | "grounded_fsm"
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut chain = if crouching {
+        crouch_turn_source_pose_chain()
+    } else {
+        generated_standing_source_pose_chain()
+    }
+    .into_iter()
+    .filter(|boundary| {
+        matches!(
+            boundary.label,
+            "outer_fsm"
+                | "refresh_rotate"
+                | "root_entry"
+                | "standing_states_fsm"
+                | "standing_graph_output"
+                | "grounded_standing_cache"
+                | "grounded_fsm"
+        )
+    })
+    .collect::<Vec<_>>();
     for boundary in &mut chain {
         boundary.minimum_translation_span = 0.0;
         boundary.minimum_rotation_span_radians = 0.0;
@@ -2629,14 +4195,29 @@ fn source_sequence_sample(
     name: &str,
 ) -> Option<(f32, f32, bool)> {
     let arena = player.get_context_arena()?;
-    arena.iter_context_ids().filter_map(|id| {
-        let context = arena.get_context(id)?;
-        let graph = graphs.get(context.get_graph_id())?;
-        let node = graph.nodes.values().find(|node| node.name == name)?;
-        let sequence = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()?;
-        let position = context.node_states.get_time(node.id, StateKey::Default);
-        Some((position, sequence.curves.sample_all(position).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0), context.node_caches.is_updated(node.id, StateKey::Default)))
-    }).max_by_key(|sample| sample.2)
+    arena
+        .iter_context_ids()
+        .filter_map(|id| {
+            let context = arena.get_context(id)?;
+            let graph = graphs.get(context.get_graph_id())?;
+            let node = graph.nodes.values().find(|node| node.name == name)?;
+            let sequence =
+                node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()?;
+            let position = context.node_states.get_time(node.id, StateKey::Default);
+            Some((
+                position,
+                sequence
+                    .curves
+                    .sample_all(position)
+                    .get(&crate::extensions::SourceCurveName::from(
+                        "RotationYawSpeed",
+                    ))
+                    .copied()
+                    .unwrap_or(0.0),
+                context.node_caches.is_updated(node.id, StateKey::Default),
+            ))
+        })
+        .max_by_key(|sample| sample.2)
 }
 
 fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundary> {
@@ -2968,7 +4549,11 @@ fn record_animation_window_trace(
                 .iter()
                 .filter(|entry| entry.crouching == crouching)
                 .map(|entry| ManualTurnStackEntryEvidence {
-                    animation_variant: crate::turn_layer::source_turn_sequence(crouching, entry.is_180, entry.lr),
+                    animation_variant: crate::turn_layer::source_turn_sequence(
+                        crouching,
+                        entry.is_180,
+                        entry.lr,
+                    ),
                     elapsed_seconds: entry.elapsed,
                     weight: entry.weight(),
                     play_rate: entry.play_rate,
@@ -2977,8 +4562,10 @@ fn record_animation_window_trace(
                 .collect()
         })
         .unwrap_or_default();
-    window.observed_animation_variant = animation_variant.or_else(|| turn_drive.map(|drive|
-        crate::turn_layer::source_turn_sequence(crouching, drive.is_180, drive.lr)));
+    window.observed_animation_variant = animation_variant.or_else(|| {
+        turn_drive
+            .map(|drive| crate::turn_layer::source_turn_sequence(crouching, drive.is_180, drive.lr))
+    });
 }
 
 fn crouch_stationary_source_precondition(
@@ -3017,14 +4604,14 @@ fn advance_crouch_stationary_stability(frames: u8, stable: bool) -> u8 {
 }
 
 fn crouch_direction_case_complete(ready_at: Option<f32>, elapsed: f32) -> bool {
-    ready_at.is_some_and(|ready| elapsed - ready >= CROUCH_DIRECTION_CASE_SECONDS - CROUCH_DIRECTION_CASE_SETTLE_SECONDS)
+    ready_at.is_some_and(|ready| {
+        elapsed - ready >= CROUCH_DIRECTION_CASE_SECONDS - CROUCH_DIRECTION_CASE_SETTLE_SECONDS
+    })
 }
 
 fn crouch_stationary_validation_holds_aim(validation: Option<CrouchStationaryValidation>) -> bool {
     validation.is_some_and(|validation| !validation.is_turn())
 }
-
-
 
 fn movement_direction_fsm_index(direction: AlsMovementDirection) -> u8 {
     match direction {
@@ -3085,7 +4672,11 @@ fn actual_velocity_branch_mask(motion: &AlsActualMotion) -> u8 {
 fn foot_ik_terrain_command(elapsed: f32, delta: f32) -> crate::als::input::AlsInputCommand {
     let pressed = |at| elapsed >= at && elapsed - delta < at;
     crate::als::input::AlsInputCommand {
-        move_dir: if (1.0..3.0).contains(&elapsed) || (3.2..4.2).contains(&elapsed) { Vec2::Y } else { Vec2::ZERO },
+        move_dir: if (1.0..3.0).contains(&elapsed) || (3.2..4.2).contains(&elapsed) {
+            Vec2::Y
+        } else {
+            Vec2::ZERO
+        },
         crouch_pressed: pressed(3.0) || pressed(4.2),
         jump_pressed: pressed(5.0),
         jump_held: (5.0..5.6).contains(&elapsed),
@@ -3411,18 +5002,24 @@ impl Default for ManualIntegrationState {
             initial_view_pitch: None,
             mantle_root_released: false,
             ragdoll_seen: false,
-            expect_ragdoll_player_replacement:
-                std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1"),
-            expect_ragdoll_debug_render:
-                std::env::var("ALS_MANUAL_RAGDOLL_DEBUG_RENDER").as_deref() == Ok("1"),
-            expect_control_rig_definition_hot_swap:
-                std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1"),
-            expect_decal_receiver_swap:
-                std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref() == Ok("1"),
-            expect_reroute_passthrough:
-                std::env::var("ALS_MANUAL_REROUTE_PASSTHROUGH").as_deref() == Ok("1"),
-            expect_machine_weight:
-                std::env::var("ALS_MANUAL_MACHINE_WEIGHT").as_deref() == Ok("1"),
+            expect_ragdoll_player_replacement: std::env::var(
+                "ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT",
+            )
+            .as_deref()
+                == Ok("1"),
+            expect_ragdoll_debug_render: std::env::var("ALS_MANUAL_RAGDOLL_DEBUG_RENDER")
+                .as_deref()
+                == Ok("1"),
+            expect_control_rig_definition_hot_swap: std::env::var(
+                "ALS_MANUAL_RIG_DEFINITION_HOT_SWAP",
+            )
+            .as_deref()
+                == Ok("1"),
+            expect_decal_receiver_swap: std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref()
+                == Ok("1"),
+            expect_reroute_passthrough: std::env::var("ALS_MANUAL_REROUTE_PASSTHROUGH").as_deref()
+                == Ok("1"),
+            expect_machine_weight: std::env::var("ALS_MANUAL_MACHINE_WEIGHT").as_deref() == Ok("1"),
             machine_weight_partial_phase: None,
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
@@ -3552,7 +5149,8 @@ struct InterfaceProbe<'w, 's> {
     hud_roots: Query<'w, 's, (), With<AlsHudRoot>>,
     hud_debug_nodes: Query<'w, 's, &'static Node, With<AlsHudDebugSection>>,
     hud_input_nodes: Query<'w, 's, &'static Node, With<AlsHudInputSection>>,
-    show_debug_roots: Query<'w, 's, (&'static Node, &'static Visibility), With<AlsShowDebugHudRoot>>,
+    show_debug_roots:
+        Query<'w, 's, (&'static Node, &'static Visibility), With<AlsShowDebugHudRoot>>,
     debug_values: Query<'w, 's, (&'static Name, &'static Text)>,
     rotation_responses: Query<'w, 's, &'static AlsRotationResponseState>,
     desired_rotation_modes: Query<'w, 's, &'static crate::als::aim::AlsLastFreeRotationMode>,
@@ -3568,8 +5166,21 @@ struct MotionProbe<'w, 's> {
     transforms: bevy::transform::helper::TransformHelper<'w, 's>,
     physics: Query<'w, 's, (&'static Position, &'static Rotation), With<AlsCharacter>>,
     player_views: Query<'w, 's, &'static crate::als::view::AlsPlayerViewYaw>,
-    controllers: Query<'w, 's, &'static bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>>,
-    rendered_views: Query<'w, 's, (&'static Camera, &'static Transform, &'static crate::als_camera::AlsCharacterCamera), (With<Camera3d>, With<crate::als_camera::AlsCameraViewSource>)>,
+    controllers: Query<
+        'w,
+        's,
+        &'static bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>,
+    >,
+    rendered_views: Query<
+        'w,
+        's,
+        (
+            &'static Camera,
+            &'static Transform,
+            &'static crate::als_camera::AlsCharacterCamera,
+        ),
+        (With<Camera3d>, With<crate::als_camera::AlsCameraViewSource>),
+    >,
     source_inputs: Query<'w, 's, &'static crate::extensions::SourceAnimationInputs>,
     asset_server: Res<'w, AssetServer>,
     graphs: Res<'w, Assets<AnimationGraph>>,
@@ -3599,12 +5210,27 @@ struct MotionProbe<'w, 's> {
         Query<'w, 's, Option<&'static AlsRotationAnimationState>, With<AlsCharacter>>,
     transition_notify:
         Query<'w, 's, Option<&'static TransitionNotifyTelemetry>, With<AlsCharacter>>,
-    overlay_objects: Query<'w, 's, (&'static AlsOverlayObject, Option<&'static crate::extensions::overlay_materials::AvatarMaterialApplied>)>,
+    overlay_objects: Query<
+        'w,
+        's,
+        (
+            &'static AlsOverlayObject,
+            Option<&'static crate::extensions::overlay_materials::AvatarMaterialApplied>,
+        ),
+    >,
     object_scenes: Query<'w, 's, &'static AnimatedSceneInstance>,
     object_players: Query<'w, 's, &'static AnimationGraphPlayer>,
     object_transforms: Query<'w, 's, &'static Transform>,
     object_children: Query<'w, 's, &'static Children>,
-    object_mesh_materials: Query<'w, 's, (Option<&'static MeshMaterial3d<StandardMaterial>>, Option<&'static crate::extensions::projected_decal::StandardMaterialSource>), With<Mesh3d>>,
+    object_mesh_materials: Query<
+        'w,
+        's,
+        (
+            Option<&'static MeshMaterial3d<StandardMaterial>>,
+            Option<&'static crate::extensions::projected_decal::StandardMaterialSource>,
+        ),
+        With<Mesh3d>,
+    >,
     object_material_assets: Res<'w, Assets<StandardMaterial>>,
 }
 
@@ -3747,8 +5373,13 @@ fn spawn_manual_integration_fixture(
     let forward = facing * Vec3::NEG_Z;
     let right = facing * Vec3::X;
     let ground_y = origin.y - 0.92;
-    let mantle_height = if scenario == IntegrationScenario::BowOverlay { 1.6 } else { 0.8 };
-    let ledge_center = origin + forward * 6.0 + Vec3::Y * (ground_y + mantle_height * 0.5 - origin.y);
+    let mantle_height = if scenario == IntegrationScenario::BowOverlay {
+        1.6
+    } else {
+        0.8
+    };
+    let ledge_center =
+        origin + forward * 6.0 + Vec3::Y * (ground_y + mantle_height * 0.5 - origin.y);
     let mantle_start = origin - forward * 1.5;
     let platform_home =
         origin + right * 9.0 + forward * 2.0 + Vec3::Y * (ground_y + 0.25 - origin.y);
@@ -3772,7 +5403,10 @@ fn spawn_manual_integration_fixture(
     commands.spawn((
         Name::new("manual_integration_mantle_ledge"),
         RigidBody::Static,
-        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+        CollisionLayers::new(
+            [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+            avian3d::prelude::LayerMask::ALL,
+        ),
         Collider::cuboid(2.4, mantle_height, 1.2),
         Transform::from_translation(ledge_center),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(4.8, 1.6, 2.4)))),
@@ -3783,7 +5417,10 @@ fn spawn_manual_integration_fixture(
             Name::new("manual_integration_platform"),
             ManualIntegrationPlatform,
             RigidBody::Kinematic,
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+            CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                avian3d::prelude::LayerMask::ALL,
+            ),
             Collider::cuboid(6.0, 0.5, 6.0),
             LinearVelocity(Vec3::X * 1.5),
             Transform::from_translation(platform_home),
@@ -3818,16 +5455,23 @@ fn initialize_manual_integration(
     assemblies: Query<&AlsCharacterAssembly>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
-    cameras: (Query<(&AlsCameraRig, &AlsCameraDebugInfo)>, Query<&crate::als_camera::AlsCameraViewSource>),
+    cameras: (
+        Query<(&AlsCameraRig, &AlsCameraDebugInfo)>,
+        Query<&crate::als_camera::AlsCameraViewSource>,
+    ),
     toggles: Query<&TnuaToggle, With<AlsCharacter>>,
     view: Query<(&AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
-    (transforms, unowned): (Query<&Transform, With<AlsCharacter>>,
-        Query<Entity, (With<AlsCharacter>, Without<AlsInputOverride>)>),
+    (transforms, unowned): (
+        Query<&Transform, With<AlsCharacter>>,
+        Query<Entity, (With<AlsCharacter>, Without<AlsInputOverride>)>,
+    ),
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for character in &unowned {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
     }
     if state.initialized || !startup.passed {
         return;
@@ -3914,9 +5558,11 @@ fn drive_foot_ik_avatar_replacement(
     targets: Query<&AnimationTargetId>,
     mut camera_bindings: Query<(&mut AlsCameraSocketBinding, &AlsCameraSocketLocations)>,
     rebuild_queries: (
-        ResMut<bevy::world_serialization::WorldInstanceSpawner>, Query<&GlobalTransform>,
+        ResMut<bevy::world_serialization::WorldInstanceSpawner>,
+        Query<&GlobalTransform>,
         Query<&bevy::animation::AnimatedBy>,
-        Query<Entity, With<crate::extensions::post_physics_animation::PostPhysicsAnimation>>, Query<Entity>,
+        Query<Entity, With<crate::extensions::post_physics_animation::PostPhysicsAnimation>>,
+        Query<Entity>,
     ),
 ) {
     let (mut world_spawner, globals, bone_players, late_players, alive) = rebuild_queries;
@@ -3927,34 +5573,60 @@ fn drive_foot_ik_avatar_replacement(
     {
         return;
     }
-    let Some(character) = state.character else { return; };
-    let Some(old_avatar) = state.avatar else { return; };
+    let Some(character) = state.character else {
+        return;
+    };
+    let Some(old_avatar) = state.avatar else {
+        return;
+    };
     let Some(new_avatar) = state.foot_replacement_avatar else {
-        let Ok(old_bones) = bones.get(character) else { return; };
-        let Ok((camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
-        let Some(old_root) = camera_binding.root_bone else { return; };
+        let Ok(old_bones) = bones.get(character) else {
+            return;
+        };
+        let Ok((camera_binding, _)) = camera_bindings.get_mut(character) else {
+            return;
+        };
+        let Some(old_root) = camera_binding.root_bone else {
+            return;
+        };
         commands.entity(character).insert(Visibility::Inherited);
         let rebuild = std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some();
         let new_avatar = if rebuild {
-            let Ok(instance) = instances.get(old_avatar) else { return; };
-            let Ok(handle) = scene_handles.get(old_avatar) else { return; };
-            let Some(scene) = scenes.get(&handle.handle) else { return; };
-            let Some(processed) = scene.processed_scene.as_ref() else { return; };
-            let Ok(world) = globals.get(instance.player_entity()) else { return; };
-            commands.entity(instance.player_entity()).remove::<ChildOf>()
+            let Ok(instance) = instances.get(old_avatar) else {
+                return;
+            };
+            let Ok(handle) = scene_handles.get(old_avatar) else {
+                return;
+            };
+            let Some(scene) = scenes.get(&handle.handle) else {
+                return;
+            };
+            let Some(processed) = scene.processed_scene.as_ref() else {
+                return;
+            };
+            let Ok(world) = globals.get(instance.player_entity()) else {
+                return;
+            };
+            commands
+                .entity(instance.player_entity())
+                .remove::<ChildOf>()
                 .insert((world.compute_transform(), Visibility::Hidden));
             world_spawner.spawn_as_child(processed.clone(), old_avatar);
             old_avatar
-        } else { commands.spawn((
-            AnimatedSceneHandle {
-                handle: assets.load(ALS_LINKED_ANIMATED_SCENE),
-                override_source: Some(AnimationSource::None),
-            },
-            AlsCharacterAvatar { character },
-            avatar_transform(),
-            Visibility::Hidden,
-            ChildOf(character),
-        )).id() };
+        } else {
+            commands
+                .spawn((
+                    AnimatedSceneHandle {
+                        handle: assets.load(ALS_LINKED_ANIMATED_SCENE),
+                        override_source: Some(AnimationSource::None),
+                    },
+                    AlsCharacterAvatar { character },
+                    avatar_transform(),
+                    Visibility::Hidden,
+                    ChildOf(character),
+                ))
+                .id()
+        };
         state.foot_replacement_avatar = Some(new_avatar);
         state.foot_replacement_old_left = Some(old_bones.left);
         state.foot_replacement_old_root = Some(old_root);
@@ -3962,15 +5634,29 @@ fn drive_foot_ik_avatar_replacement(
         info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] spawned avatar={new_avatar:?}");
         return;
     };
-    let Ok(instance) = instances.get(new_avatar) else { return; };
+    let Ok(instance) = instances.get(new_avatar) else {
+        return;
+    };
     state.foot_replacement_progress = "await_player";
-    if !players.contains(instance.player_entity()) { return; }
+    if !players.contains(instance.player_entity()) {
+        return;
+    }
     state.foot_replacement_progress = "await_bones";
-    let Some(new_bones) = build_foot_bone_map(instance.player_entity(), &children, &names, &targets) else { return; };
+    let Some(new_bones) =
+        build_foot_bone_map(instance.player_entity(), &children, &names, &targets)
+    else {
+        return;
+    };
     if std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some() {
-        let Some(old_left) = state.foot_replacement_old_left else { return; };
-        if new_bones.left == old_left { return; }
-        let Ok(old_player) = bone_players.get(old_left) else { return; };
+        let Some(old_left) = state.foot_replacement_old_left else {
+            return;
+        };
+        if new_bones.left == old_left {
+            return;
+        }
+        let Ok(old_player) = bone_players.get(old_left) else {
+            return;
+        };
         if !late_players.contains(instance.player_entity()) || late_players.contains(old_player.0) {
             state.foot_replacement_progress = "await_player_phase";
             return;
@@ -3980,26 +5666,49 @@ fn drive_foot_ik_avatar_replacement(
                 previous.set_animation(AnimationSource::None);
             }
             state.coverage.animation_phase_rebound = true;
-            rebase_temporal_fixture(&mut state, &mut phase_evidence, "retained_avatar_player_rebuild");
-            info!("[MANUAL-INTEGRATION][ANIMATION-PHASE-REBUILD] avatar={old_avatar:?} old_player={:?} current_player={:?} -> PASS", old_player.0, instance.player_entity());
+            rebase_temporal_fixture(
+                &mut state,
+                &mut phase_evidence,
+                "retained_avatar_player_rebuild",
+            );
+            info!(
+                "[MANUAL-INTEGRATION][ANIMATION-PHASE-REBUILD] avatar={old_avatar:?} old_player={:?} current_player={:?} -> PASS",
+                old_player.0,
+                instance.player_entity()
+            );
         }
     }
     if old_avatar != new_avatar {
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else { return; };
-        let Ok(mut assembly) = assemblies.get_mut(character) else { return; };
-        let Ok(scene_handle) = scene_handles.get(new_avatar) else { return; };
-        let Some(scene) = scenes.get(&scene_handle.handle) else { return; };
+        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+            return;
+        };
+        let Ok(mut assembly) = assemblies.get_mut(character) else {
+            return;
+        };
+        let Ok(scene_handle) = scene_handles.get(new_avatar) else {
+            return;
+        };
+        let Some(scene) = scenes.get(&scene_handle.handle) else {
+            return;
+        };
         player.set_animation(AnimationSource::Graph(scene.animation_graph.clone()));
         drop(player);
         if let Ok(old_instance) = instances.get(old_avatar)
-            && let Ok(mut old_player) = players.get_mut(old_instance.player_entity()) {
+            && let Ok(mut old_player) = players.get_mut(old_instance.player_entity())
+        {
             old_player.set_animation(AnimationSource::None);
         }
         assembly.avatar = new_avatar;
-        commands.entity(old_avatar).insert((Visibility::Hidden,
-            Transform::from_xyz(4.0, 1.0, -2.0).with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(0.8))));
+        commands.entity(old_avatar).insert((
+            Visibility::Hidden,
+            Transform::from_xyz(4.0, 1.0, -2.0)
+                .with_rotation(Quat::from_rotation_y(0.7))
+                .with_scale(Vec3::splat(0.8)),
+        ));
         commands.entity(new_avatar).insert(Visibility::Visible);
-        let Ok((mut camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
+        let Ok((mut camera_binding, _)) = camera_bindings.get_mut(character) else {
+            return;
+        };
         camera_binding.avatar = new_avatar;
         state.avatar = Some(new_avatar);
         state.foot_replacement_progress = "await_current_foot_map";
@@ -4007,16 +5716,28 @@ fn drive_foot_ik_avatar_replacement(
         info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] selected avatar={new_avatar:?}");
         return;
     }
-    let Some(old_left) = state.foot_replacement_old_left else { return; };
-    let Some(old_root) = state.foot_replacement_old_root else { return; };
+    let Some(old_left) = state.foot_replacement_old_left else {
+        return;
+    };
+    let Some(old_root) = state.foot_replacement_old_root else {
+        return;
+    };
     let old_alive = alive.get(old_left).is_ok();
-    let map_matches = bones.get(character).is_ok_and(|current| *current == new_bones);
-    let camera_ready = camera_bindings.get_mut(character).is_ok_and(|(binding, sockets)| {
-        alive.get(old_root).is_ok()
-            && binding.root_bone.is_some_and(|root| root != old_root
-                && children.iter_descendants(new_avatar).any(|entity| entity == root))
-            && sockets.valid
-    });
+    let map_matches = bones
+        .get(character)
+        .is_ok_and(|current| *current == new_bones);
+    let camera_ready = camera_bindings
+        .get_mut(character)
+        .is_ok_and(|(binding, sockets)| {
+            alive.get(old_root).is_ok()
+                && binding.root_bone.is_some_and(|root| {
+                    root != old_root
+                        && children
+                            .iter_descendants(new_avatar)
+                            .any(|entity| entity == root)
+                })
+                && sockets.valid
+        });
     state.coverage.camera_root_rebound |= camera_ready;
     state.foot_replacement_progress = if !old_alive {
         "old_foot_missing"
@@ -4025,14 +5746,23 @@ fn drive_foot_ik_avatar_replacement(
     } else {
         "await_foot_lock"
     };
-    if !state.coverage.foot_bones_replaced && new_bones.left != old_left && old_alive && map_matches
-        && locks.get(character).is_ok_and(|lock| lock.valid) {
+    if !state.coverage.foot_bones_replaced
+        && new_bones.left != old_left
+        && old_alive
+        && map_matches
+        && locks.get(character).is_ok_and(|lock| lock.valid)
+    {
         state.coverage.foot_bones_replaced = true;
-        info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] old={old_left:?} new={:?} -> PASS", new_bones.left);
+        info!(
+            "[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] old={old_left:?} new={:?} -> PASS",
+            new_bones.left
+        );
     }
     if state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound {
         state.foot_replacement_progress = "complete";
-        info!("[MANUAL-INTEGRATION][CAMERA-ROOT-REPLACE] old={old_root:?} current_avatar={new_avatar:?} -> PASS");
+        info!(
+            "[MANUAL-INTEGRATION][CAMERA-ROOT-REPLACE] old={old_root:?} current_avatar={new_avatar:?} -> PASS"
+        );
     } else if state.coverage.foot_bones_replaced {
         state.foot_replacement_progress = "await_camera_root";
     }
@@ -4040,30 +5770,60 @@ fn drive_foot_ik_avatar_replacement(
 
 fn foot_avatar_replacement_timed_out(elapsed: f32, covered: bool) -> bool {
     !covered
-        && elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS
-            + FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS
+        && elapsed
+            >= FOOT_AVATAR_REPLACEMENT_START_SECONDS
+                + FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS
 }
 
 #[allow(clippy::type_complexity)]
 fn replace_ragdoll_player_once(world: &mut World) {
     let state = world.resource::<ManualIntegrationState>();
-    if !state.initialized || state.scenario != IntegrationScenario::Ragdoll
-        || state.phase != IntegrationPhase::Ragdoll || state.phase_elapsed() > 0.15 {
+    if !state.initialized
+        || state.scenario != IntegrationScenario::Ragdoll
+        || state.phase != IntegrationPhase::Ragdoll
+        || state.phase_elapsed() > 0.15
+    {
         return;
     }
-    let Some(avatar) = state.avatar else { return; };
-    let Some(instance) = world.get::<AnimatedSceneInstance>(avatar) else { return; };
+    let Some(avatar) = state.avatar else {
+        return;
+    };
+    let Some(instance) = world.get::<AnimatedSceneInstance>(avatar) else {
+        return;
+    };
     let player_entity = instance.player_entity();
-    if world.get::<ManualRagdollPlayerReplacement>(player_entity).is_some() { return; }
-    let Some(old_root) = world.get::<AnimationGraphPlayer>(player_entity)
+    if world
+        .get::<ManualRagdollPlayerReplacement>(player_entity)
+        .is_some()
+    {
+        return;
+    }
+    let Some(old_root) = world
+        .get::<AnimationGraphPlayer>(player_entity)
         .and_then(AnimationGraphPlayer::get_spawned_ragdoll)
-        .map(|spawned| spawned.root) else { return; };
-    if world.get::<RagdollPhysicsProfileApplied>(player_entity)
-        .is_none_or(|applied| applied.spawned_root != Some(old_root)) { return; }
-    let Some(mut player) = world.entity_mut(player_entity).take::<AnimationGraphPlayer>() else { return; };
+        .map(|spawned| spawned.root)
+    else {
+        return;
+    };
+    if world
+        .get::<RagdollPhysicsProfileApplied>(player_entity)
+        .is_none_or(|applied| applied.spawned_root != Some(old_root))
+    {
+        return;
+    }
+    let Some(mut player) = world
+        .entity_mut(player_entity)
+        .take::<AnimationGraphPlayer>()
+    else {
+        return;
+    };
     crate::ragdoll_link::clear_spawned_ragdoll(&mut player);
-    world.entity_mut(player_entity).insert((player, ManualRagdollPlayerReplacement { old_root }));
-    info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
+    world
+        .entity_mut(player_entity)
+        .insert((player, ManualRagdollPlayerReplacement { old_root }));
+    info!(
+        "[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS"
+    );
 }
 
 fn actor_montage_clock_passed(rows: &[serde_json::Value], label: &str) -> bool {
@@ -4071,8 +5831,12 @@ fn actor_montage_clock_passed(rows: &[serde_json::Value], label: &str) -> bool {
     rows.len() >= 8
         && rows.iter().all(|row| row["dilation"].as_f64() == Some(0.5))
         && rows.windows(2).all(|pair| {
-            let values = [pair[0]["game_time"].as_f64(), pair[1]["game_time"].as_f64(),
-                pair[0]["elapsed"].as_f64(), pair[1]["elapsed"].as_f64()];
+            let values = [
+                pair[0]["game_time"].as_f64(),
+                pair[1]["game_time"].as_f64(),
+                pair[0]["elapsed"].as_f64(),
+                pair[1]["elapsed"].as_f64(),
+            ];
             matches!(values, [Some(a), Some(b), Some(c), Some(d)]
                 if b > a && ((d - c) - (b - a) * 0.5).abs() < 1e-5)
         })
@@ -4084,59 +5848,164 @@ fn grounded_roll_exit_timed_out(elapsed: f32, completed: bool) -> bool {
 
 fn animation_clock_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
     let frozen = |start: f64, end: f64| {
-        let rows = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= start && time < end)).collect::<Vec<_>>();
-        rows.len() >= 2 && rows.iter().all(|row| row["state"] == rows[0]["state"] && row["state_elapsed"] == rows[0]["state_elapsed"])
+        let rows = rows
+            .iter()
+            .filter(|row| {
+                row["elapsed"]
+                    .as_f64()
+                    .is_some_and(|time| time >= start && time < end)
+            })
+            .collect::<Vec<_>>();
+        rows.len() >= 2
+            && rows.iter().all(|row| {
+                row["state"] == rows[0]["state"] && row["state_elapsed"] == rows[0]["state_elapsed"]
+            })
     };
     let advancing = |start: f64, end: f64| {
-        let rows = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= start && time < end)).collect::<Vec<_>>();
-        rows.len() >= 2 && rows.last().unwrap()["state_elapsed"].as_f64() > rows.first().unwrap()["state_elapsed"].as_f64()
+        let rows = rows
+            .iter()
+            .filter(|row| {
+                row["elapsed"]
+                    .as_f64()
+                    .is_some_and(|time| time >= start && time < end)
+            })
+            .collect::<Vec<_>>();
+        rows.len() >= 2
+            && rows.last().unwrap()["state_elapsed"].as_f64()
+                > rows.first().unwrap()["state_elapsed"].as_f64()
     };
-    let one = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= 2.4 && time < 3.6)).map(|row| &row["state_elapsed"]).collect::<std::collections::HashSet<_>>();
+    let one = rows
+        .iter()
+        .filter(|row| {
+            row["elapsed"]
+                .as_f64()
+                .is_some_and(|time| time >= 2.4 && time < 3.6)
+        })
+        .map(|row| &row["state_elapsed"])
+        .collect::<std::collections::HashSet<_>>();
     let movement = [0.0, 0.5, 1.0, 2.0].into_iter().all(|dilation| {
-        let samples = rows.iter().filter(|row| row["dilation"].as_f64() == Some(dilation)
-            && row["movement_clock_error"].as_f64().is_some()).collect::<Vec<_>>();
-        samples.len() >= 3 && samples.iter().all(|row| row["movement_clock_error"].as_f64().is_some_and(|error| error < 0.002))
+        let samples = rows
+            .iter()
+            .filter(|row| {
+                row["dilation"].as_f64() == Some(dilation)
+                    && row["movement_clock_error"].as_f64().is_some()
+            })
+            .collect::<Vec<_>>();
+        samples.len() >= 3
+            && samples.iter().all(|row| {
+                row["movement_clock_error"]
+                    .as_f64()
+                    .is_some_and(|error| error < 0.002)
+            })
     });
-    vec![("clock_paused_transition", frozen(2.4, 2.9)), ("clock_one_frame", one.len() == 2),
-        ("clock_repaused", frozen(3.3, 3.7)), ("clock_custom_dilation", advancing(3.85, 4.25)),
-        ("clock_resumed", advancing(4.6, 5.8)), ("clock_actor_movement", movement)]
+    vec![
+        ("clock_paused_transition", frozen(2.4, 2.9)),
+        ("clock_one_frame", one.len() == 2),
+        ("clock_repaused", frozen(3.3, 3.7)),
+        ("clock_custom_dilation", advancing(3.85, 4.25)),
+        ("clock_resumed", advancing(4.6, 5.8)),
+        ("clock_actor_movement", movement),
+    ]
 }
 
 fn observe_animation_clock(
     time: Res<Time>,
-    state: Res<ManualIntegrationState>, mut report: ResMut<ManualIntegrationGateReport>,
-    instances: Query<&AnimatedSceneInstance>, players: Query<&AnimationGraphPlayer>,
-    assets: Res<AssetServer>, graphs: Res<Assets<AnimationGraph>>,
-    characters: Query<(&Position, &crate::als::motion::AlsActualVelocity, Option<&crate::als_camera::AlsCameraCustomTimeDilation>)>,
+    state: Res<ManualIntegrationState>,
+    mut report: ResMut<ManualIntegrationGateReport>,
+    instances: Query<&AnimatedSceneInstance>,
+    players: Query<&AnimationGraphPlayer>,
+    assets: Res<AssetServer>,
+    graphs: Res<Assets<AnimationGraph>>,
+    characters: Query<(
+        &Position,
+        &crate::als::motion::AlsActualVelocity,
+        Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
+    )>,
 ) {
-    if state.scenario != IntegrationScenario::AnimationClock || state.phase != IntegrationPhase::Notify { return; }
-    let Some(avatar) = state.avatar else { return; };
-    let Ok(instance) = instances.get(avatar) else { return; };
-    let Ok(player) = players.get(instance.player_entity()) else { return; };
-    let Some(arena) = player.get_context_arena() else { return; };
+    if state.scenario != IntegrationScenario::AnimationClock
+        || state.phase != IntegrationPhase::Notify
+    {
+        return;
+    }
+    let Some(avatar) = state.avatar else {
+        return;
+    };
+    let Ok(instance) = instances.get(avatar) else {
+        return;
+    };
+    let Ok(player) = players.get(instance.player_entity()) else {
+        return;
+    };
+    let Some(arena) = player.get_context_arena() else {
+        return;
+    };
     for id in arena.iter_context_ids() {
-        let Some(context) = arena.get_context(id) else { continue; };
-        if assets.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new("ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron")) { continue; }
-        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
-        let Some(node) = graph.nodes.values().find(|node| node.name == "Grounded States\nState Machine") else { continue; };
-        let Some(fsm) = context.node_states.get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id).ok().and_then(|mut states| states.find(|state| state.last_output_pose().is_some())) else { continue; };
-        let elapsed = state.phase_elapsed(); let bucket = (elapsed * 10.0) as u32;
+        let Some(context) = arena.get_context(id) else {
+            continue;
+        };
+        if assets.get_path(context.get_graph_id()).is_none_or(|path| {
+            path.path()
+                != std::path::Path::new(
+                    "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+                )
+        }) {
+            continue;
+        }
+        let Some(graph) = graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        let Some(node) = graph
+            .nodes
+            .values()
+            .find(|node| node.name == "Grounded States\nState Machine")
+        else {
+            continue;
+        };
+        let Some(fsm) = context
+            .node_states
+            .get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id)
+            .ok()
+            .and_then(|mut states| states.find(|state| state.last_output_pose().is_some()))
+        else {
+            continue;
+        };
+        let elapsed = state.phase_elapsed();
+        let bucket = (elapsed * 10.0) as u32;
         let current = fsm.current_state_elapsed_time();
-        let Some(character) = state.character else { return; };
-        let Ok((position, velocity, dilation)) = characters.get(character) else { return; };
+        let Some(character) = state.character else {
+            return;
+        };
+        let Ok((position, velocity, dilation)) = characters.get(character) else {
+            return;
+        };
         let dilation = dilation.map_or(1.0, |value| value.0);
-        let movement_error = report.direction_trace.last().and_then(|row| row["position"].as_array()).map(|previous| {
-            let previous = Vec2::new(previous[0].as_f64().unwrap() as f32, previous[1].as_f64().unwrap() as f32);
-            (position.0.xz() - previous - velocity.world_velocity.xz() * time.delta_secs() * dilation).length()
-        });
+        let movement_error = report
+            .direction_trace
+            .last()
+            .and_then(|row| row["position"].as_array())
+            .map(|previous| {
+                let previous = Vec2::new(
+                    previous[0].as_f64().unwrap() as f32,
+                    previous[1].as_f64().unwrap() as f32,
+                );
+                (position.0.xz()
+                    - previous
+                    - velocity.world_velocity.xz() * time.delta_secs() * dilation)
+                    .length()
+            });
         report.direction_trace.push(serde_json::json!({"bucket":bucket,"elapsed":elapsed,"state":format!("{:?}",fsm.state),"state_elapsed":current,"paused":player.is_paused(),
             "position":[position.x,position.z],"dilation":dilation,"movement_clock_error":movement_error}));
-        info!("[MANUAL-INTEGRATION][ANIMATION-CLOCK] elapsed={elapsed:.3} state_elapsed={current:.6} paused={}", player.is_paused());
+        info!(
+            "[MANUAL-INTEGRATION][ANIMATION-CLOCK] elapsed={elapsed:.3} state_elapsed={current:.6} paused={}",
+            player.is_paused()
+        );
     }
 }
 
 fn locomotion_crouch_pressed(elapsed: f64, delta: f64) -> bool {
-    [7.0, 8.5].into_iter().any(|boundary| elapsed >= boundary && elapsed - delta < boundary)
+    [7.0, 8.5]
+        .into_iter()
+        .any(|boundary| elapsed >= boundary && elapsed - delta < boundary)
 }
 
 fn locomotion_mouse_delta(elapsed: f32, delta: f32) -> Vec2 {
@@ -4145,39 +6014,82 @@ fn locomotion_mouse_delta(elapsed: f32, delta: f32) -> Vec2 {
 }
 
 fn visibility_case_phase(elapsed: f32) -> &'static str {
-    if elapsed < 2.0 { "visible" }
-    else if elapsed < 4.5 { "hidden" }
-    else if elapsed < 6.5 { "resume" }
-    else if elapsed < 9.5 { "montage" }
-    else if elapsed < 11.5 { "always_pose" }
-    else if elapsed < 13.5 { "visible_final" }
-    else { "finish" }
+    if elapsed < 2.0 {
+        "visible"
+    } else if elapsed < 4.5 {
+        "hidden"
+    } else if elapsed < 6.5 {
+        "resume"
+    } else if elapsed < 9.5 {
+        "montage"
+    } else if elapsed < 11.5 {
+        "always_pose"
+    } else if elapsed < 13.5 {
+        "visible_final"
+    } else {
+        "finish"
+    }
 }
 
 fn visibility_case_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
-    let stage = |name: &'static str, minimum: f64| rows.iter().filter(move |row| row["visibility_phase"] == name && row["elapsed"].as_f64().is_some_and(|time| time >= minimum));
+    let stage = |name: &'static str, minimum: f64| {
+        rows.iter().filter(move |row| {
+            row["visibility_phase"] == name
+                && row["elapsed"].as_f64().is_some_and(|time| time >= minimum)
+        })
+    };
     let frozen = |name: &'static str, minimum: f64| {
         let values = stage(name, minimum).collect::<Vec<_>>();
-        values.len() >= 2 && values.iter().all(|row| row["update_graph"] == false && row["refresh_bones"] == false && row["frame"] == values[0]["frame"])
+        values.len() >= 2
+            && values.iter().all(|row| {
+                row["update_graph"] == false
+                    && row["refresh_bones"] == false
+                    && row["frame"] == values[0]["frame"]
+            })
     };
     let advancing = |name: &'static str, minimum: f64, bones: bool| {
         let values = stage(name, minimum).collect::<Vec<_>>();
-        values.len() >= 2 && values.iter().all(|row| row["update_graph"] == true && row["refresh_bones"] == bones)
+        values.len() >= 2
+            && values
+                .iter()
+                .all(|row| row["update_graph"] == true && row["refresh_bones"] == bones)
             && values.last().unwrap()["frame"].as_u64() > values.first().unwrap()["frame"].as_u64()
     };
     vec![
         ("visibility_initial", advancing("visible", 0.5, true)),
         ("visibility_graph_stopped", frozen("hidden", 3.5)),
-        ("visibility_pending_resume", stage("resume", 4.5).any(|row| row["pending"] == true && row["update_graph"] == true)),
+        (
+            "visibility_pending_resume",
+            stage("resume", 4.5).any(|row| row["pending"] == true && row["update_graph"] == true),
+        ),
         ("visibility_montage_graph_stopped", frozen("montage", 8.0)),
-        ("visibility_montage_clock", stage("montage", 8.0).any(|row| row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
-        ("visibility_montage_notifications", stage("montage", 0.0).all(|row| row["shakes"] == 0 && row["footsteps"] == 0)
-            && stage("montage", 8.0).any(|row| row["update_graph"] == false
-                && row["roll_action"] == true && row["roll_slot_relevant"] == false)
-            && stage("montage", 8.0).any(|row| row["update_graph"] == false && row["roll_action"] == false
-                && row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
-        ("visibility_always_pose", advancing("always_pose", 9.6, false)),
-        ("visibility_final_resume", advancing("visible_final", 12.0, true)),
+        (
+            "visibility_montage_clock",
+            stage("montage", 8.0)
+                .any(|row| row["roll_time"].as_f64().is_some_and(|time| time > 0.9)),
+        ),
+        (
+            "visibility_montage_notifications",
+            stage("montage", 0.0).all(|row| row["shakes"] == 0 && row["footsteps"] == 0)
+                && stage("montage", 8.0).any(|row| {
+                    row["update_graph"] == false
+                        && row["roll_action"] == true
+                        && row["roll_slot_relevant"] == false
+                })
+                && stage("montage", 8.0).any(|row| {
+                    row["update_graph"] == false
+                        && row["roll_action"] == false
+                        && row["roll_time"].as_f64().is_some_and(|time| time > 0.9)
+                }),
+        ),
+        (
+            "visibility_always_pose",
+            advancing("always_pose", 9.6, false),
+        ),
+        (
+            "visibility_final_resume",
+            advancing("visible_final", 12.0, true),
+        ),
     ]
 }
 
@@ -4185,40 +6097,91 @@ fn observe_visibility_case(
     state: Res<ManualIntegrationState>,
     mut report: ResMut<ManualIntegrationGateReport>,
     instances: Query<&AnimatedSceneInstance>,
-    players: Query<(&AnimationGraphPlayer, &crate::extensions::post_physics_animation::AnimationPoseUpdateGate)>,
+    players: Query<(
+        &AnimationGraphPlayer,
+        &crate::extensions::post_physics_animation::AnimationPoseUpdateGate,
+    )>,
     rolls: Query<&AlsRollState>,
     actions: Query<&AlsNotifyLocomotionAction>,
     mut shakes: MessageReader<AlsCameraShakeRequest>,
     mut events: MessageReader<AlsAnimationEvent>,
 ) {
-    if state.scenario != IntegrationScenario::Visibility || state.phase != IntegrationPhase::Notify { return; }
-    let Some((character, avatar)) = state.character.zip(state.avatar) else { return; };
-    let Ok(instance) = instances.get(avatar) else { return; };
-    let Ok((player, gate)) = players.get(instance.player_entity()) else { return; };
-    let Some(arena) = player.get_context_arena() else { return; };
+    if state.scenario != IntegrationScenario::Visibility || state.phase != IntegrationPhase::Notify
+    {
+        return;
+    }
+    let Some((character, avatar)) = state.character.zip(state.avatar) else {
+        return;
+    };
+    let Ok(instance) = instances.get(avatar) else {
+        return;
+    };
+    let Ok((player, gate)) = players.get(instance.player_entity()) else {
+        return;
+    };
+    let Some(arena) = player.get_context_arena() else {
+        return;
+    };
     let elapsed = state.phase_elapsed();
     let phase = visibility_case_phase(elapsed);
-    let pending = player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()).unwrap_or(false);
-    let shakes = shakes.read().filter(|event| event.target == character).count();
-    let footsteps = events.read().filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
-    let roll_action = actions.get(character).is_ok_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
+    let pending = player
+        .get_global_input_data("animation.pending_update")
+        .and_then(|value| value.as_bool().ok())
+        .unwrap_or(false);
+    let shakes = shakes
+        .read()
+        .filter(|event| event.target == character)
+        .count();
+    let footsteps = events
+        .read()
+        .filter(|event| {
+            event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects"
+        })
+        .count();
+    let roll_action = actions
+        .get(character)
+        .is_ok_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
     let roll_slot_relevant = crate::extensions::source_slot::relevant_notify_slots(arena)
         .any(|(slot, _)| slot == "PostLocomotion");
     let bucket = (elapsed * 4.0) as u32;
-    if shakes == 0 && footsteps == 0 && report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket
-        && row["pending"] == pending && row["update_graph"] == gate.update_graph
-        && row["roll_action"] == roll_action && row["roll_slot_relevant"] == roll_slot_relevant) { return; }
+    if shakes == 0
+        && footsteps == 0
+        && report.direction_trace.last().is_some_and(|row| {
+            row["bucket"] == bucket
+                && row["pending"] == pending
+                && row["update_graph"] == gate.update_graph
+                && row["roll_action"] == roll_action
+                && row["roll_slot_relevant"] == roll_slot_relevant
+        })
+    {
+        return;
+    }
     report.direction_trace.push(serde_json::json!({"visibility_phase": phase, "bucket": bucket, "elapsed": elapsed, "frame": arena.frame_index(),
         "pending": pending, "update_graph": gate.update_graph, "refresh_bones": gate.refresh_bones,
         "roll_time": rolls.get(character).map_or(0.0, |roll| roll.time), "roll_action":roll_action,
         "roll_slot_relevant":roll_slot_relevant, "shakes": shakes, "footsteps": footsteps}));
-    info!("[MANUAL-INTEGRATION][VISIBILITY] phase={phase} elapsed={elapsed:.3} frame={} graph={} bones={} pending={pending}", arena.frame_index(), gate.update_graph, gate.refresh_bones);
+    info!(
+        "[MANUAL-INTEGRATION][VISIBILITY] phase={phase} elapsed={elapsed:.3} frame={} graph={} bones={} pending={pending}",
+        arena.frame_index(),
+        gate.update_graph,
+        gate.refresh_bones
+    );
 }
 
-fn roll_tail_reentry_ready(roll: Option<&AlsRollState>, locomotion: LocomotionState, requested: bool) -> bool {
-    !requested && locomotion == LocomotionState::Grounded && roll.is_some_and(|roll|
-        roll.active && roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS + 0.04
-        && roll.weight() > 0.0)
+fn roll_tail_reentry_ready(
+    roll: Option<&AlsRollState>,
+    locomotion: LocomotionState,
+    requested: bool,
+) -> bool {
+    !requested
+        && locomotion == LocomotionState::Grounded
+        && roll.is_some_and(|roll| {
+            roll.active
+                && roll.time
+                    >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS
+                        + 0.04
+                && roll.weight() > 0.0
+        })
 }
 
 fn drive_manual_integration(
@@ -4233,7 +6196,14 @@ fn drive_manual_integration(
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
-    (params_assets, get_ups, visual_progress): (Res<Assets<AlsMovementParams>>, Query<(&crate::get_up::AlsGetUpState, Has<crate::als::motion::AlsMovementInputBlocked>)>, Option<Res<AnimationVisualValidationProgress>>),
+    (params_assets, get_ups, visual_progress): (
+        Res<Assets<AlsMovementParams>>,
+        Query<(
+            &crate::get_up::AlsGetUpState,
+            Has<crate::als::motion::AlsMovementInputBlocked>,
+        )>,
+        Option<Res<AnimationVisualValidationProgress>>,
+    ),
     mut characters: Query<
         (
             &mut AlsInputOverride,
@@ -4271,7 +6241,10 @@ fn drive_manual_integration(
         (&mut Transform, Option<&mut Position>, &mut LinearVelocity),
         (With<ManualIntegrationPlatform>, Without<AlsCharacter>),
     >,
-    (cameras, parents): (Query<&AlsCameraDebugInfo, With<AlsCameraRig>>, Query<&ChildOf>),
+    (cameras, parents): (
+        Query<&AlsCameraDebugInfo, With<AlsCameraRig>>,
+        Query<&ChildOf>,
+    ),
 ) {
     if !state.initialized || state.final_logged {
         return;
@@ -4334,8 +6307,13 @@ fn drive_manual_integration(
     };
     let elapsed = state.phase_elapsed();
     let crouching_actions = state.scenario == IntegrationScenario::CrouchingActions;
-    let (action_state, action_transition, action_pose_ready) = action_graph_state(crouching_actions, standing_graph, crouching_graph);
-    let action_stance = if crouching_actions { Stance::Crouching } else { Stance::Standing };
+    let (action_state, action_transition, action_pose_ready) =
+        action_graph_state(crouching_actions, standing_graph, crouching_graph);
+    let action_stance = if crouching_actions {
+        Stance::Crouching
+    } else {
+        Stance::Standing
+    };
     let entering = std::mem::take(&mut state.entered);
     phase_evidence.locomotion = format!("{:?}", locomotion);
     phase_evidence.gait = format!("{:?}", gait);
@@ -4350,7 +6328,10 @@ fn drive_manual_integration(
     }
 
     match state.phase {
-        IntegrationPhase::Await | IntegrationPhase::Stairs | IntegrationPhase::UphillJump | IntegrationPhase::MovingBase => {}
+        IntegrationPhase::Await
+        | IntegrationPhase::Stairs
+        | IntegrationPhase::UphillJump
+        | IntegrationPhase::MovingBase => {}
         IntegrationPhase::LocomotionActions => {
             let index = state.locomotion_probe.case_index;
             if entering {
@@ -4358,40 +6339,106 @@ fn drive_manual_integration(
                 let canonical_seen = state.locomotion_probe.canonical_seen;
                 let window_seconds = state.locomotion_probe.window_seconds;
                 let valid = index == 0 || state.locomotion_probe.valid;
-                state.locomotion_probe = LocomotionActionProbe { case_index: index, covered, canonical_seen, window_seconds, triggered: index == 6, valid, ..default() };
-                if let Ok((mut platform, platform_position, mut platform_velocity)) = platforms.get_mut(fixture.platform) {
-                    platform.translation = if matches!(index, 4 | 5) { GROUNDED_START.with_y(LOCOMOTION_DROP_HEIGHT) } else { fixture.platform_home };
-                    if let Some(mut position) = platform_position { position.0 = platform.translation; }
+                state.locomotion_probe = LocomotionActionProbe {
+                    case_index: index,
+                    covered,
+                    canonical_seen,
+                    window_seconds,
+                    triggered: index == 6,
+                    valid,
+                    ..default()
+                };
+                if let Ok((mut platform, platform_position, mut platform_velocity)) =
+                    platforms.get_mut(fixture.platform)
+                {
+                    platform.translation = if matches!(index, 4 | 5) {
+                        GROUNDED_START.with_y(LOCOMOTION_DROP_HEIGHT)
+                    } else {
+                        fixture.platform_home
+                    };
+                    if let Some(mut position) = platform_position {
+                        position.0 = platform.translation;
+                    }
                     platform_velocity.0 = Vec3::ZERO;
                 }
                 let start = if matches!(index, 4 | 5) {
-                    GROUNDED_START.with_y(LOCOMOTION_DROP_HEIGHT + 0.25 + fixture.locomotion_start.y)
+                    GROUNDED_START
+                        .with_y(LOCOMOTION_DROP_HEIGHT + 0.25 + fixture.locomotion_start.y)
                 } else {
                     GROUNDED_START.with_y(fixture.locomotion_start.y)
-                        + if index == 6 { Vec3::Y * (6.2 * 6.2 / (2.0 * 9.81 * params_assets.get(params_handle.id()).unwrap().jump.gravity_scale)) } else { Vec3::ZERO }
+                        + if index == 6 {
+                            Vec3::Y
+                                * (6.2 * 6.2
+                                    / (2.0
+                                        * 9.81
+                                        * params_assets
+                                            .get(params_handle.id())
+                                            .unwrap()
+                                            .jump
+                                            .gravity_scale))
+                        } else {
+                            Vec3::ZERO
+                        }
                 };
-                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, start, SPRINT_YAW);
-                reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    start,
+                    SPRINT_YAW,
+                );
+                reinitialize_fixture_rotation_response(
+                    rotation_response,
+                    &mut aiming_yaw_constraint,
+                    rotation_animation,
+                );
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "locomotion_actions");
                 request.stance = Some(Stance::Standing);
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
             }
-            request.gait = Some(if matches!(index, 2..=4) { Gait::Running } else { Gait::Walking });
+            request.gait = Some(if matches!(index, 2..=4) {
+                Gait::Running
+            } else {
+                Gait::Walking
+            });
             if index < 4 {
                 let jumped = state.locomotion_probe.triggered;
-                input.0.move_dir = if !jumped || index >= 2 || !state.locomotion_probe.covered[index] { Vec2::Y } else { Vec2::ZERO };
-                if !jumped && locomotion_jump_ready(index, state.locomotion_probe.sample.outer, Vec2::new(velocity.x, velocity.z).length(), state.locomotion_probe.sample.foot_planted) {
+                input.0.move_dir =
+                    if !jumped || index >= 2 || !state.locomotion_probe.covered[index] {
+                        Vec2::Y
+                    } else {
+                        Vec2::ZERO
+                    };
+                if !jumped
+                    && locomotion_jump_ready(
+                        index,
+                        state.locomotion_probe.sample.outer,
+                        Vec2::new(velocity.x, velocity.z).length(),
+                        state.locomotion_probe.sample.foot_planted,
+                    )
+                {
                     input.0.jump_pressed = true;
                     state.locomotion_probe.triggered = true;
                 }
             } else if index <= 5 {
-                let ready = state.locomotion_probe.ready_since.is_some_and(|since| state.game_time_seconds - since >= 0.3);
-                if !state.locomotion_probe.triggered && ready && (index == 5 || Vec2::new(velocity.x, velocity.z).length() >= 3.6) {
+                let ready = state
+                    .locomotion_probe
+                    .ready_since
+                    .is_some_and(|since| state.game_time_seconds - since >= 0.3);
+                if !state.locomotion_probe.triggered
+                    && ready
+                    && (index == 5 || Vec2::new(velocity.x, velocity.z).length() >= 3.6)
+                {
                     state.locomotion_probe.triggered = true;
                     input.0.jump_pressed = index == 4;
                 }
-                if (ready || state.locomotion_probe.triggered) && transform.translation.x < GROUNDED_START.x + 4.0 {
+                if (ready || state.locomotion_probe.triggered)
+                    && transform.translation.x < GROUNDED_START.x + 4.0
+                {
                     input.0.move_dir = Vec2::Y;
                 }
             }
@@ -4455,28 +6502,59 @@ fn drive_manual_integration(
             if entering {
                 state.turn_probe = StandingTurnProbe::default();
                 if index == 0 && !crouching_actions {
-                    reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
-                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                    reinitialize_fixture_rotation_response(
+                        rotation_response,
+                        &mut aiming_yaw_constraint,
+                        rotation_animation,
+                    );
+                    reset_character(
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.locomotion_start,
+                        fixture.facing_yaw,
+                    );
                 }
-                rebase_temporal_fixture(&mut state, &mut phase_evidence, STANDING_TURN_CASES[index].0);
+                rebase_temporal_fixture(
+                    &mut state,
+                    &mut phase_evidence,
+                    STANDING_TURN_CASES[index].0,
+                );
                 *overlay = OverlayState::Default;
             }
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(action_stance);
             request.gait = Some(Gait::Walking);
-            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none() {
+            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none()
+            {
                 state.turn_probe.started_at = Some(elapsed);
                 state.turn_probe.base_yaw = world_forward_to_yaw(*transform.forward());
             }
             let driven_elapsed = state.turn_probe.started_at.map(|started| elapsed - started);
-            input.0 = standing_turn_mouse_command(index, driven_elapsed, state.turn_probe.base_yaw, view_yaw.0, *rotation_mode);
+            input.0 = standing_turn_mouse_command(
+                index,
+                driven_elapsed,
+                state.turn_probe.base_yaw,
+                view_yaw.0,
+                *rotation_mode,
+            );
             if state.coverage.standing_turn[index] {
                 state.turn_case_index += 1;
                 if crouching_actions && index == 3 {
                     state.stop_case_index = 0;
                     begin_phase(&mut state, IntegrationPhase::StandingDynamic);
                 } else {
-                    begin_phase(&mut state, if index + 1 == STANDING_TURN_CASES.len() { IntegrationPhase::Finish } else { IntegrationPhase::StandingTurn });
+                    begin_phase(
+                        &mut state,
+                        if index + 1 == STANDING_TURN_CASES.len() {
+                            IntegrationPhase::Finish
+                        } else {
+                            IntegrationPhase::StandingTurn
+                        },
+                    );
                 }
             } else if elapsed >= if index == 7 { 20.0 } else { 12.0 } {
                 state.timed_out = true;
@@ -4493,17 +6571,35 @@ fn drive_manual_integration(
                 state.dynamic_selection_valid = true;
                 state.generated_stop_quick_input_released = false;
                 if index == 0 && !crouching_actions {
-                    reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
-                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                    reinitialize_fixture_rotation_response(
+                        rotation_response,
+                        &mut aiming_yaw_constraint,
+                        rotation_animation,
+                    );
+                    reset_character(
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.locomotion_start,
+                        fixture.facing_yaw,
+                    );
                 }
                 state.turn_probe.base_yaw = world_forward_to_yaw(*transform.forward());
-                rebase_temporal_fixture(&mut state, &mut phase_evidence, STANDING_DYNAMIC_CASES[index].0);
+                rebase_temporal_fixture(
+                    &mut state,
+                    &mut phase_evidence,
+                    STANDING_DYNAMIC_CASES[index].0,
+                );
                 *overlay = OverlayState::Default;
             }
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(action_stance);
             request.gait = Some(Gait::Walking);
-            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none() {
+            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none()
+            {
                 state.turn_probe.started_at = Some(elapsed);
                 if !crouching_actions {
                     let forward = *transform.forward();
@@ -4513,15 +6609,33 @@ fn drive_manual_integration(
             }
             if crouching_actions {
                 let started = state.turn_probe.started_at.is_some();
-                state.generated_stop_quick_input_released |= started && action_transition == Some(true);
-                input.0 = crouching_dynamic_command(index, started, state.generated_stop_quick_input_released,
-                    state.turn_probe.base_yaw, view_yaw.0, *rotation_mode);
+                state.generated_stop_quick_input_released |=
+                    started && action_transition == Some(true);
+                input.0 = crouching_dynamic_command(
+                    index,
+                    started,
+                    state.generated_stop_quick_input_released,
+                    state.turn_probe.base_yaw,
+                    view_yaw.0,
+                    *rotation_mode,
+                );
             } else {
-                input.0 = standing_dynamic_command(world_forward_to_yaw(*transform.forward()), view_yaw.0, *rotation_mode);
+                input.0 = standing_dynamic_command(
+                    world_forward_to_yaw(*transform.forward()),
+                    view_yaw.0,
+                    *rotation_mode,
+                );
             }
             if state.coverage.standing_dynamic[index] {
                 state.stop_case_index += 1;
-                begin_phase(&mut state, if index + 1 == STANDING_DYNAMIC_CASES.len() { IntegrationPhase::Finish } else { IntegrationPhase::StandingDynamic });
+                begin_phase(
+                    &mut state,
+                    if index + 1 == STANDING_DYNAMIC_CASES.len() {
+                        IntegrationPhase::Finish
+                    } else {
+                        IntegrationPhase::StandingDynamic
+                    },
+                );
             } else if elapsed >= 12.0 {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -4544,8 +6658,13 @@ fn drive_manual_integration(
                         rotation_animation,
                     );
                     reset_character(
-                        &mut transform, &mut position, rotation, &mut velocity,
-                        &mut view_yaw, &mut view_pitch, fixture.locomotion_start,
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.locomotion_start,
                         fixture.facing_yaw,
                     );
                 } else {
@@ -4557,23 +6676,34 @@ fn drive_manual_integration(
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(action_stance);
             request.gait = Some(if quick { Gait::Running } else { Gait::Walking });
-            if elapsed > 0.5 && *stance == action_stance && *rotation_mode == mode
-                && (action_state, action_transition, action_pose_ready) == (Some(0), Some(false), Some(true)) {
+            if elapsed > 0.5
+                && *stance == action_stance
+                && *rotation_mode == mode
+                && (action_state, action_transition, action_pose_ready)
+                    == (Some(0), Some(false), Some(true))
+            {
                 state.generated_stop_quick_input_started = true;
             }
             if state.generated_stop_quick_input_started && {
                 if quick {
                     action_transition == Some(true)
                 } else {
-                    elapsed > 1.5 && action_state == Some(1)
+                    elapsed > 1.5
+                        && action_state == Some(1)
                         && action_transition == Some(false)
-                        && (crouching_actions || standing_stop_release_phase(index, state.stop_foot_planted))
+                        && (crouching_actions
+                            || standing_stop_release_phase(index, state.stop_foot_planted))
                 }
             } {
                 state.generated_stop_quick_input_released = true;
             }
-            input.0 = standing_stop_command(index, *rotation_mode,
-                state.generated_stop_quick_input_started && !state.generated_stop_quick_input_released, crouching_actions);
+            input.0 = standing_stop_command(
+                index,
+                *rotation_mode,
+                state.generated_stop_quick_input_started
+                    && !state.generated_stop_quick_input_released,
+                crouching_actions,
+            );
             *animation_window = ManualAnimationWindowEvidence::default();
             if state.coverage.standing_stop[index] {
                 state.stop_case_index += 1;
@@ -4581,7 +6711,9 @@ fn drive_manual_integration(
                     if crouching_actions {
                         state.turn_case_index = 2;
                         IntegrationPhase::StandingTurn
-                    } else { IntegrationPhase::Finish }
+                    } else {
+                        IntegrationPhase::Finish
+                    }
                 } else {
                     IntegrationPhase::StandingStop
                 };
@@ -4717,7 +6849,9 @@ fn drive_manual_integration(
                 let yaw = fixture.facing_yaw + case.yaw_offset;
                 let start = if case.yaw_offset.abs() > f32::EPSILON {
                     Vec3::new(-19.0, fixture.locomotion_start.y, -20.0)
-                } else { fixture.locomotion_start };
+                } else {
+                    fixture.locomotion_start
+                };
                 if entering || case.yaw_offset.abs() > f32::EPSILON {
                     reset_character_without_rotation(
                         &mut transform,
@@ -4958,7 +7092,10 @@ fn drive_manual_integration(
                         Name::new("manual_foot_ik_slope"),
                         ManualFootIkTerrain,
                         RigidBody::Static,
-                        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+                        CollisionLayers::new(
+                            [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                            avian3d::prelude::LayerMask::ALL,
+                        ),
                         Collider::cuboid(3.0, 0.12, 2.5),
                         Transform::from_translation(
                             fixture.locomotion_start
@@ -4976,7 +7113,10 @@ fn drive_manual_integration(
                         Name::new("manual_foot_ik_step"),
                         ManualFootIkTerrain,
                         RigidBody::Static,
-                        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+                        CollisionLayers::new(
+                            [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                            avian3d::prelude::LayerMask::ALL,
+                        ),
                         Collider::cuboid(1.6, 0.20, 1.5),
                         Transform::from_translation(
                             fixture.locomotion_start
@@ -5046,40 +7186,98 @@ fn drive_manual_integration(
         IntegrationPhase::Head => {
             let index = state.head_probe.case_index;
             if entering && index == 0 {
-                state.head_probe = HeadProbe { valid: true, ..default() };
-                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                state.head_probe = HeadProbe {
+                    valid: true,
+                    ..default()
+                };
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    GROUNDED_START.with_y(fixture.locomotion_start.y),
+                    SPRINT_YAW,
+                );
                 let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
-                    .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)).with_scale(Vec3::splat(1.5));
-                let parent = commands.spawn((Name::new("Head actor parent fixture"), parent_transform)).id();
-                *transform = GlobalTransform::from(*transform).reparented_to(&GlobalTransform::from(parent_transform));
+                    .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
+                    .with_scale(Vec3::splat(1.5));
+                let parent = commands
+                    .spawn((Name::new("Head actor parent fixture"), parent_transform))
+                    .id();
+                *transform = GlobalTransform::from(*transform)
+                    .reparented_to(&GlobalTransform::from(parent_transform));
                 commands.entity(character).insert(ChildOf(parent));
-                reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                reinitialize_fixture_rotation_response(
+                    rotation_response,
+                    &mut aiming_yaw_constraint,
+                    rotation_animation,
+                );
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "head_start");
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
                 commands.entity(character).remove::<AlsFirstPersonView>();
-                commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                commands
+                    .entity(character)
+                    .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
             }
             request.overlay_state = Some(OverlayState::Default);
-            let desired_mode = if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection };
+            let desired_mode = if matches!(index, 3 | 4) {
+                RotationMode::VelocityDirection
+            } else {
+                RotationMode::ViewDirection
+            };
             input.0.rotation_mode_pressed = entering && *rotation_mode != desired_mode;
             if entering && index == 2 {
-                commands.entity(character).insert(crate::als::aim::AlsLastFreeRotationMode(RotationMode::Aiming));
+                commands
+                    .entity(character)
+                    .insert(crate::als::aim::AlsLastFreeRotationMode(
+                        RotationMode::Aiming,
+                    ));
                 input.0.rotation_mode_pressed = false;
             }
             request.stance = Some(Stance::Standing);
             request.gait = Some(Gait::Walking);
             view_yaw.0 = SPRINT_YAW + (elapsed * 2.0).sin() * 55.0_f32.to_radians();
-            view_pitch.0 = match index { 0 => -60.0, 1 => 0.0, 2 => 60.0, 5 | 6 => (elapsed * 3.0).sin() * 60.0, _ => 0.0_f32 }.to_radians();
-            if index == 3 { input.0.move_dir = Vec2::new((elapsed * 3.0).sin() * 0.8, 1.0).normalize(); }
-            if entering && matches!(index, 5 | 6) { input.0.view_mode_pressed = true; }
-            if entering && index == 5 { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5)); }
-            if entering && index == 6 { commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>(); }
+            view_pitch.0 = match index {
+                0 => -60.0,
+                1 => 0.0,
+                2 => 60.0,
+                5 | 6 => (elapsed * 3.0).sin() * 60.0,
+                _ => 0.0_f32,
+            }
+            .to_radians();
+            if index == 3 {
+                input.0.move_dir = Vec2::new((elapsed * 3.0).sin() * 0.8, 1.0).normalize();
+            }
+            if entering && matches!(index, 5 | 6) {
+                input.0.view_mode_pressed = true;
+            }
+            if entering && index == 5 {
+                commands
+                    .entity(character)
+                    .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+            }
+            if entering && index == 6 {
+                commands
+                    .entity(character)
+                    .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+            }
             virtual_time.set_relative_speed(if index == 5 { 0.25 } else { 1.0 });
             if state.head_probe.covered[index] {
                 state.head_probe.case_index += 1;
-                if index == 6 { virtual_time.set_relative_speed(1.0); }
-                begin_phase(&mut state, if index == 6 { IntegrationPhase::Finish } else { IntegrationPhase::Head });
+                if index == 6 {
+                    virtual_time.set_relative_speed(1.0);
+                }
+                begin_phase(
+                    &mut state,
+                    if index == 6 {
+                        IntegrationPhase::Finish
+                    } else {
+                        IntegrationPhase::Head
+                    },
+                );
             } else if default_overlay_should_timeout(false, elapsed) {
                 state.head_probe.sample.elapsed_seconds = elapsed;
                 state.timed_out = true;
@@ -5093,24 +7291,52 @@ fn drive_manual_integration(
             show_debug.traces = true;
             state.footprint_probe.waited = elapsed;
             if entering && stage == 0 {
-                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch,
-                    GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    GROUNDED_START.with_y(fixture.locomotion_start.y),
+                    SPRINT_YAW,
+                );
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "footprint_start");
                 *gait = Gait::Walking;
                 *rotation_mode = RotationMode::ViewDirection;
             }
             request.rotation_mode = Some(RotationMode::ViewDirection);
             request.overlay_state = Some(OverlayState::Default);
-            request.gait = Some(if stage == 3 { Gait::Running } else { Gait::Walking });
-            request.stance = Some(if stage == 5 { Stance::Crouching } else { Stance::Standing });
-            if matches!(stage, 1 | 3 | 5) { input.0.move_dir = Vec2::Y; }
-            if state.footprint_probe.covered[stage] && (stage != 0 || state.footprint_probe.gpu.complete) {
+            request.gait = Some(if stage == 3 {
+                Gait::Running
+            } else {
+                Gait::Walking
+            });
+            request.stance = Some(if stage == 5 {
+                Stance::Crouching
+            } else {
+                Stance::Standing
+            });
+            if matches!(stage, 1 | 3 | 5) {
+                input.0.move_dir = Vec2::Y;
+            }
+            if state.footprint_probe.covered[stage]
+                && (stage != 0 || state.footprint_probe.gpu.complete)
+            {
                 state.footprint_probe.stage += 1;
-                let next = if state.footprint_probe.stage == footprints::LABELS.len() { IntegrationPhase::MovingBase } else { IntegrationPhase::Footprints };
+                let next = if state.footprint_probe.stage == footprints::LABELS.len() {
+                    IntegrationPhase::MovingBase
+                } else {
+                    IntegrationPhase::Footprints
+                };
                 begin_phase(&mut state, next);
-            } else if (stage != 0 || state.footprint_probe.gpu.complete) && default_overlay_should_timeout(false, elapsed) {
+            } else if (stage != 0 || state.footprint_probe.gpu.complete)
+                && default_overlay_should_timeout(false, elapsed)
+            {
                 state.timed_out = true;
-                state.footprint_probe.errors.push(format!("Footprint stage {stage} made no progress for 12 seconds"));
+                state.footprint_probe.errors.push(format!(
+                    "Footprint stage {stage} made no progress for 12 seconds"
+                ));
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -5119,25 +7345,56 @@ fn drive_manual_integration(
             let stage = state.overlays_probe.stage;
             state.overlays_probe.waited = elapsed;
             if entering {
-                commands.entity(character).insert(crate::overlay_object::AlsOverlayObjectConfig { use_gun_bones: stage != 9 });
+                commands
+                    .entity(character)
+                    .insert(crate::overlay_object::AlsOverlayObjectConfig {
+                        use_gun_bones: stage != 9,
+                    });
                 if stage == 0 {
-                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch,
-                        GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
-                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "overlay_source_class_boundary");
+                    reset_character(
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        GROUNDED_START.with_y(fixture.locomotion_start.y),
+                        SPRINT_YAW,
+                    );
+                    rebase_temporal_fixture(
+                        &mut state,
+                        &mut phase_evidence,
+                        "overlay_source_class_boundary",
+                    );
                     *gait = Gait::Walking;
                     *rotation_mode = RotationMode::ViewDirection;
                     request.rotation_mode = Some(RotationMode::ViewDirection);
                 }
             }
             request.overlay_state = Some(overlays::MODES[mode]);
-            request.gait = Some(if stage == 6 { Gait::Sprinting } else { Gait::Walking });
-            request.stance = Some(if matches!(stage, 2 | 4) { Stance::Crouching } else { Stance::Standing });
+            request.gait = Some(if stage == 6 {
+                Gait::Sprinting
+            } else {
+                Gait::Walking
+            });
+            request.stance = Some(if matches!(stage, 2 | 4) {
+                Stance::Crouching
+            } else {
+                Stance::Standing
+            });
             input.0 = overlays::command(stage);
             input.0.jump_pressed = stage == 8 && entering;
             view_pitch.0 = overlays::pitch(stage, elapsed);
             if state.overlays_probe.covered[mode][stage] {
                 let complete = state.overlays_probe.advance();
-                begin_phase(&mut state, if complete { IntegrationPhase::Finish } else { IntegrationPhase::Overlays });
+                begin_phase(
+                    &mut state,
+                    if complete {
+                        IntegrationPhase::Finish
+                    } else {
+                        IntegrationPhase::Overlays
+                    },
+                );
             } else if default_overlay_should_timeout(false, elapsed) {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -5147,21 +7404,45 @@ fn drive_manual_integration(
             let index = state.bow_probe.index;
             state.bow_probe.waited_seconds = elapsed;
             if entering && index == 0 {
-                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    GROUNDED_START.with_y(fixture.locomotion_start.y),
+                    SPRINT_YAW,
+                );
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_start");
                 *gait = Gait::Walking;
                 *rotation_mode = RotationMode::ViewDirection;
                 request.rotation_mode = Some(RotationMode::ViewDirection);
             }
             request.overlay_state = Some(OverlayState::Bow);
-            request.gait = Some(if index == 8 { Gait::Sprinting } else { Gait::Walking });
-            request.stance = Some(if index == 4 { Stance::Crouching } else { Stance::Standing });
+            request.gait = Some(if index == 8 {
+                Gait::Sprinting
+            } else {
+                Gait::Walking
+            });
+            request.stance = Some(if index == 4 {
+                Stance::Crouching
+            } else {
+                Stance::Standing
+            });
             input.0 = bow::command(index);
             input.0.jump_pressed = index == 9 && entering;
             view_pitch.0 = bow::pitch(index, elapsed);
             if state.bow_probe.covered[index] {
                 state.bow_probe.index += 1;
-                begin_phase(&mut state, if index == bow::LABELS.len() - 1 { IntegrationPhase::Mantle } else { IntegrationPhase::BowOverlay });
+                begin_phase(
+                    &mut state,
+                    if index == bow::LABELS.len() - 1 {
+                        IntegrationPhase::Mantle
+                    } else {
+                        IntegrationPhase::BowOverlay
+                    },
+                );
             } else if default_overlay_should_timeout(false, elapsed) {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -5170,8 +7451,20 @@ fn drive_manual_integration(
         IntegrationPhase::DefaultOverlay => {
             let index = state.default_overlay_probe.case_index;
             if entering && index == 0 {
-                state.default_overlay_probe = DefaultOverlayProbe { valid: true, ..default() };
-                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                state.default_overlay_probe = DefaultOverlayProbe {
+                    valid: true,
+                    ..default()
+                };
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    GROUNDED_START.with_y(fixture.locomotion_start.y),
+                    SPRINT_YAW,
+                );
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "default_overlay_start");
                 *gait = Gait::Walking;
                 *overlay = OverlayState::Default;
@@ -5180,30 +7473,56 @@ fn drive_manual_integration(
             request.overlay_state = Some(OverlayState::Default);
             request.rotation_mode = Some(RotationMode::Aiming);
             request.gait = Some(Gait::Walking);
-            request.stance = Some(if index == 2 { Stance::Crouching } else { Stance::Standing });
-            if index == 1 || index == 2 { input.0.move_dir = Vec2::Y; }
+            request.stance = Some(if index == 2 {
+                Stance::Crouching
+            } else {
+                Stance::Standing
+            });
+            if index == 1 || index == 2 {
+                input.0.move_dir = Vec2::Y;
+            }
             if index == 3 || index == 4 {
                 let probe = &state.default_overlay_probe;
-                let ready = *stance == Stance::Standing && *locomotion == LocomotionState::Grounded
-                    && velocity.0.xz().length() < 0.1 && probe.sample.ready
+                let ready = *stance == Stance::Standing
+                    && *locomotion == LocomotionState::Grounded
+                    && velocity.0.xz().length() < 0.1
+                    && probe.sample.ready
                     && probe.sample.inputs[0].is_some_and(|value| value > 0.99)
                     && probe.sample.inputs[3].is_some_and(|value| value < 0.01);
                 if probe.jump_started_at.is_none() && ready {
                     state.default_overlay_probe.jump_started_at = Some(state.game_time_seconds);
                     input.0.jump_pressed = true;
                 }
-                input.0.jump_held = state.default_overlay_probe.jump_started_at.is_some_and(|start| state.game_time_seconds - start < 0.2);
+                input.0.jump_held = state
+                    .default_overlay_probe
+                    .jump_started_at
+                    .is_some_and(|start| state.game_time_seconds - start < 0.2);
             }
-            let completed = if index == 3 { state.default_overlay_probe.jump_completed }
-                else if index == 4 { state.default_overlay_probe.jump_completed && state.default_overlay_probe.covered[3..5].iter().all(|value| *value)
-                    && state.default_overlay_probe.prediction_increased && state.default_overlay_probe.prediction_decreased }
-                else { state.default_overlay_probe.covered[index] };
+            let completed = if index == 3 {
+                state.default_overlay_probe.jump_completed
+            } else if index == 4 {
+                state.default_overlay_probe.jump_completed
+                    && state.default_overlay_probe.covered[3..5]
+                        .iter()
+                        .all(|value| *value)
+                    && state.default_overlay_probe.prediction_increased
+                    && state.default_overlay_probe.prediction_decreased
+            } else {
+                state.default_overlay_probe.covered[index]
+            };
             if completed {
                 state.default_overlay_probe.case_index += 1;
                 state.default_overlay_probe.jump_started_at = None;
                 state.default_overlay_probe.airborne_seen = false;
                 state.default_overlay_probe.jump_completed = false;
-                begin_phase(&mut state, if index == 5 { IntegrationPhase::Finish } else { IntegrationPhase::DefaultOverlay });
+                begin_phase(
+                    &mut state,
+                    if index == 5 {
+                        IntegrationPhase::Finish
+                    } else {
+                        IntegrationPhase::DefaultOverlay
+                    },
+                );
             } else if default_overlay_should_timeout(completed, elapsed) {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -5247,7 +7566,10 @@ fn drive_manual_integration(
                 input.0.move_dir = Vec2::NEG_Y;
                 let horizontal_speed = Vec2::new(velocity.0.x, velocity.0.z).length();
                 if !state.p1_pivot_sent && (0.1..2.0).contains(&horizontal_speed) {
-                    pivot_notices.write(AlsPivotNotify { character, activated: true });
+                    pivot_notices.write(AlsPivotNotify {
+                        character,
+                        activated: true,
+                    });
                     state.p1_pivot_sent = true;
                     info!(
                         "[MANUAL-INTEGRATION][P1][GROUND] pivot_notice speed={horizontal_speed:.3}"
@@ -5306,15 +7628,13 @@ fn drive_manual_integration(
                 request.gait = Some(Gait::Running);
                 request.rotation_mode = Some(RotationMode::Aiming);
                 state.coverage.generated_transition_stop_quick = false;
-                rebase_temporal_fixture(
-                    &mut state,
-                    &mut phase_evidence,
-                    "transition_notify",
-                );
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "transition_notify");
             }
             input.0.move_dir = if should_move { Vec2::Y } else { Vec2::ZERO };
-            if state.coverage.generated_transition_stop_quick && stopping
-                && manual_gate_exit_ready(visual_progress.as_deref(), false) {
+            if state.coverage.generated_transition_stop_quick
+                && stopping
+                && manual_gate_exit_ready(visual_progress.as_deref(), false)
+            {
                 begin_phase(&mut state, IntegrationPhase::Finish);
             } else if elapsed >= 7.0 {
                 state.timed_out = true;
@@ -5401,7 +7721,9 @@ fn drive_manual_integration(
                 request.overlay_state = Some(OverlayState::Default);
             }
             input.0.crouch_pressed = locomotion_crouch_pressed(
-                state.game_time_seconds - state.phase_started_seconds, virtual_time.delta_secs_f64());
+                state.game_time_seconds - state.phase_started_seconds,
+                virtual_time.delta_secs_f64(),
+            );
             input.0.look_delta = locomotion_mouse_delta(elapsed, virtual_time.delta_secs());
             if (0.5..1.5).contains(&elapsed) {
                 input.0.aim_held = true;
@@ -5416,7 +7738,12 @@ fn drive_manual_integration(
                 let recovery_start = params_assets
                     .get(params_handle.id())
                     .map(|params| {
-                        stance_center_from_standing_center(params, standing_center, *stance, transform.scale.abs().min_element())
+                        stance_center_from_standing_center(
+                            params,
+                            standing_center,
+                            *stance,
+                            transform.scale.abs().min_element(),
+                        )
                     })
                     .unwrap_or(standing_center);
                 reset_character(
@@ -5487,7 +7814,8 @@ fn drive_manual_integration(
                     .get(params_handle.id())
                     .map(|params| {
                         let scale = transform.scale.abs().min_element();
-                        let standing_center = standing_center + Vec3::Y * params.crouch.standing_capsule_half_height * (scale - 1.0);
+                        let standing_center = standing_center
+                            + Vec3::Y * params.crouch.standing_capsule_half_height * (scale - 1.0);
                         stance_center_from_standing_center(params, standing_center, *stance, scale)
                     })
                     .unwrap_or(standing_center);
@@ -5577,8 +7905,16 @@ fn drive_manual_integration(
                         .get(params_handle.id())
                         .map(|params| {
                             let scale = transform.scale.abs().min_element();
-                            let standing_center = standing_center + Vec3::Y * params.crouch.standing_capsule_half_height * (scale - 1.0);
-                            stance_center_from_standing_center(params, standing_center, *stance, scale)
+                            let standing_center = standing_center
+                                + Vec3::Y
+                                    * params.crouch.standing_capsule_half_height
+                                    * (scale - 1.0);
+                            stance_center_from_standing_center(
+                                params,
+                                standing_center,
+                                *stance,
+                                scale,
+                            )
                         })
                         .unwrap_or(standing_center);
                     reset_character_without_rotation(
@@ -5620,7 +7956,8 @@ fn drive_manual_integration(
                 }
                 CrouchClearanceStage::ArmCanopy => {
                     if let Some(params) = params_assets.get(params_handle.id()) {
-                        let crouched_half_height = params.crouch.crouched_capsule_half_height * transform.scale.abs().min_element();
+                        let crouched_half_height = params.crouch.crouched_capsule_half_height
+                            * transform.scale.abs().min_element();
                         let base_y = transform.translation.y - crouched_half_height;
                         let canopy_bottom = base_y + crouched_half_height * 2.0 + 0.08;
                         let canopy_center = Vec3::new(
@@ -5632,7 +7969,10 @@ fn drive_manual_integration(
                             .spawn((
                                 Name::new("manual_integration_crouch_canopy"),
                                 RigidBody::Static,
-                                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+                                CollisionLayers::new(
+                                    [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                                    avian3d::prelude::LayerMask::ALL,
+                                ),
                                 Collider::cuboid(1.2, 0.08, 1.2),
                                 Transform::from_translation(canopy_center)
                                     .with_scale(Vec3::new(1.5, 0.1, 1.5)),
@@ -5680,7 +8020,11 @@ fn drive_manual_integration(
                     if state.coverage.crouch_canopy_recovered {
                         cleanup_crouch_canopy(&mut commands, &mut state);
                         transform.scale = Vec3::ONE;
-                        rebase_temporal_fixture(&mut state, &mut phase_evidence, "crouch_scaled_exit");
+                        rebase_temporal_fixture(
+                            &mut state,
+                            &mut phase_evidence,
+                            "crouch_scaled_exit",
+                        );
                         begin_phase(&mut state, IntegrationPhase::CrouchDirectionRegression);
                     }
                 }
@@ -5734,7 +8078,11 @@ fn drive_manual_integration(
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Crouching);
             request.gait = Some(Gait::Running);
-            let pending_case = state.coverage.crouch_direction_cases.iter().position(|covered| !covered);
+            let pending_case = state
+                .coverage
+                .crouch_direction_cases
+                .iter()
+                .position(|covered| !covered);
             if pending_case.is_none() {
                 input.0.move_dir = Vec2::ZERO;
             }
@@ -5747,7 +8095,8 @@ fn drive_manual_integration(
                     actor_yaw_driver: None,
                     label: Some(case.name),
                     index: Some(case_index),
-                    settled: state.crouch_direction_case_index == case_index && state.crouch_direction_ready_at.is_some(),
+                    settled: state.crouch_direction_case_index == case_index
+                        && state.crouch_direction_ready_at.is_some(),
                     capture_source_window: true,
                     capture_every_frame: false,
                     requires_pre_rig_motion: true,
@@ -5760,7 +8109,8 @@ fn drive_manual_integration(
                     expected_actor_yaw_baseline: None,
                     expected_animation_variant: None,
                     source_node: Some(crouch_direction_source_node(case.expected_direction)),
-                    source_state: direction_regression_case(case_index).and_then(|case| case.source_state),
+                    source_state: direction_regression_case(case_index)
+                        .and_then(|case| case.source_state),
                     source_pose_chain: crouch_direction_source_pose_chain(case.expected_direction),
                     minimum_pre_rig_translation_span: 0.0,
                     minimum_pre_rig_rotation_span_radians: 0.05,
@@ -5775,7 +8125,8 @@ fn drive_manual_integration(
                     maximum_sync_phase_distance: 0.08,
                     canonical_clip_time: None,
                     maximum_clip_time_distance: 0.0,
-                    direction_signature_group: matches!(case_index, 0 | 1 | 3 | 7).then_some("crouch_direction"),
+                    direction_signature_group: matches!(case_index, 0 | 1 | 3 | 7)
+                        .then_some("crouch_direction"),
                     required_direction_signature_members: 4,
                     minimum_direction_signature_rotation_radians: 1e-4,
                     expected_direction: Some(movement_direction_name(case.expected_direction)),
@@ -5861,13 +8212,16 @@ fn drive_manual_integration(
                 };
                 let command = standing_turn_mouse_command(
                     command_index,
-                    state.crouch_stationary_started_at[validation.side_index()].map(|start| elapsed - start),
+                    state.crouch_stationary_started_at[validation.side_index()]
+                        .map(|start| elapsed - start),
                     if validation.is_turn() {
-                        state.crouch_stationary_base_yaw[validation.side_index()].unwrap_or(fixture.facing_yaw)
+                        state.crouch_stationary_base_yaw[validation.side_index()]
+                            .unwrap_or(fixture.facing_yaw)
                     } else {
                         state.crouch_stationary_view_yaw
                     },
-                    view_yaw.0, *rotation_mode,
+                    view_yaw.0,
+                    *rotation_mode,
                 );
                 input.0.move_dir = Vec2::ZERO;
                 input.0.look_delta = command.look_delta;
@@ -5944,7 +8298,8 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::StateMachineRotate => {
-            if let Some(label) = state_machine_rotation_boundary(elapsed, virtual_time.delta_secs()) {
+            if let Some(label) = state_machine_rotation_boundary(elapsed, virtual_time.delta_secs())
+            {
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, label);
             }
             if entering {
@@ -6003,12 +8358,15 @@ fn drive_manual_integration(
         }
         IntegrationPhase::Mantle => {
             let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
-                .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)).with_scale(Vec3::splat(1.5));
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(1.5));
             show_debug.visible = true;
             show_debug.mantling = true;
             if entering {
                 if state.scenario == IntegrationScenario::Base {
-                    commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                    commands
+                        .entity(character)
+                        .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
                 }
                 reset_character(
                     &mut transform,
@@ -6021,17 +8379,29 @@ fn drive_manual_integration(
                     fixture.facing_yaw,
                 );
                 *gait = Gait::Running;
-                *overlay = if state.scenario == IntegrationScenario::BowOverlay { OverlayState::Bow } else { OverlayState::Default };
-                if state.scenario == IntegrationScenario::BowOverlay { rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_mantle_start"); }
+                *overlay = if state.scenario == IntegrationScenario::BowOverlay {
+                    OverlayState::Bow
+                } else {
+                    OverlayState::Default
+                };
+                if state.scenario == IntegrationScenario::BowOverlay {
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_mantle_start");
+                }
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
             if state.scenario == IntegrationScenario::Base {
-                if elapsed < 10.0 && mantle_for_input.is_some_and(|mantle| mantle.active && mantle.root_motion_ready) {
+                if elapsed < 10.0
+                    && mantle_for_input
+                        .is_some_and(|mantle| mantle.active && mantle.root_motion_ready)
+                {
                     if parents.get(character).is_err() {
-                        let parent = commands.spawn((Name::new("manual_mantle_parent"), parent_transform)).id();
-                        *transform = GlobalTransform::from(*transform).reparented_to(&GlobalTransform::from(parent_transform));
+                        let parent = commands
+                            .spawn((Name::new("manual_mantle_parent"), parent_transform))
+                            .id();
+                        *transform = GlobalTransform::from(*transform)
+                            .reparented_to(&GlobalTransform::from(parent_transform));
                         commands.entity(character).insert(ChildOf(parent));
                     }
                 } else if let Ok(parent) = parents.get(character) {
@@ -6042,13 +8412,17 @@ fn drive_manual_integration(
             }
             let forward = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::NEG_Z;
             let progress = (position.0 - fixture.mantle_start).dot(forward);
-            if player_view.is_some_and(|view| crate::als::motion::wrap_yaw_radians(view.0 - fixture.facing_yaw).abs() < 0.001) {
+            if player_view.is_some_and(|view| {
+                crate::als::motion::wrap_yaw_radians(view.0 - fixture.facing_yaw).abs() < 0.001
+            }) {
                 input.0.move_dir = Vec2::Y;
             }
             input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 7.0;
             if elapsed >= 10.0 {
                 if state.scenario == IntegrationScenario::Base {
-                    commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                    commands
+                        .entity(character)
+                        .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
                 }
                 if state.scenario == IntegrationScenario::BowOverlay {
                     begin_phase(&mut state, IntegrationPhase::Ragdoll);
@@ -6111,17 +8485,17 @@ fn drive_manual_integration(
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
-            input.0.move_dir = if elapsed < 1.25 {
-                Vec2::Y
-            } else {
-                Vec2::ZERO
-            };
+            input.0.move_dir = if elapsed < 1.25 { Vec2::Y } else { Vec2::ZERO };
             input.0.roll_pressed = (1.0..1.2).contains(&elapsed);
             if state.scenario == IntegrationScenario::Grounded && input.0.roll_pressed {
-                commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                commands
+                    .entity(character)
+                    .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
             }
             if elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS
-                && (state.scenario != IntegrationScenario::Grounded || state.coverage.grounded_roll_completed) {
+                && (state.scenario != IntegrationScenario::Grounded
+                    || state.coverage.grounded_roll_completed)
+            {
                 if state.scenario == IntegrationScenario::FootIk {
                     state.foot_replacement_waited = elapsed - FOOT_AVATAR_REPLACEMENT_START_SECONDS;
                     if state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound {
@@ -6135,7 +8509,9 @@ fn drive_manual_integration(
                     }
                 } else {
                     let next = if state.scenario == IntegrationScenario::Grounded {
-                        commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                        commands
+                            .entity(character)
+                            .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
                         IntegrationPhase::GroundedJoint
                     } else {
                         IntegrationPhase::Finish
@@ -6149,11 +8525,20 @@ fn drive_manual_integration(
                 let index = state.grounded_joint_probe.case_index;
                 if index == 0 {
                     reset_character(
-                        &mut transform, &mut position, rotation, &mut velocity,
-                        &mut view_yaw, &mut view_pitch,
-                        GROUNDED_START.with_y(fixture.roll_start.y), SPRINT_YAW,
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        GROUNDED_START.with_y(fixture.roll_start.y),
+                        SPRINT_YAW,
                     );
-                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "grounded_joint_floor_start");
+                    rebase_temporal_fixture(
+                        &mut state,
+                        &mut phase_evidence,
+                        "grounded_joint_floor_start",
+                    );
                 }
                 state.grounded_joint_probe = GroundedJointProbe {
                     case_index: index,
@@ -6226,7 +8611,8 @@ fn drive_manual_integration(
                 state.coverage.ragdoll_scaled = false;
                 state.coverage.ragdoll_joint_drive = false;
                 state.coverage.ragdoll_recovered = false;
-                let mut spawn_translation = state.spawn_translation.unwrap_or(transform.translation);
+                let mut spawn_translation =
+                    state.spawn_translation.unwrap_or(transform.translation);
                 if state.scenario == IntegrationScenario::Ragdoll {
                     transform.scale = Vec3::splat(2.0);
                     let standing_half = params_assets
@@ -6235,7 +8621,11 @@ fn drive_manual_integration(
                             params.crouch.standing_capsule_half_height
                         });
                     spawn_translation.y += standing_half + 9.0;
-                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "ragdoll_scaled_start");
+                    rebase_temporal_fixture(
+                        &mut state,
+                        &mut phase_evidence,
+                        "ragdoll_scaled_start",
+                    );
                 }
                 let spawn_yaw = state.spawn_yaw.unwrap_or(fixture.facing_yaw);
                 reset_character(
@@ -6249,15 +8639,26 @@ fn drive_manual_integration(
                     spawn_yaw,
                 );
                 *gait = Gait::Running;
-                *overlay = if state.scenario == IntegrationScenario::BowOverlay { OverlayState::Bow } else { OverlayState::Default };
-                if state.scenario == IntegrationScenario::BowOverlay { rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_ragdoll_start"); }
-                request.locomotion_state = (state.scenario != IntegrationScenario::Ragdoll).then_some(LocomotionState::Grounded);
+                *overlay = if state.scenario == IntegrationScenario::BowOverlay {
+                    OverlayState::Bow
+                } else {
+                    OverlayState::Default
+                };
+                if state.scenario == IntegrationScenario::BowOverlay {
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_ragdoll_start");
+                }
+                request.locomotion_state = (state.scenario != IntegrationScenario::Ragdoll)
+                    .then_some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 if state.scenario == IntegrationScenario::GetUp {
                     if state.get_up_case == 0 {
-                        commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                        commands
+                            .entity(character)
+                            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
                     } else {
-                        commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                        commands
+                            .entity(character)
+                            .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
                     }
                     rebase_temporal_fixture(
                         &mut state,
@@ -6297,13 +8698,17 @@ fn drive_manual_integration(
             }
             if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 1 {
                 if state.get_up_jump_requested_at.is_none()
-                    && get_ups.get(character).is_ok_and(|(get_up, blocked)| blocked && get_up.pose_ready && get_up.clip_time >= 0.9)
+                    && get_ups.get(character).is_ok_and(|(get_up, blocked)| {
+                        blocked && get_up.pose_ready && get_up.clip_time >= 0.9
+                    })
                 {
                     input.0.jump_pressed = true;
                     state.get_up_jump_requested_at = Some(state.game_time_seconds);
                     info!("[MANUAL-INTEGRATION][GET-UP] jump requested during input lock");
                 }
-                input.0.jump_held = state.get_up_jump_requested_at.is_some_and(|at| state.game_time_seconds - at < 0.1);
+                input.0.jump_held = state
+                    .get_up_jump_requested_at
+                    .is_some_and(|at| state.game_time_seconds - at < 0.1);
             }
             if state
                 .ragdoll_recovered_at
@@ -6361,7 +8766,11 @@ fn drive_manual_integration(
                 input.0.switch_shoulder_pressed = true;
                 state.camera_shoulder_requested = true;
             }
-            if elapsed >= 2.0 && state.coverage.camera_recovery && state.camera_movement.passed() && !state.camera_view_mode_requested {
+            if elapsed >= 2.0
+                && state.coverage.camera_recovery
+                && state.camera_movement.passed()
+                && !state.camera_view_mode_requested
+            {
                 input.0.view_mode_pressed = true;
                 state.camera_view_mode_requested = true;
             }
@@ -6422,7 +8831,10 @@ fn drive_manual_integration(
                                         "manual_integration_camera_obstacle_{index}"
                                     )),
                                     RigidBody::Static,
-                                    CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::NONE),
+                                    CollisionLayers::new(
+                                        AlsCollisionLayer::Visibility,
+                                        avian3d::prelude::LayerMask::NONE,
+                                    ),
                                     Collider::cuboid(0.05, 0.6, 0.6),
                                     Transform::from_translation(center)
                                         .with_rotation(Quat::from_rotation_arc(Vec3::X, direction)),
@@ -6433,22 +8845,34 @@ fn drive_manual_integration(
                         );
                     }
                     state.camera_scenario_armed = true;
-                    state.camera_obstacles[2] = Some(commands.spawn((
-                        Name::new("manual_integration_camera_sweep_blocker"),
-                        RigidBody::Static,
-                        CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::NONE),
-                        Collider::cuboid(0.05, 0.6, 0.6),
-                        Transform::from_translation(debug.trace_start.lerp(debug.trace_end, 0.5))
-                            .with_rotation(Quat::from_rotation_arc(Vec3::X, trace_direction)),
-                        Mesh3d(fixture.obstacle_mesh.clone()),
-                        MeshMaterial3d(fixture.obstacle_material.clone()),
-                    )).id());
+                    state.camera_obstacles[2] = Some(
+                        commands
+                            .spawn((
+                                Name::new("manual_integration_camera_sweep_blocker"),
+                                RigidBody::Static,
+                                CollisionLayers::new(
+                                    AlsCollisionLayer::Visibility,
+                                    avian3d::prelude::LayerMask::NONE,
+                                ),
+                                Collider::cuboid(0.05, 0.6, 0.6),
+                                Transform::from_translation(
+                                    debug.trace_start.lerp(debug.trace_end, 0.5),
+                                )
+                                .with_rotation(Quat::from_rotation_arc(Vec3::X, trace_direction)),
+                                Mesh3d(fixture.obstacle_mesh.clone()),
+                                MeshMaterial3d(fixture.obstacle_material.clone()),
+                            ))
+                            .id(),
+                    );
                     info!("[MANUAL-INTEGRATION] camera MTD pair and sweep blocker armed");
                 }
             }
             if state.coverage.camera_collision && !state.camera_obstacle_ignored {
                 for obstacle in state.camera_obstacles.iter_mut().flatten() {
-                    commands.entity(*obstacle).insert(CollisionLayers::new(AlsCollisionLayer::Default, avian3d::prelude::LayerMask::NONE));
+                    commands.entity(*obstacle).insert(CollisionLayers::new(
+                        AlsCollisionLayer::Default,
+                        avian3d::prelude::LayerMask::NONE,
+                    ));
                 }
                 state.camera_obstacle_ignored = true;
                 info!("[MANUAL-INTEGRATION] camera obstacles removed from camera query layer");
@@ -6531,44 +8955,104 @@ fn drive_manual_integration(
         }
         IntegrationPhase::Notify => {
             if state.scenario == IntegrationScenario::AnimationClock {
-                if entering { state.notify_roll_armed = false; }
+                if entering {
+                    state.notify_roll_armed = false;
+                }
                 input.0.move_dir = Vec2::Y;
                 request.gait = Some(Gait::Running);
-                request.stance = Some(if elapsed < 2.0 { Stance::Standing } else { Stance::Crouching });
+                request.stance = Some(if elapsed < 2.0 {
+                    Stance::Standing
+                } else {
+                    Stance::Crouching
+                });
                 if let Some(avatar) = state.avatar {
                     let one_frame = (3.0..3.1).contains(&elapsed) && !state.notify_roll_armed;
-                    if one_frame { state.notify_roll_armed = true; }
+                    if one_frame {
+                        state.notify_roll_armed = true;
+                    }
                     let paused = (2.2..3.8).contains(&elapsed);
                     commands.queue(move |world: &mut World| {
-                        let Some(entity) = world.get::<AnimatedSceneInstance>(avatar).map(AnimatedSceneInstance::player_entity) else { return; };
-                        let Some(mut player) = world.get_mut::<AnimationGraphPlayer>(entity) else { return; };
-                        if one_frame { player.play_one_frame(); } else if paused { player.pause(); } else { player.resume(); }
+                        let Some(entity) = world
+                            .get::<AnimatedSceneInstance>(avatar)
+                            .map(AnimatedSceneInstance::player_entity)
+                        else {
+                            return;
+                        };
+                        let Some(mut player) = world.get_mut::<AnimationGraphPlayer>(entity) else {
+                            return;
+                        };
+                        if one_frame {
+                            player.play_one_frame();
+                        } else if paused {
+                            player.pause();
+                        } else {
+                            player.resume();
+                        }
                     });
-                    if (3.8..4.3).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5)); }
-                    else if (4.3..4.6).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0)); }
-                    else if (4.6..5.0).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(2.0)); }
-                    else { commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>(); }
+                    if (3.8..4.3).contains(&elapsed) {
+                        commands
+                            .entity(character)
+                            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                    } else if (4.3..4.6).contains(&elapsed) {
+                        commands
+                            .entity(character)
+                            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+                    } else if (4.6..5.0).contains(&elapsed) {
+                        commands
+                            .entity(character)
+                            .insert(crate::als_camera::AlsCameraCustomTimeDilation(2.0));
+                    } else {
+                        commands
+                            .entity(character)
+                            .remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                    }
                 }
-                if elapsed >= 6.0 { begin_phase(&mut state, IntegrationPhase::Finish); }
+                if elapsed >= 6.0 {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                }
                 return;
             }
             if state.scenario == IntegrationScenario::Visibility {
                 if entering {
                     state.notify_roll_armed = false;
-                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                    reset_character(
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.locomotion_start,
+                        fixture.facing_yaw,
+                    );
                     request.locomotion_state = Some(LocomotionState::Grounded);
                     request.stance = Some(Stance::Standing);
                 }
                 if let Some(avatar) = state.avatar {
                     let phase = visibility_case_phase(elapsed);
-                    commands.entity(avatar).insert(if matches!(phase, "hidden" | "montage" | "always_pose") { Visibility::Hidden } else { Visibility::Visible });
-                    if phase == "always_pose" { commands.entity(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPose); }
-                    else { commands.entity(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>(); }
+                    commands.entity(avatar).insert(
+                        if matches!(phase, "hidden" | "montage" | "always_pose") {
+                            Visibility::Hidden
+                        } else {
+                            Visibility::Visible
+                        },
+                    );
+                    if phase == "always_pose" {
+                        commands.entity(avatar).insert(
+                            crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPose,
+                        );
+                    } else {
+                        commands
+                            .entity(avatar)
+                            .remove::<crate::animation_visibility::AlsAnimationTickOption>();
+                    }
                     if phase == "montage" && elapsed >= 8.1 && !state.notify_roll_armed {
                         input.0.roll_pressed = true;
                         state.notify_roll_armed = true;
                     }
-                    if phase == "finish" { begin_phase(&mut state, IntegrationPhase::Finish); }
+                    if phase == "finish" {
+                        begin_phase(&mut state, IntegrationPhase::Finish);
+                    }
                 }
                 return;
             }
@@ -6623,7 +9107,8 @@ fn drive_manual_integration(
                 }
                 input.0.move_dir = Vec2::Y;
                 input.0.roll_pressed = (3.5..3.8).contains(&elapsed);
-                if roll_tail_reentry_ready(roll_for_input, *locomotion, state.notify_roll_restarted) {
+                if roll_tail_reentry_ready(roll_for_input, *locomotion, state.notify_roll_restarted)
+                {
                     input.0.roll_pressed = true;
                     state.notify_roll_restarted = true;
                 }
@@ -6767,8 +9252,15 @@ fn stance_center_from_standing_center(
     stance: Stance,
     effective_scale: f32,
 ) -> Vec3 {
-    let target_half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
-    standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height) * effective_scale
+    let target_half_height = if stance == Stance::Crouching {
+        params.crouch.crouched_capsule_half_height
+    } else {
+        params.crouch.standing_capsule_half_height
+    };
+    standing_center
+        + Vec3::Y
+            * (target_half_height - params.crouch.standing_capsule_half_height)
+            * effective_scale
 }
 
 fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
@@ -6784,9 +9276,15 @@ fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
 }
 
 fn state_machine_rotation_boundary(elapsed: f32, delta: f32) -> Option<&'static str> {
-    [(1.3, "state_machine_aim_view_flip"), (2.6, "state_machine_first_person_enter"),
-        (3.9, "state_machine_first_person_view_flip")].into_iter()
-        .find_map(|(boundary, label)| (elapsed >= boundary && elapsed - delta < boundary).then_some(label))
+    [
+        (1.3, "state_machine_aim_view_flip"),
+        (2.6, "state_machine_first_person_enter"),
+        (3.9, "state_machine_first_person_view_flip"),
+    ]
+    .into_iter()
+    .find_map(|(boundary, label)| {
+        (elapsed >= boundary && elapsed - delta < boundary).then_some(label)
+    })
 }
 
 fn state_machine_turn_target_yaw(elapsed: f32, body_yaw: f32) -> Option<f32> {
@@ -6902,8 +9400,14 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
 }
 
 fn graph_dynamic_distance_squared_cm(player: &AnimationGraphPlayer, side: &str) -> Option<f64> {
-    let target = player.get_global_input_data(&format!("feet_state.{side}.target_location"))?.as_vec3().ok()?;
-    let locked = player.get_global_input_data(&format!("feet_state.{side}.lock_location"))?.as_vec3().ok()?;
+    let target = player
+        .get_global_input_data(&format!("feet_state.{side}.target_location"))?
+        .as_vec3()
+        .ok()?;
+    let locked = player
+        .get_global_input_data(&format!("feet_state.{side}.lock_location"))?
+        .as_vec3()
+        .ok()?;
     Some(dynamic_distance_squared_cm(target, locked))
 }
 
@@ -7019,7 +9523,9 @@ fn observe_mantle(
     state.coverage.mantle_completed |=
         state.mantle_root_released && montages.is_none_or(|montages| montages.entries.is_empty());
     if state.phase != IntegrationPhase::Mantle
-        && !(state.phase == IntegrationPhase::MovingBase && state.moving_base_probe.mantle_requested) {
+        && !(state.phase == IntegrationPhase::MovingBase
+            && state.moving_base_probe.mantle_requested)
+    {
         return;
     }
     let variant = montage.and_then(|_| settings.source_sequence.rsplit('.').next());
@@ -7073,10 +9579,16 @@ fn default_overlay_curve_value(name: &str) -> f32 {
 }
 
 fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bool {
-    context.is_some_and(|context| ALS_LAYER_CURVE_NAMES.iter().all(|name| {
-        let value = context.curves.get(&crate::extensions::SourceCurveName::from(*name)).copied().unwrap_or(0.0);
-        (value - default_overlay_curve_value(name)).abs() < 1e-4
-    }))
+    context.is_some_and(|context| {
+        ALS_LAYER_CURVE_NAMES.iter().all(|name| {
+            let value = context
+                .curves
+                .get(&crate::extensions::SourceCurveName::from(*name))
+                .copied()
+                .unwrap_or(0.0);
+            (value - default_overlay_curve_value(name)).abs() < 1e-4
+        })
+    })
 }
 
 fn grounded_roll_exit_transition_matches_source(
@@ -7177,9 +9689,16 @@ fn manual_gate_exit_ready(
 fn p1_turn_evidence_mask(drive: &AlsTurnDrive, standing: Option<&AlsStandingGraphTelemetry>) -> u8 {
     let turn = if drive.playing && drive.weight > 1e-4 {
         if drive.lr <= 0.5 { 1 } else { 2 }
-    } else { 0 };
-    let rotate = match standing.filter(|graph| graph.actual_standing_pose_ready == Some(true)
-        && graph.actual_standing_transition_active == Some(false)).and_then(|graph| graph.actual_standing_state) {
+    } else {
+        0
+    };
+    let rotate = match standing
+        .filter(|graph| {
+            graph.actual_standing_pose_ready == Some(true)
+                && graph.actual_standing_transition_active == Some(false)
+        })
+        .and_then(|graph| graph.actual_standing_state)
+    {
         Some(3) => 4,
         Some(4) => 8,
         _ => 0,
@@ -7228,13 +9747,7 @@ fn observe_manual_integration(
         With<AlsCharacter>,
     >,
     mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
-    control_rig_runtime: Query<
-        (
-            &AlsControlRigExecution,
-            &AlsControlRigInput,
-        ),
-        With<AlsCharacter>,
-    >,
+    control_rig_runtime: Query<(&AlsControlRigExecution, &AlsControlRigInput), With<AlsCharacter>>,
     motion_probe: MotionProbe,
     foot_ik_data: Query<
         (
@@ -7366,7 +9879,9 @@ fn observe_manual_integration(
         return;
     };
     let transition_playback = transition_stack.and_then(AlsTransitionMontageStack::latest);
-    let Ok(assembly) = interface.camera_assemblies.get(character) else { return; };
+    let Ok(assembly) = interface.camera_assemblies.get(character) else {
+        return;
+    };
     let Ok((
         _,
         instance,
@@ -7388,12 +9903,18 @@ fn observe_manual_integration(
     let actual_motion = motion_probe.actual.get(character).ok();
     let gait_state = motion_probe.gait.get(character).ok();
     let direction = graph_f32(player, "direction_angle");
-    let locomotion_phase = |key| player.get_context_arena().and_then(|arena| {
-        crate::extensions::sync_group_phase::source_sync_phase(arena, &motion_probe.graphs, key)
-    });
+    let locomotion_phase = |key| {
+        player.get_context_arena().and_then(|arena| {
+            crate::extensions::sync_group_phase::source_sync_phase(arena, &motion_probe.graphs, key)
+        })
+    };
     let jump_phase = locomotion_phase("sync_groups.jump.phase");
     let land_phase = locomotion_phase("sync_groups.land.phase");
-    let overlay_tag = motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("overlay_mode"));
+    let overlay_tag = motion_probe
+        .source_inputs
+        .get(instance.player_entity())
+        .ok()
+        .and_then(|inputs| inputs.gameplay_tag_input("overlay_mode"));
     let source_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
         && player.get_error().is_none();
     record_animation_window_trace(
@@ -7423,10 +9944,8 @@ fn observe_manual_integration(
             crouching_graph.and_then(|value| value.actual_outer_state);
         animation_window.observed_parent_transition_active =
             crouching_graph.and_then(|value| value.actual_outer_transition_active);
-        animation_window.observed_requested_parent_runtime_state =
-            None;
-        animation_window.observed_requested_parent_transition_active =
-            None;
+        animation_window.observed_requested_parent_runtime_state = None;
+        animation_window.observed_requested_parent_transition_active = None;
     } else if state.scenario == IntegrationScenario::Grounded
         && state.phase == IntegrationPhase::Roll
     {
@@ -7436,15 +9955,25 @@ fn observe_manual_integration(
     if !source_ready {
         state.coverage.graph = false;
     }
-    if state.scenario == IntegrationScenario::LocomotionActions && state.phase == IntegrationPhase::LocomotionActions && !state.entered {
-        observe_locomotion_actions(state, &mut animation_window, gate_report, player, context, &motion_probe, character, transform, *locomotion, *stance);
+    if state.scenario == IntegrationScenario::LocomotionActions
+        && state.phase == IntegrationPhase::LocomotionActions
+        && !state.entered
+    {
+        observe_locomotion_actions(
+            state,
+            &mut animation_window,
+            gate_report,
+            player,
+            context,
+            &motion_probe,
+            character,
+            transform,
+            *locomotion,
+            *stance,
+        );
     }
     if state.scenario == IntegrationScenario::Grounded && !state.entered {
-        let notify = motion_probe
-            .transition_notify
-            .get(character)
-            .ok()
-            .flatten();
+        let notify = motion_probe.transition_notify.get(character).ok().flatten();
         let mut sequences = Vec::new();
         let mut weights = Vec::new();
         if let Some(arena) = player.get_context_arena() {
@@ -7465,8 +9994,8 @@ fn observe_manual_integration(
                         _ => None,
                     };
                     if let Some(variant) = variant
-                        && let Some(sequence) =
-                            node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()
+                        && let Some(sequence) = node
+                            .try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()
                         && let Some(clip) = motion_probe.clips.get(&sequence.clip)
                     {
                         let position = child.node_states.get_time(node.id, StateKey::Default);
@@ -7489,7 +10018,10 @@ fn observe_manual_integration(
                         && let Some(machine) = motion_probe.machines.get(&fsm.fsm)
                         && let Ok(runtime) = child
                             .node_states
-                            .get::<crate::extensions::InterruptibleFsmState>(node.id, StateKey::Default)
+                            .get::<crate::extensions::InterruptibleFsmState>(
+                            node.id,
+                            StateKey::Default,
+                        )
                     {
                         weights.extend(machine.states.values().map(|entry| {
                             (
@@ -7515,7 +10047,10 @@ fn observe_manual_integration(
             let requested_stance = notify.and_then(|value| value.roll_to_grounded_stance);
             let playback = match state.grounded_roll_playback {
                 Some(recorded) => transition_stack.and_then(|stack| {
-                    stack.entries.iter().find(|entry| entry.instance_id == recorded.instance_id)
+                    stack
+                        .entries
+                        .iter()
+                        .find(|entry| entry.instance_id == recorded.instance_id)
                 }),
                 None => transition_playback,
             };
@@ -7531,7 +10066,11 @@ fn observe_manual_integration(
                 state.grounded_roll_playback = playback.copied();
             }
             let terminal_stance = desired_stance.map_or(*stance, |value| value.0);
-            let terminal_state = if terminal_stance == Stance::Crouching { 2 } else { 1 };
+            let terminal_state = if terminal_stance == Stance::Crouching {
+                2
+            } else {
+                1
+            };
             let completed = state.grounded_roll_playback.is_some()
                 && roll.is_some_and(|value| !value.active)
                 && playback.is_none_or(|value| !value.active)
@@ -7540,7 +10079,11 @@ fn observe_manual_integration(
                 && transition_active == Some(false);
             state.coverage.grounded_roll_completed |= completed;
             if state.scenario == IntegrationScenario::Grounded
-                && grounded_roll_exit_timed_out(state.phase_elapsed(), state.coverage.grounded_roll_completed) {
+                && grounded_roll_exit_timed_out(
+                    state.phase_elapsed(),
+                    state.coverage.grounded_roll_completed,
+                )
+            {
                 gate_report.direction_trace.push(serde_json::json!({"watchdog": {
                     "exit_reason": "source_transition_completion_timeout", "last_progress": "Roll exit",
                     "waited_game_seconds": state.phase_elapsed(), "no_progress_limit_seconds": 20.0,
@@ -7572,8 +10115,11 @@ fn observe_manual_integration(
                     expected_animation_variant: crate::stop_link::source_transition_sequence(
                         &recorded,
                     ),
-                    observed_animation_variant: playback.and_then(crate::stop_link::source_transition_sequence),
-                    observed_animation_clip_time: playback.filter(|_| active).map(|value| value.clip_time),
+                    observed_animation_variant: playback
+                        .and_then(crate::stop_link::source_transition_sequence),
+                    observed_animation_clip_time: playback
+                        .filter(|_| active)
+                        .map(|value| value.clip_time),
                     observed_animation_weight: playback.map(|value| value.weight),
                     observed_animation_play_rate: playback.map(|value| value.play_rate),
                     expected_lifecycle_stages: &["playing", "completed", "settled"],
@@ -7659,15 +10205,22 @@ fn observe_manual_integration(
                 let following = motion_probe.rotation_mode.get(character).ok()
                     == Some(&RotationMode::Aiming)
                     && if index >= 6 {
-                        elapsed >= 4.5 && speed < 0.01
-                            && standing_turn_rotation_settled(7, crate::als::motion::wrap_yaw_radians(view_yaw.0 - yaw).to_degrees(),
-                                rotation_animation.map_or(f32::NAN, |value| value.yaw_speed_degrees),
-                                turn_drive.is_none_or(|value| value.rotate_active))
+                        elapsed >= 4.5
+                            && speed < 0.01
+                            && standing_turn_rotation_settled(
+                                7,
+                                crate::als::motion::wrap_yaw_radians(view_yaw.0 - yaw).to_degrees(),
+                                rotation_animation
+                                    .map_or(f32::NAN, |value| value.yaw_speed_degrees),
+                                turn_drive.is_none_or(|value| value.rotate_active),
+                            )
                     } else {
                         speed > 0.5
                             && crate::als::motion::wrap_yaw_radians(yaw - probe.base_yaw)
-                                * if index == 4 { -1.0 } else { 1.0 } > 0.5
-                            && crate::als::motion::wrap_yaw_radians(view_yaw.0 - yaw).abs() < 3.0_f32.to_radians()
+                                * if index == 4 { -1.0 } else { 1.0 }
+                                > 0.5
+                            && crate::als::motion::wrap_yaw_radians(view_yaw.0 - yaw).abs()
+                                < 3.0_f32.to_radians()
                     };
                 let completed = probe.valid
                     && terminal
@@ -7680,78 +10233,93 @@ fn observe_manual_integration(
                 let base_yaw = probe.base_yaw;
                 state.coverage.grounded_joint[index] |= completed;
                 let capture = sample.is_some() || moving || (aiming && elapsed >= 0.5) || completed;
-                let source_state = if index == 0 { "Standing To Crouching" } else if index == 1 {
+                let source_state = if index == 0 {
+                    "Standing To Crouching"
+                } else if index == 1 {
                     "Crouching To Standing"
-                } else if target == Stance::Crouching { "Crouching" } else { "Standing" };
-                **animation_window = ManualAnimationWindowEvidence {
-                    label: Some(label),
-                    index: Some(index),
-                    settled: true,
-                    capture_source_window: capture,
-                    capture_every_frame: true,
-                    requires_pre_rig_motion: true,
-                    requires_final_pose_motion: true,
-                    requires_non_reference_root_pose: true,
-                    requires_source_pose_chain: true,
-                    source_node: Some("AB_Als_Grounded/Grounded States"),
-                    source_state: Some(source_state),
-                    source_pose_chain: grounded_joint_source_chain(),
-                    expected_animation_variant: expected_variant,
-                    observed_animation_variant: sample.map(|value| value.0),
-                    observed_animation_clip_time: sample.map(|value| value.1),
-                    observed_animation_weight: sample.and_then(|_| weights.iter().find(|(label, _)| label.as_str() == source_state).map(|(_, weight)| *weight)),
-                    observed_animation_play_rate: sample.map(|value| value.4),
-                    expected_runtime_state: if index < 2 {
-                        Some(if index == 0 { 3 } else { 4 })
-                    } else {
-                        Some(target_state)
-                    },
-                    observed_runtime_state: if index < 2 {
-                        sample.and(
-                            actual_state.filter(|value| *value == if index == 0 { 3 } else { 4 }),
-                        )
-                    } else {
-                        actual_state.filter(|value| *value == target_state)
-                    },
-                    expected_terminal_parent_runtime_state: Some(target_state),
-                    expected_terminal_parent_transition_active: Some(false),
-                    observed_parent_runtime_state: actual_state,
-                    observed_parent_transition_active: transition_active,
-                    expected_lifecycle_stages: &["active", "settled"],
-                    observed_lifecycle_stages: if completed {
-                        &["settled"]
-                    } else if capture {
-                        &["active"]
-                    } else {
-                        &[]
-                    },
-                    canonical_clip_time: (index < 2).then_some(0.4),
-                    maximum_clip_time_distance: 0.04,
-                    direction_signature_group: (index < 2).then_some("grounded_stance_changes"),
-                    required_direction_signature_members: 2,
-                    expected_direction: (index < 2).then_some(if target == Stance::Crouching {
-                        "Crouching"
-                    } else {
-                        "Standing"
-                    }),
-                    observed_direction: sample.map(|_| {
-                        if target == Stance::Crouching {
+                } else if target == Stance::Crouching {
+                    "Crouching"
+                } else {
+                    "Standing"
+                };
+                **animation_window =
+                    ManualAnimationWindowEvidence {
+                        label: Some(label),
+                        index: Some(index),
+                        settled: true,
+                        capture_source_window: capture,
+                        capture_every_frame: true,
+                        requires_pre_rig_motion: true,
+                        requires_final_pose_motion: true,
+                        requires_non_reference_root_pose: true,
+                        requires_source_pose_chain: true,
+                        source_node: Some("AB_Als_Grounded/Grounded States"),
+                        source_state: Some(source_state),
+                        source_pose_chain: grounded_joint_source_chain(),
+                        expected_animation_variant: expected_variant,
+                        observed_animation_variant: sample.map(|value| value.0),
+                        observed_animation_clip_time: sample.map(|value| value.1),
+                        observed_animation_weight: sample.and_then(|_| {
+                            weights
+                                .iter()
+                                .find(|(label, _)| label.as_str() == source_state)
+                                .map(|(_, weight)| *weight)
+                        }),
+                        observed_animation_play_rate: sample.map(|value| value.4),
+                        expected_runtime_state: if index < 2 {
+                            Some(if index == 0 { 3 } else { 4 })
+                        } else {
+                            Some(target_state)
+                        },
+                        observed_runtime_state: if index < 2 {
+                            sample.and(
+                                actual_state
+                                    .filter(|value| *value == if index == 0 { 3 } else { 4 }),
+                            )
+                        } else {
+                            actual_state.filter(|value| *value == target_state)
+                        },
+                        expected_terminal_parent_runtime_state: Some(target_state),
+                        expected_terminal_parent_transition_active: Some(false),
+                        observed_parent_runtime_state: actual_state,
+                        observed_parent_transition_active: transition_active,
+                        expected_lifecycle_stages: &["active", "settled"],
+                        observed_lifecycle_stages: if completed {
+                            &["settled"]
+                        } else if capture {
+                            &["active"]
+                        } else {
+                            &[]
+                        },
+                        canonical_clip_time: (index < 2).then_some(0.4),
+                        maximum_clip_time_distance: 0.04,
+                        direction_signature_group: (index < 2).then_some("grounded_stance_changes"),
+                        required_direction_signature_members: 2,
+                        expected_direction: (index < 2).then_some(if target == Stance::Crouching {
                             "Crouching"
                         } else {
                             "Standing"
-                        }
-                    }),
-                    minimum_direction_signature_rotation_radians: 1e-4,
-                    requires_actor_yaw_motion: aiming,
-                    actor_yaw_driver: (aiming && index < 6).then_some("locomotion"),
-                    observed_animation_yaw_speed_degrees: rotation_animation.map(|value| value.yaw_speed_degrees),
-                    expected_actor_yaw_delta_sign: (aiming && index < 6).then_some(if index == 4 { -1 } else { 1 }),
-                    expected_actor_yaw_baseline: aiming.then_some(base_yaw),
-                    minimum_actor_yaw_delta_radians: if aiming { 0.5 } else { 0.0 },
-                    observed_actor_yaw: Some(yaw),
-                    observed_view_yaw: Some(view_yaw.0),
-                    ..default()
-                };
+                        }),
+                        observed_direction: sample.map(|_| {
+                            if target == Stance::Crouching {
+                                "Crouching"
+                            } else {
+                                "Standing"
+                            }
+                        }),
+                        minimum_direction_signature_rotation_radians: 1e-4,
+                        requires_actor_yaw_motion: aiming,
+                        actor_yaw_driver: (aiming && index < 6).then_some("locomotion"),
+                        observed_animation_yaw_speed_degrees: rotation_animation
+                            .map(|value| value.yaw_speed_degrees),
+                        expected_actor_yaw_delta_sign: (aiming && index < 6)
+                            .then_some(if index == 4 { -1 } else { 1 }),
+                        expected_actor_yaw_baseline: aiming.then_some(base_yaw),
+                        minimum_actor_yaw_delta_radians: if aiming { 0.5 } else { 0.0 },
+                        observed_actor_yaw: Some(yaw),
+                        observed_view_yaw: Some(view_yaw.0),
+                        ..default()
+                    };
             }
         }
         gate_report.direction_trace.push(serde_json::json!({
@@ -7774,41 +10342,81 @@ fn observe_manual_integration(
             "joint_valid": state.grounded_joint_probe.valid, "joint_sequence_completed": state.grounded_joint_probe.sequence_completed,
         }));
     }
-    if state.scenario == IntegrationScenario::Head && state.phase == IntegrationPhase::Head && !state.entered {
+    if state.scenario == IntegrationScenario::Head
+        && state.phase == IntegrationPhase::Head
+        && !state.entered
+    {
         let now = state.game_time_seconds;
         let elapsed = state.phase_elapsed();
         let probe = &mut state.head_probe;
         let mut sample = head_graph_sample(player, &motion_probe, probe.previous.as_ref());
         if let Ok(world) = motion_probe.transforms.compute_global_transform(character) {
             if !head_actor_world_inputs_match(player, transform, &world) {
-                sample.errors.push("Head parent fixture or actor world inputs differ".into());
+                sample
+                    .errors
+                    .push("Head parent fixture or actor world inputs differ".into());
             }
-        } else { sample.errors.push("Head actor world transform is unavailable".into()); }
+        } else {
+            sample
+                .errors
+                .push("Head actor world transform is unavailable".into());
+        }
         sample.elapsed_seconds = elapsed;
         let actual_state = crate::head_layer::head_state_from_player(player);
-        if head.is_none_or(|head| *head != actual_state) { sample.errors.push("Head Actor projection differs from evaluated instance".into()); }
-        probe.previous = Some((sample.frame, actual_state, sample.refreshed, crate::head_layer::head_blend_amount(context)));
+        if head.is_none_or(|head| *head != actual_state) {
+            sample
+                .errors
+                .push("Head Actor projection differs from evaluated instance".into());
+        }
+        probe.previous = Some((
+            sample.frame,
+            actual_state,
+            sample.refreshed,
+            crate::head_layer::head_blend_amount(context),
+        ));
         probe.valid &= sample.errors.is_empty();
-        for (index, time) in sample.times.iter().enumerate() { probe.samples_seen[index] |= time.is_some(); }
+        for (index, time) in sample.times.iter().enumerate() {
+            probe.samples_seen[index] |= time.is_some();
+        }
         probe.additive_seen |= sample.additive_effect.is_some_and(|effect| effect > 1e-4);
         let real_delta = real_time.delta_secs();
-        let custom_clock = probe.case_index == 5 && real_delta > 1e-5
+        let custom_clock = probe.case_index == 5
+            && real_delta > 1e-5
             && (sample.inputs[0] - interface.virtual_time.delta_secs() * 0.5).abs() < 1e-4
             && (sample.inputs[1] - real_delta).abs() <= real_delta * 0.25;
-        probe.unscaled_pitch_seen |= first_person && custom_clock && sample.inputs[1] > sample.inputs[0] * 3.5
-            && (sample.state[0] - sample.inputs[7]).abs() > 0.01 && sample.errors.is_empty();
+        probe.unscaled_pitch_seen |= first_person
+            && custom_clock
+            && sample.inputs[1] > sample.inputs[0] * 3.5
+            && (sample.state[0] - sample.inputs[7]).abs() > 0.01
+            && sample.errors.is_empty();
         let index = probe.case_index;
         let branch_ready = match index {
-            0..=2 => (sample.state[0] - [-60.0, 0.0, 60.0][index]).abs() < 5.0 && !first_person
-                && (index != 2 || motion_probe.rotation_mode.get(character).ok() == Some(&RotationMode::Aiming)
-                    && motion_probe.inputs.get(character).ok().and_then(|(_, input)| input).is_some_and(|input| !input.0.aim_held)),
+            0..=2 => {
+                (sample.state[0] - [-60.0, 0.0, 60.0][index]).abs() < 5.0
+                    && !first_person
+                    && (index != 2
+                        || motion_probe.rotation_mode.get(character).ok()
+                            == Some(&RotationMode::Aiming)
+                            && motion_probe
+                                .inputs
+                                .get(character)
+                                .ok()
+                                .and_then(|(_, input)| input)
+                                .is_some_and(|input| !input.0.aim_held))
+            }
             3 => sample.modes[1] && sample.modes[2] && speed > 0.5,
             4 => sample.modes[1] && !sample.modes[2] && speed < 0.1,
             5 => first_person && probe.unscaled_pitch_seen,
             _ => !first_person,
         };
-        if source_ready && sample.ready && probe.valid && *overlay == OverlayState::Default
-            && *stance == Stance::Standing && *locomotion == LocomotionState::Grounded && branch_ready {
+        if source_ready
+            && sample.ready
+            && probe.valid
+            && *overlay == OverlayState::Default
+            && *stance == Stance::Standing
+            && *locomotion == LocomotionState::Grounded
+            && branch_ready
+        {
             **animation_window = head_window(index, &sample);
             probe.seconds[index] += sample.inputs[0];
             probe.covered[index] |= probe.seconds[index] >= 0.8;
@@ -7817,50 +10425,111 @@ fn observe_manual_integration(
             "first_person": first_person, "speed": speed, "unscaled_pitch_seen": probe.unscaled_pitch_seen, "source": sample}));
         probe.sample = sample;
     }
-    if state.scenario == IntegrationScenario::Overlays && state.phase == IntegrationPhase::Overlays && !state.entered {
-        let rotation = motion_probe.rotation_mode.get(character).copied().unwrap_or(RotationMode::ViewDirection);
+    if state.scenario == IntegrationScenario::Overlays
+        && state.phase == IntegrationPhase::Overlays
+        && !state.entered
+    {
+        let rotation = motion_probe
+            .rotation_mode
+            .get(character)
+            .copied()
+            .unwrap_or(RotationMode::ViewDirection);
         let probe = &mut state.overlays_probe;
-        overlays::observe(probe, player, &motion_probe, overlay_object, context, *stance, rotation, *locomotion, speed, &mut animation_window);
-        gate_report.direction_trace.push(serde_json::json!({"mode": probe.mode, "stage": probe.stage, "sample": probe.sample}));
+        overlays::observe(
+            probe,
+            player,
+            &motion_probe,
+            overlay_object,
+            context,
+            *stance,
+            rotation,
+            *locomotion,
+            speed,
+            &mut animation_window,
+        );
+        gate_report.direction_trace.push(
+            serde_json::json!({"mode": probe.mode, "stage": probe.stage, "sample": probe.sample}),
+        );
     }
     if state.scenario == IntegrationScenario::BowOverlay && !state.entered {
         let phase = state.phase;
-        bow::observe_object(&mut state.bow_probe, overlay_object, context, &motion_probe, notify_action, mantle, phase);
+        bow::observe_object(
+            &mut state.bow_probe,
+            overlay_object,
+            context,
+            &motion_probe,
+            notify_action,
+            mantle,
+            phase,
+        );
         if phase != IntegrationPhase::BowOverlay {
             gate_report.direction_trace.push(serde_json::json!({"phase": format!("{phase:?}"), "object": state.bow_probe.sample.object,
                 "cleared": state.bow_probe.cleared, "restored": state.bow_probe.restored}));
         }
     }
-    if state.scenario == IntegrationScenario::BowOverlay && state.phase == IntegrationPhase::BowOverlay && !state.entered {
+    if state.scenario == IntegrationScenario::BowOverlay
+        && state.phase == IntegrationPhase::BowOverlay
+        && !state.entered
+    {
         let now = state.game_time_seconds;
-        let mode = motion_probe.rotation_mode.get(character).copied().unwrap_or(RotationMode::ViewDirection);
+        let mode = motion_probe
+            .rotation_mode
+            .get(character)
+            .copied()
+            .unwrap_or(RotationMode::ViewDirection);
         let notify = motion_probe.transition_notify.get(character).ok().flatten();
         let probe = &mut state.bow_probe;
-        bow::observe(probe, player, &motion_probe, context, *stance, mode, speed, &mut animation_window);
+        bow::observe(
+            probe,
+            player,
+            &motion_probe,
+            context,
+            *stance,
+            mode,
+            speed,
+            &mut animation_window,
+        );
         gate_report.direction_trace.push(serde_json::json!({"case": probe.index, "time": now, "covered": probe.covered,
             "rotation_mode": format!("{mode:?}"), "stance": format!("{stance:?}"), "speed": speed, "source": probe.sample,
             "transition_playback": transition_playback.map(|value| (crate::stop_link::source_transition_sequence(value), value.active, value.clip_time, value.weight)),
             "transition_notifications": notify.map(|value| (value.transition_animation_call_count, value.transition_animation_play_count))}));
     }
-    if state.scenario == IntegrationScenario::DefaultOverlay && state.phase == IntegrationPhase::DefaultOverlay && !state.entered {
+    if state.scenario == IntegrationScenario::DefaultOverlay
+        && state.phase == IntegrationPhase::DefaultOverlay
+        && !state.entered
+    {
         let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
         let now = state.game_time_seconds;
         let probe = &mut state.default_overlay_probe;
-        let mut sample = default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
-        sample.layering = layering_graph_sample(player, &motion_probe, probe.previous_layering.as_ref());
+        let mut sample =
+            default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
+        sample.layering =
+            layering_graph_sample(player, &motion_probe, probe.previous_layering.as_ref());
         if let Some(frame) = player.get_context_arena().map(|arena| arena.frame_index()) {
-            probe.previous_layering = Some((frame, crate::layering_layer::refresh_state_from_curves(context)));
+            probe.previous_layering = Some((
+                frame,
+                crate::layering_layer::refresh_state_from_curves(context),
+            ));
         }
         if let Ok((_, spaces, _, _)) = foot_ik_data.get(character)
-            && !default_overlay_foot_targets_ready(spaces) {
-            sample.errors.push("foot_trace_and_solver_must_consume_the_same_prepared_rig_target".into());
+            && !default_overlay_foot_targets_ready(spaces)
+        {
+            sample
+                .errors
+                .push("foot_trace_and_solver_must_consume_the_same_prepared_rig_target".into());
         }
-        let active = *overlay == OverlayState::Default && overlay_tag.as_ref() == Some(&overlay.tag()) && source_ready && sample.ready && sample.layering.ready;
+        let active = *overlay == OverlayState::Default
+            && overlay_tag.as_ref() == Some(&overlay.tag())
+            && source_ready
+            && sample.ready
+            && sample.layering.ready;
         if active {
             probe.valid &= sample.errors.is_empty() && sample.layering.errors.is_empty();
             probe.curves_seen |= default_overlay_curves_ready(context);
             probe.additive_seen |= sample.additive_effect.is_some_and(|value| value > 1e-4);
-            for (index, time) in sample.evaluator_times.iter().enumerate() { probe.evaluators_seen[index] |= time.is_some(); }
+            for (index, time) in sample.evaluator_times.iter().enumerate() {
+                probe.evaluators_seen[index] |= time.is_some();
+            }
             if let Some(alpha) = sample.prediction_alpha {
                 if let Some(previous) = probe.prediction_previous {
                     probe.prediction_increased |= alpha > previous + 1e-4;
@@ -7873,24 +10542,51 @@ fn observe_manual_integration(
         let crouching = sample.inputs[1].is_some_and(|value| value > 0.99);
         let walking = sample.inputs[2];
         let air = sample.inputs[3].is_some_and(|value| value > 0.95);
-        let grounded = sample.inputs[3].is_some_and(|value| value < 0.01) && *locomotion == LocomotionState::Grounded;
+        let grounded = sample.inputs[3].is_some_and(|value| value < 0.01)
+            && *locomotion == LocomotionState::Grounded;
         let index = probe.case_index;
-        probe.airborne_seen |= probe.jump_started_at.is_some() && *locomotion == LocomotionState::Air;
+        probe.airborne_seen |=
+            probe.jump_started_at.is_some() && *locomotion == LocomotionState::Air;
         probe.jump_completed |= probe.airborne_seen && standing && grounded && speed < 0.1;
-        let selection = if !active || !probe.valid { None }
-            else if index == 0 && grounded && standing && speed < 0.1 && walking.is_some_and(|value| value < 0.01) { Some(0) }
-            else if index == 1 && grounded && standing && speed > 0.5 && walking.is_some_and(|value| value > 0.99) { Some(1) }
-            else if index == 2 && grounded && crouching && speed > 0.1 { Some(2) }
-            else if air { probe.air_window(sample.prediction_alpha) }
-            else if index == 5 && standing && grounded && speed < 0.1 { Some(5) }
-            else { None };
+        let selection = if !active || !probe.valid {
+            None
+        } else if index == 0
+            && grounded
+            && standing
+            && speed < 0.1
+            && walking.is_some_and(|value| value < 0.01)
+        {
+            Some(0)
+        } else if index == 1
+            && grounded
+            && standing
+            && speed > 0.5
+            && walking.is_some_and(|value| value > 0.99)
+        {
+            Some(1)
+        } else if index == 2 && grounded && crouching && speed > 0.1 {
+            Some(2)
+        } else if air {
+            probe.air_window(sample.prediction_alpha)
+        } else if index == 5 && standing && grounded && speed < 0.1 {
+            Some(5)
+        } else {
+            None
+        };
         if let Some(selected) = selection {
             **animation_window = default_overlay_window(selected, &sample);
             probe.seconds[selected] += delta;
             if selected < 3 {
-                probe.canonical_seen[selected] |= sample.idle_phase.is_some_and(|phase| (phase - 0.35).abs() <= 0.04);
+                probe.canonical_seen[selected] |= sample
+                    .idle_phase
+                    .is_some_and(|phase| (phase - 0.35).abs() <= 0.04);
             }
-            let enough = probe.seconds[selected] >= if selected < 3 || selected == 5 { 0.5 } else { 0.1 };
+            let enough = probe.seconds[selected]
+                >= if selected < 3 || selected == 5 {
+                    0.5
+                } else {
+                    0.1
+                };
             probe.covered[selected] |= enough && (selected >= 3 || probe.canonical_seen[selected]);
         }
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
@@ -7929,16 +10625,21 @@ fn observe_manual_integration(
     }
     if state.phase == IntegrationPhase::CrouchDirectionRegression {
         let elapsed = state.phase_elapsed();
-        let case_index = if state.crouch_stationary_validation.is_some() { CROUCH_DIRECTION_CASE_COUNT } else { state.crouch_direction_case_index };
-        if let Some(graph) = crouching_graph.filter(|graph| graph.actual_movement_pose_ready == Some(true)) {
+        let case_index = if state.crouch_stationary_validation.is_some() {
+            CROUCH_DIRECTION_CASE_COUNT
+        } else {
+            state.crouch_direction_case_index
+        };
+        if let Some(graph) =
+            crouching_graph.filter(|graph| graph.actual_movement_pose_ready == Some(true))
+        {
             state.coverage.crouch_direction_state_mask |= graph.actual_movement_states;
         }
         if case_index < CROUCH_DIRECTION_CASE_COUNT
             && !state.coverage.crouch_direction_cases[case_index]
             && !state.coverage.crouch_direction_diagnostics[case_index]
             && elapsed
-                >= state.crouch_direction_case_started_at
-                    + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
+                >= state.crouch_direction_case_started_at + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
             && let Some(case) = crouch_direction_regression_case(case_index)
         {
             state.coverage.crouch_direction_diagnostics[case_index] = true;
@@ -7960,15 +10661,19 @@ fn observe_manual_integration(
         if case_index < CROUCH_DIRECTION_CASE_COUNT
             && !state.coverage.crouch_direction_cases[case_index]
             && elapsed
-                >= state.crouch_direction_case_started_at
-                    + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
+                >= state.crouch_direction_case_started_at + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
             && let Some(case) = crouch_direction_regression_case(case_index)
             && let (Some(motion), Some(telemetry)) = (actual_motion, crouching_graph)
             && let Some(state_index) = telemetry.actual_movement_state
             && state_index < 6
         {
-            let expected_world =
-                crate::als::motion::view_relative_move_direction(case.move_dir, motion_probe.player_views.get(character).map_or(view_yaw.0, |view| view.0));
+            let expected_world = crate::als::motion::view_relative_move_direction(
+                case.move_dir,
+                motion_probe
+                    .player_views
+                    .get(character)
+                    .map_or(view_yaw.0, |view| view.0),
+            );
             let expected_local = Vec2::new(
                 expected_world.dot(transform.rotation * Vec3::NEG_Z),
                 expected_world.dot(transform.rotation * Vec3::X),
@@ -7988,10 +10693,16 @@ fn observe_manual_integration(
                 && telemetry.actual_movement_transition_active == Some(false)
                 && state_index == movement_direction_fsm_index(case.expected_direction)
                 && telemetry.actual_movement_pose_ready == Some(true);
-            let ready = source_ready && motion.horizontal_speed > 0.45
-                && world_alignment >= 0.75 && local_alignment >= 0.75 && graph_matches;
-            if ready { state.crouch_direction_ready_at.get_or_insert(elapsed); }
-            else { state.crouch_direction_ready_at = None; }
+            let ready = source_ready
+                && motion.horizontal_speed > 0.45
+                && world_alignment >= 0.75
+                && local_alignment >= 0.75
+                && graph_matches;
+            if ready {
+                state.crouch_direction_ready_at.get_or_insert(elapsed);
+            } else {
+                state.crouch_direction_ready_at = None;
+            }
             if ready && crouch_direction_case_complete(state.crouch_direction_ready_at, elapsed) {
                 state.coverage.crouch_direction_cases[case_index] = true;
                 state.coverage.crouch_direction_state_mask |= 1 << state_index;
@@ -8033,7 +10744,8 @@ fn observe_manual_integration(
                 crouching_graph,
                 turn_drive,
                 turn_slot,
-            ) && rotation_animation.is_none_or(|value| value.yaw_speed_degrees == 0.0);
+            ) && rotation_animation
+                .is_none_or(|value| value.yaw_speed_degrees == 0.0);
             state.crouch_stationary_precondition_frames[side_index] =
                 advance_crouch_stationary_stability(
                     state.crouch_stationary_precondition_frames[side_index],
@@ -8113,10 +10825,8 @@ fn observe_manual_integration(
                     crouching_graph.and_then(|value| value.actual_outer_state);
                 animation_window.observed_parent_transition_active =
                     crouching_graph.and_then(|value| value.actual_outer_transition_active);
-                animation_window.observed_requested_parent_runtime_state =
-                    None;
-                animation_window.observed_requested_parent_transition_active =
-                    None;
+                animation_window.observed_requested_parent_runtime_state = None;
+                animation_window.observed_requested_parent_transition_active = None;
                 record_animation_window_trace(
                     &mut animation_window,
                     transform,
@@ -8129,17 +10839,27 @@ fn observe_manual_integration(
                     turn_drive
                         .map(|drive| crouch_stationary_animation_variant(drive.lr <= 0.5, true)),
                 );
-                if let Some(entry) = turn_stack.and_then(|stack| stack.entries.iter().rev()
-                    .find(|entry| entry.crouching && entry.sampling_ready && entry.weight() > 0.0))
-                {
-                    let variant = crate::turn_layer::source_turn_sequence(true, entry.is_180, entry.lr);
+                if let Some(entry) = turn_stack.and_then(|stack| {
+                    stack.entries.iter().rev().find(|entry| {
+                        entry.crouching && entry.sampling_ready && entry.weight() > 0.0
+                    })
+                }) {
+                    let variant =
+                        crate::turn_layer::source_turn_sequence(true, entry.is_180, entry.lr);
                     animation_window.observed_animation_variant = Some(variant);
                     animation_window.observed_animation_clip_time = Some(entry.elapsed);
                     animation_window.observed_animation_play_rate = Some(entry.play_rate);
                     animation_window.observed_animation_weight = Some(entry.weight());
-                    animation_window.observed_direction = Some(if entry.lr <= 0.5 { "Left" } else { "Right" });
-                    animation_window.observed_animation_curve_direct_yaw_speed_degrees = crate::standing_source::MONTAGES[variant]
-                        .curves.sample_all(entry.elapsed).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied();
+                    animation_window.observed_direction =
+                        Some(if entry.lr <= 0.5 { "Left" } else { "Right" });
+                    animation_window.observed_animation_curve_direct_yaw_speed_degrees =
+                        crate::standing_source::MONTAGES[variant]
+                            .curves
+                            .sample_all(entry.elapsed)
+                            .get(&crate::extensions::SourceCurveName::from(
+                                "RotationYawSpeed",
+                            ))
+                            .copied();
                 }
                 if active {
                     state.coverage.crouch_turn_active_mask |= 1 << side_index;
@@ -8148,9 +10868,14 @@ fn observe_manual_integration(
                     state.coverage.crouch_turn_completion_mask |= 1 << side_index;
                 }
             } else {
-                let sample = source_sequence_sample(player, &motion_probe.graphs, &format!(
-                    "{}\nSequence Player", crouch_stationary_animation_variant(validation.is_left(), false)
-                ));
+                let sample = source_sequence_sample(
+                    player,
+                    &motion_probe.graphs,
+                    &format!(
+                        "{}\nSequence Player",
+                        crouch_stationary_animation_variant(validation.is_left(), false)
+                    ),
+                );
                 let active = state.crouch_stationary_precondition_ready[side_index]
                     && crouching_graph.is_some_and(|telemetry| {
                         telemetry.actual_outer_weights[expected_parent_state as usize] > 1e-5
@@ -8161,8 +10886,10 @@ fn observe_manual_integration(
                     state.coverage.crouch_rotate_mask |= 1 << validation.side_index();
                 }
                 if state.coverage.crouch_rotate_mask & (1 << side_index) != 0
-                    && crouching_graph.is_some_and(|graph| graph.actual_outer_state == Some(0)
-                        && graph.actual_outer_transition_active == Some(false))
+                    && crouching_graph.is_some_and(|graph| {
+                        graph.actual_outer_state == Some(0)
+                            && graph.actual_outer_transition_active == Some(false)
+                    })
                 {
                     state.coverage.crouch_rotate_source_completion_mask |= 1 << side_index;
                 }
@@ -8171,12 +10898,16 @@ fn observe_manual_integration(
                 let settled = source_rotate_window_completed(
                     state.coverage.crouch_rotate_mask & (1 << side_index) != 0,
                     source_completed,
-                    source_stationary_precondition && standing_turn_rotation_settled(
-                        if validation.is_left() { 4 } else { 5 },
-                        crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, world_forward_to_yaw(*transform.forward()).to_degrees()),
-                        rotation_animation.map_or(0.0, |value| value.yaw_speed_degrees),
-                        turn_drive.is_some_and(|value| value.rotate_active),
-                    ),
+                    source_stationary_precondition
+                        && standing_turn_rotation_settled(
+                            if validation.is_left() { 4 } else { 5 },
+                            crate::turn_layer::character_turn_angle_from_radians(
+                                view_yaw.0,
+                                world_forward_to_yaw(*transform.forward()).to_degrees(),
+                            ),
+                            rotation_animation.map_or(0.0, |value| value.yaw_speed_degrees),
+                            turn_drive.is_some_and(|value| value.rotate_active),
+                        ),
                 );
                 if settled {
                     state.coverage.crouch_rotate_completion_mask |= 1 << side_index;
@@ -8194,10 +10925,8 @@ fn observe_manual_integration(
                     crouching_graph.and_then(|value| value.actual_outer_state);
                 animation_window.observed_parent_transition_active =
                     crouching_graph.and_then(|value| value.actual_outer_transition_active);
-                animation_window.observed_requested_parent_runtime_state =
-                    None;
-                animation_window.observed_requested_parent_transition_active =
-                    None;
+                animation_window.observed_requested_parent_runtime_state = None;
+                animation_window.observed_requested_parent_transition_active = None;
                 record_animation_window_trace(
                     &mut animation_window,
                     transform,
@@ -8212,13 +10941,26 @@ fn observe_manual_integration(
                     }),
                 );
                 animation_window.observed_animation_clip_time = sample.map(|value| value.0);
-                animation_window.observed_animation_curve_direct_yaw_speed_degrees = sample.map(|value| value.1);
-                animation_window.observed_animation_play_rate = crate::extensions::source_instance::source_player_property(player, "rotate_in_place_state.play_rate")
+                animation_window.observed_animation_curve_direct_yaw_speed_degrees =
+                    sample.map(|value| value.1);
+                animation_window.observed_animation_play_rate =
+                    crate::extensions::source_instance::source_player_property(
+                        player,
+                        "rotate_in_place_state.play_rate",
+                    )
                     .and_then(|value| value.as_f32().ok());
-                animation_window.observed_animation_weight = sample.and_then(|_| crouching_graph)
+                animation_window.observed_animation_weight = sample
+                    .and_then(|_| crouching_graph)
                     .map(|graph| graph.actual_outer_weights[expected_parent_state as usize]);
-                animation_window.observed_animation_variant = sample.map(|_| crouch_stationary_animation_variant(validation.is_left(), false));
-                animation_window.observed_direction = sample.map(|_| if validation.is_left() { "Left" } else { "Right" });
+                animation_window.observed_animation_variant = sample
+                    .map(|_| crouch_stationary_animation_variant(validation.is_left(), false));
+                animation_window.observed_direction = sample.map(|_| {
+                    if validation.is_left() {
+                        "Left"
+                    } else {
+                        "Right"
+                    }
+                });
             }
         }
     }
@@ -8405,8 +11147,13 @@ fn observe_manual_integration(
             movement_direction,
         )
     {
-        let expected_world =
-            crate::als::motion::view_relative_move_direction(case.move_dir, motion_probe.player_views.get(character).map_or(view_yaw.0, |view| view.0));
+        let expected_world = crate::als::motion::view_relative_move_direction(
+            case.move_dir,
+            motion_probe
+                .player_views
+                .get(character)
+                .map_or(view_yaw.0, |view| view.0),
+        );
         let expected_local = Vec2::new(
             expected_world.dot(transform.rotation * Vec3::NEG_Z),
             expected_world.dot(transform.rotation * Vec3::X),
@@ -8540,10 +11287,21 @@ fn observe_manual_integration(
     if state.scenario == IntegrationScenario::Notify {
         state.coverage.notify_roll_reentry |= state.notify_roll_restarted
             && roll.is_some_and(|roll| roll.active && roll.time < 0.1)
-            && motion_probe.source_inputs.get(instance.player_entity()).ok()
+            && motion_probe
+                .source_inputs
+                .get(instance.player_entity())
+                .ok()
                 .and_then(|inputs| inputs.slot_input_context("roll.pose"))
-                .is_some_and(|context| context.asset_samples.iter().filter(|sample|
-                    sample.identity.starts_with("roll:") && sample.clock.weight > 0.0).count() >= 2);
+                .is_some_and(|context| {
+                    context
+                        .asset_samples
+                        .iter()
+                        .filter(|sample| {
+                            sample.identity.starts_with("roll:") && sample.clock.weight > 0.0
+                        })
+                        .count()
+                        >= 2
+                });
         state.coverage.notify_rolling_action |=
             notify_action.is_some_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
         state.coverage.notify_mantling_action |=
@@ -8557,17 +11315,45 @@ fn observe_manual_integration(
     }
     if matches!(
         state.scenario,
-        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic | IntegrationScenario::Crouching | IntegrationScenario::CrouchingActions
+        IntegrationScenario::StandingDirection
+            | IntegrationScenario::StandingResponse
+            | IntegrationScenario::StandingStop
+            | IntegrationScenario::StandingTurn
+            | IntegrationScenario::StandingDynamic
+            | IntegrationScenario::Crouching
+            | IntegrationScenario::CrouchingActions
     ) && matches!(
         state.phase,
-        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic | IntegrationPhase::CrouchDirectionRegression
-    ) && (state.phase != IntegrationPhase::StandingStop || standing_stop_observation_active(state))
-      && (!matches!(state.phase, IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic) || !state.entered) {
+        IntegrationPhase::DirectionRegression
+            | IntegrationPhase::StandingResponse
+            | IntegrationPhase::StandingStop
+            | IntegrationPhase::StandingTurn
+            | IntegrationPhase::StandingDynamic
+            | IntegrationPhase::CrouchDirectionRegression
+    ) && (state.phase != IntegrationPhase::StandingStop
+        || standing_stop_observation_active(state))
+        && (!matches!(
+            state.phase,
+            IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic
+        ) || !state.entered)
+    {
         let crouching_actions = state.scenario == IntegrationScenario::CrouchingActions;
-        let (parent_state, parent_transition, parent_pose_ready) = action_graph_state(crouching_actions, standing_graph, crouching_graph);
-        let idle = parent_state == Some(0) && parent_transition == Some(false) && parent_pose_ready == Some(true)
-            && *stance == if crouching_actions { Stance::Crouching } else { Stance::Standing };
-        let source_node = if crouching_actions { "AB_Als_Crouching/Crouching States" } else { "AB_Als_Standing/Standing States" };
+        let (parent_state, parent_transition, parent_pose_ready) =
+            action_graph_state(crouching_actions, standing_graph, crouching_graph);
+        let idle = parent_state == Some(0)
+            && parent_transition == Some(false)
+            && parent_pose_ready == Some(true)
+            && *stance
+                == if crouching_actions {
+                    Stance::Crouching
+                } else {
+                    Stance::Standing
+                };
+        let source_node = if crouching_actions {
+            "AB_Als_Crouching/Crouching States"
+        } else {
+            "AB_Als_Standing/Standing States"
+        };
         let mut samples = Vec::new();
         let mut machines = Vec::new();
         let mut rotate_sample = None;
@@ -8576,7 +11362,11 @@ fn observe_manual_integration(
             if let Some(ticks) = crate::extensions::sync_group_phase::source_sync_players(
                 arena,
                 &motion_probe.graphs,
-                if state.scenario == IntegrationScenario::Crouching || crouching_actions { "sync_groups.movement.phase" } else { "sync_groups.movement.phase" },
+                if state.scenario == IntegrationScenario::Crouching || crouching_actions {
+                    "sync_groups.movement.phase"
+                } else {
+                    "sync_groups.movement.phase"
+                },
             ) {
                 for tick in ticks {
                     let Some(child) = arena.get_context(tick.identity.0) else {
@@ -8621,14 +11411,35 @@ fn observe_manual_integration(
                             _ => continue,
                         };
                         let expected = if state.turn_case_index == 7 {
-                            if turn_drive.is_some_and(|drive| drive.rotate_lr <= 0.5) { "A_Als_Rotate_90_Left" } else { "A_Als_Rotate_90_Right" }
-                        } else { STANDING_TURN_CASES[state.turn_case_index].1 };
-                        if variant != expected || !child.node_caches.is_updated(node.id, StateKey::Default) {
+                            if turn_drive.is_some_and(|drive| drive.rotate_lr <= 0.5) {
+                                "A_Als_Rotate_90_Left"
+                            } else {
+                                "A_Als_Rotate_90_Right"
+                            }
+                        } else {
+                            STANDING_TURN_CASES[state.turn_case_index].1
+                        };
+                        if variant != expected
+                            || !child.node_caches.is_updated(node.id, StateKey::Default)
+                        {
                             continue;
                         }
-                        if let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>() {
+                        if let Some(sequence) = node
+                            .try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()
+                        {
                             let position = child.node_states.get_time(node.id, StateKey::Default);
-                            rotate_sample = Some((variant, position, sequence.curves.sample_all(position).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0)));
+                            rotate_sample = Some((
+                                variant,
+                                position,
+                                sequence
+                                    .curves
+                                    .sample_all(position)
+                                    .get(&crate::extensions::SourceCurveName::from(
+                                        "RotationYawSpeed",
+                                    ))
+                                    .copied()
+                                    .unwrap_or(0.0),
+                            ));
                         }
                     }
                 }
@@ -8645,7 +11456,8 @@ fn observe_manual_integration(
                     if !child.node_caches.is_updated(node.id, StateKey::Default) {
                         continue;
                     }
-                    let Some(fsm) = node.try_inner_downcast_ref::<crate::extensions::InterruptibleFsmNode>()
+                    let Some(fsm) =
+                        node.try_inner_downcast_ref::<crate::extensions::InterruptibleFsmNode>()
                     else {
                         continue;
                     };
@@ -8654,7 +11466,10 @@ fn observe_manual_integration(
                     };
                     let Ok(runtime) = child
                         .node_states
-                        .get::<crate::extensions::InterruptibleFsmState>(node.id, StateKey::Default)
+                        .get::<crate::extensions::InterruptibleFsmState>(
+                            node.id,
+                            StateKey::Default,
+                        )
                     else {
                         continue;
                     };
@@ -8693,15 +11508,27 @@ fn observe_manual_integration(
             "pose_state.unweighted_gait_running_amount",
             "animation.delta_seconds",
         ]
-        .map(|key| (key, crate::extensions::source_instance::source_player_property(player, key)
-            .and_then(|value| value.as_f32().ok()).or_else(|| graph_global_f32(player, key))));
+        .map(|key| {
+            (
+                key,
+                crate::extensions::source_instance::source_player_property(player, key)
+                    .and_then(|value| value.as_f32().ok())
+                    .or_else(|| graph_global_f32(player, key)),
+            )
+        });
         if state.phase == IntegrationPhase::StandingStop {
             let index = state.stop_case_index;
             let (label, branch, _, mode, right) = stop_cases(crouching_actions)[index];
             let quick = index >= if crouching_actions { 1 } else { 4 };
             state.stop_foot_planted = graph_global_f32(player, "feet_state.foot_planted_amount");
             state.stop_branch_seen |= machines.iter().any(|machine| {
-                (machine["node"] == if crouching_actions { "Crouching States\nState Machine" } else { "Stop States\nState Machine" }) && machine["state_label"] == branch
+                (machine["node"]
+                    == if crouching_actions {
+                        "Crouching States\nState Machine"
+                    } else {
+                        "Stop States\nState Machine"
+                    })
+                    && machine["state_label"] == branch
             });
             let expected = match (crouching_actions, quick) {
                 (true, true) => AlsTransitionKind::CrouchingQuickStop,
@@ -8710,19 +11537,33 @@ fn observe_manual_integration(
                 (false, false) => AlsTransitionKind::Stop,
             };
             let observed = transition_playback.filter(|playback| {
-                state.generated_stop_quick_input_released && playback.kind == expected
+                state.generated_stop_quick_input_released
+                    && playback.kind == expected
                     && playback.index == right
                     && motion_probe.rotation_mode.get(character).ok() == Some(&mode)
             });
-            let slot_ready = root_transition_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
+            let slot_ready = root_transition_slot
+                .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
             if let Some(playback) = observed.filter(|playback| playback.active && slot_ready) {
-                let profile_matches = playback.start_time == if quick { 0.3 } else if crouching_actions { 0.2 } else { 0.4 }
+                let profile_matches = playback.start_time
+                    == if quick {
+                        0.3
+                    } else if crouching_actions {
+                        0.2
+                    } else {
+                        0.4
+                    }
                     && playback.blend_in == if quick { 0.1 } else { 0.2 }
                     && playback.blend_out == 0.2
                     && if quick {
-                        if index == if crouching_actions { 1 } else { 4 } { playback.play_rate == 1.75 }
-                        else { (1.75..=3.035).contains(&playback.play_rate) }
-                    } else { playback.play_rate == 1.5 };
+                        if index == if crouching_actions { 1 } else { 4 } {
+                            playback.play_rate == 1.75
+                        } else {
+                            (1.75..=3.035).contains(&playback.play_rate)
+                        }
+                    } else {
+                        playback.play_rate == 1.5
+                    };
                 if profile_matches {
                     state.stop_playback = Some(*playback);
                     if quick {
@@ -8731,31 +11572,53 @@ fn observe_manual_integration(
                 }
             }
             let completed = standing_stop_completed(
-                state.stop_branch_seen, state.stop_playback.as_ref(), observed, idle,
+                state.stop_branch_seen,
+                state.stop_playback.as_ref(),
+                observed,
+                idle,
             );
             state.coverage.standing_stop[index] |= completed;
             let capture = state.stop_playback.is_some();
-            let expected_variant = if crouching_actions { if right > 0.5 { "A_Als_Crouch_Transition_Right" } else { "A_Als_Crouch_Transition_Left" } } else { match (quick, right > 0.5) {
-                (false, false) => "A_Als_Stop_Left",
-                (false, true) => "A_Als_Stop_Right",
-                (true, false) => "A_Als_Stand_Transition_Left",
-                (true, true) => "A_Als_Stand_Transition_Right",
-            } };
+            let expected_variant = if crouching_actions {
+                if right > 0.5 {
+                    "A_Als_Crouch_Transition_Right"
+                } else {
+                    "A_Als_Crouch_Transition_Left"
+                }
+            } else {
+                match (quick, right > 0.5) {
+                    (false, false) => "A_Als_Stop_Left",
+                    (false, true) => "A_Als_Stop_Right",
+                    (true, false) => "A_Als_Stand_Transition_Left",
+                    (true, true) => "A_Als_Stand_Transition_Right",
+                }
+            };
             **animation_window = ManualAnimationWindowEvidence {
-                label: Some(label), settled: capture, capture_source_window: capture,
+                label: Some(label),
+                settled: capture,
+                capture_source_window: capture,
                 capture_every_frame: capture,
-                requires_pre_rig_motion: true, requires_final_pose_motion: true,
-                requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-                source_node: Some(source_node), source_state: Some(branch),
+                requires_pre_rig_motion: true,
+                requires_final_pose_motion: true,
+                requires_non_reference_root_pose: true,
+                requires_source_pose_chain: true,
+                source_node: Some(source_node),
+                source_state: Some(branch),
                 source_pose_chain: generated_stop_quick_source_pose_chain(crouching_actions),
                 expected_animation_variant: Some(expected_variant),
-                observed_animation_variant: observed.and_then(crate::stop_link::source_transition_sequence),
+                observed_animation_variant: observed
+                    .and_then(crate::stop_link::source_transition_sequence),
                 observed_animation_clip_time: observed.map(|playback| playback.clip_time),
                 observed_animation_weight: observed.map(|playback| playback.weight),
                 observed_animation_play_rate: observed.map(|playback| playback.play_rate),
                 expected_lifecycle_stages: &["playing", "completed", "idle", "settled"],
-                observed_lifecycle_stages: if completed { &["completed", "idle", "settled"] }
-                    else if slot_ready { &["playing"] } else { &[] },
+                observed_lifecycle_stages: if completed {
+                    &["completed", "idle", "settled"]
+                } else if slot_ready {
+                    &["playing"]
+                } else {
+                    &[]
+                },
                 expected_terminal_parent_runtime_state: Some(0),
                 expected_terminal_parent_transition_active: Some(false),
                 expected_terminal_requested_parent_transition_active: Some(false),
@@ -8763,10 +11626,26 @@ fn observe_manual_integration(
                 observed_parent_transition_active: parent_transition,
                 observed_requested_parent_runtime_state: parent_state,
                 observed_requested_parent_transition_active: parent_transition,
-                canonical_clip_time: Some(0.8), maximum_clip_time_distance: 0.06,
+                canonical_clip_time: Some(0.8),
+                maximum_clip_time_distance: 0.06,
                 expected_direction: Some(if right > 0.5 { "Right" } else { "Left" }),
-                observed_direction: observed.map(|playback| if playback.index > 0.5 { "Right" } else { "Left" }),
-                direction_signature_group: if crouching_actions { (index >= 2).then_some("crouch_quick_stop_velocity") } else { match index { 0 | 1 => Some("stop_lock"), 2 | 3 => Some("stop_plant"), 5 | 6 => Some("quick_stop_velocity"), _ => None } },
+                observed_direction: observed.map(|playback| {
+                    if playback.index > 0.5 {
+                        "Right"
+                    } else {
+                        "Left"
+                    }
+                }),
+                direction_signature_group: if crouching_actions {
+                    (index >= 2).then_some("crouch_quick_stop_velocity")
+                } else {
+                    match index {
+                        0 | 1 => Some("stop_lock"),
+                        2 | 3 => Some("stop_plant"),
+                        5 | 6 => Some("quick_stop_velocity"),
+                        _ => None,
+                    }
+                },
                 required_direction_signature_members: 2,
                 minimum_direction_signature_rotation_radians: 1e-4,
                 ..default()
@@ -8775,77 +11654,172 @@ fn observe_manual_integration(
         if state.phase == IntegrationPhase::StandingDynamic {
             let index = state.stop_case_index;
             let (label, right) = STANDING_DYNAMIC_CASES[index];
-            let scale = graph_global_f32(player, "locomotion_state.scale_world_space").unwrap_or(1.0);
-            state.turn_probe.idle_ready = idle && speed <= 0.01
+            let scale =
+                graph_global_f32(player, "locomotion_state.scale_world_space").unwrap_or(1.0);
+            state.turn_probe.idle_ready = idle
+                && speed <= 0.01
                 && transition_playback.is_none_or(|playback| !playback.active);
             if let Some(arena) = arena
-                && let Ok(source) = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
-                && source.write_frames.get("dynamic_transitions.queued_sequence") == Some(&arena.frame_index())
+                && let Ok(source) = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                && source
+                    .write_frames
+                    .get("dynamic_transitions.queued_sequence")
+                    == Some(&arena.frame_index())
             {
-                let distance = ["left", "right"].map(|side| graph_dynamic_distance_squared_cm(player, side).unwrap_or(0.0));
-                let allowed = ["left", "right"].map(|side| graph_global_f32(player, &format!("feet_state.{side}.lock_amount")).unwrap_or(0.0) > 1e-5);
+                let distance = ["left", "right"]
+                    .map(|side| graph_dynamic_distance_squared_cm(player, side).unwrap_or(0.0));
+                let allowed = ["left", "right"].map(|side| {
+                    graph_global_f32(player, &format!("feet_state.{side}.lock_amount"))
+                        .unwrap_or(0.0)
+                        > 1e-5
+                });
                 let threshold = dynamic_threshold_squared_cm(scale);
-                let allowed = [allowed[0] && distance[0] > threshold, allowed[1] && distance[1] > threshold];
-                let expected = if !allowed[0] || (allowed[1] && distance[1] > distance[0]) { 1.0 } else { 0.0 };
-                let queued = source.values.get("dynamic_transitions.queued_sequence").and_then(|value| value.as_f32().ok())
+                let allowed = [
+                    allowed[0] && distance[0] > threshold,
+                    allowed[1] && distance[1] > threshold,
+                ];
+                let expected = if !allowed[0] || (allowed[1] && distance[1] > distance[0]) {
+                    1.0
+                } else {
+                    0.0
+                };
+                let queued = source
+                    .values
+                    .get("dynamic_transitions.queued_sequence")
+                    .and_then(|value| value.as_f32().ok())
                     .map(|index| dynamic_transition_side(crouching_actions, index));
-                state.dynamic_selection_valid &= (allowed[0] || allowed[1]) && queued == Some(expected)
-                    && player.get_global_input_data("transitions_state.b_transitions_allowed").and_then(|value| value.as_bool().ok()) == Some(true);
-                state.stop_branch_seen |= queued == Some(right) && state.turn_probe.started_at.is_some();
+                state.dynamic_selection_valid &= (allowed[0] || allowed[1])
+                    && queued == Some(expected)
+                    && player
+                        .get_global_input_data("transitions_state.b_transitions_allowed")
+                        .and_then(|value| value.as_bool().ok())
+                        == Some(true);
+                state.stop_branch_seen |=
+                    queued == Some(right) && state.turn_probe.started_at.is_some();
             }
-            let observed = standing_dynamic_observed(transition_stack, state.stop_playback.as_ref(),
-                if crouching_actions { AlsTransitionKind::CrouchingDynamic } else { AlsTransitionKind::StandingDynamic }, right);
-            let slot_ready = root_transition_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
-            if let Some(playback) = observed.filter(|playback| playback.active && slot_ready && state.stop_branch_seen) {
-                if playback.start_time == 0.0 && playback.play_rate == 1.5 && playback.blend_in == 0.2 && playback.blend_out == 0.2 {
+            let observed = standing_dynamic_observed(
+                transition_stack,
+                state.stop_playback.as_ref(),
+                if crouching_actions {
+                    AlsTransitionKind::CrouchingDynamic
+                } else {
+                    AlsTransitionKind::StandingDynamic
+                },
+                right,
+            );
+            let slot_ready = root_transition_slot
+                .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
+            if let Some(playback) =
+                observed.filter(|playback| playback.active && slot_ready && state.stop_branch_seen)
+            {
+                if playback.start_time == 0.0
+                    && playback.play_rate == 1.5
+                    && playback.blend_in == 0.2
+                    && playback.blend_out == 0.2
+                {
                     state.stop_playback = Some(*playback);
                     state.coverage.standing_graph |= idle;
                 }
             }
             let foot = foot_lock.map(|feet| if right > 0.5 { &feet.right } else { &feet.left });
-            state.dynamic_unlocked |= state.stop_playback.is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
+            state.dynamic_unlocked |=
+                state.stop_playback.is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
             let restored = standing_dynamic_foot_restored(state.dynamic_unlocked, foot, scale);
-            let completed = state.dynamic_selection_valid && restored && idle
-                && standing_dynamic_stopped(state.stop_branch_seen, state.stop_playback.as_ref(), observed, idle)
+            let completed = state.dynamic_selection_valid
+                && restored
+                && idle
+                && standing_dynamic_stopped(
+                    state.stop_branch_seen,
+                    state.stop_playback.as_ref(),
+                    observed,
+                    idle,
+                )
                 && root_transition_slot.is_some_and(|slot| !slot.active);
             state.coverage.standing_dynamic[index] |= completed;
             let capture = state.stop_playback.is_some() && (observed.is_some() || completed);
-            let expected_variant = if crouching_actions { if right > 0.5 { "A_Als_Crouch_DynamicTransition_Right" } else { "A_Als_Crouch_DynamicTransition_Left" } } else { if right > 0.5 { "A_Als_Stand_DynamicTransition_Right" } else { "A_Als_Stand_DynamicTransition_Left" } };
+            let expected_variant = if crouching_actions {
+                if right > 0.5 {
+                    "A_Als_Crouch_DynamicTransition_Right"
+                } else {
+                    "A_Als_Crouch_DynamicTransition_Left"
+                }
+            } else {
+                if right > 0.5 {
+                    "A_Als_Stand_DynamicTransition_Right"
+                } else {
+                    "A_Als_Stand_DynamicTransition_Left"
+                }
+            };
             let chain = vec![
                 ManualAnimationPoseBoundary {
-                    label: "root_transition_slot", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
-                    node: "Slot 'Transition'\nGroup 'Grounded'", output: "Pose",
-                    minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                    label: "root_transition_slot",
+                    graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                    node: "Slot 'Transition'\nGroup 'Grounded'",
+                    output: "Pose",
+                    minimum_translation_span: 0.0,
+                    minimum_rotation_span_radians: 0.05,
                 },
                 ManualAnimationPoseBoundary {
-                    label: "locomotion_output", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
-                    node: "AB_Als_Locomotion\nLinked Anim Graph", output: "Pose",
-                    minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                    label: "locomotion_output",
+                    graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                    node: "AB_Als_Locomotion\nLinked Anim Graph",
+                    output: "Pose",
+                    minimum_translation_span: 0.0,
+                    minimum_rotation_span_radians: 0.05,
                 },
             ];
             **animation_window = ManualAnimationWindowEvidence {
-                label: Some(label), settled: capture, capture_source_window: capture, capture_every_frame: capture,
-                requires_pre_rig_motion: true, requires_final_pose_motion: true,
-                requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-                source_node: Some(if crouching_actions { "AB_Als_Crouching/Idle/RefreshDynamicTransitions" } else { "AB_Als_Standing/Idle/RefreshDynamicTransitions" }), source_state: Some("Idle"),
-                source_pose_chain: chain, expected_animation_variant: Some(expected_variant),
-                observed_animation_variant: observed.and_then(crate::stop_link::source_transition_sequence),
+                label: Some(label),
+                settled: capture,
+                capture_source_window: capture,
+                capture_every_frame: capture,
+                requires_pre_rig_motion: true,
+                requires_final_pose_motion: true,
+                requires_non_reference_root_pose: true,
+                requires_source_pose_chain: true,
+                source_node: Some(if crouching_actions {
+                    "AB_Als_Crouching/Idle/RefreshDynamicTransitions"
+                } else {
+                    "AB_Als_Standing/Idle/RefreshDynamicTransitions"
+                }),
+                source_state: Some("Idle"),
+                source_pose_chain: chain,
+                expected_animation_variant: Some(expected_variant),
+                observed_animation_variant: observed
+                    .and_then(crate::stop_link::source_transition_sequence),
                 observed_animation_clip_time: observed.map(|playback| playback.clip_time),
                 observed_animation_weight: observed.map(|playback| playback.weight),
                 observed_animation_play_rate: observed.map(|playback| playback.play_rate),
                 expected_lifecycle_stages: &["playing", "stopped", "foot_relocked", "settled"],
-                observed_lifecycle_stages: if completed { &["stopped", "foot_relocked", "settled"] }
-                    else if slot_ready { &["playing"] } else { &[] },
-                expected_terminal_parent_runtime_state: Some(0), expected_terminal_parent_transition_active: Some(false),
+                observed_lifecycle_stages: if completed {
+                    &["stopped", "foot_relocked", "settled"]
+                } else if slot_ready {
+                    &["playing"]
+                } else {
+                    &[]
+                },
+                expected_terminal_parent_runtime_state: Some(0),
+                expected_terminal_parent_transition_active: Some(false),
                 expected_terminal_requested_parent_transition_active: Some(false),
                 observed_parent_runtime_state: parent_state,
                 observed_parent_transition_active: parent_transition,
                 observed_requested_parent_runtime_state: parent_state,
                 observed_requested_parent_transition_active: parent_transition,
-                canonical_clip_time: Some(0.4), maximum_clip_time_distance: 0.06,
+                canonical_clip_time: Some(0.4),
+                maximum_clip_time_distance: 0.06,
                 expected_direction: Some(if right > 0.5 { "Right" } else { "Left" }),
-                observed_direction: observed.map(|playback| if playback.index > 0.5 { "Right" } else { "Left" }),
-                direction_signature_group: Some("standing_dynamic"), required_direction_signature_members: 2,
+                observed_direction: observed.map(|playback| {
+                    if playback.index > 0.5 {
+                        "Right"
+                    } else {
+                        "Left"
+                    }
+                }),
+                direction_signature_group: Some("standing_dynamic"),
+                required_direction_signature_members: 2,
                 minimum_direction_signature_rotation_radians: 1e-4,
                 ..default()
             };
@@ -8854,16 +11828,32 @@ fn observe_manual_integration(
             let index = state.turn_case_index;
             let (mut label, mut expected_variant, yaw_degrees) = STANDING_TURN_CASES[index];
             if crouching_actions {
-                expected_variant = if index == 2 { "A_Als_Crouch_Turn_180_Left" } else { "A_Als_Crouch_Turn_180_Right" };
+                expected_variant = if index == 2 {
+                    "A_Als_Crouch_Turn_180_Left"
+                } else {
+                    "A_Als_Crouch_Turn_180_Right"
+                };
             }
             let rotating = matches!(index, 4 | 5 | 7);
-            let driven_elapsed = state.turn_probe.started_at.map_or(0.0, |started| state.phase_elapsed() - started);
+            let driven_elapsed = state
+                .turn_probe
+                .started_at
+                .map_or(0.0, |started| state.phase_elapsed() - started);
             if index == 7 {
-                label = if driven_elapsed < 4.0 { "aim_fast_left" } else if driven_elapsed < 8.0 { "aim_fast_right" } else { "aim_fast_reversals" };
+                label = if driven_elapsed < 4.0 {
+                    "aim_fast_left"
+                } else if driven_elapsed < 8.0 {
+                    "aim_fast_right"
+                } else {
+                    "aim_fast_reversals"
+                };
                 if state.turn_probe.started_at.is_some() {
                     let yaw = world_forward_to_yaw(*transform.forward());
                     if let Some(previous) = state.turn_probe.previous_yaw {
-                        let delta = crate::als::turn_in_place::wrap_angle_degrees((yaw - previous).to_degrees()).to_radians();
+                        let delta = crate::als::turn_in_place::wrap_angle_degrees(
+                            (yaw - previous).to_degrees(),
+                        )
+                        .to_radians();
                         state.turn_probe.yaw_travel[usize::from(delta < 0.0)] += delta.abs();
                     }
                     state.turn_probe.previous_yaw = Some(yaw);
@@ -8871,45 +11861,116 @@ fn observe_manual_integration(
             }
             let slot_idle = turn_slot.is_some_and(|slot| !slot.active && slot.weight <= 0.05);
             let epoch = turn_drive.map_or(0.0, |drive| drive.inertialization_request_epoch);
-            let mode_matches = motion_probe.rotation_mode.get(character).is_ok_and(|mode| *mode == if rotating { RotationMode::Aiming } else { RotationMode::ViewDirection });
-            let rotation_settled = standing_turn_rotation_settled(index,
-                crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, world_forward_to_yaw(*transform.forward()).to_degrees()),
+            let mode_matches = motion_probe.rotation_mode.get(character).is_ok_and(|mode| {
+                *mode
+                    == if rotating {
+                        RotationMode::Aiming
+                    } else {
+                        RotationMode::ViewDirection
+                    }
+            });
+            let rotation_settled = standing_turn_rotation_settled(
+                index,
+                crate::turn_layer::character_turn_angle_from_radians(
+                    view_yaw.0,
+                    world_forward_to_yaw(*transform.forward()).to_degrees(),
+                ),
                 rotation_animation.map_or(f32::NAN, |animation| animation.yaw_speed_degrees),
-                turn_drive.is_none_or(|drive| drive.rotate_active));
+                turn_drive.is_none_or(|drive| drive.rotate_active),
+            );
             if state.turn_probe.started_at.is_none() {
-                state.turn_probe.idle_ready = mode_matches && idle && slot_idle && speed <= 0.01 && rotation_settled
+                state.turn_probe.idle_ready = mode_matches
+                    && idle
+                    && slot_idle
+                    && speed <= 0.01
+                    && rotation_settled
                     && transition_playback.is_none_or(|playback| !playback.active);
                 state.turn_probe.epoch_baseline = epoch;
             }
-            let entry = turn_stack.and_then(|stack| stack.entries.last()).filter(|entry| entry.crouching == crouching_actions && entry.sampling_ready);
-            let actual_variant = if rotating { rotate_sample.map(|sample| sample.0) }
-                else { entry.map(|entry| crate::turn_layer::source_turn_sequence(crouching_actions, entry.is_180, entry.lr)) };
-            let clip_time = if rotating { rotate_sample.map(|sample| sample.1) } else { entry.map(|entry| entry.elapsed) };
-            let rate = if rotating { turn_drive.map(|drive| drive.rotate_rate) } else { entry.map(|entry| entry.play_rate) };
-            let expected_state = if rotating { if yaw_degrees > 0.0 { 3 } else { 4 } } else { 0 };
-            let active = state.turn_probe.started_at.is_some() && mode_matches
+            let entry = turn_stack
+                .and_then(|stack| stack.entries.last())
+                .filter(|entry| entry.crouching == crouching_actions && entry.sampling_ready);
+            let actual_variant = if rotating {
+                rotate_sample.map(|sample| sample.0)
+            } else {
+                entry.map(|entry| {
+                    crate::turn_layer::source_turn_sequence(
+                        crouching_actions,
+                        entry.is_180,
+                        entry.lr,
+                    )
+                })
+            };
+            let clip_time = if rotating {
+                rotate_sample.map(|sample| sample.1)
+            } else {
+                entry.map(|entry| entry.elapsed)
+            };
+            let rate = if rotating {
+                turn_drive.map(|drive| drive.rotate_rate)
+            } else {
+                entry.map(|entry| entry.play_rate)
+            };
+            let expected_state = if rotating {
+                if yaw_degrees > 0.0 { 3 } else { 4 }
+            } else {
+                0
+            };
+            let active = state.turn_probe.started_at.is_some()
+                && mode_matches
                 && (parent_pose_ready == Some(true)
-                    && if index == 7 { matches!(parent_state, Some(3 | 4)) || parent_transition == Some(true) }
-                    else { parent_state == Some(expected_state) && parent_transition == Some(false) })
-                && if rotating { rotate_sample.is_some() } else { turn_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05) }
+                    && if index == 7 {
+                        matches!(parent_state, Some(3 | 4)) || parent_transition == Some(true)
+                    } else {
+                        parent_state == Some(expected_state) && parent_transition == Some(false)
+                    })
+                && if rotating {
+                    rotate_sample.is_some()
+                } else {
+                    turn_slot
+                        .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05)
+                }
                 && actual_variant.is_some_and(|variant| index >= 6 || variant == expected_variant);
             if active {
                 state.coverage.standing_graph = true;
                 state.turn_probe.active_seen = true;
-                state.turn_probe.clip_peak = state.turn_probe.clip_peak.max(clip_time.unwrap_or(0.0));
-                state.turn_probe.max_play_rate = state.turn_probe.max_play_rate.max(rate.unwrap_or(0.0));
-                state.turn_probe.invalid_rate |= rate.is_none_or(|rate| if rotating { !(1.15 - 1e-4..=3.0 + 1e-4).contains(&rate) } else { (rate - 1.2).abs() > 1e-6 });
+                state.turn_probe.clip_peak =
+                    state.turn_probe.clip_peak.max(clip_time.unwrap_or(0.0));
+                state.turn_probe.max_play_rate =
+                    state.turn_probe.max_play_rate.max(rate.unwrap_or(0.0));
+                state.turn_probe.invalid_rate |= rate.is_none_or(|rate| {
+                    if rotating {
+                        !(1.15 - 1e-4..=3.0 + 1e-4).contains(&rate)
+                    } else {
+                        (rate - 1.2).abs() > 1e-6
+                    }
+                });
                 if index == 7 {
-                    state.turn_probe.sides_mask |= if actual_variant.is_some_and(|variant| variant.ends_with("Left")) { 1 } else { 2 };
+                    state.turn_probe.sides_mask |=
+                        if actual_variant.is_some_and(|variant| variant.ends_with("Left")) {
+                            1
+                        } else {
+                            2
+                        };
                 }
                 if let Some(entry) = entry.filter(|_| !rotating) {
                     state.turn_probe.sides_mask |= if entry.lr <= 0.5 { 1 } else { 2 };
                 }
             }
-            let completed = standing_turn_completed(index, &state.turn_probe,
-                idle && rotation_settled, slot_idle, epoch, driven_elapsed);
+            let completed = standing_turn_completed(
+                index,
+                &state.turn_probe,
+                idle && rotation_settled,
+                slot_idle,
+                epoch,
+                driven_elapsed,
+            );
             state.coverage.standing_turn[index] |= completed;
-            let mut chain = if crouching_actions { crouch_turn_source_pose_chain() } else { generated_stop_quick_source_pose_chain(false) };
+            let mut chain = if crouching_actions {
+                crouch_turn_source_pose_chain()
+            } else {
+                generated_stop_quick_source_pose_chain(false)
+            };
             if !crouching_actions && rotating && index != 7 {
                 chain.insert(0, ManualAnimationPoseBoundary {
                     label: "standing_rotate_sequence",
@@ -8927,37 +11988,123 @@ fn observe_manual_integration(
                 });
             }
             **animation_window = ManualAnimationWindowEvidence {
-                label: Some(label), settled: active || completed, capture_source_window: (active && (index != 7 || driven_elapsed >= 0.75)) || completed,
-                capture_every_frame: true, requires_pre_rig_motion: active, requires_final_pose_motion: active,
-                requires_non_reference_root_pose: active, requires_source_pose_chain: active,
-                requires_actor_yaw_motion: active, expected_actor_yaw_baseline: Some(state.turn_probe.base_yaw),
-                expected_actor_yaw_delta_sign: (index < 6).then_some(if yaw_degrees > 0.0 { 1 } else { -1 }),
-                minimum_actor_yaw_delta_radians: if crouching_actions { 3.0 } else if index >= 6 { 0.5 } else { 1.4 },
-                minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05,
-                source_node: Some(source_node), source_state: Some(if rotating { "Rotate" } else { "Idle" }),
-                source_pose_chain: chain, expected_animation_variant: (index < 6).then_some(expected_variant),
+                label: Some(label),
+                settled: active || completed,
+                capture_source_window: (active && (index != 7 || driven_elapsed >= 0.75))
+                    || completed,
+                capture_every_frame: true,
+                requires_pre_rig_motion: active,
+                requires_final_pose_motion: active,
+                requires_non_reference_root_pose: active,
+                requires_source_pose_chain: active,
+                requires_actor_yaw_motion: active,
+                expected_actor_yaw_baseline: Some(state.turn_probe.base_yaw),
+                expected_actor_yaw_delta_sign: (index < 6).then_some(if yaw_degrees > 0.0 {
+                    1
+                } else {
+                    -1
+                }),
+                minimum_actor_yaw_delta_radians: if crouching_actions {
+                    3.0
+                } else if index >= 6 {
+                    0.5
+                } else {
+                    1.4
+                },
+                minimum_pre_rig_rotation_span_radians: 0.05,
+                minimum_final_rotation_span_radians: 0.05,
+                source_node: Some(source_node),
+                source_state: Some(if rotating { "Rotate" } else { "Idle" }),
+                source_pose_chain: chain,
+                expected_animation_variant: (index < 6).then_some(expected_variant),
                 expected_parent_runtime_state: (index != 7).then_some(expected_state),
                 observed_parent_runtime_state: parent_state,
                 observed_parent_transition_active: parent_transition,
                 observed_requested_parent_runtime_state: parent_state,
                 observed_requested_parent_transition_active: parent_transition,
-                expected_terminal_parent_runtime_state: (index != 7 || driven_elapsed >= 8.0).then_some(0), expected_terminal_parent_transition_active: (index != 7 || driven_elapsed >= 8.0).then_some(false),
-                expected_terminal_requested_parent_transition_active: (index != 7 || driven_elapsed >= 8.0).then_some(false),
-                expected_lifecycle_stages: if index == 7 && driven_elapsed < 8.0 { &["playing"] } else { &["playing", "settled"] },
-                observed_lifecycle_stages: if completed { &["settled"] } else if active { &["playing"] } else { &[] },
-                canonical_clip_time: (index < 6).then_some(if rotating { 0.5 } else { 0.6 }), maximum_clip_time_distance: 0.06,
-                direction_signature_group: match index { 0 | 1 => Some("standing_turn_90"), 2 | 3 => Some("standing_turn_180"), 4 | 5 => Some("standing_rotate"), _ => None },
-                required_direction_signature_members: 2, minimum_direction_signature_rotation_radians: 1e-4,
-                expected_direction: (index < 6).then_some(if yaw_degrees > 0.0 { "Left" } else { "Right" }),
-                observed_direction: actual_variant.map(|variant| if variant.ends_with("Left") { "Left" } else { "Right" }),
+                expected_terminal_parent_runtime_state: (index != 7 || driven_elapsed >= 8.0)
+                    .then_some(0),
+                expected_terminal_parent_transition_active: (index != 7 || driven_elapsed >= 8.0)
+                    .then_some(false),
+                expected_terminal_requested_parent_transition_active: (index != 7
+                    || driven_elapsed >= 8.0)
+                    .then_some(false),
+                expected_lifecycle_stages: if index == 7 && driven_elapsed < 8.0 {
+                    &["playing"]
+                } else {
+                    &["playing", "settled"]
+                },
+                observed_lifecycle_stages: if completed {
+                    &["settled"]
+                } else if active {
+                    &["playing"]
+                } else {
+                    &[]
+                },
+                canonical_clip_time: (index < 6).then_some(if rotating { 0.5 } else { 0.6 }),
+                maximum_clip_time_distance: 0.06,
+                direction_signature_group: match index {
+                    0 | 1 => Some("standing_turn_90"),
+                    2 | 3 => Some("standing_turn_180"),
+                    4 | 5 => Some("standing_rotate"),
+                    _ => None,
+                },
+                required_direction_signature_members: 2,
+                minimum_direction_signature_rotation_radians: 1e-4,
+                expected_direction: (index < 6).then_some(if yaw_degrees > 0.0 {
+                    "Left"
+                } else {
+                    "Right"
+                }),
+                observed_direction: actual_variant.map(|variant| {
+                    if variant.ends_with("Left") {
+                        "Left"
+                    } else {
+                        "Right"
+                    }
+                }),
                 ..default()
             };
-            record_animation_window_trace(&mut animation_window, transform, view_yaw.0, rotation_animation, None, turn_drive, turn_stack, crouching_actions, actual_variant);
-            if let Some(clip_time) = clip_time { animation_window.observed_animation_clip_time = Some(clip_time); }
-            if let Some(rate) = rate { animation_window.observed_animation_play_rate = Some(rate); }
-            animation_window.observed_animation_weight = Some(if rotating { if active { 1.0 } else { 0.0 } } else { entry.map_or(0.0, |entry| entry.weight()) });
-            animation_window.observed_animation_curve_direct_yaw_speed_degrees = if rotating { rotate_sample.map(|sample| sample.2) }
-                else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(crouching_actions, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0)) };
+            record_animation_window_trace(
+                &mut animation_window,
+                transform,
+                view_yaw.0,
+                rotation_animation,
+                None,
+                turn_drive,
+                turn_stack,
+                crouching_actions,
+                actual_variant,
+            );
+            if let Some(clip_time) = clip_time {
+                animation_window.observed_animation_clip_time = Some(clip_time);
+            }
+            if let Some(rate) = rate {
+                animation_window.observed_animation_play_rate = Some(rate);
+            }
+            animation_window.observed_animation_weight = Some(if rotating {
+                if active { 1.0 } else { 0.0 }
+            } else {
+                entry.map_or(0.0, |entry| entry.weight())
+            });
+            animation_window.observed_animation_curve_direct_yaw_speed_degrees = if rotating {
+                rotate_sample.map(|sample| sample.2)
+            } else {
+                entry.map(|entry| {
+                    crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(
+                        crouching_actions,
+                        entry.is_180,
+                        entry.lr,
+                    )]
+                    .curves
+                    .sample_all(entry.elapsed)
+                    .get(&crate::extensions::SourceCurveName::from(
+                        "RotationYawSpeed",
+                    ))
+                    .copied()
+                    .unwrap_or(0.0)
+                })
+            };
         }
         gate_report.direction_trace.push(serde_json::json!({
             "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.phase == IntegrationPhase::StandingStop { Some(stop_cases(crouching_actions)[state.stop_case_index].0) } else if state.phase == IntegrationPhase::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else if state.phase == IntegrationPhase::StandingDynamic { Some(STANDING_DYNAMIC_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::Crouching { state.crouch_stationary_validation.map(|value| match value { CrouchStationaryValidation::TurnLeft => "crouch_turn_left", CrouchStationaryValidation::TurnRight => "crouch_turn_right", CrouchStationaryValidation::RotateLeft => "crouch_rotate_left", CrouchStationaryValidation::RotateRight => "crouch_rotate_right" }).or_else(|| crouch_direction_regression_case(state.crouch_direction_case_index).map(|case| case.name)) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
@@ -9003,12 +12150,12 @@ fn observe_manual_integration(
             state.coverage.response_reverse |= (4.5..5.5).contains(&elapsed) && speed > 0.1;
             state.coverage.response_cycle |= (8.0..8.5).contains(&elapsed) && speed > 0.1;
             if elapsed >= 11.5 {
-                state.coverage.response_idle &= standing_graph.is_some_and(|graph| {
-                    graph.actual_standing_state == Some(0)
-                        && graph.actual_standing_transition_active == Some(false)
-                })
-                && context.and_then(|context| context.f32("PoseMoving")) == Some(0.0)
-                && transition_playback.is_none_or(|value| !value.active);
+                state.coverage.response_idle &=
+                    standing_graph.is_some_and(|graph| {
+                        graph.actual_standing_state == Some(0)
+                            && graph.actual_standing_transition_active == Some(false)
+                    }) && context.and_then(|context| context.f32("PoseMoving")) == Some(0.0)
+                        && transition_playback.is_none_or(|value| !value.active);
             }
         }
     }
@@ -9130,7 +12277,8 @@ fn observe_manual_integration(
     {
         state.coverage.landed = true;
     }
-    state.coverage.overlay |= *overlay == OverlayState::Rifle && overlay_tag.as_ref() == Some(&overlay.tag());
+    state.coverage.overlay |=
+        *overlay == OverlayState::Rifle && overlay_tag.as_ref() == Some(&overlay.tag());
     state.coverage.gait_layer |=
         gait_blend.is_some_and(|blend| blend.weights.sprint_w > 1e-4) && *gait == Gait::Sprinting;
     state.coverage.stance_layer |=
@@ -9169,8 +12317,14 @@ fn observe_manual_integration(
             .map_or(0, |telemetry| telemetry.stop_quick_count);
         let observed = if state.phase == IntegrationPhase::TransitionNotify {
             let released = state.generated_stop_quick_input_released;
-            generated_stop_quick_observed(&mut state.generated_stop_quick_count_before, released, count)
-        } else { count > 0 };
+            generated_stop_quick_observed(
+                &mut state.generated_stop_quick_count_before,
+                released,
+                count,
+            )
+        } else {
+            count > 0
+        };
         state.coverage.generated_transition_stop_quick |= observed;
         if let Some(telemetry) = standing_graph {
             let previous_mask = state.p1_ground_mask;
@@ -9359,12 +12513,16 @@ fn observe_manual_integration(
         }
     }
     state.coverage.control_rig |= control_rig_ready;
-    if state.scenario == IntegrationScenario::ControlRig && !state.coverage.control_rig_actions
-        && let Some([left, right, spine]) = control_rig_action_evidence(player, &motion_probe.graphs, &motion_probe.skeletons)
+    if state.scenario == IntegrationScenario::ControlRig
+        && !state.coverage.control_rig_actions
+        && let Some([left, right, spine]) =
+            control_rig_action_evidence(player, &motion_probe.graphs, &motion_probe.skeletons)
     {
         gate_report.direction_trace.push(serde_json::json!({"control_rig_actions": {
             "hand_left_ik_weight": left, "hand_right_ik_weight": right, "spine_local_rotation_delta_radians": spine }}));
-        info!("[MANUAL-INTEGRATION][CR-ALS-ACTIONS] hand_left_weight={left:.6} hand_right_weight={right:.6} spine_local_delta_radians={spine:.6} -> PASS");
+        info!(
+            "[MANUAL-INTEGRATION][CR-ALS-ACTIONS] hand_left_weight={left:.6} hand_right_weight={right:.6} spine_local_delta_radians={spine:.6} -> PASS"
+        );
         state.coverage.control_rig_actions = true;
     }
     if let Ok((construction, input)) = control_rig_runtime.get(character) {
@@ -9383,7 +12541,8 @@ fn observe_manual_integration(
                 || input.velocity_blend_backward_amount.abs() > 1e-3
                 || input.spine_yaw_angle_degrees.abs() > 1e-3);
         let stage_ready = construction.initialization_count == 1
-            && construction.executed_steps > 0 && construction.frame > 0;
+            && construction.executed_steps > 0
+            && construction.frame > 0;
         let foot_targets_ready = foot_ik_data
             .get(character)
             .is_ok_and(|(_, space, apply, _)| {
@@ -9431,11 +12590,21 @@ fn observe_manual_integration(
     }
 
     if let Some(mantle) = mantle {
-        let actor_world = motion_probe.transforms.compute_global_transform(character).ok();
-        if state.scenario == IntegrationScenario::Base && state.phase == IntegrationPhase::Mantle
-            && mantle.active && mantle.root_motion_ready {
-            let dilation = ragdoll_probe.get_ups.get(character).ok()
-                .and_then(|(_, _, dilation)| dilation).map_or(1.0, |value| value.0);
+        let actor_world = motion_probe
+            .transforms
+            .compute_global_transform(character)
+            .ok();
+        if state.scenario == IntegrationScenario::Base
+            && state.phase == IntegrationPhase::Mantle
+            && mantle.active
+            && mantle.root_motion_ready
+        {
+            let dilation = ragdoll_probe
+                .get_ups
+                .get(character)
+                .ok()
+                .and_then(|(_, _, dilation)| dilation)
+                .map_or(1.0, |value| value.0);
             gate_report.direction_trace.push(serde_json::json!({
                 "mantle_actor_clock": true, "game_time": state.game_time_seconds,
                 "elapsed": mantle.time, "dilation": dilation,
@@ -9451,30 +12620,47 @@ fn observe_manual_integration(
         }
         if let Some(world) = actor_world {
             observe_mantle(
-                state, &mut animation_window, mantle, mantle_montages, player,
-                &motion_probe.graphs, *locomotion, notify_action.copied(), world.translation(),
+                state,
+                &mut animation_window,
+                mantle,
+                mantle_montages,
+                player,
+                &motion_probe.graphs,
+                *locomotion,
+                notify_action.copied(),
+                world.translation(),
             );
         }
     }
-    if !state.coverage.ground_prediction_debug && interface.debug_stats.ground_prediction_hit_points_drawn > 0
-        && let Some(trace) = state.avatar.and_then(|avatar| interface.ground_debug.get(avatar).ok())
-        && let Some((center, point)) = trace.hit {
+    if !state.coverage.ground_prediction_debug
+        && interface.debug_stats.ground_prediction_hit_points_drawn > 0
+        && let Some(trace) = state
+            .avatar
+            .and_then(|avatar| interface.ground_debug.get(avatar).ok())
+        && let Some((center, point)) = trace.hit
+    {
         state.coverage.ground_prediction_debug = true;
-        gate_report.direction_trace.push(serde_json::json!({"ground_prediction_debug_valid":true,
+        gate_report
+            .direction_trace
+            .push(serde_json::json!({"ground_prediction_debug_valid":true,
             "start":trace.start,"end":trace.end,"hit_center":center,"impact_point":point,
             "shape_half_extents":trace.shape.shape_scaled().compute_local_aabb().half_extents()}));
     }
-    if state.phase == IntegrationPhase::Camera && interface.debug_stats.camera_trace_lines_drawn > 0
-        && interface.debug_stats.camera_pivot_spheres_drawn == 9 {
+    if state.phase == IntegrationPhase::Camera
+        && interface.debug_stats.camera_trace_lines_drawn > 0
+        && interface.debug_stats.camera_pivot_spheres_drawn == 9
+    {
         state.coverage.camera_debug_geometry = true;
     }
-    if state.phase == IntegrationPhase::Mantle && !state.coverage.mantle_debug
+    if state.phase == IntegrationPhase::Mantle
+        && !state.coverage.mantle_debug
         && let Ok(debug) = interface.motion_debug.get(character)
         && let Some(trace) = debug.0.mantle_probe
         && trace.result == crate::als::mantle::MantleProbeResult::Success
         && interface.debug_stats.cumulative_mantle_probes > 0
         && interface.debug_stats.mantle_probe_lines_drawn >= 2
-        && interface.debug_stats.mantle_hit_points_drawn >= 2 {
+        && interface.debug_stats.mantle_hit_points_drawn >= 2
+    {
         state.coverage.mantle_debug = true;
         gate_report.direction_trace.push(serde_json::json!({"mantle_debug_valid":true,
             "forward_start":trace.forward_start,"forward_end":trace.forward_end,"forward_hit":trace.forward_hit_center,
@@ -9744,15 +12930,22 @@ fn observe_manual_integration(
         && apply.right.valid
     {
         if state.phase == IntegrationPhase::FootIkTerrain {
-            let stable =
-                crate::extensions::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
-                    .is_some_and(|(_, _, rig)| {
-                        foot_ik_matches_source(
-                            apply,
-                            ["FootLeftIk", "FootRightIk"]
-                                .map(|name| rig.context.curves.get(&crate::extensions::SourceCurveName::from(name)).copied().unwrap_or(0.0)),
-                        )
-                    });
+            let stable = crate::extensions::root_graph_boundaries::current_control_rig(
+                player,
+                &motion_probe.graphs,
+            )
+            .is_some_and(|(_, _, rig)| {
+                foot_ik_matches_source(
+                    apply,
+                    ["FootLeftIk", "FootRightIk"].map(|name| {
+                        rig.context
+                            .curves
+                            .get(&crate::extensions::SourceCurveName::from(name))
+                            .copied()
+                            .unwrap_or(0.0)
+                    }),
+                )
+            });
             if stable
                 && (spaces.left.has_ground_hit || spaces.right.has_ground_hit)
                 && (spaces.left.normal_world.y < 0.995 || spaces.right.normal_world.y < 0.995)
@@ -9798,11 +12991,19 @@ fn observe_manual_integration(
         }
         if state.phase == IntegrationPhase::Mantle
             && mantle.is_some_and(|mantle| mantle.active)
-            && let Some((_, _, rig)) =
-                crate::extensions::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
+            && let Some((_, _, rig)) = crate::extensions::root_graph_boundaries::current_control_rig(
+                player,
+                &motion_probe.graphs,
+            )
             && mantle_foot_ik_matches_source(
                 apply,
-                ["FootLeftIk", "FootRightIk"].map(|name| rig.context.curves.get(&crate::extensions::SourceCurveName::from(name)).copied().unwrap_or(0.0)),
+                ["FootLeftIk", "FootRightIk"].map(|name| {
+                    rig.context
+                        .curves
+                        .get(&crate::extensions::SourceCurveName::from(name))
+                        .copied()
+                        .unwrap_or(0.0)
+                }),
                 animation_window.observed_animation_weight,
             )
             && !state.coverage.foot_ik_mantle
@@ -9829,9 +13030,16 @@ fn observe_manual_integration(
     }
     if let Some(roll) = roll {
         state.coverage.roll_started |= roll.active;
-        if state.scenario == IntegrationScenario::Grounded && state.phase == IntegrationPhase::Roll && roll.active {
-            let dilation = ragdoll_probe.get_ups.get(character).ok()
-                .and_then(|(_, _, dilation)| dilation).map_or(1.0, |value| value.0);
+        if state.scenario == IntegrationScenario::Grounded
+            && state.phase == IntegrationPhase::Roll
+            && roll.active
+        {
+            let dilation = ragdoll_probe
+                .get_ups
+                .get(character)
+                .ok()
+                .and_then(|(_, _, dilation)| dilation)
+                .map_or(1.0, |value| value.0);
             gate_report.direction_trace.push(serde_json::json!({
                 "roll_actor_clock": true, "game_time": state.game_time_seconds,
                 "elapsed": roll.time, "dilation": dilation
@@ -9925,22 +13133,43 @@ fn observe_manual_integration(
                 && applied.handoff_animated_body_position_error_m <= 1e-4
                 && applied.handoff_animated_body_rotation_error_radians <= 1e-4
                 && spawned.colliders.values().all(|collider| {
-                    ragdoll_probe.collision_members.get(*collider).is_ok_and(|member| {
-                        let expected = source.bodies.iter().find(|body| body.source_index == member.body_index)
-                            .map(|body| body.source_layers);
-                        expected.is_some_and(|expected| member.source_layers == expected
-                            && member.group == spawned.root && member.disabled_pairs.len() == 49
-                            && ragdoll_probe.collision_layers.get(*collider).is_ok_and(|layers|
-                                *layers == if notify_action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
-                                    expected
-                                } else { CollisionLayers::NONE }))
-                    })
+                    ragdoll_probe
+                        .collision_members
+                        .get(*collider)
+                        .is_ok_and(|member| {
+                            let expected = source
+                                .bodies
+                                .iter()
+                                .find(|body| body.source_index == member.body_index)
+                                .map(|body| body.source_layers);
+                            expected.is_some_and(|expected| {
+                                member.source_layers == expected
+                                    && member.group == spawned.root
+                                    && member.disabled_pairs.len() == 49
+                                    && ragdoll_probe.collision_layers.get(*collider).is_ok_and(
+                                        |layers| {
+                                            *layers
+                                                == if notify_action
+                                                    == Some(&AlsNotifyLocomotionAction::Ragdolling)
+                                                {
+                                                    expected
+                                                } else {
+                                                    CollisionLayers::NONE
+                                                }
+                                        },
+                                    )
+                            })
+                        })
                 })
         });
         state.coverage.ragdoll_player_replaced |= profile_valid
-            && ragdoll_probe.replacements.get(instance.player_entity()).is_ok_and(|replacement|
-                replacement.old_root != spawned.root
-                    && !ragdoll_probe.alive.contains(replacement.old_root));
+            && ragdoll_probe
+                .replacements
+                .get(instance.player_entity())
+                .is_ok_and(|replacement| {
+                    replacement.old_root != spawned.root
+                        && !ragdoll_probe.alive.contains(replacement.old_root)
+                });
         let mut dynamic = 0usize;
         let mut root_kinematic = false;
         for body in spawned.bodies.values() {
@@ -9962,7 +13191,8 @@ fn observe_manual_integration(
             }
         }
         state.coverage.ragdoll_pa_profile |= profile_valid
-            && (notify_action != Some(&AlsNotifyLocomotionAction::Ragdolling) || (dynamic == 20 && root_kinematic));
+            && (notify_action != Some(&AlsNotifyLocomotionAction::Ragdolling)
+                || (dynamic == 20 && root_kinematic));
     }
     if notify_action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
         state.coverage.ragdoll_entered = true;
@@ -9986,30 +13216,73 @@ fn observe_manual_integration(
                 let expected_y = fixture.locomotion_start.y - 0.92
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
-                let (colliders_scaled, joint_scaled) = player.get_spawned_ragdoll().map_or((false, false), |spawned| {
-                    let colliders_scaled = ragdoll_probe.profiles.get(instance.player_entity()).is_ok_and(|(_, profile)|
-                        spawned.colliders.values().all(|entity|
-                            ragdoll_probe.colliders.get(*entity).is_ok_and(|(collider, label)|
-                                profile.colliders.iter().find(|source| source.label == label.0).is_some_and(|source| {
-                                    let base = source.shape.avian_collider().shape().compute_local_aabb().half_extents();
-                                    collider.shape_scaled().compute_local_aabb().half_extents().abs_diff_eq(base * 2.0, 1e-5)
-                                }))));
-                    let joint_scaled = ragdoll_probe.profiles.get(instance.player_entity()).ok()
-                        .and_then(|(_, profile)| profile.joints.iter().find(|joint|
-                            joint.definition.parent_frame.translation.length() > 0.01))
-                        .is_some_and(|source| spawned.joints.values().any(|entity|
-                            ragdoll_probe.joints.get(*entity).is_ok_and(|(joint, label)|
-                                label.0 == source.label
-                                    && joint.parent_frame.translation.abs_diff_eq(
-                                        source.definition.parent_frame.translation * 2.0, 1e-4)
-                                    && joint.child_frame.translation.abs_diff_eq(
-                                        source.definition.child_frame.translation * 2.0, 1e-4))));
-                    (colliders_scaled, joint_scaled)
-                });
+                let (colliders_scaled, joint_scaled) =
+                    player
+                        .get_spawned_ragdoll()
+                        .map_or((false, false), |spawned| {
+                            let colliders_scaled = ragdoll_probe
+                                .profiles
+                                .get(instance.player_entity())
+                                .is_ok_and(|(_, profile)| {
+                                    spawned.colliders.values().all(|entity| {
+                                        ragdoll_probe.colliders.get(*entity).is_ok_and(
+                                            |(collider, label)| {
+                                                profile
+                                                    .colliders
+                                                    .iter()
+                                                    .find(|source| source.label == label.0)
+                                                    .is_some_and(|source| {
+                                                        let base = source
+                                                            .shape
+                                                            .avian_collider()
+                                                            .shape()
+                                                            .compute_local_aabb()
+                                                            .half_extents();
+                                                        collider
+                                                            .shape_scaled()
+                                                            .compute_local_aabb()
+                                                            .half_extents()
+                                                            .abs_diff_eq(base * 2.0, 1e-5)
+                                                    })
+                                            },
+                                        )
+                                    })
+                                });
+                            let joint_scaled = ragdoll_probe
+                                .profiles
+                                .get(instance.player_entity())
+                                .ok()
+                                .and_then(|(_, profile)| {
+                                    profile.joints.iter().find(|joint| {
+                                        joint.definition.parent_frame.translation.length() > 0.01
+                                    })
+                                })
+                                .is_some_and(|source| {
+                                    spawned.joints.values().any(|entity| {
+                                        ragdoll_probe.joints.get(*entity).is_ok_and(
+                                            |(joint, label)| {
+                                                label.0 == source.label
+                                                    && joint.parent_frame.translation.abs_diff_eq(
+                                                        source.definition.parent_frame.translation
+                                                            * 2.0,
+                                                        1e-4,
+                                                    )
+                                                    && joint.child_frame.translation.abs_diff_eq(
+                                                        source.definition.child_frame.translation
+                                                            * 2.0,
+                                                        1e-4,
+                                                    )
+                                            },
+                                        )
+                                    })
+                                });
+                            (colliders_scaled, joint_scaled)
+                        });
                 let scaled = transform.scale == Vec3::splat(2.0)
                     && (follow.target.y - expected_y).abs() < 0.12
                     && (transform.translation.y - follow.target.y).abs() < 0.02
-                    && colliders_scaled && joint_scaled;
+                    && colliders_scaled
+                    && joint_scaled;
                 state.coverage.ragdoll_scaled |= scaled;
                 if state.ragdoll_grounded_at.is_none() {
                     info!(
@@ -10071,11 +13344,26 @@ fn observe_manual_integration(
                 && graph_global_f32(player, "post_locomotion.weight")
                     .is_some_and(|weight| weight > 0.0);
             if active {
-                state.coverage.get_up_airborne |= notify_action == Some(&AlsNotifyLocomotionAction::GettingUp)
+                state.coverage.get_up_airborne |= notify_action
+                    == Some(&AlsNotifyLocomotionAction::GettingUp)
                     && *locomotion != LocomotionState::Grounded;
-                state.coverage.get_up_rig_space_mismatch |= crate::extensions::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
-                    .zip(motion_probe.transforms.compute_global_transform(instance.player_entity()).ok())
-                    .is_none_or(|((_, _, rig), mesh)| !rig.to_world.translation.as_vec3().abs_diff_eq(mesh.translation(), 1e-5));
+                state.coverage.get_up_rig_space_mismatch |=
+                    crate::extensions::root_graph_boundaries::current_control_rig(
+                        player,
+                        &motion_probe.graphs,
+                    )
+                    .zip(
+                        motion_probe
+                            .transforms
+                            .compute_global_transform(instance.player_entity())
+                            .ok(),
+                    )
+                    .is_none_or(|((_, _, rig), mesh)| {
+                        !rig.to_world
+                            .translation
+                            .as_vec3()
+                            .abs_diff_eq(mesh.translation(), 1e-5)
+                    });
                 state.coverage.get_up_front |= !get_up.facing_up;
                 state.coverage.get_up_back |= get_up.facing_up;
                 state.coverage.get_up_input_locked[usize::from(get_up.facing_up)] |=
@@ -10083,11 +13371,14 @@ fn observe_manual_integration(
                 state.coverage.get_up_input_released[usize::from(get_up.facing_up)] |=
                     !blocked && notify_action == Some(&AlsNotifyLocomotionAction::None);
             }
-            if state.scenario == IntegrationScenario::GetUp && state.get_up_jump_requested_at.is_some() {
-                state.coverage.get_up_native_jump_rejected_during_action |= active && blocked
+            if state.scenario == IntegrationScenario::GetUp
+                && state.get_up_jump_requested_at.is_some()
+            {
+                state.coverage.get_up_native_jump_rejected_during_action |= active
+                    && blocked
                     && notify_action == Some(&AlsNotifyLocomotionAction::GettingUp)
-                    && *locomotion == LocomotionState::Grounded && velocity.y.abs() < 0.02;
-
+                    && *locomotion == LocomotionState::Grounded
+                    && velocity.y.abs() < 0.02;
             }
             let variant = if get_up.facing_up {
                 "GetUpBack"
@@ -10134,9 +13425,23 @@ fn observe_manual_integration(
     }
 
     if state.scenario == IntegrationScenario::Interface {
-        let parent_instance = player.get_context_arena().and_then(|arena| arena.get_toplevel().node_states.get::<crate::extensions::source_instance::SourceInstanceProperties>(bevy_animation_graph::core::animation_graph::NodeId::default(), StateKey::Default).ok()).map(|source| source.instance_id);
+        let parent_instance = player
+            .get_context_arena()
+            .and_then(|arena| {
+                arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<crate::extensions::source_instance::SourceInstanceProperties>(
+                        bevy_animation_graph::core::animation_graph::NodeId::default(),
+                        StateKey::Default,
+                    )
+                    .ok()
+            })
+            .map(|source| source.instance_id);
         if let Some(instance) = parent_instance {
-            state.interface_parent_preserved &= state.interface_parent_instance.is_none_or(|previous| previous == instance);
+            state.interface_parent_preserved &= state
+                .interface_parent_instance
+                .is_none_or(|previous| previous == instance);
             state.interface_parent_instance = Some(instance);
         }
         let hud_nodes_hidden = !interface.hud_debug_nodes.is_empty()
@@ -10177,21 +13482,37 @@ fn observe_manual_integration(
             state.interface_slomo_seen && state.interface_slomo_restored_seen;
 
         state.interface_menu_open_seen |= interface.menu_state.open
-            && interface.menu_state.root.and_then(|root| interface.menu_nodes.get(root).ok()).is_some_and(|node| node.display == Display::Flex)
+            && interface
+                .menu_state
+                .root
+                .and_then(|root| interface.menu_nodes.get(root).ok())
+                .is_some_and(|node| node.display == Display::Flex)
             && (interface.virtual_time.relative_speed() - 0.35).abs() < 1e-4;
         state.interface_menu_closed_seen |= state.interface_menu_open_seen
             && !interface.menu_state.open
-            && interface.menu_state.root.and_then(|root| interface.menu_nodes.get(root).ok()).is_some_and(|node| node.display == Display::None)
+            && interface
+                .menu_state
+                .root
+                .and_then(|root| interface.menu_nodes.get(root).ok())
+                .is_some_and(|node| node.display == Display::None)
             && (interface.virtual_time.relative_speed() - 1.0).abs() < 1e-4;
         state.coverage.overlay_menu =
             state.interface_menu_open_seen && state.interface_menu_closed_seen;
 
         let bow_bound = *overlay == OverlayState::Bow
             && overlay_tag.as_ref() == Some(&OverlayState::Bow.tag())
-            && active_layer_pose(player, &motion_probe, "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron");
+            && active_layer_pose(
+                player,
+                &motion_probe,
+                "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+            );
         let default_bound = *overlay == OverlayState::Default
             && overlay_tag.as_ref() == Some(&OverlayState::Default.tag())
-            && active_layer_pose(player, &motion_probe, "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron");
+            && active_layer_pose(
+                player,
+                &motion_probe,
+                "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+            );
         if bow_bound && !state.interface_overlay_bow_seen {
             info!(
                 "[MANUAL-INTEGRATION][ALI] selector=8 state=Bow generated_pose=true binding=PASS"
@@ -10217,8 +13538,7 @@ fn observe_manual_integration(
         state.interface_overlay_reentry_seen |=
             state.interface_overlay_default_after_bow_seen && bow_bound;
         state.coverage.overlay_interface_binding = state.interface_overlay_bow_seen;
-        state.coverage.overlay_interface_fallback =
-            state.interface_overlay_default_after_bow_seen;
+        state.coverage.overlay_interface_fallback = state.interface_overlay_default_after_bow_seen;
         state.coverage.overlay_interface_reentry = state.interface_overlay_reentry_seen;
         gate_report.direction_trace.push(serde_json::json!({"time":state.game_time_seconds, "bow_bound":bow_bound, "default_bound":default_bound, "parent_instance":parent_instance, "parent_preserved":state.interface_parent_preserved}));
 
@@ -10230,88 +13550,262 @@ fn observe_manual_integration(
             && !interface.show_debug_roots.is_empty();
         state.coverage.debug_draw |= state.coverage.show_debug && interface.debug_stats.total() > 0;
         if state.phase_elapsed() >= 5.0 {
-            hud_layout::observe_debug_keys(state.phase_elapsed(), &interface.show_debug,
-                &interface.show_debug_roots, &interface.debug_stats, &mut gate_report.direction_trace);
+            hud_layout::observe_debug_keys(
+                state.phase_elapsed(),
+                &interface.show_debug,
+                &interface.show_debug_roots,
+                &interface.debug_stats,
+                &mut gate_report.direction_trace,
+            );
         }
-        if state.interface_debug_armed && all_debug_categories_active && !interface.show_debug_roots.is_empty() {
-            let expected_context = state.avatar.and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
-                .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
-            let metadata: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
-            let mut expected: Vec<(String, String)> = metadata["curves"].as_array().unwrap().iter().map(|name| {
-                let name = name.as_str().unwrap();
-                (crate::show_debug_hud::name_to_display_string(name, false),
-                    expected_context.map(|context| {
-                        let value = context.f32(name).unwrap_or(0.0);
-                        let source = if value != 0.0 && ["RotationYawOffset", "RotationYawSpeed"].contains(&name) { -value } else { value };
-                        format!("{source:.2}")
-                    }).unwrap_or_else(|| "N/A".into()))
-            }).collect();
+        if state.interface_debug_armed
+            && all_debug_categories_active
+            && !interface.show_debug_roots.is_empty()
+        {
+            let expected_context = state
+                .avatar
+                .and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
+                .and_then(|instance| players.get(instance.player_entity()).ok())
+                .and_then(|(_, context)| context);
+            let metadata: serde_json::Value = serde_json::from_str(include_str!(
+                "../../assets/ALS/Character/als_character_curves.runtime.json"
+            ))
+            .unwrap();
+            let mut expected: Vec<(String, String)> = metadata["curves"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|name| {
+                    let name = name.as_str().unwrap();
+                    (
+                        crate::show_debug_hud::name_to_display_string(name, false),
+                        expected_context
+                            .map(|context| {
+                                let value = context.f32(name).unwrap_or(0.0);
+                                let source = if value != 0.0
+                                    && ["RotationYawOffset", "RotationYawSpeed"].contains(&name)
+                                {
+                                    -value
+                                } else {
+                                    value
+                                };
+                                format!("{source:.2}")
+                            })
+                            .unwrap_or_else(|| "N/A".into()),
+                    )
+                })
+                .collect();
             let actual_rotation = motion_probe.rotation_mode.get(character).copied().unwrap();
-            let desired_rotation = interface.desired_rotation_modes.get(character).map_or(actual_rotation, |value| value.0);
-            let desired_gait = motion_probe.gait.get(character).map_or(*gait, |(value, _)| value.0);
-            let aiming = motion_probe.inputs.get(character).ok().and_then(|(input, override_input)|
-                override_input.map(|value| &value.0).or(input)).is_some_and(|input| input.aim_held);
-            expected.push(("View Mode".into(), if first_person { "First Person" } else { "Third Person" }.into()));
-            expected.push(("Desired Aiming".into(), if aiming { "True" } else { "False" }.into()));
-            for (label, tag) in [("Locomotion Mode", locomotion.as_str()),
-                ("Desired Rotation Mode", desired_rotation.as_str()), ("Rotation Mode", actual_rotation.as_str()),
-                ("Desired Stance", desired_stance.map_or(*stance, |value| value.0).as_str()), ("Stance", stance.as_str()),
-                ("Desired Gait", desired_gait.as_str()), ("Gait", gait.as_str()), ("Overlay Mode", overlay.as_str()),
-                ("Locomotion Action", notify_action.copied().unwrap_or(AlsNotifyLocomotionAction::None).as_str())] {
-                expected.push((label.into(), if tag.is_empty() { "None".into() }
-                    else { crate::show_debug_hud::name_to_display_string(tag.rsplit('.').next().unwrap(), false) }));
+            let desired_rotation = interface
+                .desired_rotation_modes
+                .get(character)
+                .map_or(actual_rotation, |value| value.0);
+            let desired_gait = motion_probe
+                .gait
+                .get(character)
+                .map_or(*gait, |(value, _)| value.0);
+            let aiming = motion_probe
+                .inputs
+                .get(character)
+                .ok()
+                .and_then(|(input, override_input)| override_input.map(|value| &value.0).or(input))
+                .is_some_and(|input| input.aim_held);
+            expected.push((
+                "View Mode".into(),
+                if first_person {
+                    "First Person"
+                } else {
+                    "Third Person"
+                }
+                .into(),
+            ));
+            expected.push((
+                "Desired Aiming".into(),
+                if aiming { "True" } else { "False" }.into(),
+            ));
+            for (label, tag) in [
+                ("Locomotion Mode", locomotion.as_str()),
+                ("Desired Rotation Mode", desired_rotation.as_str()),
+                ("Rotation Mode", actual_rotation.as_str()),
+                (
+                    "Desired Stance",
+                    desired_stance.map_or(*stance, |value| value.0).as_str(),
+                ),
+                ("Stance", stance.as_str()),
+                ("Desired Gait", desired_gait.as_str()),
+                ("Gait", gait.as_str()),
+                ("Overlay Mode", overlay.as_str()),
+                (
+                    "Locomotion Action",
+                    notify_action
+                        .copied()
+                        .unwrap_or(AlsNotifyLocomotionAction::None)
+                        .as_str(),
+                ),
+            ] {
+                expected.push((
+                    label.into(),
+                    if tag.is_empty() {
+                        "None".into()
+                    } else {
+                        crate::show_debug_hud::name_to_display_string(
+                            tag.rsplit('.').next().unwrap(),
+                            false,
+                        )
+                    },
+                ));
             }
             let source_yaw = |yaw: f32| {
                 let positive = (270.0 - yaw).rem_euclid(360.0);
-                if positive > 180.0 { positive - 360.0 } else { positive }
+                if positive > 180.0 {
+                    positive - 360.0
+                } else {
+                    positive
+                }
             };
-            expected.push(("Rotation".into(), format!("R: 0.00P: {:.2}Y: {:.2}", view_pitch.0.to_degrees(), source_yaw(view_yaw.0.to_degrees()))));
+            expected.push((
+                "Rotation".into(),
+                format!(
+                    "R: 0.00P: {:.2}Y: {:.2}",
+                    view_pitch.0.to_degrees(),
+                    source_yaw(view_yaw.0.to_degrees())
+                ),
+            ));
             let expected_motion = motion_probe.actual.get(character).ok();
             if let Some(motion) = expected_motion {
-                expected.push(("Input Yaw Angle".into(), format!("{:.2}", source_yaw(motion.input_yaw_degrees))));
-                expected.push(("Velocity Yaw Angle".into(), format!("{:.2}", source_yaw(motion.velocity_yaw_degrees))));
-                expected.push(("Speed".into(), format!("{:.2}", motion.horizontal_speed * 100.0)));
-                let direction = if motion.world_velocity.dot(motion.world_velocity) < 1e-12 { Vec3::ZERO }
-                    else { motion.world_velocity.normalize_or_zero() };
-                expected.push(("Velocity Direction".into(), format!("X: {:.2}Y: {:.2}Z: {:.2}", direction.x, direction.z, direction.y)));
+                expected.push((
+                    "Input Yaw Angle".into(),
+                    format!("{:.2}", source_yaw(motion.input_yaw_degrees)),
+                ));
+                expected.push((
+                    "Velocity Yaw Angle".into(),
+                    format!("{:.2}", source_yaw(motion.velocity_yaw_degrees)),
+                ));
+                expected.push((
+                    "Speed".into(),
+                    format!("{:.2}", motion.horizontal_speed * 100.0),
+                ));
+                let direction = if motion.world_velocity.dot(motion.world_velocity) < 1e-12 {
+                    Vec3::ZERO
+                } else {
+                    motion.world_velocity.normalize_or_zero()
+                };
+                expected.push((
+                    "Velocity Direction".into(),
+                    format!(
+                        "X: {:.2}Y: {:.2}Z: {:.2}",
+                        direction.x, direction.z, direction.y
+                    ),
+                ));
             }
             if let Ok(response) = interface.rotation_responses.get(character) {
-                expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", source_yaw(response.smooth_target_yaw.to_degrees()))));
+                expected.push((
+                    "Smooth Target Yaw Angle".into(),
+                    format!("{:.2}", source_yaw(response.smooth_target_yaw.to_degrees())),
+                ));
             }
-            let camera_source = interface.camera_assemblies.get(character).ok().and_then(|assembly| assembly.camera)
-                .and_then(|view| interface.camera_sources.get(view).ok()).map(|source| source.0);
-            let camera = camera_source.and_then(|source| interface.camera_debug.get(source).ok())
+            let camera_source = interface
+                .camera_assemblies
+                .get(character)
+                .ok()
+                .and_then(|assembly| assembly.camera)
+                .and_then(|view| interface.camera_sources.get(view).ok())
+                .map(|source| source.0);
+            let camera = camera_source
+                .and_then(|source| interface.camera_debug.get(source).ok())
                 .filter(|info| info.valid);
-            let camera_context = camera_source.and_then(|source| motion_probe.object_scenes.get(source).ok())
-                .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
+            let camera_context = camera_source
+                .and_then(|source| motion_probe.object_scenes.get(source).ok())
+                .and_then(|instance| players.get(instance.player_entity()).ok())
+                .and_then(|(_, context)| context);
             if let Some(context) = camera_context {
-                let mapping: std::collections::HashMap<crate::extensions::SourceCurveName, (String, f32)> = serde_json::from_str(include_str!("../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
+                let mapping: std::collections::HashMap<
+                    crate::extensions::SourceCurveName,
+                    (String, f32),
+                > = serde_json::from_str(include_str!(
+                    "../../assets/ALSCamera/als_camera_curves.runtime.json"
+                ))
+                .unwrap();
                 for (name, value) in &context.curves {
-                    let (name, value) = mapping.get(name).map_or((name.as_str(), *value), |(source, scale)| (source.as_str(), value * scale));
-                    expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", if value == 0.0 { 0.0 } else { value })));
+                    let (name, value) = mapping
+                        .get(name)
+                        .map_or((name.as_str(), *value), |(source, scale)| {
+                            (source.as_str(), value * scale)
+                        });
+                    expected.push((
+                        crate::show_debug_hud::name_to_display_string(name, false),
+                        format!("{:.2}", if value == 0.0 { 0.0 } else { value }),
+                    ));
                 }
             }
             if let Some(info) = camera {
-                for (name, point) in [("Pivot Target Location", Some(info.pivot_target)), ("Pivot Lag Location", info.pivot_lag), ("Pivot Location", info.pivot)] {
-                    expected.push((name.into(), point.map(|point| format!("X: {:.2}Y: {:.2}Z: {:.2}", point.x * 100.0, point.z * 100.0, point.y * 100.0)).unwrap_or_else(|| "N/A".into())));
+                for (name, point) in [
+                    ("Pivot Target Location", Some(info.pivot_target)),
+                    ("Pivot Lag Location", info.pivot_lag),
+                    ("Pivot Location", info.pivot),
+                ] {
+                    expected.push((
+                        name.into(),
+                        point
+                            .map(|point| {
+                                format!(
+                                    "X: {:.2}Y: {:.2}Z: {:.2}",
+                                    point.x * 100.0,
+                                    point.z * 100.0,
+                                    point.y * 100.0
+                                )
+                            })
+                            .unwrap_or_else(|| "N/A".into()),
+                    ));
                 }
-                expected.push(("Camera Field Of View".into(), format!("{:.2}", info.field_of_view_deg)));
+                expected.push((
+                    "Camera Field Of View".into(),
+                    format!("{:.2}", info.field_of_view_deg),
+                ));
                 expected.push(("Right Shoulder".into(), info.right_shoulder.to_string()));
             }
-            let mismatches: Vec<_> = expected.iter().filter(|(name, value)| !interface.debug_values.iter().any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)).cloned().collect();
+            let mismatches: Vec<_> = expected
+                .iter()
+                .filter(|(name, value)| {
+                    !interface
+                        .debug_values
+                        .iter()
+                        .any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)
+                })
+                .cloned()
+                .collect();
             gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && expected_motion.is_some() && camera.is_some() && camera_context.is_some() && mismatches.is_empty(),
                 "hud_values_checked":expected.len(),"hud_data_mismatches":mismatches}));
         }
     }
 
     if state.phase == IntegrationPhase::Camera {
-        let view = motion_probe.rendered_views.iter().find_map(|(camera, transform, owner)|
-            (camera.is_active && owner.character == character).then(|| transform.rotation.to_euler(EulerRot::YXZ).0));
-        let input = motion_probe.inputs.get(character).ok().and_then(|(input, override_input)|
-            override_input.map(|value| &value.0).or(input)).map_or(Vec2::ZERO, |input| input.move_dir);
-        let snapshot = motion_probe.player_views.get(character).ok().map(|view| view.0);
-        let desired = motion_probe.controllers.get(character).ok().map(|controller| controller.basis.desired_motion);
-        state.camera_movement.observe(view, view_yaw.0, input, snapshot, desired);
+        let view = motion_probe
+            .rendered_views
+            .iter()
+            .find_map(|(camera, transform, owner)| {
+                (camera.is_active && owner.character == character)
+                    .then(|| transform.rotation.to_euler(EulerRot::YXZ).0)
+            });
+        let input = motion_probe
+            .inputs
+            .get(character)
+            .ok()
+            .and_then(|(input, override_input)| override_input.map(|value| &value.0).or(input))
+            .map_or(Vec2::ZERO, |input| input.move_dir);
+        let snapshot = motion_probe
+            .player_views
+            .get(character)
+            .ok()
+            .map(|view| view.0);
+        let desired = motion_probe
+            .controllers
+            .get(character)
+            .ok()
+            .map(|controller| controller.basis.desired_motion);
+        state
+            .camera_movement
+            .observe(view, view_yaw.0, input, snapshot, desired);
         gate_report.direction_trace.push(serde_json::json!({"player_view_yaw":snapshot,"rendered_yaw":view,"control_yaw":view_yaw.0,
             "input":input.to_array(),"desired":desired.map(|value| value.to_array()),"movement_samples":state.camera_movement.samples,
             "movement_lagged":state.camera_movement.lagged,"movement_invalid":state.camera_movement.invalid}));
@@ -10321,7 +13815,9 @@ fn observe_manual_integration(
     {
         let camera_debug = debug;
         if state.phase == IntegrationPhase::Camera
-            || (state.phase == IntegrationPhase::Ragdoll && state.scenario == IntegrationScenario::Ragdoll) {
+            || (state.phase == IntegrationPhase::Ragdoll
+                && state.scenario == IntegrationScenario::Ragdoll)
+        {
             gate_report.camera_trace.push(ManualCameraTraceSample {
                 phase_elapsed_seconds: state.phase_elapsed() as f64,
                 obstacles_present: state.camera_obstacles.iter().any(Option::is_some),
@@ -10451,35 +13947,72 @@ fn observe_manual_integration(
                 if state.timed_out {
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": state.locomotion_probe.case_index, "no_progress_limit_seconds": 12.0, "current_conditions": state.locomotion_probe.sample}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
-                results.extend(LOCOMOTION_WINDOW_LABELS.iter().enumerate().map(|(index, label)| (*label, state.locomotion_probe.covered[index])));
-                results.push(("locomotion_lifecycles", state.locomotion_probe.case_index == 6 && state.locomotion_probe.completed));
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
+                results.extend(
+                    LOCOMOTION_WINDOW_LABELS
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| (*label, state.locomotion_probe.covered[index])),
+                );
+                results.push((
+                    "locomotion_lifecycles",
+                    state.locomotion_probe.case_index == 6 && state.locomotion_probe.completed,
+                ));
                 results.push(("locomotion_source_blends", state.locomotion_probe.valid));
                 results
             }
             IntegrationScenario::CrouchingActions => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("crouching", coverage.crouching),
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                    ("crouching", coverage.crouching),
                 ];
-                results.extend(CROUCHING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])),
+                results.extend(
+                    CROUCHING_STOP_CASES
+                        .iter()
+                        .enumerate()
+                        .map(|(index, case)| (case.0, coverage.standing_stop[index])),
                 );
-                results.extend((2..4).map(|index| {
+                results
+                    .extend((2..4).map(|index| {
                         (STANDING_TURN_CASES[index].0, coverage.standing_turn[index])
                     }));
-                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
+                results.extend(
+                    STANDING_DYNAMIC_CASES
+                        .iter()
+                        .enumerate()
+                        .map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
                 );
                 results
             }
             IntegrationScenario::StandingDynamic => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph),
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                    ("standing_graph", coverage.standing_graph),
                 ];
-                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
+                results.extend(
+                    STANDING_DYNAMIC_CASES
+                        .iter()
+                        .enumerate()
+                        .map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
                 );
                 results
             }
             IntegrationScenario::StandingTurn => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph),
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                    ("standing_graph", coverage.standing_graph),
                 ];
-                results.extend(STANDING_TURN_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_turn[index])),
+                results.extend(
+                    STANDING_TURN_CASES
+                        .iter()
+                        .enumerate()
+                        .map(|(index, case)| (case.0, coverage.standing_turn[index])),
                 );
                 results
             }
@@ -10489,7 +14022,11 @@ fn observe_manual_integration(
                     ("animation_graph", coverage.graph),
                     ("standing_graph", coverage.standing_graph),
                 ];
-                results.extend(STANDING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])),
+                results.extend(
+                    STANDING_STOP_CASES
+                        .iter()
+                        .enumerate()
+                        .map(|(index, case)| (case.0, coverage.standing_stop[index])),
                 );
                 results
             }
@@ -10579,10 +14116,22 @@ fn observe_manual_integration(
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
                 ("mantle_debug_geometry", coverage.mantle_debug),
-                ("mantle_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "mantle_actor_clock")),
-                ("mantle_parent_world", gate_report.direction_trace.iter()
-                    .any(|row| row.get("mantle_parent_world_valid").and_then(serde_json::Value::as_bool) == Some(true))),
-                ("ground_prediction_debug_geometry", coverage.ground_prediction_debug),
+                (
+                    "mantle_actor_clock",
+                    actor_montage_clock_passed(&gate_report.direction_trace, "mantle_actor_clock"),
+                ),
+                (
+                    "mantle_parent_world",
+                    gate_report.direction_trace.iter().any(|row| {
+                        row.get("mantle_parent_world_valid")
+                            .and_then(serde_json::Value::as_bool)
+                            == Some(true)
+                    }),
+                ),
+                (
+                    "ground_prediction_debug_geometry",
+                    coverage.ground_prediction_debug,
+                ),
                 ("movement_base", coverage.movement_base),
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),
@@ -10599,7 +14148,10 @@ fn observe_manual_integration(
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
                 ("grounded_roll_completed", coverage.grounded_roll_completed),
-                ("roll_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "roll_actor_clock")),
+                (
+                    "roll_actor_clock",
+                    actor_montage_clock_passed(&gate_report.direction_trace, "roll_actor_clock"),
+                ),
                 ("grounded_stop_callback", coverage.grounded_stop_callback),
                 (GROUNDED_JOINT_CASES[0].0, coverage.grounded_joint[0]),
                 (GROUNDED_JOINT_CASES[1].0, coverage.grounded_joint[1]),
@@ -10700,10 +14252,26 @@ fn observe_manual_integration(
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": probe.case_index,
                         "no_progress_limit_seconds": 12.0, "waited_game_seconds": probe.sample.elapsed_seconds, "current_conditions": probe.sample}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
-                results.extend(HEAD_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
-                results.extend([("head_source_contract", probe.valid), ("head_look_samples", probe.samples_seen.iter().all(|seen| *seen)),
-                    ("head_mesh_additive", probe.additive_seen), ("head_first_person_clock", probe.unscaled_pitch_seen), ("head_complete", probe.case_index == HEAD_WINDOWS.len())]);
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
+                results.extend(
+                    HEAD_WINDOWS
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| (*label, probe.covered[index])),
+                );
+                results.extend([
+                    ("head_source_contract", probe.valid),
+                    (
+                        "head_look_samples",
+                        probe.samples_seen.iter().all(|seen| *seen),
+                    ),
+                    ("head_mesh_additive", probe.additive_seen),
+                    ("head_first_person_clock", probe.unscaled_pitch_seen),
+                    ("head_complete", probe.case_index == HEAD_WINDOWS.len()),
+                ]);
                 results
             }
             IntegrationScenario::Footprint => {
@@ -10714,15 +14282,29 @@ fn observe_manual_integration(
                         "waited_game_seconds":probe.waited,"current_conditions":probe.errors,
                         "gpu_request":probe.gpu.cursor + 1,"waited_gpu_seconds":probe.gpu.last_progress.map(|last| last.elapsed().as_secs_f32())}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
-                results.extend(footprints::LABELS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
-                results.extend([("footprint_visible", probe.visible), ("footprint_fade", probe.faded), ("footprint_expired", probe.expired),
-                    ("footprint_moving_surface", probe.moving), ("footprint_character_receiver", probe.receiver),
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
+                results.extend(
+                    footprints::LABELS
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| (*label, probe.covered[index])),
+                );
+                results.extend([
+                    ("footprint_visible", probe.visible),
+                    ("footprint_fade", probe.faded),
+                    ("footprint_expired", probe.expired),
+                    ("footprint_moving_surface", probe.moving),
+                    ("footprint_character_receiver", probe.receiver),
                     ("footprint_gpu_pipelines", probe.pipelines),
                     ("footprint_gpu_lifecycle", probe.gpu.complete),
                     ("footprint_moving_gpu", probe.moving_gpu),
                     ("footprint_debug_traces", probe.debug),
-                    ("footprint_source_consistency", probe.errors.is_empty()), ("footprint_rotating_ride", state.moving_base_probe.ride)]);
+                    ("footprint_source_consistency", probe.errors.is_empty()),
+                    ("footprint_rotating_ride", state.moving_base_probe.ride),
+                ]);
                 results
             }
             IntegrationScenario::Overlays => {
@@ -10731,13 +14313,31 @@ fn observe_manual_integration(
                     gate_report.direction_trace.push(serde_json::json!({"watchdog":{"exit_reason":"case_progress_timeout","mode":probe.mode,
                         "stage":probe.stage,"waited_game_seconds":probe.waited,"no_progress_limit_seconds":12.0,"current_conditions":probe.sample}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
                 for (mode, labels) in overlays::LABELS.iter().enumerate() {
-                    results.extend(labels.iter().enumerate().map(|(stage, label)| (*label, probe.covered[mode][stage])));
+                    results.extend(
+                        labels
+                            .iter()
+                            .enumerate()
+                            .map(|(stage, label)| (*label, probe.covered[mode][stage])),
+                    );
                 }
-                results.push(("overlay_gun_states", probe.fsm_states.iter().flatten().all(|value| *value)));
-                results.push(("overlay_source_consistency", !gate_report.direction_trace.is_empty()
-                    && gate_report.direction_trace.iter().all(|entry| entry["sample"]["errors"].as_array().is_some_and(Vec::is_empty))));
+                results.push((
+                    "overlay_gun_states",
+                    probe.fsm_states.iter().flatten().all(|value| *value),
+                ));
+                results.push((
+                    "overlay_source_consistency",
+                    !gate_report.direction_trace.is_empty()
+                        && gate_report.direction_trace.iter().all(|entry| {
+                            entry["sample"]["errors"]
+                                .as_array()
+                                .is_some_and(Vec::is_empty)
+                        }),
+                ));
                 results.push(("overlays_complete", probe.mode == overlays::MODES.len()));
                 results
             }
@@ -10747,13 +14347,26 @@ fn observe_manual_integration(
                         "last_progress": state.bow_probe.index, "no_progress_limit_seconds": 12.0, "waited_game_seconds": state.bow_probe.waited_seconds,
                         "current_conditions": state.bow_probe.sample}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
-                results.extend(bow::LABELS.iter().enumerate().map(|(index, label)| (*label, state.bow_probe.covered[index])));
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
+                results.extend(
+                    bow::LABELS
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| (*label, state.bow_probe.covered[index])),
+                );
                 results.push(("bow_complete", state.bow_probe.index == bow::LABELS.len()));
-                results.extend([("bow_object_material", state.bow_probe.material_seen),
-                    ("bow_object_mantle_clear", state.bow_probe.cleared[0]), ("bow_object_mantle_restore", state.bow_probe.restored[0]),
-                    ("bow_object_ragdoll_clear", state.bow_probe.cleared[1]), ("bow_object_ragdoll_restore", state.bow_probe.restored[1]),
-                    ("bow_mantle_complete", coverage.mantle_completed), ("bow_ragdoll_recovered", coverage.ragdoll_recovered)]);
+                results.extend([
+                    ("bow_object_material", state.bow_probe.material_seen),
+                    ("bow_object_mantle_clear", state.bow_probe.cleared[0]),
+                    ("bow_object_mantle_restore", state.bow_probe.restored[0]),
+                    ("bow_object_ragdoll_clear", state.bow_probe.cleared[1]),
+                    ("bow_object_ragdoll_restore", state.bow_probe.restored[1]),
+                    ("bow_mantle_complete", coverage.mantle_completed),
+                    ("bow_ragdoll_recovered", coverage.ragdoll_recovered),
+                ]);
                 results
             }
             IntegrationScenario::DefaultOverlay => {
@@ -10762,21 +14375,45 @@ fn observe_manual_integration(
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": probe.case_index,
                         "no_progress_limit_seconds": 12.0, "current_conditions": probe.sample}}));
                 }
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
-                results.extend(DEFAULT_OVERLAY_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
+                results.extend(
+                    DEFAULT_OVERLAY_WINDOWS
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| (*label, probe.covered[index])),
+                );
                 results.extend([
-                    ("default_source_poses", probe.valid && probe.evaluators_seen.iter().all(|value| *value)),
-                    ("default_additive_applied", probe.additive_seen), ("default_overlay_curves", probe.curves_seen),
-                    ("default_prediction_increase", probe.prediction_increased), ("default_prediction_decrease", probe.prediction_decreased),
-                    ("layering_source_regions", probe.sample.layering.boundaries.len() == LAYERING_BOUNDARIES.len()),
-                    ("layering_curve_operators", probe.sample.layering.curve_operators == 3 && probe.valid),
-                    ("layering_previous_curve_inputs", probe.sample.layering.ready && probe.valid),
+                    (
+                        "default_source_poses",
+                        probe.valid && probe.evaluators_seen.iter().all(|value| *value),
+                    ),
+                    ("default_additive_applied", probe.additive_seen),
+                    ("default_overlay_curves", probe.curves_seen),
+                    ("default_prediction_increase", probe.prediction_increased),
+                    ("default_prediction_decrease", probe.prediction_decreased),
+                    (
+                        "layering_source_regions",
+                        probe.sample.layering.boundaries.len() == LAYERING_BOUNDARIES.len(),
+                    ),
+                    (
+                        "layering_curve_operators",
+                        probe.sample.layering.curve_operators == 3 && probe.valid,
+                    ),
+                    (
+                        "layering_previous_curve_inputs",
+                        probe.sample.layering.ready && probe.valid,
+                    ),
                     ("default_complete", probe.case_index == 6),
                 ]);
                 results
             }
             IntegrationScenario::FootIk => {
-                if state.timed_out && !(coverage.foot_bones_replaced && coverage.camera_root_rebound) {
+                if state.timed_out
+                    && !(coverage.foot_bones_replaced && coverage.camera_root_rebound)
+                {
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {
                         "exit_reason": "foot_avatar_replacement_timeout",
                         "last_progress": state.foot_replacement_progress,
@@ -10789,37 +14426,37 @@ fn observe_manual_integration(
                     }}));
                 }
                 let mut results = vec![
-                ("runtime_assembly", coverage.assembly),
-                ("animation_graph", coverage.graph),
-                ("standing_graph", coverage.standing_graph),
-                ("direction_regression", direction_regression),
-                ("foot_probe", coverage.foot_probe),
-                ("foot_lock", coverage.foot_lock),
-                ("foot_ik_space_baseline", coverage.foot_ik_space_baseline),
-                (
-                    "foot_ik_no_hit_recovered",
-                    coverage.foot_ik_no_hit_recovered,
-                ),
-                ("foot_ik_weight_ramp", coverage.foot_ik_weight_ramp),
-                ("foot_ik_teleport", coverage.foot_ik_teleport),
-                ("foot_ik_slope", coverage.foot_ik_slope),
-                ("foot_ik_step", coverage.foot_ik_step),
-                ("foot_ik_crouching", coverage.foot_ik_crouching),
-                ("foot_ik_jump_air", coverage.foot_ik_jump_air),
-                ("foot_ik_landed", coverage.foot_ik_landed),
-                ("foot_ik_roll", coverage.foot_ik_roll),
-                ("foot_ik_mantle", coverage.foot_ik_mantle),
-                ("mantle_start", coverage.mantle_started),
-                ("mantle_complete", coverage.mantle_completed),
-                ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
-                ("foot_bones_replaced", coverage.foot_bones_replaced),
-                ("camera_root_rebound", coverage.camera_root_rebound),
-            ];
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                    ("standing_graph", coverage.standing_graph),
+                    ("direction_regression", direction_regression),
+                    ("foot_probe", coverage.foot_probe),
+                    ("foot_lock", coverage.foot_lock),
+                    ("foot_ik_space_baseline", coverage.foot_ik_space_baseline),
+                    (
+                        "foot_ik_no_hit_recovered",
+                        coverage.foot_ik_no_hit_recovered,
+                    ),
+                    ("foot_ik_weight_ramp", coverage.foot_ik_weight_ramp),
+                    ("foot_ik_teleport", coverage.foot_ik_teleport),
+                    ("foot_ik_slope", coverage.foot_ik_slope),
+                    ("foot_ik_step", coverage.foot_ik_step),
+                    ("foot_ik_crouching", coverage.foot_ik_crouching),
+                    ("foot_ik_jump_air", coverage.foot_ik_jump_air),
+                    ("foot_ik_landed", coverage.foot_ik_landed),
+                    ("foot_ik_roll", coverage.foot_ik_roll),
+                    ("foot_ik_mantle", coverage.foot_ik_mantle),
+                    ("mantle_start", coverage.mantle_started),
+                    ("mantle_complete", coverage.mantle_completed),
+                    ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
+                    ("foot_bones_replaced", coverage.foot_bones_replaced),
+                    ("camera_root_rebound", coverage.camera_root_rebound),
+                ];
                 if std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some() {
                     results.push(("animation_phase_rebound", coverage.animation_phase_rebound));
                 }
                 results
-            },
+            }
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -10829,8 +14466,15 @@ fn observe_manual_integration(
                 ("ragdoll_scaled", coverage.ragdoll_scaled),
                 ("ragdoll_joint_drive", coverage.ragdoll_joint_drive),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
-                ("get_up_grounded", !coverage.get_up_airborne && (coverage.get_up_front || coverage.get_up_back)),
-                ("get_up_rig_space", !coverage.get_up_rig_space_mismatch && (coverage.get_up_front || coverage.get_up_back)),
+                (
+                    "get_up_grounded",
+                    !coverage.get_up_airborne && (coverage.get_up_front || coverage.get_up_back),
+                ),
+                (
+                    "get_up_rig_space",
+                    !coverage.get_up_rig_space_mismatch
+                        && (coverage.get_up_front || coverage.get_up_back),
+                ),
                 ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
                 (
                     "get_up_input_locked",
@@ -10849,7 +14493,10 @@ fn observe_manual_integration(
                 ("animation_graph", coverage.graph),
                 ("ragdoll_pa_profile", coverage.ragdoll_pa_profile),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
-                ("get_up_grounded", !coverage.get_up_airborne && coverage.get_up_front && coverage.get_up_back),
+                (
+                    "get_up_grounded",
+                    !coverage.get_up_airborne && coverage.get_up_front && coverage.get_up_back,
+                ),
                 ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
                 ("get_up_front", coverage.get_up_front),
                 ("get_up_back", coverage.get_up_back),
@@ -10863,8 +14510,14 @@ fn observe_manual_integration(
                     "get_up_back_input_released",
                     coverage.get_up_input_released[1],
                 ),
-                ("get_up_native_jump_rejected_during_action", coverage.get_up_native_jump_rejected_during_action),
-                ("get_up_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "get_up_actor_clock")),
+                (
+                    "get_up_native_jump_rejected_during_action",
+                    coverage.get_up_native_jump_rejected_during_action,
+                ),
+                (
+                    "get_up_actor_clock",
+                    actor_montage_clock_passed(&gate_report.direction_trace, "get_up_actor_clock"),
+                ),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -10876,7 +14529,10 @@ fn observe_manual_integration(
                 ("camera_shoulder", coverage.camera_shoulder),
                 ("camera_shake", coverage.camera_shake),
                 ("camera_unscaled_time", coverage.camera_unscaled_time),
-                ("camera_player_view_movement", state.camera_movement.passed()),
+                (
+                    "camera_player_view_movement",
+                    state.camera_movement.passed(),
+                ),
                 ("camera_debug_geometry", coverage.camera_debug_geometry),
             ],
             IntegrationScenario::Stairs => vec![
@@ -10893,34 +14549,61 @@ fn observe_manual_integration(
             IntegrationScenario::UphillJump => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
-                ("uphill_01", state.uphill_probe.completed[..6].iter().all(|value| *value)),
-                ("uphill_02", state.uphill_probe.completed[6..12].iter().all(|value| *value)),
-                ("uphill_03", state.uphill_probe.completed[12..].iter().all(|value| *value)),
-                ("uphill_landing_consistency", state.uphill_probe.failure.is_none()),
+                (
+                    "uphill_01",
+                    state.uphill_probe.completed[..6].iter().all(|value| *value),
+                ),
+                (
+                    "uphill_02",
+                    state.uphill_probe.completed[6..12]
+                        .iter()
+                        .all(|value| *value),
+                ),
+                (
+                    "uphill_03",
+                    state.uphill_probe.completed[12..]
+                        .iter()
+                        .all(|value| *value),
+                ),
+                (
+                    "uphill_landing_consistency",
+                    state.uphill_probe.failure.is_none(),
+                ),
             ],
             IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => {
                 let mut results = vec![
-                ("runtime_assembly", coverage.assembly),
-                ("animation_graph", coverage.graph),
-                ("moving_base_ride", state.moving_base_probe.ride),
-                ("moving_base_jump", state.moving_base_probe.air),
-                ("moving_base_new_support", state.moving_base_probe.landing),
-                ("moving_base_mantle", state.moving_base_probe.moving_mantle),
-                ("mantle_start", coverage.mantle_started),
-                ("mantle_complete", coverage.mantle_completed),
-                ("moving_base_after_mantle", state.moving_base_probe.after_mantle),
-                ("moving_base_progress", state.moving_base_probe.failure.is_none()),
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                    ("moving_base_ride", state.moving_base_probe.ride),
+                    ("moving_base_jump", state.moving_base_probe.air),
+                    ("moving_base_new_support", state.moving_base_probe.landing),
+                    ("moving_base_mantle", state.moving_base_probe.moving_mantle),
+                    ("mantle_start", coverage.mantle_started),
+                    ("mantle_complete", coverage.mantle_completed),
+                    (
+                        "moving_base_after_mantle",
+                        state.moving_base_probe.after_mantle,
+                    ),
+                    (
+                        "moving_base_progress",
+                        state.moving_base_probe.failure.is_none(),
+                    ),
                 ];
                 if state.scenario == IntegrationScenario::RotatingBase {
-                    results.extend([("rotating_base_left_step", state.moving_base_probe.steps[0]),
-                        ("rotating_base_right_step", state.moving_base_probe.steps[1])]);
+                    results.extend([
+                        ("rotating_base_left_step", state.moving_base_probe.steps[0]),
+                        ("rotating_base_right_step", state.moving_base_probe.steps[1]),
+                    ]);
                 }
                 results
-            },
+            }
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
-                ("overlay_parent_instance_preserved", state.interface_parent_instance.is_some() && state.interface_parent_preserved),
+                (
+                    "overlay_parent_instance_preserved",
+                    state.interface_parent_instance.is_some() && state.interface_parent_preserved,
+                ),
                 ("hud_layout", coverage.hud_layout),
                 ("hud_toggle", coverage.hud_toggle),
                 ("hud_slomo", coverage.hud_slomo),
@@ -10939,18 +14622,44 @@ fn observe_manual_integration(
                 ),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
-                ("debug_key_lifecycle", hud_layout::debug_keys_passed(&gate_report.direction_trace)),
-                ("debug_canvas_layout", hud_layout::passed(&gate_report.direction_trace)),
-                ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
-                    && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),
+                (
+                    "debug_key_lifecycle",
+                    hud_layout::debug_keys_passed(&gate_report.direction_trace),
+                ),
+                (
+                    "debug_canvas_layout",
+                    hud_layout::passed(&gate_report.direction_trace),
+                ),
+                (
+                    "debug_values",
+                    gate_report
+                        .direction_trace
+                        .iter()
+                        .any(|entry| entry.get("hud_data_valid").is_some())
+                        && gate_report
+                            .direction_trace
+                            .iter()
+                            .filter_map(|entry| {
+                                entry
+                                    .get("hud_data_valid")
+                                    .and_then(serde_json::Value::as_bool)
+                            })
+                            .all(|valid| valid),
+                ),
             ],
             IntegrationScenario::AnimationClock => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
                 results.extend(animation_clock_results(&gate_report.direction_trace));
                 results
             }
             IntegrationScenario::Visibility => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                let mut results = vec![
+                    ("runtime_assembly", coverage.assembly),
+                    ("animation_graph", coverage.graph),
+                ];
                 results.extend(visibility_case_results(&gate_report.direction_trace));
                 results
             }
@@ -10973,14 +14682,23 @@ fn observe_manual_integration(
                 ("camera_shake", coverage.camera_shake),
             ],
         };
-        if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_player_replacement {
-            results.push(("ragdoll_player_replacement", coverage.ragdoll_player_replaced));
+        if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_player_replacement
+        {
+            results.push((
+                "ragdoll_player_replacement",
+                coverage.ragdoll_player_replaced,
+            ));
         }
         if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_debug_render {
             results.push(("ragdoll_debug_render", coverage.ragdoll_debug_render));
         }
-        if state.scenario == IntegrationScenario::ControlRig && state.expect_control_rig_definition_hot_swap {
-            results.push(("control_rig_definition_hot_swap", coverage.control_rig_definition_hot_swap));
+        if state.scenario == IntegrationScenario::ControlRig
+            && state.expect_control_rig_definition_hot_swap
+        {
+            results.push((
+                "control_rig_definition_hot_swap",
+                coverage.control_rig_definition_hot_swap,
+            ));
         }
         if state.scenario == IntegrationScenario::Footprint && state.expect_decal_receiver_swap {
             results.push(("decal_receiver_swap", coverage.decal_receiver_swap));
@@ -10992,8 +14710,14 @@ fn observe_manual_integration(
             results.extend([
                 ("machine_weight_partial", coverage.machine_weight_partial),
                 ("machine_weight_full", coverage.machine_weight_full),
-                ("machine_weight_low_start", coverage.machine_weight_low_start),
-                ("machine_weight_full_start", coverage.machine_weight_full_start),
+                (
+                    "machine_weight_low_start",
+                    coverage.machine_weight_low_start,
+                ),
+                (
+                    "machine_weight_full_start",
+                    coverage.machine_weight_full_start,
+                ),
             ]);
         }
         for (name, covered) in &results {
@@ -11051,15 +14775,34 @@ fn observe_manual_integration(
                         state.sprint_samples[index], state.sprint_signature_phase
                     )
                 } else if *name == "camera_collision_recovery" {
-                    format!("samples={} last={:?}", gate_report.camera_trace.len(), gate_report.camera_trace.last())
+                    format!(
+                        "samples={} last={:?}",
+                        gate_report.camera_trace.len(),
+                        gate_report.camera_trace.last()
+                    )
                 } else if *name == "stairs_progress" {
-                    state.stairs_probe.failure.clone().unwrap_or_else(|| "all routes completed without stalls".to_owned())
+                    state
+                        .stairs_probe
+                        .failure
+                        .clone()
+                        .unwrap_or_else(|| "all routes completed without stalls".to_owned())
                 } else if *name == "uphill_landing_consistency" {
-                    state.uphill_probe.failure.clone().unwrap_or_else(|| "all uphill landings returned to grounded animation".to_owned())
+                    state.uphill_probe.failure.clone().unwrap_or_else(|| {
+                        "all uphill landings returned to grounded animation".to_owned()
+                    })
                 } else if *name == "moving_base_progress" {
-                    state.moving_base_probe.failure.clone().unwrap_or_else(|| "source object traversal completed".to_owned())
+                    state
+                        .moving_base_probe
+                        .failure
+                        .clone()
+                        .unwrap_or_else(|| "source object traversal completed".to_owned())
                 } else if *name == "runtime_assembly" {
-                    format!("game_time_seconds={:.3}; relative_speed={:.3}; slomo_active={}", state.game_time_seconds, interface.virtual_time.relative_speed(), interface.hud_state.slomo_active)
+                    format!(
+                        "game_time_seconds={:.3}; relative_speed={:.3}; slomo_active={}",
+                        state.game_time_seconds,
+                        interface.virtual_time.relative_speed(),
+                        interface.hud_state.slomo_active
+                    )
                 } else if *covered {
                     "covered".to_owned()
                 } else {
@@ -11097,76 +14840,168 @@ fn observe_manual_integration(
 mod tests {
     #[test]
     fn browser_review_air_roll_uses_the_configured_mode_change_ragdoll_entry() {
-        use bevy::prelude::*;
+        use crate::als::{
+            character::AlsMovementParamsHandle,
+            params::AlsMovementParams,
+            state::{AlsNotifyLocomotionAction, LocomotionState},
+        };
         use avian3d::prelude::{LinearVelocity, Position};
-        use crate::als::{character::AlsMovementParamsHandle, params::AlsMovementParams,
-            state::{AlsNotifyLocomotionAction, LocomotionState}};
-        for (enabled, already_air, rolling) in [(false, false, true), (true, false, true),
-            (true, true, true), (true, false, false)] {
+        use bevy::prelude::*;
+        for (enabled, already_air, rolling) in [
+            (false, false, true),
+            (true, false, true),
+            (true, true, true),
+            (true, false, false),
+        ] {
             let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
-            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
-            let mut values = serde_json::to_value(app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap()).unwrap();
+            let handle = app
+                .world()
+                .get::<AlsMovementParamsHandle>(character)
+                .unwrap()
+                .0
+                .clone();
+            let mut values = serde_json::to_value(
+                app.world()
+                    .resource::<Assets<AlsMovementParams>>()
+                    .get(&handle)
+                    .unwrap(),
+            )
+            .unwrap();
             values["rolling"] = serde_json::json!({"interrupt_when_in_air": enabled});
             let configured = serde_json::from_value(values).unwrap();
-            *app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap() = configured;
-            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+            *app.world_mut()
+                .resource_mut::<Assets<AlsMovementParams>>()
+                .get_mut(&handle)
+                .unwrap() = configured;
+            app.world_mut()
+                .get_mut::<crate::als::input::AlsInputCommand>(character)
+                .unwrap()
+                .roll_pressed = true;
             app.update();
-            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
-            if !rolling { app.world_mut().entity_mut(character).insert(AlsNotifyLocomotionAction::None); }
-            app.world_mut().entity_mut(character).insert(if already_air { LocomotionState::Air } else { LocomotionState::Grounded });
+            app.world_mut()
+                .get_mut::<crate::als::input::AlsInputCommand>(character)
+                .unwrap()
+                .roll_pressed = false;
+            if !rolling {
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsNotifyLocomotionAction::None);
+            }
+            app.world_mut()
+                .entity_mut(character)
+                .insert(if already_air {
+                    LocomotionState::Air
+                } else {
+                    LocomotionState::Grounded
+                });
             let target = app.world().get::<Position>(character).unwrap().0 + Vec3::Y * 3.0;
             app.world_mut().get_mut::<Position>(character).unwrap().0 = target;
-            app.world_mut().get_mut::<Transform>(character).unwrap().translation = target;
-            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            app.world_mut()
+                .get_mut::<Transform>(character)
+                .unwrap()
+                .translation = target;
+            app.world_mut()
+                .get_mut::<LinearVelocity>(character)
+                .unwrap()
+                .0 = Vec3::ZERO;
             app.update();
-            let actual = *app.world().get::<AlsNotifyLocomotionAction>(character).unwrap();
+            let actual = *app
+                .world()
+                .get::<AlsNotifyLocomotionAction>(character)
+                .unwrap();
             let expected = enabled && !already_air && rolling;
-            assert_eq!(actual == AlsNotifyLocomotionAction::Ragdolling, expected,
-                "Air roll mode change did not use the source interrupt configuration: enabled={enabled}, already_air={already_air}, rolling={rolling}, actual={actual:?}");
+            assert_eq!(
+                actual == AlsNotifyLocomotionAction::Ragdolling,
+                expected,
+                "Air roll mode change did not use the source interrupt configuration: enabled={enabled}, already_air={already_air}, rolling={rolling}, actual={actual:?}"
+            );
             if expected {
-                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::None);
-                assert_eq!(*app.world().get::<bevy_tnua::TnuaToggle>(character).unwrap(), bevy_tnua::TnuaToggle::Disabled);
+                assert_eq!(
+                    *app.world().get::<LocomotionState>(character).unwrap(),
+                    LocomotionState::None
+                );
+                assert_eq!(
+                    *app.world().get::<bevy_tnua::TnuaToggle>(character).unwrap(),
+                    bevy_tnua::TnuaToggle::Disabled
+                );
             }
         }
     }
 
     #[test]
     fn browser_review_base_midframe_scale_keeps_crouch_cycles_grounded() {
+        use crate::als::{
+            state::{LocomotionState, Stance},
+            transition::AlsStateRequest,
+        };
         use avian3d::prelude::{LinearVelocity, Position};
         use bevy::prelude::*;
-        use crate::als::{state::{LocomotionState, Stance}, transition::AlsStateRequest};
         for scale in [0.5, 1.0, 2.0] {
             let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
             let center = Vec3::new(0.0, 0.9 * scale + 0.024, 0.0);
-            app.world_mut().get_mut::<Transform>(character).unwrap().scale = Vec3::splat(scale);
-            app.world_mut().get_mut::<Transform>(character).unwrap().translation = center;
+            app.world_mut()
+                .get_mut::<Transform>(character)
+                .unwrap()
+                .scale = Vec3::splat(scale);
+            app.world_mut()
+                .get_mut::<Transform>(character)
+                .unwrap()
+                .translation = center;
             app.world_mut().get_mut::<Position>(character).unwrap().0 = center;
-            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            app.world_mut()
+                .get_mut::<LinearVelocity>(character)
+                .unwrap()
+                .0 = Vec3::ZERO;
             let mut previous = Stance::Standing;
             let mut pairs = 0;
             let mut trace = Vec::new();
             for frame in 0..400 {
                 let actual = *app.world().get::<Stance>(character).unwrap();
-                app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = Some(
-                    if actual == Stance::Standing { Stance::Crouching } else { Stance::Standing });
+                app.world_mut()
+                    .get_mut::<AlsStateRequest>(character)
+                    .unwrap()
+                    .stance = Some(if actual == Stance::Standing {
+                    Stance::Crouching
+                } else {
+                    Stance::Standing
+                });
                 app.update();
                 let actual = *app.world().get::<Stance>(character).unwrap();
-                if previous == Stance::Crouching && actual == Stance::Standing { pairs += 1; }
+                if previous == Stance::Crouching && actual == Stance::Standing {
+                    pairs += 1;
+                }
                 previous = actual;
-                trace.push((frame, actual, *app.world().get::<LocomotionState>(character).unwrap(),
+                trace.push((
+                    frame,
+                    actual,
+                    *app.world().get::<LocomotionState>(character).unwrap(),
                     app.world().get::<Position>(character).unwrap().0.y,
-                    app.world().get::<LinearVelocity>(character).unwrap().0.y));
-                if pairs == 100 { break; }
+                    app.world().get::<LinearVelocity>(character).unwrap().0.y,
+                ));
+                if pairs == 100 {
+                    break;
+                }
             }
-            assert_eq!(pairs, 100, "Scaled live actor cannot complete the source crouch cycles: scale={scale}, {:?}", &trace[trace.len().saturating_sub(8)..]);
-            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+            assert_eq!(
+                pairs,
+                100,
+                "Scaled live actor cannot complete the source crouch cycles: scale={scale}, {:?}",
+                &trace[trace.len().saturating_sub(8)..]
+            );
+            assert_eq!(
+                *app.world().get::<LocomotionState>(character).unwrap(),
+                LocomotionState::Grounded
+            );
         }
     }
 
     #[test]
     fn locomotion_crouch_toggles_fire_once_at_each_scripted_boundary() {
         for cadence in [
-            vec![1.0 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041],
+            vec![1.0 / 30.0],
+            vec![1.0 / 60.0],
+            vec![1.0 / 120.0],
+            vec![0.011, 0.027, 0.019, 0.041],
         ] {
             let mut elapsed = 0.0;
             let mut frame = 0;
@@ -11174,81 +15009,223 @@ mod tests {
             while elapsed < 10.0 {
                 let delta = cadence[frame % cadence.len()];
                 elapsed += delta;
-                if locomotion_crouch_pressed(elapsed, delta) { pulses.push(elapsed); }
+                if locomotion_crouch_pressed(elapsed, delta) {
+                    pulses.push(elapsed);
+                }
                 frame += 1;
             }
-            assert_eq!(pulses.len(), 2, "Repeated crouch toggles depend on cadence: {pulses:?}");
+            assert_eq!(
+                pulses.len(),
+                2,
+                "Repeated crouch toggles depend on cadence: {pulses:?}"
+            );
             for (pulse, boundary) in pulses.into_iter().zip([7.0, 8.5]) {
-                assert!(pulse >= boundary && pulse - boundary <= cadence.iter().copied().fold(0.0, f64::max));
+                assert!(
+                    pulse >= boundary
+                        && pulse - boundary <= cadence.iter().copied().fold(0.0, f64::max)
+                );
             }
         }
     }
 
     #[test]
     fn locomotion_mouse_window_keeps_the_same_counts_across_cadences() {
-        for cadence in [vec![1.0_f32 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041]] {
+        for cadence in [
+            vec![1.0_f32 / 30.0],
+            vec![1.0 / 60.0],
+            vec![1.0 / 120.0],
+            vec![0.011, 0.027, 0.019, 0.041],
+        ] {
             let mut elapsed = 0.0_f32;
             let mut total = Vec2::ZERO;
             for frame in 0..1000 {
                 let delta = cadence[frame % cadence.len()];
                 elapsed += delta;
                 total += locomotion_mouse_delta(elapsed, delta);
-                if elapsed >= 2.0 { break; }
+                if elapsed >= 2.0 {
+                    break;
+                }
             }
-            assert!(total.abs_diff_eq(Vec2::new(360.0, -180.0), 0.002),
-                "Timed locomotion mouse input changed with cadence {cadence:?}: {total:?}");
+            assert!(
+                total.abs_diff_eq(Vec2::new(360.0, -180.0), 0.002),
+                "Timed locomotion mouse input changed with cadence {cadence:?}: {total:?}"
+            );
         }
     }
 
     #[test]
     fn animation_clock_gate_rejects_pause_drift_and_missing_one_frame() {
         let row = |elapsed, state_elapsed| serde_json::json!({"elapsed":elapsed,"state_elapsed":state_elapsed,"state":"T19"});
-        let mut rows = vec![row(2.4,0.1),row(2.8,0.1),row(3.02,0.12),row(3.4,0.12),row(3.6,0.12),row(3.9,0.15),row(4.1,0.25),row(4.8,0.5),row(5.5,1.2)];
-        for dilation in [0.0, 0.5, 1.0, 2.0] { for _ in 0..3 {
-            rows.push(serde_json::json!({"elapsed":6.5,"dilation":dilation,"movement_clock_error":0.0}));
-        } }
-        assert!(animation_clock_results(&rows).iter().all(|(_, passed)| *passed));
-        let mut drift = rows.clone(); drift[1]["state_elapsed"] = serde_json::json!(0.2);
-        assert!(animation_clock_results(&drift).iter().any(|(_, passed)| !passed));
-        let mut missing = rows.clone(); for row in &mut missing { if row["elapsed"].as_f64().unwrap() < 3.8 { row["state_elapsed"] = serde_json::json!(0.1); } }
-        assert!(animation_clock_results(&missing).iter().any(|(_, passed)| !passed));
+        let mut rows = vec![
+            row(2.4, 0.1),
+            row(2.8, 0.1),
+            row(3.02, 0.12),
+            row(3.4, 0.12),
+            row(3.6, 0.12),
+            row(3.9, 0.15),
+            row(4.1, 0.25),
+            row(4.8, 0.5),
+            row(5.5, 1.2),
+        ];
+        for dilation in [0.0, 0.5, 1.0, 2.0] {
+            for _ in 0..3 {
+                rows.push(serde_json::json!({"elapsed":6.5,"dilation":dilation,"movement_clock_error":0.0}));
+            }
+        }
+        assert!(
+            animation_clock_results(&rows)
+                .iter()
+                .all(|(_, passed)| *passed)
+        );
+        let mut drift = rows.clone();
+        drift[1]["state_elapsed"] = serde_json::json!(0.2);
+        assert!(
+            animation_clock_results(&drift)
+                .iter()
+                .any(|(_, passed)| !passed)
+        );
+        let mut missing = rows.clone();
+        for row in &mut missing {
+            if row["elapsed"].as_f64().unwrap() < 3.8 {
+                row["state_elapsed"] = serde_json::json!(0.1);
+            }
+        }
+        assert!(
+            animation_clock_results(&missing)
+                .iter()
+                .any(|(_, passed)| !passed)
+        );
         let mut movement_drift = rows.clone();
         movement_drift.last_mut().unwrap()["movement_clock_error"] = serde_json::json!(0.01);
-        assert!(animation_clock_results(&movement_drift).iter().any(|(_, passed)| !passed));
-        let no_pause = rows.into_iter().filter(|row| row["dilation"].as_f64() != Some(0.0)).collect::<Vec<_>>();
-        assert!(animation_clock_results(&no_pause).iter().any(|(_, passed)| !passed));
+        assert!(
+            animation_clock_results(&movement_drift)
+                .iter()
+                .any(|(_, passed)| !passed)
+        );
+        let no_pause = rows
+            .into_iter()
+            .filter(|row| row["dilation"].as_f64() != Some(0.0))
+            .collect::<Vec<_>>();
+        assert!(
+            animation_clock_results(&no_pause)
+                .iter()
+                .any(|(_, passed)| !passed)
+        );
     }
 
     #[test]
     fn visibility_case_gate_rejects_missing_freeze_pending_clock_and_notifications() {
-        let row = |phase, elapsed, frame, graph, bones, pending, roll_time, roll_action, shakes, footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"roll_action":roll_action,"roll_slot_relevant":false,"shakes":shakes,"footsteps":footsteps});
+        let row = |phase,
+                   elapsed,
+                   frame,
+                   graph,
+                   bones,
+                   pending,
+                   roll_time,
+                   roll_action,
+                   shakes,
+                   footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"roll_action":roll_action,"roll_slot_relevant":false,"shakes":shakes,"footsteps":footsteps});
         let rows = vec![
-            row("visible", 1.0, 10, true, true, false, 0.0, false, 0, 0), row("visible", 1.5, 20, true, true, false, 0.0, false, 0, 0),
-            row("hidden", 3.5, 30, false, false, true, 0.0, false, 0, 0), row("hidden", 4.0, 30, false, false, true, 0.0, false, 0, 0),
+            row("visible", 1.0, 10, true, true, false, 0.0, false, 0, 0),
+            row("visible", 1.5, 20, true, true, false, 0.0, false, 0, 0),
+            row("hidden", 3.5, 30, false, false, true, 0.0, false, 0, 0),
+            row("hidden", 4.0, 30, false, false, true, 0.0, false, 0, 0),
             row("resume", 4.6, 31, true, true, true, 0.0, false, 0, 0),
-            row("montage", 8.1, 60, false, false, true, 0.1, true, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, false, 0, 0),
-            row("always_pose", 9.8, 61, true, false, true, 1.1, false, 0, 0), row("always_pose", 10.5, 71, true, false, false, 1.2, false, 0, 0),
-            row("visible_final", 12.0, 81, true, true, false, 1.2, false, 0, 0), row("visible_final", 12.5, 91, true, true, false, 1.2, false, 0, 0),
+            row("montage", 8.1, 60, false, false, true, 0.1, true, 0, 0),
+            row("montage", 9.0, 60, false, false, true, 1.0, false, 0, 0),
+            row("always_pose", 9.8, 61, true, false, true, 1.1, false, 0, 0),
+            row(
+                "always_pose",
+                10.5,
+                71,
+                true,
+                false,
+                false,
+                1.2,
+                false,
+                0,
+                0,
+            ),
+            row(
+                "visible_final",
+                12.0,
+                81,
+                true,
+                true,
+                false,
+                1.2,
+                false,
+                0,
+                0,
+            ),
+            row(
+                "visible_final",
+                12.5,
+                91,
+                true,
+                true,
+                false,
+                1.2,
+                false,
+                0,
+                0,
+            ),
         ];
-        assert!(visibility_case_results(&rows).iter().all(|(_, passed)| *passed));
+        assert!(
+            visibility_case_results(&rows)
+                .iter()
+                .all(|(_, passed)| *passed)
+        );
         let mut landing_before_montage = rows.clone();
         landing_before_montage.push(row("visible", 0.31, 5, true, true, false, 0.0, false, 0, 1));
-        assert!(visibility_case_results(&landing_before_montage).iter().all(|(_, passed)| *passed),
-            "A visible landing notification must not change the hidden montage notification gate");
-        for (index, key, value) in [(3, "frame", serde_json::json!(31)), (4, "pending", serde_json::json!(false)),
-            (6, "roll_time", serde_json::json!(0.0)), (5, "roll_action", serde_json::json!(false)),
-            (6, "roll_action", serde_json::json!(true)), (5, "roll_slot_relevant", serde_json::json!(true)),
-            (6, "footsteps", serde_json::json!(1)), (6, "shakes", serde_json::json!(1)), (5, "visibility_phase", serde_json::json!("visible")),
-            (8, "frame", serde_json::json!(61))] {
-            let mut changed = rows.clone(); changed[index][key] = value;
-            assert!(visibility_case_results(&changed).iter().any(|(_, passed)| !passed));
-            if matches!(key, "footsteps" | "shakes" | "visibility_phase" | "roll_action" | "roll_slot_relevant") {
-                assert!(!visibility_case_results(&changed).iter()
-                    .find(|(name, _)| *name == "visibility_montage_notifications").unwrap().1,
-                    "Montage notification gate must reject queued events without slot relevance and require the branching lifecycle");
+        assert!(
+            visibility_case_results(&landing_before_montage)
+                .iter()
+                .all(|(_, passed)| *passed),
+            "A visible landing notification must not change the hidden montage notification gate"
+        );
+        for (index, key, value) in [
+            (3, "frame", serde_json::json!(31)),
+            (4, "pending", serde_json::json!(false)),
+            (6, "roll_time", serde_json::json!(0.0)),
+            (5, "roll_action", serde_json::json!(false)),
+            (6, "roll_action", serde_json::json!(true)),
+            (5, "roll_slot_relevant", serde_json::json!(true)),
+            (6, "footsteps", serde_json::json!(1)),
+            (6, "shakes", serde_json::json!(1)),
+            (5, "visibility_phase", serde_json::json!("visible")),
+            (8, "frame", serde_json::json!(61)),
+        ] {
+            let mut changed = rows.clone();
+            changed[index][key] = value;
+            assert!(
+                visibility_case_results(&changed)
+                    .iter()
+                    .any(|(_, passed)| !passed)
+            );
+            if matches!(
+                key,
+                "footsteps" | "shakes" | "visibility_phase" | "roll_action" | "roll_slot_relevant"
+            ) {
+                assert!(
+                    !visibility_case_results(&changed)
+                        .iter()
+                        .find(|(name, _)| *name == "visibility_montage_notifications")
+                        .unwrap()
+                        .1,
+                    "Montage notification gate must reject queued events without slot relevance and require the branching lifecycle"
+                );
             }
         }
-        for (time, phase) in [(1.99,"visible"),(2.0,"hidden"),(4.5,"resume"),(6.5,"montage"),(9.5,"always_pose"),(11.5,"visible_final"),(13.5,"finish")] {
+        for (time, phase) in [
+            (1.99, "visible"),
+            (2.0, "hidden"),
+            (4.5, "resume"),
+            (6.5, "montage"),
+            (9.5, "always_pose"),
+            (11.5, "visible_final"),
+            (13.5, "finish"),
+        ] {
             assert_eq!(visibility_case_phase(time), phase);
         }
     }
@@ -11256,24 +15233,59 @@ mod tests {
     #[test]
     fn notify_reentry_driver_waits_for_a_stopped_tail_and_requests_once() {
         for elapsed in [0.4, 0.83, 0.9, 0.95, crate::als::roll::ROLL_DURATION_SECS] {
-            let blend_start = crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS;
-            let roll = AlsRollState { active: true, time: elapsed,
-                natural_blend_start: (elapsed >= blend_start).then_some(blend_start), ..default() };
-            assert_eq!(roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, false), elapsed >= 0.9 && elapsed < crate::als::roll::ROLL_DURATION_SECS);
-            assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, true));
-            assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Air, false));
+            let blend_start =
+                crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS;
+            let roll = AlsRollState {
+                active: true,
+                time: elapsed,
+                natural_blend_start: (elapsed >= blend_start).then_some(blend_start),
+                ..default()
+            };
+            assert_eq!(
+                roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, false),
+                elapsed >= 0.9 && elapsed < crate::als::roll::ROLL_DURATION_SECS
+            );
+            assert!(!roll_tail_reentry_ready(
+                Some(&roll),
+                LocomotionState::Grounded,
+                true
+            ));
+            assert!(!roll_tail_reentry_ready(
+                Some(&roll),
+                LocomotionState::Air,
+                false
+            ));
         }
-        assert!(!roll_tail_reentry_ready(None, LocomotionState::Grounded, false));
+        assert!(!roll_tail_reentry_ready(
+            None,
+            LocomotionState::Grounded,
+            false
+        ));
     }
 
     #[test]
     fn state_machine_rotation_rebases_each_scripted_input_discontinuity_once() {
-        for (boundary, label) in [(1.3, "state_machine_aim_view_flip"),
-            (2.6, "state_machine_first_person_enter"), (3.9, "state_machine_first_person_view_flip")] {
-            assert_eq!(super::state_machine_rotation_boundary(boundary - 0.01, 0.005), None);
-            assert_eq!(super::state_machine_rotation_boundary(boundary, 0.01), Some(label));
-            assert_eq!(super::state_machine_rotation_boundary(boundary + 0.005, 0.01), Some(label));
-            assert_eq!(super::state_machine_rotation_boundary(boundary + 0.02, 0.01), None);
+        for (boundary, label) in [
+            (1.3, "state_machine_aim_view_flip"),
+            (2.6, "state_machine_first_person_enter"),
+            (3.9, "state_machine_first_person_view_flip"),
+        ] {
+            assert_eq!(
+                super::state_machine_rotation_boundary(boundary - 0.01, 0.005),
+                None
+            );
+            assert_eq!(
+                super::state_machine_rotation_boundary(boundary, 0.01),
+                Some(label)
+            );
+            assert_eq!(
+                super::state_machine_rotation_boundary(boundary + 0.005, 0.01),
+                Some(label)
+            );
+            assert_eq!(
+                super::state_machine_rotation_boundary(boundary + 0.02, 0.01),
+                None
+            );
             assert_eq!(super::state_machine_rotation_boundary(boundary, 0.0), None);
         }
     }
@@ -11281,10 +15293,15 @@ mod tests {
     #[test]
     fn p1_rotation_coverage_reads_actual_source_state_and_pose() {
         use super::*;
-        let mut drive = AlsTurnDrive { rotate_active: true, ..default() };
+        let mut drive = AlsTurnDrive {
+            rotate_active: true,
+            ..default()
+        };
         let mut graph = AlsStandingGraphTelemetry {
-            actual_standing_state: Some(3), actual_standing_transition_active: Some(false),
-            actual_standing_pose_ready: Some(true), ..default()
+            actual_standing_state: Some(3),
+            actual_standing_transition_active: Some(false),
+            actual_standing_pose_ready: Some(true),
+            ..default()
         };
         assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 4);
         graph.actual_standing_state = Some(4);
@@ -11309,8 +15326,7 @@ mod tests {
     fn foot_avatar_replacement_watchdog_ends_only_after_no_progress_limit() {
         use super::{
             FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS,
-            FOOT_AVATAR_REPLACEMENT_START_SECONDS,
-            foot_avatar_replacement_timed_out,
+            FOOT_AVATAR_REPLACEMENT_START_SECONDS, foot_avatar_replacement_timed_out,
         };
         let deadline = FOOT_AVATAR_REPLACEMENT_START_SECONDS
             + FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS;
@@ -11328,7 +15344,8 @@ mod tests {
         let standing_half = params.crouch.standing_capsule_half_height;
         let crouched_half = params.crouch.crouched_capsule_half_height;
         let standing_center = Vec3::Y * (standing_half * 2.0 + 0.02);
-        let crouched_center = stance_center_from_standing_center(&params, standing_center, Stance::Crouching, 2.0);
+        let crouched_center =
+            stance_center_from_standing_center(&params, standing_center, Stance::Crouching, 2.0);
         let floor = crouched_center.y - crouched_half * 2.0;
         let canopy_bottom = floor + crouched_half * 4.0 + 0.08;
         assert!((floor - 0.02).abs() < 1e-6);
@@ -11345,7 +15362,13 @@ mod tests {
             probe.observe(Some(0.4), 1.2, Vec2::ZERO, None, None);
             for _ in 0..8 {
                 let desired = Quat::from_rotation_y(wrong.unwrap_or(0.4)) * Vec3::NEG_Z * 0.3;
-                probe.observe(Some(0.4), 1.2, Vec2::Y * 0.3, Some(wrong.unwrap_or(0.4)), Some(desired));
+                probe.observe(
+                    Some(0.4),
+                    1.2,
+                    Vec2::Y * 0.3,
+                    Some(wrong.unwrap_or(0.4)),
+                    Some(desired),
+                );
             }
             assert_eq!(probe.passed(), wrong.is_none());
         }
@@ -11366,9 +15389,17 @@ mod tests {
                 let delta = deltas[frame % deltas.len()];
                 elapsed += delta;
                 let command = super::foot_ik_terrain_command(elapsed, delta);
-                if command.crouch_pressed { presses[0] += 1; crouching = !crouching; }
-                if command.jump_pressed { presses[1] += 1; assert!(!crouching, "The jump input only stands up from crouch"); }
-                if command.roll_pressed { presses[2] += 1; }
+                if command.crouch_pressed {
+                    presses[0] += 1;
+                    crouching = !crouching;
+                }
+                if command.jump_pressed {
+                    presses[1] += 1;
+                    assert!(!crouching, "The jump input only stands up from crouch");
+                }
+                if command.roll_pressed {
+                    presses[2] += 1;
+                }
                 frame += 1;
             }
             assert_eq!(presses, [2, 1, 1]);
@@ -11379,119 +15410,330 @@ mod tests {
 
     #[test]
     fn control_rig_action_evidence_requires_actual_hand_weights_and_spine_motion() {
-        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
-        use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
-            animation_clip::EntityPath, animation_node::AnimationNode, edge_data::DataSpec,
-            pose::BonePose, systems::animation_player}};
-        use crate::extensions::{control_rig_program::RigDefinition, root_graph_boundaries::{ControlRigBoundaryNode, RigInputBinding, RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY}};
+        use crate::extensions::{
+            control_rig_program::RigDefinition,
+            root_graph_boundaries::{
+                ControlRigBoundaryNode, RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY, RigInputBinding,
+            },
+        };
+        use bevy::{
+            ecs::system::RunSystemOnce,
+            world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner},
+        };
+        use bevy_animation_graph::{
+            AnimationGraphPlugin,
+            core::{
+                animated_scene::AnimatedSceneHandle, animation_clip::EntityPath,
+                animation_node::AnimationNode, edge_data::DataSpec, pose::BonePose,
+                systems::animation_player,
+            },
+        };
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
-            bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), crate::extensions::AlsExtPlugin)).init_asset::<WorldAsset>();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            bevy::gizmos::GizmoPlugin,
+            AnimationGraphPlugin::default(),
+            crate::extensions::AlsExtPlugin,
+        ))
+        .init_asset::<WorldAsset>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/CR_Als.program.json"
+        ))
+        .unwrap();
         let local = |value: crate::extensions::control_rig_hierarchy::RigTransform| Transform {
-            translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
+            translation: value.translation.as_vec3(),
+            rotation: value.rotation.as_quat(),
+            scale: value.scale.as_vec3(),
+        };
         let mut skeleton = Skeleton::default();
         let mut paths: Vec<Vec<String>> = Vec::new();
         for bone in &definition.bones {
-            let mut path = bone.parent.map(|index| paths[index].clone()).unwrap_or_default();
+            let mut path = bone
+                .parent
+                .map(|index| paths[index].clone())
+                .unwrap_or_default();
             path.push(bone.name.clone());
-            skeleton.add_bone(EntityPath::from(path.clone()), local(bone.initial_local), local(bone.initial_global));
+            skeleton.add_bone(
+                EntityPath::from(path.clone()),
+                local(bone.initial_local),
+                local(bone.initial_global),
+            );
             paths.push(path);
         }
         skeleton.set_root(EntityPath::from(paths[0].clone()).id());
-        let skeleton = app.world_mut().resource_mut::<Assets<Skeleton>>().add(skeleton);
-        let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+        let skeleton = app
+            .world_mut()
+            .resource_mut::<Assets<Skeleton>>()
+            .add(skeleton);
+        let mut pose = Pose {
+            skeleton: skeleton.clone(),
+            ..default()
+        };
         for (bone, path) in definition.bones.iter().zip(paths) {
-            pose.add_bone(BonePose::from_transform(local(bone.initial_local)), EntityPath::from(path).id());
+            pose.add_bone(
+                BonePose::from_transform(local(bone.initial_local)),
+                EntityPath::from(path).id(),
+            );
         }
         let mut graph = AnimationGraph::new();
-        let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode { key: "source".into(), output: "Pose".into() });
-        let curves = AnimationNode::new("source curves", crate::extensions::source_pose_nodes::SourceCurveModifyNode {
-            source_pose_pin: "Source".into(), curve_names: vec!["LayerArmLeft".into(), "LayerArmRight".into()], pin_defaults: vec![1.0, 1.0], alpha: 1.0, ..default() });
-        let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition), capture_context: true, internalize_time: true,
-            input_bindings: [0, 1, 2, 5].map(|index| RigInputBinding { external: "RigInput".into(), path: vec![index], property: format!("input_{index}") }).into(), ..default() });
-        for node in [&source, &curves, &rig] { graph.add_node(node.clone()); }
+        let source = AnimationNode::new(
+            "source",
+            crate::extensions::GlobalPoseInputNode {
+                key: "source".into(),
+                output: "Pose".into(),
+            },
+        );
+        let curves = AnimationNode::new(
+            "source curves",
+            crate::extensions::source_pose_nodes::SourceCurveModifyNode {
+                source_pose_pin: "Source".into(),
+                curve_names: vec!["LayerArmLeft".into(), "LayerArmRight".into()],
+                pin_defaults: vec![1.0, 1.0],
+                alpha: 1.0,
+                ..default()
+            },
+        );
+        let rig = AnimationNode::new(
+            "rig",
+            ControlRigBoundaryNode {
+                definition: Some(definition),
+                capture_context: true,
+                internalize_time: true,
+                input_bindings: [0, 1, 2, 5]
+                    .map(|index| RigInputBinding {
+                        external: "RigInput".into(),
+                        path: vec![index],
+                        property: format!("input_{index}"),
+                    })
+                    .into(),
+                ..default()
+            },
+        );
+        for node in [&source, &curves, &rig] {
+            graph.add_node(node.clone());
+        }
         graph.add_node_parameter_edge(source.id, "Pose", curves.id, "Source");
         graph.add_node_parameter_edge(curves.id, "Pose", rig.id, "source_pose");
         graph.add_output_data("pose".into(), DataSpec::Pose);
         graph.add_output_data_edge(rig.id, "Pose", "pose");
-        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(graph);
         let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
         player.set_global_input_data("source", DataValue::Pose(pose));
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
         player.set_global_input_data(RIG_CAPTURE_KEY, true);
         player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
-        for key in ["input_0", "input_1", "input_2"] { player.set_global_input_data(key, true); }
+        for key in ["input_0", "input_1", "input_2"] {
+            player.set_global_input_data(key, true);
+        }
         player.set_global_input_data("input_5", 0.0_f32);
-        let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY)).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor }, Transform::IDENTITY, ChildOf(actor), AnimatedSceneHandle::default())).id();
-        let player_entity = app.world_mut().spawn((player, Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
-        app.world_mut().spawn((Name::new("pelvis"), Transform::IDENTITY, ChildOf(player_entity)));
-        app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        let actor = app
+            .world_mut()
+            .spawn((AlsCharacter, Transform::IDENTITY))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character: actor },
+                Transform::IDENTITY,
+                ChildOf(actor),
+                AnimatedSceneHandle::default(),
+            ))
+            .id();
+        let player_entity = app
+            .world_mut()
+            .spawn((
+                player,
+                Name::new("root"),
+                Transform::IDENTITY,
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().spawn((
+            Name::new("pelvis"),
+            Transform::IDENTITY,
+            ChildOf(player_entity),
+        ));
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
         app.world_mut().flush();
         app.world_mut().run_system_once(animation_player).unwrap();
-        for (active, yaw, expected) in [(false, 30.0_f32, false), (true, 0.0, false), (true, 30.0, true), (false, 30.0, false)] {
+        for (active, yaw, expected) in [
+            (false, 30.0_f32, false),
+            (true, 0.0, false),
+            (true, 30.0, true),
+            (false, 30.0, false),
+        ] {
             run_manual_rig_curve_fixture(app.world_mut(), actor, default(), active);
-            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("input_5", yaw);
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .set_global_input_data("input_5", yaw);
             app.world_mut().run_system_once(animation_player).unwrap();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             assert!(player.get_error().is_none(), "{:?}", player.get_error());
-            let evidence = control_rig_action_evidence(player, app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>());
-            assert_eq!(evidence.is_some(), expected, "active={active} yaw={yaw} evidence={evidence:?}");
-            if let Some([left, right, angle]) = evidence { assert_eq!([left, right], [1.0, 1.0]); assert!(angle > 0.05); }
+            let evidence = control_rig_action_evidence(
+                player,
+                app.world().resource::<Assets<AnimationGraph>>(),
+                app.world().resource::<Assets<Skeleton>>(),
+            );
+            assert_eq!(
+                evidence.is_some(),
+                expected,
+                "active={active} yaw={yaw} evidence={evidence:?}"
+            );
+            if let Some([left, right, angle]) = evidence {
+                assert_eq!([left, right], [1.0, 1.0]);
+                assert!(angle > 0.05);
+            }
             if active && expected {
-                app.world_mut().resource_mut::<ManualIntegrationState>().phase = IntegrationPhase::Finish;
-                app.world_mut().run_system_cached(drive_manual_rig_curves).unwrap();
+                app.world_mut()
+                    .resource_mut::<ManualIntegrationState>()
+                    .phase = IntegrationPhase::Finish;
+                app.world_mut()
+                    .run_system_cached(drive_manual_rig_curves)
+                    .unwrap();
                 app.world_mut().run_system_once(animation_player).unwrap();
-                assert!(control_rig_action_evidence(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(),
-                    app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>()).is_some(),
-                    "Finishing the scenario must preserve fixture inputs until pose collection ends");
+                assert!(
+                    control_rig_action_evidence(
+                        app.world()
+                            .get::<AnimationGraphPlayer>(player_entity)
+                            .unwrap(),
+                        app.world().resource::<Assets<AnimationGraph>>(),
+                        app.world().resource::<Assets<Skeleton>>()
+                    )
+                    .is_some(),
+                    "Finishing the scenario must preserve fixture inputs until pose collection ends"
+                );
             }
         }
-        app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_output_data_edge(source.id, "Pose", "pose");
+        app.world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .get_mut(&graph)
+            .unwrap()
+            .add_output_data_edge(source.id, "Pose", "pose");
         app.world_mut().run_system_once(animation_player).unwrap();
-        assert!(control_rig_action_evidence(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(),
-            app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>()).is_none());
+        assert!(
+            control_rig_action_evidence(
+                app.world()
+                    .get::<AnimationGraphPlayer>(player_entity)
+                    .unwrap(),
+                app.world().resource::<Assets<AnimationGraph>>(),
+                app.world().resource::<Assets<Skeleton>>()
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn control_rig_view_driver_runs_after_physics_before_actor_inputs() {
-        use bevy::ecs::schedule::ScheduleCleanupPolicy;
         use crate::extensions::post_physics_animation::PostPhysicsAnimationSet;
+        use bevy::ecs::schedule::ScheduleCleanupPolicy;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default(), ManualPlaygroundIntegrationPlugin))
-            .init_asset::<StateMachine>().add_message::<AlsCameraShakeRequest>().add_message::<AlsAnimationEvent>()
-            .init_resource::<Assets<AnimationGraph>>().init_resource::<AlsFootIkWeightOverride>()
-            .configure_sets(PostUpdate, (
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::asset::AssetPlugin::default(),
+            ManualPlaygroundIntegrationPlugin,
+        ))
+        .init_asset::<StateMachine>()
+        .add_message::<AlsCameraShakeRequest>()
+        .add_message::<AlsAnimationEvent>()
+        .init_resource::<Assets<AnimationGraph>>()
+        .init_resource::<AlsFootIkWeightOverride>()
+        .configure_sets(
+            PostUpdate,
+            (
                 PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
                 PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs),
-                bevy_animation_graph::core::plugin::AnimationGraphSet::Final.after(PostPhysicsAnimationSet::Evaluate),
-            ));
-        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
-            assert_eq!(schedule.remove_systems_in_set(prepare_get_up_physics_fixture, world, ScheduleCleanupPolicy::RemoveSystemsOnly).unwrap(), 1);
-            assert_eq!(schedule.remove_systems_in_set(observe_manual_integration, world, ScheduleCleanupPolicy::RemoveSystemsOnly).unwrap(), 1);
-        });
-        let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, AlsViewYaw(0.0))).id();
+                bevy_animation_graph::core::plugin::AnimationGraphSet::Final
+                    .after(PostPhysicsAnimationSet::Evaluate),
+            ),
+        );
+        app.world_mut()
+            .schedule_scope(PostUpdate, |world, schedule| {
+                assert_eq!(
+                    schedule
+                        .remove_systems_in_set(
+                            prepare_get_up_physics_fixture,
+                            world,
+                            ScheduleCleanupPolicy::RemoveSystemsOnly
+                        )
+                        .unwrap(),
+                    1
+                );
+                assert_eq!(
+                    schedule
+                        .remove_systems_in_set(
+                            observe_manual_integration,
+                            world,
+                            ScheduleCleanupPolicy::RemoveSystemsOnly
+                        )
+                        .unwrap(),
+                    1
+                );
+            });
+        let actor = app
+            .world_mut()
+            .spawn((AlsCharacter, Transform::IDENTITY, AlsViewYaw(0.0)))
+            .id();
         {
             let mut state = app.world_mut().resource_mut::<ManualIntegrationState>();
             state.character = Some(actor);
             state.scenario = IntegrationScenario::ControlRig;
             state.phase = IntegrationPhase::ControlRig;
         }
-        app.add_systems(PostUpdate, (|mut actors: Query<&mut AlsViewYaw>| {
-            for mut yaw in &mut actors { yaw.0 = -0.8; }
-        }).in_set(avian3d::prelude::PhysicsSystems::Last));
+        app.add_systems(
+            PostUpdate,
+            (|mut actors: Query<&mut AlsViewYaw>| {
+                for mut yaw in &mut actors {
+                    yaw.0 = -0.8;
+                }
+            })
+            .in_set(avian3d::prelude::PhysicsSystems::Last),
+        );
         let mut frame = 0;
-        app.add_systems(PostUpdate, (move |actors: Query<&AlsViewYaw>| {
-            let expected = [60.0_f32, 150.0, -30.0, 60.0][frame].to_radians();
-            assert!((actors.get(actor).unwrap().0 - expected).abs() < 1e-6, "view input must include the current fixture offset");
-            frame += 1;
-        }).in_set(PostPhysicsAnimationSet::Inputs));
-        for (index, rotation) in [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2), Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2), Quat::IDENTITY].into_iter().enumerate() {
-            if index == 3 { app.world_mut().resource_mut::<ManualIntegrationState>().phase = IntegrationPhase::Finish; }
-            app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
+        app.add_systems(
+            PostUpdate,
+            (move |actors: Query<&AlsViewYaw>| {
+                let expected = [60.0_f32, 150.0, -30.0, 60.0][frame].to_radians();
+                assert!(
+                    (actors.get(actor).unwrap().0 - expected).abs() < 1e-6,
+                    "view input must include the current fixture offset"
+                );
+                frame += 1;
+            })
+            .in_set(PostPhysicsAnimationSet::Inputs),
+        );
+        for (index, rotation) in [
+            Quat::IDENTITY,
+            Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+            Quat::IDENTITY,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if index == 3 {
+                app.world_mut()
+                    .resource_mut::<ManualIntegrationState>()
+                    .phase = IntegrationPhase::Finish;
+            }
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .rotation = rotation;
             app.world_mut().run_schedule(PostUpdate);
         }
     }
@@ -11499,41 +15741,69 @@ mod tests {
     #[test]
     fn head_driver_changes_saved_rotation_intent_through_actual_input() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, crate::als::transition::AlsStateTransitionPlugin))
-            .add_message::<crate::als::aim::AimStateChanged>()
-            .add_message::<AlsCameraShakeRequest>()
-            .add_message::<AlsPivotNotify>()
-            .init_resource::<ManualIntegrationState>()
-            .init_resource::<ManualAnimationWindowEvidence>()
-            .init_resource::<ManualRuntimePhaseEvidence>()
-            .init_resource::<AlsShowDebugHudState>()
-            .init_resource::<AlsFootIkWeightOverride>()
-            .init_resource::<Assets<AlsMovementParams>>()
-            .init_resource::<ButtonInput<KeyCode>>()
-            .insert_resource(ManualIntegrationFixture {
-                platform: Entity::PLACEHOLDER, platform_home: Vec3::ZERO,
-                locomotion_start: Vec3::ZERO, mantle_start: Vec3::ZERO,
-                roll_start: Vec3::ZERO, facing_yaw: 0.0,
-                obstacle_mesh: Handle::default(), obstacle_material: Handle::default(),
-            })
-            .add_systems(PreUpdate, drive_manual_integration)
-            .add_systems(Update, crate::als::input_request::input_state_request_system
-                .before(crate::als::transition::state_transition_system))
-            .add_systems(PostUpdate, crate::als::aim::aim_rotation_mode_system);
-        let entity = app.world_mut().spawn((
-            AlsCharacter, crate::als::input::AlsInputCommand::default(),
-            AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Walking),
-            Stance::Standing, LocomotionState::Grounded, Gait::Walking,
-            RotationMode::ViewDirection, OverlayState::Default,
-            crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
-            AlsStateRequest::default(),
-            (Transform::default(), Position::default(), LinearVelocity::default(),
-                AlsViewYaw::default(), AlsViewPitch::default(),
-                AlsMovementParamsHandle::default(), AlsAimingYawConstraint::default()),
-        )).id();
-        for (index, expected) in [(2, RotationMode::Aiming), (3, RotationMode::VelocityDirection),
-            (4, RotationMode::VelocityDirection), (5, RotationMode::ViewDirection),
-            (6, RotationMode::ViewDirection)] {
+        app.add_plugins((
+            MinimalPlugins,
+            crate::als::transition::AlsStateTransitionPlugin,
+        ))
+        .add_message::<crate::als::aim::AimStateChanged>()
+        .add_message::<AlsCameraShakeRequest>()
+        .add_message::<AlsPivotNotify>()
+        .init_resource::<ManualIntegrationState>()
+        .init_resource::<ManualAnimationWindowEvidence>()
+        .init_resource::<ManualRuntimePhaseEvidence>()
+        .init_resource::<AlsShowDebugHudState>()
+        .init_resource::<AlsFootIkWeightOverride>()
+        .init_resource::<Assets<AlsMovementParams>>()
+        .init_resource::<ButtonInput<KeyCode>>()
+        .insert_resource(ManualIntegrationFixture {
+            platform: Entity::PLACEHOLDER,
+            platform_home: Vec3::ZERO,
+            locomotion_start: Vec3::ZERO,
+            mantle_start: Vec3::ZERO,
+            roll_start: Vec3::ZERO,
+            facing_yaw: 0.0,
+            obstacle_mesh: Handle::default(),
+            obstacle_material: Handle::default(),
+        })
+        .add_systems(PreUpdate, drive_manual_integration)
+        .add_systems(
+            Update,
+            crate::als::input_request::input_state_request_system
+                .before(crate::als::transition::state_transition_system),
+        )
+        .add_systems(PostUpdate, crate::als::aim::aim_rotation_mode_system);
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                crate::als::input::AlsInputCommand::default(),
+                AlsInputOverride::default(),
+                AlsMaxAllowedGait(Gait::Walking),
+                Stance::Standing,
+                LocomotionState::Grounded,
+                Gait::Walking,
+                RotationMode::ViewDirection,
+                OverlayState::Default,
+                crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsStateRequest::default(),
+                (
+                    Transform::default(),
+                    Position::default(),
+                    LinearVelocity::default(),
+                    AlsViewYaw::default(),
+                    AlsViewPitch::default(),
+                    AlsMovementParamsHandle::default(),
+                    AlsAimingYawConstraint::default(),
+                ),
+            ))
+            .id();
+        for (index, expected) in [
+            (2, RotationMode::Aiming),
+            (3, RotationMode::VelocityDirection),
+            (4, RotationMode::VelocityDirection),
+            (5, RotationMode::ViewDirection),
+            (6, RotationMode::ViewDirection),
+        ] {
             let mut state = app.world_mut().resource_mut::<ManualIntegrationState>();
             state.initialized = true;
             state.character = Some(entity);
@@ -11543,13 +15813,25 @@ mod tests {
             state.head_probe.case_index = index;
             state.phase_started_seconds = 0.0;
             app.update();
-            assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
-                "Source Head branch after owner refresh for case {index}");
-            assert_eq!(app.world().get::<crate::als::aim::AlsLastFreeRotationMode>(entity).unwrap().0,
-                expected, "Source Head branch must update saved intent for case {index}");
+            assert_eq!(
+                *app.world().get::<RotationMode>(entity).unwrap(),
+                expected,
+                "Source Head branch after owner refresh for case {index}"
+            );
+            assert_eq!(
+                app.world()
+                    .get::<crate::als::aim::AlsLastFreeRotationMode>(entity)
+                    .unwrap()
+                    .0,
+                expected,
+                "Source Head branch must update saved intent for case {index}"
+            );
             app.update();
-            assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
-                "Source Head branch must remain stable for case {index}");
+            assert_eq!(
+                *app.world().get::<RotationMode>(entity).unwrap(),
+                expected,
+                "Source Head branch must remain stable for case {index}"
+            );
         }
     }
 
@@ -11559,27 +15841,66 @@ mod tests {
         let bone = BoneId::default();
         let poses = [0.1, -0.6, 0.8].map(|angle| {
             let mut pose = Pose::default();
-            pose.add_bone(BonePose { rotation: Some(Quat::from_rotation_x(angle)), ..default() }, bone);
+            pose.add_bone(
+                BonePose {
+                    rotation: Some(Quat::from_rotation_x(angle)),
+                    ..default()
+                },
+                bone,
+            );
             Some(pose)
         });
-        for (pitch, expected) in [(-120.0, [0.0, 1.0, 0.0]), (-45.0, [0.5, 0.5, 0.0]), (0.0, [1.0, 0.0, 0.0]), (45.0, [0.5, 0.0, 0.5]), (120.0, [0.0, 0.0, 1.0])] {
+        for (pitch, expected) in [
+            (-120.0, [0.0, 1.0, 0.0]),
+            (-45.0, [0.5, 0.5, 0.0]),
+            (0.0, [1.0, 0.0, 0.0]),
+            (45.0, [0.5, 0.0, 0.5]),
+            (120.0, [0.0, 0.0, 1.0]),
+        ] {
             let weights = head_look_weights(pitch);
             assert_eq!(weights, expected);
             assert!(head_weighted_pose(poses.clone(), weights).is_some());
             assert!(head_weighted_pose([None, None, None], weights).is_none());
-            assert!(head_weighted_pose([Some(Pose::default()), Some(Pose::default()), Some(Pose::default())], weights).is_none());
+            assert!(
+                head_weighted_pose(
+                    [
+                        Some(Pose::default()),
+                        Some(Pose::default()),
+                        Some(Pose::default())
+                    ],
+                    weights
+                )
+                .is_none()
+            );
         }
         let down = head_weighted_pose(poses.clone(), head_look_weights(-45.0)).unwrap();
         let up = head_weighted_pose(poses, head_look_weights(45.0)).unwrap();
         assert!(default_overlay_pose_error(&down, &up).unwrap() > 0.1);
-        let graph = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets").join(HEAD_GRAPH)).unwrap();
-        for (_, node, _) in HEAD_BOUNDARIES { assert!(graph.contains(&format!("name: {node:?}")), "Missing authored Head node {node:?}"); }
+        let graph = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join(HEAD_GRAPH),
+        )
+        .unwrap();
+        for (_, node, _) in HEAD_BOUNDARIES {
+            assert!(
+                graph.contains(&format!("name: {node:?}")),
+                "Missing authored Head node {node:?}"
+            );
+        }
         assert_eq!(HEAD_BOUNDARIES[0].2, "pose");
         for index in 0..HEAD_WINDOWS.len() {
             let window = head_window(index, &HeadGraphSample::default());
             assert!(window.capture_every_frame && window.requires_source_pose_chain);
-            assert!(window.source_pose_chain.iter().all(|boundary| !boundary.node.starts_with("additive reference")));
-            if index == 4 { assert_eq!(window.source_pose_chain.len(), 2); }
+            assert!(
+                window
+                    .source_pose_chain
+                    .iter()
+                    .all(|boundary| !boundary.node.starts_with("additive reference"))
+            );
+            if index == 4 {
+                assert_eq!(window.source_pose_chain.len(), 2);
+            }
         }
         assert!(!default_overlay_should_timeout(false, 11.99));
         assert!(default_overlay_should_timeout(false, 12.0));
@@ -11592,13 +15913,23 @@ mod tests {
         let mut player = AnimationGraphPlayer::new(Handle::default());
         assert!(!head_actor_world_inputs_match(&player, &local, &world));
         player.set_global_input_data("locomotion_state.rotation_yaw", 0.0_f32);
-        player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", Quat::IDENTITY);
+        player.set_global_input_data(
+            "locomotion_state.rotation_quaternion_world_space",
+            Quat::IDENTITY,
+        );
         assert!(head_actor_world_inputs_match(&player, &local, &world));
-        assert!(!head_actor_world_inputs_match(&player, &Transform::IDENTITY, &world));
+        assert!(!head_actor_world_inputs_match(
+            &player,
+            &Transform::IDENTITY,
+            &world
+        ));
         player.set_global_input_data("locomotion_state.rotation_yaw", 90.0_f32);
         assert!(!head_actor_world_inputs_match(&player, &local, &world));
         player.set_global_input_data("locomotion_state.rotation_yaw", 0.0_f32);
-        player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", local.rotation);
+        player.set_global_input_data(
+            "locomotion_state.rotation_quaternion_world_space",
+            local.rotation,
+        );
         assert!(!head_actor_world_inputs_match(&player, &local, &world));
     }
 
@@ -11609,88 +15940,206 @@ mod tests {
         let mut player = AnimationGraphPlayer::new(Handle::default());
         for step in 0..3600 {
             let rotation = Quat::from_rotation_y((step as f32 * 0.1).to_radians());
-            let local = Transform::from_rotation(parent.rotation.inverse() * rotation).with_scale(Vec3::splat(1.0 / 1.5));
+            let local = Transform::from_rotation(parent.rotation.inverse() * rotation)
+                .with_scale(Vec3::splat(1.0 / 1.5));
             let world = parent * GlobalTransform::from(local);
             let rotation = world.rotation();
-            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", rotation);
-            player.set_global_input_data("locomotion_state.rotation_yaw",
-                -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees());
-            assert!(head_actor_world_inputs_match(&player, &local, &world),
-                "World guard rejected identical affine rotation at {step}: {rotation:?}, norm={}", rotation.length_squared());
-            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", -rotation);
-            assert!(head_actor_world_inputs_match(&player, &local, &world), "Equivalent quaternion sign was rejected at {step}");
+            player.set_global_input_data(
+                "locomotion_state.rotation_quaternion_world_space",
+                rotation,
+            );
+            player.set_global_input_data(
+                "locomotion_state.rotation_yaw",
+                -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees(),
+            );
+            assert!(
+                head_actor_world_inputs_match(&player, &local, &world),
+                "World guard rejected identical affine rotation at {step}: {rotation:?}, norm={}",
+                rotation.length_squared()
+            );
+            player.set_global_input_data(
+                "locomotion_state.rotation_quaternion_world_space",
+                -rotation,
+            );
+            assert!(
+                head_actor_world_inputs_match(&player, &local, &world),
+                "Equivalent quaternion sign was rejected at {step}"
+            );
         }
     }
 
     #[test]
     fn head_observer_reads_loaded_graph_samples_and_relevance() {
         use bevy::ecs::system::RunSystemOnce;
-        use bevy_animation_graph::{builtin_nodes::clip_node::ClipNode, core::{
-            animation_clip::{GraphClip, loader::GraphClipLoader}, animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
-            animation_node::AnimationNode, edge_data::DataSpec,
-            skeleton::loader::SkeletonLoader, systems::animation_player,
-        }};
-        fn observe(In((entity, previous)): In<(Entity, Option<(u64, AlsHeadState, bool, f32)>)>, players: Query<&AnimationGraphPlayer>, probe: MotionProbe) -> HeadGraphSample {
+        use bevy_animation_graph::{
+            builtin_nodes::clip_node::ClipNode,
+            core::{
+                animation_clip::{GraphClip, loader::GraphClipLoader},
+                animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
+                animation_node::AnimationNode,
+                edge_data::DataSpec,
+                skeleton::loader::SkeletonLoader,
+                systems::animation_player,
+            },
+        };
+        fn observe(
+            In((entity, previous)): In<(Entity, Option<(u64, AlsHeadState, bool, f32)>)>,
+            players: Query<&AnimationGraphPlayer>,
+            probe: MotionProbe,
+        ) -> HeadGraphSample {
             head_graph_sample(players.get(entity).unwrap(), &probe, previous.as_ref())
         }
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
-            .init_asset::<bevy::world_serialization::WorldAsset>().init_asset::<bevy::animation::AnimationClip>()
-            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>().init_asset::<Mesh>().init_asset::<Image>()
-            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>().init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
-            .init_asset::<AnimationGraph>().init_asset_loader::<AnimationGraphLoader>().init_asset::<StateMachine>()
-            .init_resource::<ButtonInput<KeyCode>>().add_plugins(crate::extensions::AlsExtPlugin).register_type::<ClipNode>();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::gltf::GltfPlugin::default(),
+        ))
+        .init_asset::<bevy::world_serialization::WorldAsset>()
+        .init_asset::<bevy::animation::AnimationClip>()
+        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .init_asset::<GraphClip>()
+        .init_asset_loader::<GraphClipLoader>()
+        .init_asset::<Skeleton>()
+        .init_asset_loader::<SkeletonLoader>()
+        .init_asset::<AnimationGraph>()
+        .init_asset_loader::<AnimationGraphLoader>()
+        .init_asset::<StateMachine>()
+        .init_resource::<ButtonInput<KeyCode>>()
+        .add_plugins(crate::extensions::AlsExtPlugin)
+        .register_type::<ClipNode>();
         app.finish();
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
         let graph: Handle<AnimationGraph> = server.load(HEAD_GRAPH);
-        let base: Handle<GraphClip> = server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let base: Handle<GraphClip> =
+            server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut previous_loaded = 0;
         loop {
             app.update();
             let server = app.world().resource::<AssetServer>();
-            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id())) + usize::from(server.is_loaded_with_dependencies(base.id()));
-            if loaded != previous_loaded { eprintln!("Head observer assets loaded {loaded}/2"); previous_loaded = loaded; }
-            if loaded == 2 { break; }
-            assert!(Instant::now() < deadline, "Head observer assets did not load within 30 seconds: {loaded}");
+            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id()))
+                + usize::from(server.is_loaded_with_dependencies(base.id()));
+            if loaded != previous_loaded {
+                eprintln!("Head observer assets loaded {loaded}/2");
+                previous_loaded = loaded;
+            }
+            if loaded == 2 {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Head observer assets did not load within 30 seconds: {loaded}"
+            );
             std::thread::sleep(Duration::from_millis(10));
         }
-        let linked = AnimationNode::new("Head", crate::extensions::LayeredGraphNode {
-            capture_context: true, internalize_time: true,
-            output_aliases: vec![crate::extensions::layered_graph::OutputDataAlias { child_output: "Result".into(), outer_output: "Pose".into() }],
-            ..crate::extensions::LayeredGraphNode::new(graph)
-        });
+        let linked = AnimationNode::new(
+            "Head",
+            crate::extensions::LayeredGraphNode {
+                capture_context: true,
+                internalize_time: true,
+                output_aliases: vec![crate::extensions::layered_graph::OutputDataAlias {
+                    child_output: "Result".into(),
+                    outer_output: "Pose".into(),
+                }],
+                ..crate::extensions::LayeredGraphNode::new(graph)
+            },
+        );
         let mut root = AnimationGraph::new();
-        root.add_input_data(GraphInputPin::Passthrough("View Input".into()), DataSpec::Pose);
+        root.add_input_data(
+            GraphInputPin::Passthrough("View Input".into()),
+            DataSpec::Pose,
+        );
         root.add_output_data("pose".into(), DataSpec::Pose);
-        root.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("View Input".into())), TargetPin::NodeData(linked.id, "View Input".into()));
-        root.add_edge(SourcePin::NodeData(linked.id, "Pose".into()), TargetPin::OutputData("pose".into()));
+        root.add_edge(
+            SourcePin::InputData(GraphInputPin::Passthrough("View Input".into())),
+            TargetPin::NodeData(linked.id, "View Input".into()),
+        );
+        root.add_edge(
+            SourcePin::NodeData(linked.id, "Pose".into()),
+            TargetPin::OutputData("pose".into()),
+        );
         root.add_node(linked);
-        let root = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(root);
-        let clip = app.world().resource::<Assets<GraphClip>>().get(&base).unwrap();
+        let root = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(root);
+        let clip = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(&base)
+            .unwrap();
         let mut player = AnimationGraphPlayer::new(clip.skeleton.clone()).with_graph(root);
-        player.set_input_data("View Input", crate::extensions::source_sequence_player::sample_pose(clip, 0.0).into());
+        player.set_input_data(
+            "View Input",
+            crate::extensions::source_sequence_player::sample_pose(clip, 0.0).into(),
+        );
         player.set_global_input_data("animation.delta_seconds", 0.1_f32);
         player.set_global_input_data("animation.delta_seconds_without_time_dilation", 0.1_f32);
-        let entity = app.world_mut().spawn((player, Name::new("Head observer"), Transform::default(), GlobalTransform::default())).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                player,
+                Name::new("Head observer"),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
         app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
         app.init_resource::<Assets<StandardMaterial>>();
         let mut previous: Option<(u64, AlsHeadState, bool, f32)> = None;
-        for (pitch, yaw, alpha) in [(-60.0_f32, 40.0_f32, 1.0_f32), (60.0, -80.0, 1.0), (60.0, -80.0, 0.0), (45.0, 120.0, 1.0)] {
-            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(entity).unwrap();
+        for (pitch, yaw, alpha) in [
+            (-60.0_f32, 40.0_f32, 1.0_f32),
+            (60.0, -80.0, 1.0),
+            (60.0, -80.0, 0.0),
+            (45.0, 120.0, 1.0),
+        ] {
+            let mut player = app
+                .world_mut()
+                .get_mut::<AnimationGraphPlayer>(entity)
+                .unwrap();
             player.set_global_input_data("view_state.pitch_angle", pitch);
             player.set_global_input_data("view_state.yaw_angle", yaw);
             player.set_global_input_data("view_state.head_blend_amount", alpha);
-            if let Some(previous) = previous.as_mut() { previous.3 = alpha; }
+            if let Some(previous) = previous.as_mut() {
+                previous.3 = alpha;
+            }
             app.world_mut().run_system_once(animation_player).unwrap();
-            assert!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error().is_none(), "Loaded Head graph failed: {:?}", app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error());
-            let sample = app.world_mut().run_system_once_with(observe, (entity, previous)).unwrap();
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(entity)
+                    .unwrap()
+                    .get_error()
+                    .is_none(),
+                "Loaded Head graph failed: {:?}",
+                app.world()
+                    .get::<AnimationGraphPlayer>(entity)
+                    .unwrap()
+                    .get_error()
+            );
+            let sample = app
+                .world_mut()
+                .run_system_once_with(observe, (entity, previous))
+                .unwrap();
             assert!(sample.errors.is_empty(), "Head observer failed: {sample:?}");
-            assert_eq!(sample.ready, alpha > 1e-5, "Head observer did not see authored outputs: {sample:?}");
+            assert_eq!(
+                sample.ready,
+                alpha > 1e-5,
+                "Head observer did not see authored outputs: {sample:?}"
+            );
             assert_eq!(sample.refreshed, alpha > 1e-5);
-            if alpha > 1e-5 { assert!(sample.additive_effect.is_some_and(|effect| effect > 1e-4), "Head additive effect was not observed: {sample:?}"); }
-            let state = crate::head_layer::head_state_from_player(app.world().get::<AnimationGraphPlayer>(entity).unwrap());
+            if alpha > 1e-5 {
+                assert!(
+                    sample.additive_effect.is_some_and(|effect| effect > 1e-4),
+                    "Head additive effect was not observed: {sample:?}"
+                );
+            }
+            let state = crate::head_layer::head_state_from_player(
+                app.world().get::<AnimationGraphPlayer>(entity).unwrap(),
+            );
             previous = Some((sample.frame, state, sample.refreshed, alpha));
         }
     }
@@ -11698,88 +16147,184 @@ mod tests {
     #[test]
     fn layering_observer_reads_loaded_layered_blend_curve_context() {
         use bevy::ecs::system::RunSystemOnce;
-        use bevy_animation_graph::{builtin_nodes::clip_node::ClipNode, core::{
-            animation_clip::{GraphClip, loader::GraphClipLoader}, animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
-            animation_node::AnimationNode, edge_data::DataSpec,
-            skeleton::loader::SkeletonLoader, systems::animation_player,
-        }};
-        fn observe(In((entity, previous)): In<(Entity, Option<(u64, AlsLayeringState)>)>, players: Query<&AnimationGraphPlayer>, probe: MotionProbe) -> LayeringGraphSample {
+        use bevy_animation_graph::{
+            builtin_nodes::clip_node::ClipNode,
+            core::{
+                animation_clip::{GraphClip, loader::GraphClipLoader},
+                animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
+                animation_node::AnimationNode,
+                edge_data::DataSpec,
+                skeleton::loader::SkeletonLoader,
+                systems::animation_player,
+            },
+        };
+        fn observe(
+            In((entity, previous)): In<(Entity, Option<(u64, AlsLayeringState)>)>,
+            players: Query<&AnimationGraphPlayer>,
+            probe: MotionProbe,
+        ) -> LayeringGraphSample {
             layering_graph_sample(players.get(entity).unwrap(), &probe, previous.as_ref())
         }
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
-            .init_asset::<bevy::world_serialization::WorldAsset>().init_asset::<bevy::animation::AnimationClip>()
-            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>().init_asset::<Mesh>().init_asset::<Image>()
-            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>().init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
-            .init_asset::<AnimationGraph>().init_asset_loader::<AnimationGraphLoader>().init_asset::<StateMachine>()
-            .init_resource::<ButtonInput<KeyCode>>().add_plugins(crate::extensions::AlsExtPlugin).register_type::<ClipNode>();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::gltf::GltfPlugin::default(),
+        ))
+        .init_asset::<bevy::world_serialization::WorldAsset>()
+        .init_asset::<bevy::animation::AnimationClip>()
+        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .init_asset::<GraphClip>()
+        .init_asset_loader::<GraphClipLoader>()
+        .init_asset::<Skeleton>()
+        .init_asset_loader::<SkeletonLoader>()
+        .init_asset::<AnimationGraph>()
+        .init_asset_loader::<AnimationGraphLoader>()
+        .init_asset::<StateMachine>()
+        .init_resource::<ButtonInput<KeyCode>>()
+        .add_plugins(crate::extensions::AlsExtPlugin)
+        .register_type::<ClipNode>();
         app.finish();
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
         let graph: Handle<AnimationGraph> = server.load(LAYERING_GRAPH);
-        let base: Handle<GraphClip> = server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let base: Handle<GraphClip> =
+            server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut previous_loaded = 0;
         loop {
             app.update();
             let server = app.world().resource::<AssetServer>();
-            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id())) + usize::from(server.is_loaded_with_dependencies(base.id()));
-            if loaded != previous_loaded { eprintln!("Layering observer assets loaded {loaded}/2"); previous_loaded = loaded; }
-            if loaded == 2 { break; }
-            assert!(Instant::now() < deadline, "Layering observer assets did not load within 30 seconds: {loaded}");
+            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id()))
+                + usize::from(server.is_loaded_with_dependencies(base.id()));
+            if loaded != previous_loaded {
+                eprintln!("Layering observer assets loaded {loaded}/2");
+                previous_loaded = loaded;
+            }
+            if loaded == 2 {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Layering observer assets did not load within 30 seconds: {loaded}"
+            );
             std::thread::sleep(Duration::from_millis(10));
         }
-        let linked = AnimationNode::new("Layering", crate::extensions::LayeredGraphNode {
-            capture_context: true, internalize_time: true,
-            output_aliases: vec![crate::extensions::layered_graph::OutputDataAlias { child_output: "Result".into(), outer_output: "Pose".into() }],
-            ..crate::extensions::LayeredGraphNode::new(graph)
-        });
+        let linked = AnimationNode::new(
+            "Layering",
+            crate::extensions::LayeredGraphNode {
+                capture_context: true,
+                internalize_time: true,
+                output_aliases: vec![crate::extensions::layered_graph::OutputDataAlias {
+                    child_output: "Result".into(),
+                    outer_output: "Pose".into(),
+                }],
+                ..crate::extensions::LayeredGraphNode::new(graph)
+            },
+        );
         let mut root = AnimationGraph::new();
         for name in ["Locomotion Input", "Overlay Input"] {
             root.add_input_data(GraphInputPin::Passthrough(name.into()), DataSpec::Pose);
-            root.add_edge(SourcePin::InputData(GraphInputPin::Passthrough(name.into())), TargetPin::NodeData(linked.id, name.into()));
+            root.add_edge(
+                SourcePin::InputData(GraphInputPin::Passthrough(name.into())),
+                TargetPin::NodeData(linked.id, name.into()),
+            );
         }
         root.add_output_data("pose".into(), DataSpec::Pose);
-        root.add_edge(SourcePin::NodeData(linked.id, "Pose".into()), TargetPin::OutputData("pose".into()));
+        root.add_edge(
+            SourcePin::NodeData(linked.id, "Pose".into()),
+            TargetPin::OutputData("pose".into()),
+        );
         root.add_node(linked);
-        let root = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(root);
-        let clip = app.world().resource::<Assets<GraphClip>>().get(&base).unwrap();
+        let root = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(root);
+        let clip = app
+            .world()
+            .resource::<Assets<GraphClip>>()
+            .get(&base)
+            .unwrap();
         let mut player = AnimationGraphPlayer::new(clip.skeleton.clone()).with_graph(root);
         for name in ["Locomotion Input", "Overlay Input"] {
-            player.set_input_data(name, crate::extensions::source_sequence_player::sample_pose(clip, 0.0).into());
+            player.set_input_data(
+                name,
+                crate::extensions::source_sequence_player::sample_pose(clip, 0.0).into(),
+            );
         }
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
-        player.set_global_input_data(crate::extensions::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY, true);
-        for (key, value) in crate::layering_layer::layering_state_inputs(AlsLayeringState::default()) {
+        player.set_global_input_data(
+            crate::extensions::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY,
+            true,
+        );
+        for (key, value) in
+            crate::layering_layer::layering_state_inputs(AlsLayeringState::default())
+        {
             player.set_global_input_data(key, value);
         }
-        let entity = app.world_mut().spawn((player, Name::new("Layering observer"), Transform::default(), GlobalTransform::default())).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                player,
+                Name::new("Layering observer"),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
         app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
         app.init_resource::<Assets<StandardMaterial>>();
         let mut previous = None;
         for _ in 0..2 {
             app.world_mut().run_system_once(animation_player).unwrap();
-            assert!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error().is_none());
-            let sample = app.world_mut().run_system_once_with(observe, (entity, previous)).unwrap();
-            assert!(sample.errors.is_empty(), "Layering observer failed: {sample:?}");
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(entity)
+                    .unwrap()
+                    .get_error()
+                    .is_none()
+            );
+            let sample = app
+                .world_mut()
+                .run_system_once_with(observe, (entity, previous))
+                .unwrap();
+            assert!(
+                sample.errors.is_empty(),
+                "Layering observer failed: {sample:?}"
+            );
             assert_eq!(sample.curve_operators, 3);
             assert_eq!(sample.input_curve_frame, previous.map(|(frame, _)| frame));
-            previous = Some((sample.evaluation_frame.unwrap(), AlsLayeringState::default()));
+            previous = Some((
+                sample.evaluation_frame.unwrap(),
+                AlsLayeringState::default(),
+            ));
         }
     }
 
     #[test]
     fn default_overlay_additive_matches_loaded_source_pose_channels() {
-        use bevy_animation_graph::core::{animation_clip::{GraphClip, loader::GraphClipLoader}, pose::BonePose, skeleton::{Skeleton, loader::SkeletonLoader}};
+        use bevy_animation_graph::core::{
+            animation_clip::{GraphClip, loader::GraphClipLoader},
+            pose::BonePose,
+            skeleton::{Skeleton, loader::SkeletonLoader},
+        };
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
-            .init_asset::<bevy::world_serialization::WorldAsset>()
-            .init_asset::<bevy::animation::AnimationClip>()
-            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
-            .init_asset::<Mesh>().init_asset::<Image>()
-            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>()
-            .init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
-            .add_plugins(crate::extensions::AlsExtPlugin);
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::gltf::GltfPlugin::default(),
+        ))
+        .init_asset::<bevy::world_serialization::WorldAsset>()
+        .init_asset::<bevy::animation::AnimationClip>()
+        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .init_asset::<GraphClip>()
+        .init_asset_loader::<GraphClipLoader>()
+        .init_asset::<Skeleton>()
+        .init_asset_loader::<SkeletonLoader>()
+        .add_plugins(crate::extensions::AlsExtPlugin);
         app.finish();
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
@@ -11787,62 +16332,148 @@ mod tests {
             "ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
             "ALS/Animations/Base/A_Als_Idle.anim.ron",
             "ALS/Animations/Base/A_Als_Stand_Pose.anim.ron",
-        ].map(|path| server.load(path));
+        ]
+        .map(|path| server.load(path));
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         let mut previous = 0;
         loop {
             app.update();
             let clips = app.world().resource::<Assets<GraphClip>>();
             let skeletons = app.world().resource::<Assets<Skeleton>>();
-            let loaded = handles.iter().filter(|handle| clips.get(*handle).is_some_and(|clip| skeletons.get(&clip.skeleton).is_some())).count();
-            if loaded != previous { eprintln!("Default additive assets loaded {loaded}/3"); previous = loaded; }
-            if loaded == handles.len() { break; }
-            assert!(std::time::Instant::now() < deadline, "Default additive assets did not load within 30 seconds: {loaded}");
+            let loaded = handles
+                .iter()
+                .filter(|handle| {
+                    clips
+                        .get(*handle)
+                        .is_some_and(|clip| skeletons.get(&clip.skeleton).is_some())
+                })
+                .count();
+            if loaded != previous {
+                eprintln!("Default additive assets loaded {loaded}/3");
+                previous = loaded;
+            }
+            if loaded == handles.len() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Default additive assets did not load within 30 seconds: {loaded}"
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         let clips = app.world().resource::<Assets<GraphClip>>();
         let skeletons = app.world().resource::<Assets<Skeleton>>();
         let base_clip = clips.get(&handles[0]).unwrap();
         let idle_clip = clips.get(&handles[1]).unwrap();
-        let reference = crate::extensions::source_sequence_player::sample_pose(clips.get(&handles[2]).unwrap(), 0.0);
+        let reference = crate::extensions::source_sequence_player::sample_pose(
+            clips.get(&handles[2]).unwrap(),
+            0.0,
+        );
         let skeleton = skeletons.get(&reference.skeleton).unwrap();
         for base_time in [0.0, base_clip.duration * 0.5] {
             for idle_time in [0.0, 0.8, 1.6] {
-                let base = crate::extensions::source_sequence_player::sample_pose(base_clip, base_time);
-                let delta = crate::extensions::reference_local_difference::make_local_difference(&reference,
-                    &crate::extensions::source_sequence_player::sample_pose(idle_clip, idle_time), skeleton);
+                let base =
+                    crate::extensions::source_sequence_player::sample_pose(base_clip, base_time);
+                let delta = crate::extensions::reference_local_difference::make_local_difference(
+                    &reference,
+                    &crate::extensions::source_sequence_player::sample_pose(idle_clip, idle_time),
+                    skeleton,
+                );
                 let expected = default_overlay_additive_pose(&base, &delta, 0.75);
                 let mut actual = base;
-                crate::extensions::mesh_space_additive::apply_local_space_additive(&mut actual, &delta, 0.75, skeleton);
-                assert!(default_overlay_pose_error(&actual, &expected).is_some_and(|error| error <= 2e-5),
+                crate::extensions::mesh_space_additive::apply_local_space_additive(
+                    &mut actual,
+                    &delta,
+                    0.75,
+                    skeleton,
+                );
+                assert!(
+                    default_overlay_pose_error(&actual, &expected)
+                        .is_some_and(|error| error <= 2e-5),
                     "Default additive channels differ at base={base_time}, idle={idle_time}: actual={}, expected={}, difference={:?}",
-                    actual.paths.len(), expected.paths.len(), default_overlay_pose_error(&actual, &expected));
+                    actual.paths.len(),
+                    expected.paths.len(),
+                    default_overlay_pose_error(&actual, &expected)
+                );
             }
         }
-        let bone = skeleton.iter_bones().find(|bone| *bone != skeleton.root()).unwrap();
-        let mut reference = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
-        reference.add_bone(BonePose::from_transform(skeleton.default_transforms(bone).unwrap().local), bone);
-        let mut delta = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
-        delta.add_bone(BonePose { translation: Some(Vec3::Y * 0.2), rotation: Some(Quat::from_rotation_x(0.4)), scale: Some(Vec3::splat(0.1)), ..default() }, bone);
+        let bone = skeleton
+            .iter_bones()
+            .find(|bone| *bone != skeleton.root())
+            .unwrap();
+        let mut reference = Pose {
+            skeleton: base_clip.skeleton.clone(),
+            ..default()
+        };
+        reference.add_bone(
+            BonePose::from_transform(skeleton.default_transforms(bone).unwrap().local),
+            bone,
+        );
+        let mut delta = Pose {
+            skeleton: base_clip.skeleton.clone(),
+            ..default()
+        };
+        delta.add_bone(
+            BonePose {
+                translation: Some(Vec3::Y * 0.2),
+                rotation: Some(Quat::from_rotation_x(0.4)),
+                scale: Some(Vec3::splat(0.1)),
+                ..default()
+            },
+            bone,
+        );
         let expected = default_overlay_additive_pose(&reference, &delta, 0.75);
-        let mut sparse = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
-        crate::extensions::mesh_space_additive::apply_local_space_additive(&mut sparse, &delta, 0.75, skeleton);
+        let mut sparse = Pose {
+            skeleton: base_clip.skeleton.clone(),
+            ..default()
+        };
+        crate::extensions::mesh_space_additive::apply_local_space_additive(
+            &mut sparse,
+            &delta,
+            0.75,
+            skeleton,
+        );
         assert_eq!(sparse.paths.len(), 1);
         assert!(default_overlay_pose_error(&sparse, &expected).is_some_and(|error| error <= 2e-5));
     }
 
     #[test]
     fn default_overlay_pose_check_rejects_lost_frames_and_additive_weight() {
-        use bevy_animation_graph::core::{pose::BonePose, edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator};
+        use bevy_animation_graph::core::{
+            edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator,
+            pose::BonePose,
+        };
         let mut base = Pose::default();
-        base.add_bone(BonePose { translation: Some(Vec3::X), rotation: Some(Quat::from_rotation_y(0.4)), scale: Some(Vec3::ONE), ..default() }, default());
+        base.add_bone(
+            BonePose {
+                translation: Some(Vec3::X),
+                rotation: Some(Quat::from_rotation_y(0.4)),
+                scale: Some(Vec3::ONE),
+                ..default()
+            },
+            default(),
+        );
         let mut additive = Pose::default();
-        additive.add_bone(BonePose { translation: Some(Vec3::Y * 0.2), rotation: Some(Quat::from_rotation_x(0.2)), scale: Some(Vec3::ZERO), ..default() }, default());
+        additive.add_bone(
+            BonePose {
+                translation: Some(Vec3::Y * 0.2),
+                rotation: Some(Quat::from_rotation_x(0.2)),
+                scale: Some(Vec3::ZERO),
+                ..default()
+            },
+            default(),
+        );
         let mut expected = base.clone();
-        AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &additive, 0.75);
+        AdditiveInterpolator {
+            bone_mask: BoneMask::all(),
+        }
+        .interpolate_pose(&mut expected, &additive, 0.75);
         assert_eq!(default_overlay_pose_error(&expected, &expected), Some(0.0));
         let mut old_weight = base.clone();
-        AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut old_weight, &additive, 1.0);
+        AdditiveInterpolator {
+            bone_mask: BoneMask::all(),
+        }
+        .interpolate_pose(&mut old_weight, &additive, 1.0);
         assert!(default_overlay_pose_error(&old_weight, &expected).unwrap() > 0.01);
         let mut wrong_frame = expected.clone();
         wrong_frame.bones[0].rotation = Some(Quat::IDENTITY);
@@ -11856,7 +16487,11 @@ mod tests {
 
     #[test]
     fn default_overlay_windows_bind_all_source_frames_and_bound_progress() {
-        let mut probe = DefaultOverlayProbe { case_index: 3, airborne_seen: true, ..default() };
+        let mut probe = DefaultOverlayProbe {
+            case_index: 3,
+            airborne_seen: true,
+            ..default()
+        };
         for covered in [false, true] {
             probe.covered[3] = covered;
             assert_eq!(probe.air_window(Some(0.0)), Some(3));
@@ -11867,7 +16502,13 @@ mod tests {
         assert_eq!(probe.air_window(Some(0.0)), None);
         let graph = std::fs::read_to_string(format!("assets/{DEFAULT_OVERLAY_GRAPH}")).unwrap();
         for index in 0..6 {
-            let window = default_overlay_window(index, &DefaultOverlayGraphSample { idle_duration: Some(2.666667), ..default() });
+            let window = default_overlay_window(
+                index,
+                &DefaultOverlayGraphSample {
+                    idle_duration: Some(2.666667),
+                    ..default()
+                },
+            );
             let identity = DEFAULT_OVERLAY_EVALUATORS[if index == 5 { 0 } else { index }];
             assert!(graph.contains(&format!("id: {identity:?}")));
             assert!(window.capture_every_frame && window.requires_source_pose_chain);
@@ -11877,25 +16518,59 @@ mod tests {
         assert!(!default_overlay_should_timeout(false, 11.99));
         assert!(default_overlay_should_timeout(false, 12.0));
         assert!(!default_overlay_should_timeout(true, 12.0));
-        let mut mapping = crate::extensions::source_pose_nodes::SourceAlphaMapping { interpolate_speed_increasing: 20.0, interpolate_speed_decreasing: 5.0, ..default() };
-        assert_eq!(default_overlay_prediction_alpha(None, 0.8, 0.01, &mapping), 0.8);
-        assert!((default_overlay_prediction_alpha(Some(0.0), 1.0, 0.01, &mapping) - 0.2).abs() < 1e-6);
-        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() < 1e-6);
-        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6);
+        let mut mapping = crate::extensions::source_pose_nodes::SourceAlphaMapping {
+            interpolate_speed_increasing: 20.0,
+            interpolate_speed_decreasing: 5.0,
+            ..default()
+        };
+        assert_eq!(
+            default_overlay_prediction_alpha(None, 0.8, 0.01, &mapping),
+            0.8
+        );
+        assert!(
+            (default_overlay_prediction_alpha(Some(0.0), 1.0, 0.01, &mapping) - 0.2).abs() < 1e-6
+        );
+        assert!(
+            (default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() < 1e-6
+        );
+        assert!(
+            (default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6
+        );
         mapping.interpolate_speed_decreasing = 20.0;
-        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1);
+        assert!(
+            (default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1
+        );
     }
 
     #[test]
     fn grounded_roll_reaches_an_existing_playground_wall_before_reentry() {
-        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
-        let wall = manifest.actors.iter().find(|actor| actor.bounds_origin == Some([-4000.0, -3000.0, 100.0]) && actor.bounds_extent == Some([1000.0, 25.0, 100.0])).unwrap();
-        let center = crate::extensions::playground::ue_point_to_bevy(Vec3::from(wall.bounds_origin.unwrap()));
-        let extent = crate::extensions::playground::ue_extents_to_bevy(Vec3::from(wall.bounds_extent.unwrap()));
+        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(
+            include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron"),
+        )
+        .unwrap();
+        let wall = manifest
+            .actors
+            .iter()
+            .find(|actor| {
+                actor.bounds_origin == Some([-4000.0, -3000.0, 100.0])
+                    && actor.bounds_extent == Some([1000.0, 25.0, 100.0])
+            })
+            .unwrap();
+        let center = crate::extensions::playground::ue_point_to_bevy(Vec3::from(
+            wall.bounds_origin.unwrap(),
+        ));
+        let extent = crate::extensions::playground::ue_extents_to_bevy(Vec3::from(
+            wall.bounds_extent.unwrap(),
+        ));
         let forward = Quat::from_rotation_y(GROUNDED_ROLL_YAW) * Vec3::NEG_Z;
         let ahead = GROUNDED_START.with_y(1.0) + forward * 2.0;
         assert!((ahead - center).abs().cmple(extent).all());
-        assert!((GROUNDED_START.with_y(1.0) - center).abs().cmpgt(extent + Vec3::splat(0.35)).any());
+        assert!(
+            (GROUNDED_START.with_y(1.0) - center)
+                .abs()
+                .cmpgt(extent + Vec3::splat(0.35))
+                .any()
+        );
     }
 
     #[test]
@@ -11924,12 +16599,22 @@ mod tests {
     #[test]
     fn layering_migration_observer_skips_source_irrelevant_stance_inputs() {
         let mut pose = Pose::default();
-        pose.add_bone(bevy_animation_graph::core::pose::BonePose::from_transform(Transform::from_xyz(1.0, 2.0, 3.0)), default());
+        pose.add_bone(
+            bevy_animation_graph::core::pose::BonePose::from_transform(Transform::from_xyz(
+                1.0, 2.0, 3.0,
+            )),
+            default(),
+        );
         let raw = [1.25938095e-6_f32, 0.9987471];
         let weights = raw.map(|weight| weight / raw.iter().sum::<f32>());
         let expected = pose.scalar_mult(weights[1]).normalize_quat();
         let output = default_overlay_stance_pose([None, Some(pose.clone())], weights);
-        assert!(output.as_ref().and_then(|output| default_overlay_pose_error(output, &expected)).is_some_and(|error| error < 1e-6));
+        assert!(
+            output
+                .as_ref()
+                .and_then(|output| default_overlay_pose_error(output, &expected))
+                .is_some_and(|error| error < 1e-6)
+        );
         assert!(default_overlay_stance_pose([None, Some(pose.clone())], [0.5, 0.5]).is_none());
         assert!(default_overlay_stance_pose([Some(pose), None], [1.0, 0.0]).is_some());
     }
@@ -11938,8 +16623,17 @@ mod tests {
     fn layering_motion_window_excludes_numerically_checked_fixed_frames() {
         for index in 0..6 {
             let window = default_overlay_window(index, &DefaultOverlayGraphSample::default());
-            assert!(!window.source_pose_chain.iter().any(|boundary| matches!(boundary.label, "source_reference_frame" | "layering_base_poses")));
-            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == "layering_output" && boundary.minimum_rotation_span_radians == 0.001));
+            assert!(!window.source_pose_chain.iter().any(|boundary| matches!(
+                boundary.label,
+                "source_reference_frame" | "layering_base_poses"
+            )));
+            assert!(
+                window
+                    .source_pose_chain
+                    .iter()
+                    .any(|boundary| boundary.label == "layering_output"
+                        && boundary.minimum_rotation_span_radians == 0.001)
+            );
         }
     }
 
@@ -11949,14 +16643,28 @@ mod tests {
         previous.curves.insert("LayerHead".into(), 0.25);
         let previous_state = crate::layering_layer::refresh_state_from_curves(Some(&previous));
         let mut player = AnimationGraphPlayer::new(default());
-        for (key, value) in crate::layering_layer::layering_state_inputs(previous_state) { player.set_global_input_data(key, value); }
-        let matches = |pairs: &std::collections::BTreeMap<String, (Option<f32>, f32)>|
-            pairs.values().all(|(actual, expected)| actual.is_some_and(|actual| (actual - expected).abs() <= 1e-5));
+        for (key, value) in crate::layering_layer::layering_state_inputs(previous_state) {
+            player.set_global_input_data(key, value);
+        }
+        let matches = |pairs: &std::collections::BTreeMap<String, (Option<f32>, f32)>| {
+            pairs.values().all(|(actual, expected)| {
+                actual.is_some_and(|actual| (actual - expected).abs() <= 1e-5)
+            })
+        };
         assert!(matches(&layering_input_sample(&player, previous_state)));
         previous.curves.insert("LayerHead".into(), 0.75);
-        assert!(!matches(&layering_input_sample(&player, crate::layering_layer::refresh_state_from_curves(Some(&previous)))));
-        assert!(!matches(&layering_input_sample(&AnimationGraphPlayer::new(default()), previous_state)));
-        let expected = bevy::platform::collections::HashMap::from_iter([("LayerHead".into(), 0.25), ("LayerHeadSlot".into(), 0.0)]);
+        assert!(!matches(&layering_input_sample(
+            &player,
+            crate::layering_layer::refresh_state_from_curves(Some(&previous))
+        )));
+        assert!(!matches(&layering_input_sample(
+            &AnimationGraphPlayer::new(default()),
+            previous_state
+        )));
+        let expected = bevy::platform::collections::HashMap::from_iter([
+            ("LayerHead".into(), 0.25),
+            ("LayerHeadSlot".into(), 0.0),
+        ]);
         let mut actual = expected.clone();
         assert_eq!(layering_curve_error(&actual, &expected), Some(0.0));
         actual.insert("LayerHead".into(), 0.75);
@@ -11966,33 +16674,81 @@ mod tests {
         let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
         for (label, node, output) in LAYERING_BOUNDARIES {
             if label != "layering_base_poses" {
-                assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.output == output && boundary.graph == LAYERING_GRAPH));
+                assert!(
+                    window
+                        .source_pose_chain
+                        .iter()
+                        .any(|boundary| boundary.label == label
+                            && boundary.node == node
+                            && boundary.output == output
+                            && boundary.graph == LAYERING_GRAPH)
+                );
             }
         }
         let mut caches = bevy_animation_graph::core::context::node_caches::NodeCaches::default();
         let id = NodeId::default();
         let mut cached = Pose::default();
-        cached.add_bone(bevy_animation_graph::core::pose::BonePose::from_transform(Transform::IDENTITY), default());
-        caches.set_output_data(id, StateKey::Default, crate::extensions::source_cached_pose::CACHED_POSE_VALUE.into(), DataValue::Pose(cached));
+        cached.add_bone(
+            bevy_animation_graph::core::pose::BonePose::from_transform(Transform::IDENTITY),
+            default(),
+        );
+        caches.set_output_data(
+            id,
+            StateKey::Default,
+            crate::extensions::source_cached_pose::CACHED_POSE_VALUE.into(),
+            DataValue::Pose(cached),
+        );
         caches.mark_updated(id, StateKey::Default);
-        let saves = LAYERING_BOUNDARIES.iter().filter(|(_, node, _)| node.starts_with("Save cached pose")).collect::<Vec<_>>();
+        let saves = LAYERING_BOUNDARIES
+            .iter()
+            .filter(|(_, node, _)| node.starts_with("Save cached pose"))
+            .collect::<Vec<_>>();
         assert_eq!(saves.len(), 7);
         for (label, _, output) in saves {
-            assert!(caches.get_output_data(id, StateKey::Default, (*output).into()).is_some(), "{label}");
+            assert!(
+                caches
+                    .get_output_data(id, StateKey::Default, (*output).into())
+                    .is_some(),
+                "{label}"
+            );
         }
         caches.next_frame();
-        assert!(caches.get_output_data(id, StateKey::Default, crate::extensions::source_cached_pose::CACHED_POSE_VALUE.into()).is_none());
+        assert!(
+            caches
+                .get_output_data(
+                    id,
+                    StateKey::Default,
+                    crate::extensions::source_cached_pose::CACHED_POSE_VALUE.into()
+                )
+                .is_none()
+        );
     }
 
     #[test]
     fn default_overlay_missing_source_curves_have_unreal_zero_semantics() {
-        let mut context = AlsRootAnimationContext { curves: [
-            "LayerArmLeft", "LayerArmLeftAdditive", "LayerArmLeftLocalSpace", "LayerArmRight", "LayerArmRightAdditive",
-            "LayerArmRightLocalSpace", "LayerHead", "LayerHeadAdditive", "LayerLegs", "LayerPelvis", "LayerSpine", "LayerSpineAdditive",
-        ].map(|name| (name.into(), 1.0)).into() };
+        let mut context = AlsRootAnimationContext {
+            curves: [
+                "LayerArmLeft",
+                "LayerArmLeftAdditive",
+                "LayerArmLeftLocalSpace",
+                "LayerArmRight",
+                "LayerArmRightAdditive",
+                "LayerArmRightLocalSpace",
+                "LayerHead",
+                "LayerHeadAdditive",
+                "LayerLegs",
+                "LayerPelvis",
+                "LayerSpine",
+                "LayerSpineAdditive",
+            ]
+            .map(|name| (name.into(), 1.0))
+            .into(),
+        };
         assert!(default_overlay_curves_ready(Some(&context)));
         assert!(!default_overlay_curves_ready(None));
-        context.curves.remove(&crate::extensions::SourceCurveName::from("LayerSpine"));
+        context
+            .curves
+            .remove(&crate::extensions::SourceCurveName::from("LayerSpine"));
         assert!(!default_overlay_curves_ready(Some(&context)));
         context.curves.insert("LayerSpine".into(), 1.0);
         context.curves.insert("HandLeftIk".into(), 0.5);
@@ -12003,8 +16759,16 @@ mod tests {
 
     #[test]
     fn locomotion_landing_completion_follows_the_observed_source_exit() {
-        let mut probe = LocomotionActionProbe { landed_since: Some((0.0, 4)), land_notify_start: 2, ..default() };
-        let mut actual = LocomotionGraphSample { outer: Some(0), outer_transition: Some(false), ..default() };
+        let mut probe = LocomotionActionProbe {
+            landed_since: Some((0.0, 4)),
+            land_notify_start: 2,
+            ..default()
+        };
+        let mut actual = LocomotionGraphSample {
+            outer: Some(0),
+            outer_transition: Some(false),
+            ..default()
+        };
         assert!(probe.landing_completed(&actual, 1.0, 2));
         probe.landed_since = Some((0.0, 3));
         assert!(!probe.landing_completed(&actual, 1.0, 2));
@@ -12019,7 +16783,11 @@ mod tests {
     #[test]
     fn locomotion_fixture_reset_does_not_claim_the_previous_air_action() {
         let mut probe = LocomotionActionProbe::default();
-        let actual = LocomotionGraphSample { outer: Some(2), outer_weights: [0.0, 0.0, 1.0, 0.0, 0.0], ..default() };
+        let actual = LocomotionGraphSample {
+            outer: Some(2),
+            outer_weights: [0.0, 0.0, 1.0, 0.0, 0.0],
+            ..default()
+        };
         probe.record_airborne(&actual, LocomotionState::Air);
         assert!(!probe.airborne_seen);
         probe.triggered = true;
@@ -12029,8 +16797,20 @@ mod tests {
 
     #[test]
     fn locomotion_source_windows_preserve_short_samples_and_actual_parent_transition() {
-        let sample = LocomotionClipSample { index: 9, time: 0.2, duration: 1.0, weight: 1.0, phase: Some(0.2), play_rate: 1.0, looping: false };
-        let actual = LocomotionGraphSample { outer: Some(3), outer_transition: Some(false), ..default() };
+        let sample = LocomotionClipSample {
+            index: 9,
+            time: 0.2,
+            duration: 1.0,
+            weight: 1.0,
+            phase: Some(0.2),
+            play_rate: 1.0,
+            looping: false,
+        };
+        let actual = LocomotionGraphSample {
+            outer: Some(3),
+            outer_transition: Some(false),
+            ..default()
+        };
         let window = locomotion_window(10, sample, &actual);
         assert!(window.capture_every_frame);
         assert_eq!(window.observed_parent_transition_active, Some(false));
@@ -12040,20 +16820,58 @@ mod tests {
     #[test]
     fn locomotion_source_inputs_and_watchdog_keep_missing_values_visible() {
         let mut player = AnimationGraphPlayer::new(default());
-        assert_eq!(locomotion_source_scalar(&player, "feet_state.foot_planted_amount"), None);
+        assert_eq!(
+            locomotion_source_scalar(&player, "feet_state.foot_planted_amount"),
+            None
+        );
         player.set_global_input_data("feet_state.foot_planted_amount", 0.75_f32);
-        assert_eq!(locomotion_source_scalar(&player, "feet_state.foot_planted_amount"), Some(0.75));
+        assert_eq!(
+            locomotion_source_scalar(&player, "feet_state.foot_planted_amount"),
+            Some(0.75)
+        );
         let mut probe = LocomotionActionProbe::default();
         assert!(!locomotion_actions_should_timeout(&probe, 11.99));
         assert!(locomotion_actions_should_timeout(&probe, 12.0));
         probe.completed = true;
         assert!(!locomotion_actions_should_timeout(&probe, 12.0));
-        let sample = LocomotionClipSample { index: 6, time: 0.2, duration: 1.0, weight: 0.5, phase: Some(0.2), play_rate: 1.0, looping: true };
-        let window = locomotion_window(6, sample, &LocomotionGraphSample { outer: Some(1), ..default() });
+        let sample = LocomotionClipSample {
+            index: 6,
+            time: 0.2,
+            duration: 1.0,
+            weight: 0.5,
+            phase: Some(0.2),
+            play_rate: 1.0,
+            looping: true,
+        };
+        let window = locomotion_window(
+            6,
+            sample,
+            &LocomotionGraphSample {
+                outer: Some(1),
+                ..default()
+            },
+        );
         assert!(!locomotion_window_canonical(&window, sample));
-        assert!(locomotion_window_canonical(&window, LocomotionClipSample { phase: Some(0.65), ..sample }));
-        let land = LocomotionClipSample { index: 9, looping: false, ..sample };
-        let window = locomotion_window(10, land, &LocomotionGraphSample { outer: Some(3), ..default() });
+        assert!(locomotion_window_canonical(
+            &window,
+            LocomotionClipSample {
+                phase: Some(0.65),
+                ..sample
+            }
+        ));
+        let land = LocomotionClipSample {
+            index: 9,
+            looping: false,
+            ..sample
+        };
+        let window = locomotion_window(
+            10,
+            land,
+            &LocomotionGraphSample {
+                outer: Some(3),
+                ..default()
+            },
+        );
         probe.record_window(10, &window, land, 0.1);
         assert!(!probe.covered[10]);
         probe.record_window(10, &window, LocomotionClipSample { time: 0.3, ..land }, 0.1);
@@ -12071,8 +16889,24 @@ mod tests {
             assert!(!locomotion_jump_ready(index, Some(0), speed, None));
             let run = ((speed - 2.0) / 3.0_f32).clamp(0.0, 1.0);
             let mut clips = vec![
-                LocomotionClipSample { index: index % 2, time: 0.2, duration: 1.0, weight: (1.0 - run) * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
-                LocomotionClipSample { index: index % 2 + 2, time: 0.2, duration: 1.0, weight: run * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
+                LocomotionClipSample {
+                    index: index % 2,
+                    time: 0.2,
+                    duration: 1.0,
+                    weight: (1.0 - run) * 0.3,
+                    phase: Some(0.35),
+                    play_rate: 1.3,
+                    looping: false,
+                },
+                LocomotionClipSample {
+                    index: index % 2 + 2,
+                    time: 0.2,
+                    duration: 1.0,
+                    weight: run * 0.3,
+                    phase: Some(0.35),
+                    play_rate: 1.3,
+                    looping: false,
+                },
             ];
             assert!(locomotion_jump_weights_match(&clips, [Some(run); 2]));
             assert!(!locomotion_jump_weights_match(&clips, [None; 2]));
@@ -12083,27 +16917,68 @@ mod tests {
 
     #[test]
     fn locomotion_jump_weights_keep_source_alpha_interpolation_on_speed_changes() {
-        use crate::extensions::source_pose_nodes::{SourceAlphaMapping, SourceInputScaleBiasClampState, apply_source_input_scale_bias_clamp};
-        let mut mapping = SourceAlphaMapping { source_semantics: true, map_range: true, input_min: 2.0, input_max: 5.0, interpolate_result: true, interpolate_speed_increasing: 5.0, interpolate_speed_decreasing: 5.0, ..default() };
+        use crate::extensions::source_pose_nodes::{
+            SourceAlphaMapping, SourceInputScaleBiasClampState, apply_source_input_scale_bias_clamp,
+        };
+        let mut mapping = SourceAlphaMapping {
+            source_semantics: true,
+            map_range: true,
+            input_min: 2.0,
+            input_max: 5.0,
+            interpolate_result: true,
+            interpolate_speed_increasing: 5.0,
+            interpolate_speed_decreasing: 5.0,
+            ..default()
+        };
         let mut state = SourceInputScaleBiasClampState::default();
         apply_source_input_scale_bias_clamp(&mut state, 3.75, &mapping, 0.0132349);
-        let alpha = apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349).clamp(0.0, 1.0);
+        let alpha = apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349)
+            .clamp(0.0, 1.0);
         assert!((alpha - 0.5349207).abs() < 1e-5);
         let clips = [
-            LocomotionClipSample { index: 0, time: 1.1970694, duration: 1.6666665, weight: 0.12463666, phase: Some(0.7182417), play_rate: 1.3875, looping: false },
-            LocomotionClipSample { index: 2, time: 1.1970694, duration: 1.6666665, weight: 0.14335346, phase: Some(0.7182417), play_rate: 1.3875, looping: false },
+            LocomotionClipSample {
+                index: 0,
+                time: 1.1970694,
+                duration: 1.6666665,
+                weight: 0.12463666,
+                phase: Some(0.7182417),
+                play_rate: 1.3875,
+                looping: false,
+            },
+            LocomotionClipSample {
+                index: 2,
+                time: 1.1970694,
+                duration: 1.6666665,
+                weight: 0.14335346,
+                phase: Some(0.7182417),
+                play_rate: 1.3875,
+                looping: false,
+            },
         ];
         assert!(locomotion_jump_weights_match(&clips, [Some(alpha), None]));
         mapping.interpolate_result = false;
-        let unfiltered = apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349).clamp(0.0, 1.0);
-        assert!(!locomotion_jump_weights_match(&clips, [Some(unfiltered), None]));
+        let unfiltered =
+            apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349)
+                .clamp(0.0, 1.0);
+        assert!(!locomotion_jump_weights_match(
+            &clips,
+            [Some(unfiltered), None]
+        ));
     }
 
     #[test]
     fn locomotion_observation_binds_both_generated_state_machines_and_all_source_clips() {
-        assert_eq!(initial_phase(IntegrationScenario::LocomotionActions), IntegrationPhase::LocomotionActions);
+        assert_eq!(
+            initial_phase(IntegrationScenario::LocomotionActions),
+            IntegrationPhase::LocomotionActions
+        );
         for (path, title, label, expected) in [
-            (LOCOMOTION_ROOT, "Locomotion States\nState Machine", "Land Movement", 4),
+            (
+                LOCOMOTION_ROOT,
+                "Locomotion States\nState Machine",
+                "Land Movement",
+                4,
+            ),
             (LOCOMOTION_JUMP, "Jump States\nState Machine", "Flail", 3),
         ] {
             let graph = std::fs::read_to_string(format!("assets/{path}")).unwrap();
@@ -12112,7 +16987,8 @@ mod tests {
             assert_eq!(locomotion_state_index("Locomotion States", label), None);
         }
         for (index, (variant, title)) in LOCOMOTION_CLIPS.iter().enumerate() {
-            let graph = std::fs::read_to_string(format!("assets/{}", locomotion_clip_graph(index))).unwrap();
+            let graph = std::fs::read_to_string(format!("assets/{}", locomotion_clip_graph(index)))
+                .unwrap();
             assert!(graph.contains(&format!("name: {:?}", title)), "{variant}");
         }
         let root = include_str!("../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
@@ -12121,20 +16997,31 @@ mod tests {
 
     #[test]
     fn locomotion_long_air_fixture_stays_above_the_original_floor_for_the_source_transition() {
-        use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
-        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground.json")).unwrap();
+        use crate::extensions::playground::{
+            PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy,
+        };
+        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"
+        ))
+        .unwrap();
         for offset in [Vec3::ZERO, Vec3::X * 12.0] {
             let point = GROUNDED_START + offset;
             assert!(actors.iter().any(|actor| {
-                let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent) else { return false; };
+                let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent)
+                else {
+                    return false;
+                };
                 let center = ue_point_to_bevy(Vec3::from(origin));
                 let extent = ue_extents_to_bevy(Vec3::from(extent));
-                (center.y + extent.y).abs() < 0.01 && (point.x - center.x).abs() + 0.3 < extent.x && (point.z - center.z).abs() + 0.3 < extent.z
+                (center.y + extent.y).abs() < 0.01
+                    && (point.x - center.x).abs() + 0.3 < extent.x
+                    && (point.z - center.z).abs() + 0.3 < extent.z
             }));
         }
         let params = AlsMovementParams::default();
         let source_duration = 1.666667 / 1.2 + 0.2 + 1.0 + 0.2;
-        let fallen = 0.5 * 9.81 * params.jump.gravity_scale * source_duration * source_duration - params.jump.jump_z_velocity * source_duration;
+        let fallen = 0.5 * 9.81 * params.jump.gravity_scale * source_duration * source_duration
+            - params.jump.jump_z_velocity * source_duration;
         assert!(LOCOMOTION_DROP_HEIGHT > fallen);
         assert!(18.0 < fallen);
     }
@@ -12147,14 +17034,41 @@ mod tests {
             let mut world = World::new();
             world.init_resource::<Assets<Mesh>>();
             world.init_resource::<Assets<StandardMaterial>>();
-            world.run_system_once(move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
-                spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0, scenario);
-            }).unwrap();
+            world
+                .run_system_once(
+                    move |mut commands: Commands,
+                          mut meshes: ResMut<Assets<Mesh>>,
+                          mut materials: ResMut<Assets<StandardMaterial>>| {
+                        spawn_manual_integration_fixture(
+                            &mut commands,
+                            &mut meshes,
+                            &mut materials,
+                            Vec3::Y * 0.92,
+                            0.0,
+                            scenario,
+                        );
+                    },
+                )
+                .unwrap();
             let mut query = world.query::<(&Name, &Collider, &Transform)>();
-            let (_, collider, transform) = query.iter(&world).find(|(name, _, _)| name.as_str() == "manual_integration_mantle_ledge").unwrap();
-            let top = collider.aabb(transform.translation, transform.rotation, 0.0).max.y;
+            let (_, collider, transform) = query
+                .iter(&world)
+                .find(|(name, _, _)| name.as_str() == "manual_integration_mantle_ledge")
+                .unwrap();
+            let top = collider
+                .aabb(transform.translation, transform.rotation, 0.0)
+                .max
+                .y;
             assert_eq!(top > 1.25, scenario == IntegrationScenario::BowOverlay);
-            assert!((top - if scenario == IntegrationScenario::BowOverlay { 1.6 } else { 0.8 }).abs() < 1e-5);
+            assert!(
+                (top - if scenario == IntegrationScenario::BowOverlay {
+                    1.6
+                } else {
+                    0.8
+                })
+                .abs()
+                    < 1e-5
+            );
         }
     }
 
@@ -12165,16 +17079,48 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Assets<Mesh>>();
         world.init_resource::<Assets<StandardMaterial>>();
-        world.run_system_once(|mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
-            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0, IntegrationScenario::Base);
-        }).unwrap();
+        world
+            .run_system_once(
+                |mut commands: Commands,
+                 mut meshes: ResMut<Assets<Mesh>>,
+                 mut materials: ResMut<Assets<StandardMaterial>>| {
+                    spawn_manual_integration_fixture(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        Vec3::Y * 0.92,
+                        0.0,
+                        IntegrationScenario::Base,
+                    );
+                },
+            )
+            .unwrap();
         let entity = world.entity(world.resource::<ManualIntegrationFixture>().platform);
         let transform = entity.get::<Transform>().unwrap();
-        let aabb = entity.get::<Collider>().unwrap().aabb(transform.translation, transform.rotation, 0.0);
+        let aabb =
+            entity
+                .get::<Collider>()
+                .unwrap()
+                .aabb(transform.translation, transform.rotation, 0.0);
         let meshes = world.resource::<Assets<Mesh>>();
-        let points = meshes.get(&entity.get::<Mesh3d>().unwrap().0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
-        let (min, max) = points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)));
-        assert!(aabb.min.distance(min) < 1e-5 && aabb.max.distance(max) < 1e-5, "physical={aabb:?} visible=({min:?}, {max:?})");
+        let points = meshes
+            .get(&entity.get::<Mesh3d>().unwrap().0)
+            .unwrap()
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .unwrap()
+            .as_float3()
+            .unwrap();
+        let (min, max) = points
+            .iter()
+            .map(|point| transform.transform_point(Vec3::from(*point)))
+            .fold(
+                (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+                |(min, max), point| (min.min(point), max.max(point)),
+            );
+        assert!(
+            aabb.min.distance(min) < 1e-5 && aabb.max.distance(max) < 1e-5,
+            "physical={aabb:?} visible=({min:?}, {max:?})"
+        );
     }
 
     #[test]
@@ -12237,8 +17183,15 @@ mod tests {
             let left = grounded_joint_command(index, Some(0.375), 0.0, std::f32::consts::PI);
             let stopped = grounded_joint_command(index, Some(4.5), 0.0, 0.0);
             assert!(right.aim_held && left.aim_held && stopped.aim_held);
-            assert!(right.look_delta.x < 0.0 && left.look_delta.x > 0.0 && stopped.look_delta == Vec2::ZERO);
-            assert_eq!([right.move_dir, left.move_dir, stopped.move_dir], [Vec2::ZERO; 3]);
+            assert!(
+                right.look_delta.x < 0.0
+                    && left.look_delta.x > 0.0
+                    && stopped.look_delta == Vec2::ZERO
+            );
+            assert_eq!(
+                [right.move_dir, left.move_dir, stopped.move_dir],
+                [Vec2::ZERO; 3]
+            );
         }
         assert!(!grounded_joint_command(1, None, 0.0, 0.0).jump_held);
         assert!(grounded_joint_command(1, Some(0.25), 0.0, 0.0).jump_held);
@@ -12286,7 +17239,11 @@ mod tests {
     #[test]
     fn standing_turn_fixture_drives_actual_mouse_and_aim_inputs() {
         for dt in [1.0_f32 / 30.0, 1.0 / 120.0] {
-            for (index, expected_degrees) in [90.0_f32, -90.0, 160.0, -160.0, 160.0, -160.0, -75.0, 0.0].into_iter().enumerate() {
+            for (index, expected_degrees) in
+                [90.0_f32, -90.0, 160.0, -160.0, 160.0, -160.0, -75.0, 0.0]
+                    .into_iter()
+                    .enumerate()
+            {
                 let mut app = App::new();
                 let mut time = Time::<()>::default();
                 time.advance_by(Duration::from_secs_f32(dt));
@@ -12299,35 +17256,78 @@ mod tests {
                     .insert_resource(virtual_time)
                     .add_plugins(crate::als::transition::AlsStateTransitionPlugin)
                     .add_message::<crate::als::aim::AimStateChanged>()
-                    .add_systems(Update, (
-                        crate::als::input_request::input_state_request_system,
-                        crate::als::aim::aim_rotation_mode_system,
-                        crate::als::view::apply_view_input_system,
-                    ).chain().before(crate::als::transition::state_transition_system));
-                let entity = app.world_mut().spawn((
-                    AlsCharacter, crate::als::input::AlsInputCommand::default(),
-                    AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Walking),
-                    Stance::Standing, LocomotionState::Grounded, Gait::Walking,
-                    RotationMode::VelocityDirection, OverlayState::Default,
-                    crate::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection),
-                    AlsStateRequest::default(), AlsViewYaw(0.3), AlsViewPitch::default(),
-                )).id();
+                    .add_systems(
+                        Update,
+                        (
+                            crate::als::input_request::input_state_request_system,
+                            crate::als::aim::aim_rotation_mode_system,
+                            crate::als::view::apply_view_input_system,
+                        )
+                            .chain()
+                            .before(crate::als::transition::state_transition_system),
+                    );
+                let entity = app
+                    .world_mut()
+                    .spawn((
+                        AlsCharacter,
+                        crate::als::input::AlsInputCommand::default(),
+                        AlsInputOverride::default(),
+                        AlsMaxAllowedGait(Gait::Walking),
+                        Stance::Standing,
+                        LocomotionState::Grounded,
+                        Gait::Walking,
+                        RotationMode::VelocityDirection,
+                        OverlayState::Default,
+                        crate::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection),
+                        AlsStateRequest::default(),
+                        AlsViewYaw(0.3),
+                        AlsViewPitch::default(),
+                    ))
+                    .id();
                 let mut travel = [0.0_f32; 2];
                 let duration = if index == 7 { 12.5_f32 } else { 1.6 };
                 for frame in 0..(duration / dt).round() as usize {
                     let view = app.world().get::<AlsViewYaw>(entity).unwrap().0;
                     let mode = *app.world().get::<RotationMode>(entity).unwrap();
-                    let command = standing_turn_mouse_command(index, Some(frame as f32 * dt), 0.3, view, mode);
+                    let command = standing_turn_mouse_command(
+                        index,
+                        Some(frame as f32 * dt),
+                        0.3,
+                        view,
+                        mode,
+                    );
                     assert_eq!(command.move_dir, Vec2::ZERO);
-                    app.world_mut().get_mut::<AlsInputOverride>(entity).unwrap().0 = command;
+                    app.world_mut()
+                        .get_mut::<AlsInputOverride>(entity)
+                        .unwrap()
+                        .0 = command;
                     app.update();
                     let delta = app.world().get::<AlsViewYaw>(entity).unwrap().0 - view;
                     travel[usize::from(delta < 0.0)] += delta.abs();
                 }
-                if index == 7 { assert!(travel.iter().all(|angle| *angle > 11.0 * std::f32::consts::TAU)); }
+                if index == 7 {
+                    assert!(
+                        travel
+                            .iter()
+                            .all(|angle| *angle > 11.0 * std::f32::consts::TAU)
+                    );
+                }
                 let view = app.world().get::<AlsViewYaw>(entity).unwrap().0;
-                assert!(crate::als::turn_in_place::wrap_angle_degrees((view - 0.3).to_degrees() - expected_degrees).abs() < 1e-3);
-                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), if matches!(index, 4 | 5 | 7) { RotationMode::Aiming } else { RotationMode::ViewDirection });
+                assert!(
+                    crate::als::turn_in_place::wrap_angle_degrees(
+                        (view - 0.3).to_degrees() - expected_degrees
+                    )
+                    .abs()
+                        < 1e-3
+                );
+                assert_eq!(
+                    *app.world().get::<RotationMode>(entity).unwrap(),
+                    if matches!(index, 4 | 5 | 7) {
+                        RotationMode::Aiming
+                    } else {
+                        RotationMode::ViewDirection
+                    }
+                );
             }
         }
     }
@@ -12335,10 +17335,27 @@ mod tests {
     #[test]
     fn standing_turn_trace_keeps_the_actual_completed_variant() {
         let mut window = ManualAnimationWindowEvidence::default();
-        let drive = AlsTurnDrive { lr: 1.0, is_180: true, play_rate: 1.2, ..default() };
-        record_animation_window_trace(&mut window, &Transform::IDENTITY, 0.0,
-            Some(&AlsRotationAnimationState::default()), None, Some(&drive), None, false, None);
-        assert_eq!(window.observed_animation_variant, Some("A_Als_Turn_180_Right"));
+        let drive = AlsTurnDrive {
+            lr: 1.0,
+            is_180: true,
+            play_rate: 1.2,
+            ..default()
+        };
+        record_animation_window_trace(
+            &mut window,
+            &Transform::IDENTITY,
+            0.0,
+            Some(&AlsRotationAnimationState::default()),
+            None,
+            Some(&drive),
+            None,
+            false,
+            None,
+        );
+        assert_eq!(
+            window.observed_animation_variant,
+            Some("A_Als_Turn_180_Right")
+        );
         assert_eq!(window.observed_animation_clip_time, Some(0.0));
         assert_eq!(window.observed_animation_weight, Some(0.0));
         assert_eq!(window.observed_animation_play_rate, Some(1.2));
@@ -12357,16 +17374,29 @@ mod tests {
     #[test]
     fn standing_turn_completion_requires_playback_end_and_actual_idle() {
         let mut probe = StandingTurnProbe {
-            started_at: Some(0.0), active_seen: true, clip_peak: 1.95,
-            epoch_baseline: 2.0, sides_mask: 3,
-            max_play_rate: 3.0, yaw_travel: [7.0 * std::f32::consts::TAU; 2], ..default()
+            started_at: Some(0.0),
+            active_seen: true,
+            clip_peak: 1.95,
+            epoch_baseline: 2.0,
+            sides_mask: 3,
+            max_play_rate: 3.0,
+            yaw_travel: [7.0 * std::f32::consts::TAU; 2],
+            ..default()
         };
         for index in 0..STANDING_TURN_CASES.len() {
-            assert!(standing_turn_completed(index, &probe, true, true, 5.0, 14.0));
-            assert!(!standing_turn_completed(index, &probe, false, true, 5.0, 14.0));
-            assert!(!standing_turn_completed(index, &probe, true, false, 5.0, 14.0));
+            assert!(standing_turn_completed(
+                index, &probe, true, true, 5.0, 14.0
+            ));
+            assert!(!standing_turn_completed(
+                index, &probe, false, true, 5.0, 14.0
+            ));
+            assert!(!standing_turn_completed(
+                index, &probe, true, false, 5.0, 14.0
+            ));
             probe.active_seen = false;
-            assert!(!standing_turn_completed(index, &probe, true, true, 5.0, 14.0));
+            assert!(!standing_turn_completed(
+                index, &probe, true, true, 5.0, 14.0
+            ));
             probe.active_seen = true;
         }
         assert!(!standing_turn_completed(0, &probe, true, true, 2.0, 14.0));
@@ -12376,17 +17406,26 @@ mod tests {
         probe.clip_peak = 0.5;
         assert!(!standing_turn_completed(0, &probe, true, true, 5.0, 14.0));
         assert!(!standing_turn_completed(4, &probe, true, true, 5.0, 14.0));
-        assert_eq!(initial_phase(IntegrationScenario::StandingTurn), IntegrationPhase::StandingTurn);
+        assert_eq!(
+            initial_phase(IntegrationScenario::StandingTurn),
+            IntegrationPhase::StandingTurn
+        );
     }
 
     #[test]
     fn standing_stop_fixture_waits_for_each_source_foot_phase() {
-        assert_eq!(initial_phase(IntegrationScenario::StandingStop), IntegrationPhase::StandingStop);
+        assert_eq!(
+            initial_phase(IntegrationScenario::StandingStop),
+            IntegrationPhase::StandingStop
+        );
         for (index, value) in [-0.9, 0.9, -0.25, 0.25].into_iter().enumerate() {
             assert!(standing_stop_release_phase(index, Some(value)));
             assert!(!standing_stop_release_phase(index, None));
             for other in 0..7 {
-                assert_eq!(standing_stop_release_phase(other, Some(value)), index == other);
+                assert_eq!(
+                    standing_stop_release_phase(other, Some(value)),
+                    index == other
+                );
             }
         }
         assert_eq!(STANDING_STOP_CASES[5].2, Vec2::NEG_X);
@@ -12397,17 +17436,39 @@ mod tests {
         finished.advance(2.0);
         assert!(finished.active && finished.stop_elapsed.is_some());
         finished.advance(finished.blend_out + 0.01);
-        assert!(standing_stop_completed(true, Some(&playing), Some(&finished), true));
-        assert!(!standing_stop_completed(false, Some(&playing), Some(&finished), true));
+        assert!(standing_stop_completed(
+            true,
+            Some(&playing),
+            Some(&finished),
+            true
+        ));
+        assert!(!standing_stop_completed(
+            false,
+            Some(&playing),
+            Some(&finished),
+            true
+        ));
         assert!(!standing_stop_completed(true, None, Some(&finished), true));
-        assert!(!standing_stop_completed(true, Some(&playing), Some(&playing), true));
-        assert!(!standing_stop_completed(true, Some(&playing), Some(&finished), false));
+        assert!(!standing_stop_completed(
+            true,
+            Some(&playing),
+            Some(&playing),
+            true
+        ));
+        assert!(!standing_stop_completed(
+            true,
+            Some(&playing),
+            Some(&finished),
+            false
+        ));
     }
 
     #[test]
     fn standing_stop_case_handoff_waits_for_its_driver_entry() {
         let mut state = ManualIntegrationState {
-            phase: IntegrationPhase::StandingStop, entered: false, ..default()
+            phase: IntegrationPhase::StandingStop,
+            entered: false,
+            ..default()
         };
         assert!(standing_stop_observation_active(&state));
         state.stop_case_index += 1;
@@ -12417,82 +17478,172 @@ mod tests {
 
     #[test]
     fn standing_dynamic_tracks_a_played_instance_until_it_stops() {
-        for kind in [AlsTransitionKind::StandingDynamic, AlsTransitionKind::CrouchingDynamic] {
+        for kind in [
+            AlsTransitionKind::StandingDynamic,
+            AlsTransitionKind::CrouchingDynamic,
+        ] {
             let mut played = AlsTransitionPlayback::standing_dynamic(0.0);
             played.kind = kind;
             played.advance(0.6);
             let mut replacement = AlsTransitionPlayback::standing_dynamic(1.0);
             replacement.kind = kind;
-            let mut stack = AlsTransitionMontageStack { entries: vec![played, replacement], ..default() };
-            let observed = standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0).unwrap();
+            let mut stack = AlsTransitionMontageStack {
+                entries: vec![played, replacement],
+                ..default()
+            };
+            let observed =
+                standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0).unwrap();
             assert_eq!(observed.instance_id, played.instance_id);
-            assert!(!standing_dynamic_stopped(true, Some(&played), Some(observed), true));
+            assert!(!standing_dynamic_stopped(
+                true,
+                Some(&played),
+                Some(observed),
+                true
+            ));
             stack.entries.remove(0);
             let observed = standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0);
             assert!(observed.is_none());
-            assert!(standing_dynamic_stopped(true, Some(&played), observed, true));
-            assert!(!standing_dynamic_stopped(false, Some(&played), observed, true));
-            assert!(!standing_dynamic_stopped(true, Some(&played), observed, false));
+            assert!(standing_dynamic_stopped(
+                true,
+                Some(&played),
+                observed,
+                true
+            ));
+            assert!(!standing_dynamic_stopped(
+                false,
+                Some(&played),
+                observed,
+                true
+            ));
+            assert!(!standing_dynamic_stopped(
+                true,
+                Some(&played),
+                observed,
+                false
+            ));
             played.clip_time = 0.5;
-            assert!(!standing_dynamic_stopped(true, Some(&played), observed, true));
+            assert!(!standing_dynamic_stopped(
+                true,
+                Some(&played),
+                observed,
+                true
+            ));
         }
     }
 
     #[test]
     fn standing_dynamic_input_reaches_both_actual_transition_branches() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let original = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source()
-        else { panic!("Source graph is missing"); };
-        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) =
+            original.get_animation_source()
+        else {
+            panic!("Source graph is missing");
+        };
+        let replacement =
+            AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
         app.world_mut().entity_mut(player).insert(replacement);
-        app.world_mut().entity_mut(character).insert(AlsInputOverride::default());
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsInputOverride::default());
         for index in 0..2 {
-            let old_instances = app.world().get::<AlsTransitionMontageStack>(character)
-                .map(|stack| stack.entries.iter().map(|playback|playback.instance_id).collect::<Vec<_>>()).unwrap_or_default();
+            let old_instances = app
+                .world()
+                .get::<AlsTransitionMontageStack>(character)
+                .map(|stack| {
+                    stack
+                        .entries
+                        .iter()
+                        .map(|playback| playback.instance_id)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
             let mut observed = false;
             let mut moved = false;
             let deadline = Instant::now() + Duration::from_secs(25);
             for frame in 0..420 {
-                let ready = frame >= 60 && app.world()
-                    .get::<crate::animation_context_projection::AlsRootAnimationContext>(player)
-                    .and_then(|context| context.f32("AllowTransitions")).is_some_and(crate::als::foot_ik::is_full_animation_weight);
+                let ready = frame >= 60
+                    && app
+                        .world()
+                        .get::<crate::animation_context_projection::AlsRootAnimationContext>(player)
+                        .and_then(|context| context.f32("AllowTransitions"))
+                        .is_some_and(crate::als::foot_ik::is_full_animation_weight);
                 if ready && !moved {
                     let world = app.world_mut();
                     let mut query = world.query::<(&mut Transform, &mut Position)>();
-                    let (mut transform, mut position) = query.get_mut(world,character).unwrap();
+                    let (mut transform, mut position) = query.get_mut(world, character).unwrap();
                     let forward = *transform.forward();
                     transform.translation -= forward * 0.1;
                     position.0 = transform.translation;
                     moved = true;
                 }
-                let body_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+                let body_yaw = world_forward_to_yaw(
+                    *app.world().get::<Transform>(character).unwrap().forward(),
+                );
                 let view_yaw = app.world().get::<AlsViewYaw>(character).unwrap().0;
                 let mode = *app.world().get::<RotationMode>(character).unwrap();
-                app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0 = standing_dynamic_command(body_yaw, view_yaw, mode);
+                app.world_mut()
+                    .get_mut::<AlsInputOverride>(character)
+                    .unwrap()
+                    .0 = standing_dynamic_command(body_yaw, view_yaw, mode);
                 app.update();
-                observed |= moved && app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
-                    stack.entries.iter().any(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.active
-                        && !old_instances.contains(&playback.instance_id) && playback.index == STANDING_DYNAMIC_CASES[index].1))
-                    && app.world().get::<crate::stop_link::AlsRootTransitionSlotRuntime>(character)
+                observed |= moved
+                    && app
+                        .world()
+                        .get::<AlsTransitionMontageStack>(character)
+                        .is_some_and(|stack| {
+                            stack.entries.iter().any(|playback| {
+                                playback.kind == AlsTransitionKind::StandingDynamic
+                                    && playback.active
+                                    && !old_instances.contains(&playback.instance_id)
+                                    && playback.index == STANDING_DYNAMIC_CASES[index].1
+                            })
+                        })
+                    && app
+                        .world()
+                        .get::<crate::stop_link::AlsRootTransitionSlotRuntime>(character)
                         .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
-                assert!(Instant::now() < deadline, "Standing dynamic input fixture made no timely progress");
+                assert!(
+                    Instant::now() < deadline,
+                    "Standing dynamic input fixture made no timely progress"
+                );
             }
-            assert!(moved && observed, "Standing dynamic input did not reach its source branch: case={index} moved={moved}");
+            assert!(
+                moved && observed,
+                "Standing dynamic input did not reach its source branch: case={index} moved={moved}"
+            );
         }
     }
 
     #[test]
     fn standing_dynamic_inputs_release_aim_and_require_foot_recovery() {
-        for current in [RotationMode::ViewDirection, RotationMode::Aiming, RotationMode::VelocityDirection] {
+        for current in [
+            RotationMode::ViewDirection,
+            RotationMode::Aiming,
+            RotationMode::VelocityDirection,
+        ] {
             let command = standing_dynamic_command(0.4, 0.3, current);
             assert_eq!(command.move_dir, Vec2::ZERO);
             assert!(!command.aim_held);
-            assert_eq!(command.rotation_mode_pressed, current != RotationMode::VelocityDirection);
-            assert!((0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - 0.4).abs() < 1e-5);
+            assert_eq!(
+                command.rotation_mode_pressed,
+                current != RotationMode::VelocityDirection
+            );
+            assert!(
+                (0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - 0.4)
+                    .abs()
+                    < 1e-5
+            );
         }
-        let mut foot = crate::als::foot_ik::AlsFootLockFootState { lock_amount: 1.0, ..default() };
+        let mut foot = crate::als::foot_ik::AlsFootLockFootState {
+            lock_amount: 1.0,
+            ..default()
+        };
         assert!(standing_dynamic_foot_restored(true, Some(&foot), 1.0));
         assert!(!standing_dynamic_foot_restored(false, Some(&foot), 1.0));
         assert!(!standing_dynamic_foot_restored(true, None, 1.0));
@@ -12508,65 +17659,152 @@ mod tests {
         finished.advance(2.0);
         assert!(finished.active && finished.stop_elapsed.is_some());
         finished.advance(finished.blend_out + 0.01);
-        assert!(standing_stop_completed(true, Some(&playing), Some(&finished), true));
-        assert!(!standing_stop_completed(true, Some(&playing), Some(&playing), true));
-        assert!(!standing_stop_completed(false, Some(&playing), Some(&finished), true));
-        assert_eq!(initial_phase(IntegrationScenario::StandingDynamic), IntegrationPhase::StandingDynamic);
+        assert!(standing_stop_completed(
+            true,
+            Some(&playing),
+            Some(&finished),
+            true
+        ));
+        assert!(!standing_stop_completed(
+            true,
+            Some(&playing),
+            Some(&playing),
+            true
+        ));
+        assert!(!standing_stop_completed(
+            false,
+            Some(&playing),
+            Some(&finished),
+            true
+        ));
+        assert_eq!(
+            initial_phase(IntegrationScenario::StandingDynamic),
+            IntegrationPhase::StandingDynamic
+        );
     }
 
     #[test]
     fn standing_stop_modes_survive_actual_input_and_aim_systems() {
-        for (crouching, index) in [false, true].into_iter().flat_map(|crouching| (0..stop_cases(crouching).len()).map(move |index| (crouching, index))) {
+        for (crouching, index) in [false, true].into_iter().flat_map(|crouching| {
+            (0..stop_cases(crouching).len()).map(move |index| (crouching, index))
+        }) {
             let mut app = App::new();
             app.init_resource::<Time<Virtual>>();
             app.add_plugins(crate::als::transition::AlsStateTransitionPlugin)
                 .add_message::<crate::als::aim::AimStateChanged>()
-                .add_systems(Update, (
-                    crate::als::input_request::input_state_request_system,
-                    crate::als::aim::aim_rotation_mode_system,
-                ).chain().before(crate::als::transition::state_transition_system));
-            let entity = app.world_mut().spawn((
-                AlsCharacter, crate::als::input::AlsInputCommand::default(),
-                AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Running),
-                if crouching { Stance::Crouching } else { Stance::Standing }, LocomotionState::Grounded, Gait::Running,
-                RotationMode::ViewDirection, OverlayState::Default,
-                crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
-                AlsStateRequest::default(),
-            )).id();
+                .add_systems(
+                    Update,
+                    (
+                        crate::als::input_request::input_state_request_system,
+                        crate::als::aim::aim_rotation_mode_system,
+                    )
+                        .chain()
+                        .before(crate::als::transition::state_transition_system),
+                );
+            let entity = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    crate::als::input::AlsInputCommand::default(),
+                    AlsInputOverride::default(),
+                    AlsMaxAllowedGait(Gait::Running),
+                    if crouching {
+                        Stance::Crouching
+                    } else {
+                        Stance::Standing
+                    },
+                    LocomotionState::Grounded,
+                    Gait::Running,
+                    RotationMode::ViewDirection,
+                    OverlayState::Default,
+                    crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                    AlsStateRequest::default(),
+                ))
+                .id();
             for moving in [false, true, false] {
                 let current = *app.world().get::<RotationMode>(entity).unwrap();
-                app.world_mut().get_mut::<AlsInputOverride>(entity).unwrap().0 = standing_stop_command(index, current, moving, crouching);
+                app.world_mut()
+                    .get_mut::<AlsInputOverride>(entity)
+                    .unwrap()
+                    .0 = standing_stop_command(index, current, moving, crouching);
                 app.update();
-                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), stop_cases(crouching)[index].3);
-                assert_eq!(*app.world().get::<Stance>(entity).unwrap(), if crouching { Stance::Crouching } else { Stance::Standing });
+                assert_eq!(
+                    *app.world().get::<RotationMode>(entity).unwrap(),
+                    stop_cases(crouching)[index].3
+                );
+                assert_eq!(
+                    *app.world().get::<Stance>(entity).unwrap(),
+                    if crouching {
+                        Stance::Crouching
+                    } else {
+                        Stance::Standing
+                    }
+                );
             }
         }
     }
 
     #[test]
     fn crouching_actions_use_the_actual_stance_graph_and_continuous_source_inputs() {
-        assert_eq!(initial_phase(IntegrationScenario::CrouchingActions), IntegrationPhase::StandingStop);
+        assert_eq!(
+            initial_phase(IntegrationScenario::CrouchingActions),
+            IntegrationPhase::StandingStop
+        );
         let standing = AlsStandingGraphTelemetry {
-            actual_standing_state: Some(0), actual_standing_transition_active: Some(false), actual_standing_pose_ready: Some(true), ..default()
+            actual_standing_state: Some(0),
+            actual_standing_transition_active: Some(false),
+            actual_standing_pose_ready: Some(true),
+            ..default()
         };
         let crouch = AlsCrouchingGraphTelemetry {
-            actual_outer_state: Some(4), actual_outer_transition_active: Some(true), actual_outer_pose_ready: Some(true), ..default()
+            actual_outer_state: Some(4),
+            actual_outer_transition_active: Some(true),
+            actual_outer_pose_ready: Some(true),
+            ..default()
         };
-        assert_eq!(action_graph_state(true, Some(&standing), Some(&crouch)), (Some(4), Some(true), Some(true)));
-        assert_eq!(action_graph_state(true, Some(&standing), None), (None, None, None));
-        assert_eq!(action_graph_state(false, Some(&standing), Some(&crouch)), (Some(0), Some(false), Some(true)));
+        assert_eq!(
+            action_graph_state(true, Some(&standing), Some(&crouch)),
+            (Some(4), Some(true), Some(true))
+        );
+        assert_eq!(
+            action_graph_state(true, Some(&standing), None),
+            (None, None, None)
+        );
+        assert_eq!(
+            action_graph_state(false, Some(&standing), Some(&crouch)),
+            (Some(0), Some(false), Some(true))
+        );
         for side in [0.0, 1.0] {
             assert_eq!(dynamic_transition_side(false, side), side);
             assert_eq!(dynamic_transition_side(true, side + 2.0), side);
         }
         for index in 0..2 {
-            for (started, released, moving) in [(false, false, false), (true, false, true), (true, true, false)] {
-                let command = crouching_dynamic_command(index, started, released, 0.3, 0.3, RotationMode::VelocityDirection);
+            for (started, released, moving) in [
+                (false, false, false),
+                (true, false, true),
+                (true, true, false),
+            ] {
+                let command = crouching_dynamic_command(
+                    index,
+                    started,
+                    released,
+                    0.3,
+                    0.3,
+                    RotationMode::VelocityDirection,
+                );
                 assert_eq!(command.move_dir != Vec2::ZERO, moving);
                 assert!(!command.aim_held);
                 if moving {
-                    let input_yaw = crate::als::orientation::world_forward_to_yaw(crate::als::motion::view_relative_move_direction(command.move_dir, 0.3)).to_degrees();
-                    let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, Some(input_yaw), &Transform::from_rotation(Quat::from_rotation_y(0.3)), Some(0.3));
+                    let input_yaw = crate::als::orientation::world_forward_to_yaw(
+                        crate::als::motion::view_relative_move_direction(command.move_dir, 0.3),
+                    )
+                    .to_degrees();
+                    let (side, rate) = crate::stop_link::quick_stop_selection(
+                        RotationMode::VelocityDirection,
+                        Some(input_yaw),
+                        &Transform::from_rotation(Quat::from_rotation_y(0.3)),
+                        Some(0.3),
+                    );
                     assert_eq!(side, STANDING_DYNAMIC_CASES[index].1);
                     assert!((rate - 2.375).abs() < 1e-5);
                 }
@@ -12574,27 +17812,61 @@ mod tests {
         }
         let chain = generated_stop_quick_source_pose_chain(true);
         assert_eq!(chain.len(), 3);
-        assert!(chain.iter().all(|boundary| boundary.graph.contains("AB_Als_Crouching")));
+        assert!(
+            chain
+                .iter()
+                .all(|boundary| boundary.graph.contains("AB_Als_Crouching"))
+        );
         let mut stop = AlsTransitionPlayback::crouching_stop_right();
         stop.advance(0.6);
         let mut finished = stop;
         finished.advance(3.0);
         assert!(finished.active && finished.stop_elapsed.is_some());
         finished.advance(finished.blend_out + 0.01);
-        assert!(!standing_stop_completed(true, Some(&stop), Some(&finished), false));
-        assert!(standing_stop_completed(true, Some(&stop), Some(&finished), true));
+        assert!(!standing_stop_completed(
+            true,
+            Some(&stop),
+            Some(&finished),
+            false
+        ));
+        assert!(standing_stop_completed(
+            true,
+            Some(&stop),
+            Some(&finished),
+            true
+        ));
         for index in [2, 3] {
             let command = standing_stop_command(index, RotationMode::VelocityDirection, true, true);
-            let input_yaw = (command.move_dir != Vec2::ZERO).then(|| crate::als::orientation::world_forward_to_yaw(crate::als::motion::view_relative_move_direction(command.move_dir, 0.3)).to_degrees());
-            let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, input_yaw, &Transform::from_rotation(Quat::from_rotation_y(0.3)), Some(0.3));
+            let input_yaw = (command.move_dir != Vec2::ZERO).then(|| {
+                crate::als::orientation::world_forward_to_yaw(
+                    crate::als::motion::view_relative_move_direction(command.move_dir, 0.3),
+                )
+                .to_degrees()
+            });
+            let (side, rate) = crate::stop_link::quick_stop_selection(
+                RotationMode::VelocityDirection,
+                input_yaw,
+                &Transform::from_rotation(Quat::from_rotation_y(0.3)),
+                Some(0.3),
+            );
             assert_eq!(side, CROUCHING_STOP_CASES[index].4);
             assert!((1.75..1.9).contains(&rate));
         }
         for index in [2, 3] {
-            let command = standing_turn_mouse_command(index, Some(0.0), 0.3, 0.3, RotationMode::ViewDirection);
+            let command = standing_turn_mouse_command(
+                index,
+                Some(0.0),
+                0.3,
+                0.3,
+                RotationMode::ViewDirection,
+            );
             let yaw = -command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT;
             assert_eq!(yaw.signum(), if index == 2 { 1.0 } else { -1.0 });
-            assert!(yaw.abs().to_degrees() > crate::als::turn_in_place::TurnInPlaceConfig::default().turn_180_angle_threshold_degrees);
+            assert!(
+                yaw.abs().to_degrees()
+                    > crate::als::turn_in_place::TurnInPlaceConfig::default()
+                        .turn_180_angle_threshold_degrees
+            );
             assert!(!command.aim_held);
         }
     }
@@ -12721,7 +17993,10 @@ mod tests {
             Some(&slot),
             Some(&grounded),
         ));
-        let active_roll = AlsRollState { active: true, ..default() };
+        let active_roll = AlsRollState {
+            active: true,
+            ..default()
+        };
         assert!(grounded_roll_exit_transition_matches_source(
             IntegrationPhase::Roll,
             Some(Stance::Crouching),
@@ -12854,27 +18129,55 @@ mod tests {
         use bevy::input::{InputPlugin, mouse::MouseMotion};
         use bevy_enhanced_input::prelude::EnhancedInputPlugin;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin, AlsInputPlugin,
-            AlsViewInputPlugin));
+        app.add_plugins((
+            MinimalPlugins,
+            InputPlugin,
+            EnhancedInputPlugin,
+            AlsInputPlugin,
+            AlsViewInputPlugin,
+        ));
         app.init_resource::<ManualIntegrationState>()
             .init_resource::<ManualPlaygroundStartupReady>()
             .init_resource::<Assets<Mesh>>()
             .init_resource::<Assets<StandardMaterial>>()
             .init_resource::<AlsFootIkTelemetryEnabled>()
             .init_resource::<AlsFootIkWeightOverride>();
-        app.add_systems(Update, initialize_manual_integration.before(crate::als::view::AlsViewInputSet));
+        app.add_systems(
+            Update,
+            initialize_manual_integration.before(crate::als::view::AlsViewInputSet),
+        );
         app.finish();
         let yaw = -45.0_f32.to_radians();
-        let actor = app.world_mut().spawn((AlsCharacter, AlsViewYaw(yaw),
-            AlsViewPitch::default(), Transform::from_rotation(Quat::from_rotation_y(yaw)))).id();
-        spawn_als_actions(&mut app.world_mut().commands(), actor, &AlsInputMap::default());
-        app.world_mut().write_message(MouseMotion { delta: Vec2::new(-59.53, 8.0) });
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsViewYaw(yaw),
+                AlsViewPitch::default(),
+                Transform::from_rotation(Quat::from_rotation_y(yaw)),
+            ))
+            .id();
+        spawn_als_actions(
+            &mut app.world_mut().commands(),
+            actor,
+            &AlsInputMap::default(),
+        );
+        app.world_mut().write_message(MouseMotion {
+            delta: Vec2::new(-59.53, 8.0),
+        });
         app.world_mut().run_schedule(PreUpdate);
         app.world_mut().run_schedule(Update);
-        assert_eq!(app.world().get::<AlsViewYaw>(actor).unwrap().0, yaw,
-            "Live mouse input changed the automatic fixture before readiness");
+        assert_eq!(
+            app.world().get::<AlsViewYaw>(actor).unwrap().0,
+            yaw,
+            "Live mouse input changed the automatic fixture before readiness"
+        );
         assert_eq!(app.world().get::<AlsViewPitch>(actor).unwrap().0, 0.0);
-        assert!(!app.world().resource::<ManualPlaygroundStartupReady>().passed);
+        assert!(
+            !app.world()
+                .resource::<ManualPlaygroundStartupReady>()
+                .passed
+        );
         assert!(!app.world().resource::<ManualIntegrationState>().initialized);
     }
 
@@ -12921,11 +18224,27 @@ mod tests {
         state.coverage.mantle_completed = true;
         begin_phase(&mut state, IntegrationPhase::Mantle);
         let mut window = ManualAnimationWindowEvidence::default();
-        let mantle = AlsMantleState { active: true, root_motion_ready: true, target: Vec3::Y, ..default() };
-        observe_mantle(&mut state, &mut window, &mantle, None,
-            &AnimationGraphPlayer::new(Handle::default()), &Assets::default(),
-            LocomotionState::Custom, Some(AlsNotifyLocomotionAction::Mantling), Vec3::Y);
-        assert!(window.observed_lifecycle_stages.is_empty(), "Earlier completion contaminated the new mantle window");
+        let mantle = AlsMantleState {
+            active: true,
+            root_motion_ready: true,
+            target: Vec3::Y,
+            ..default()
+        };
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &AnimationGraphPlayer::new(Handle::default()),
+            &Assets::default(),
+            LocomotionState::Custom,
+            Some(AlsNotifyLocomotionAction::Mantling),
+            Vec3::Y,
+        );
+        assert!(
+            window.observed_lifecycle_stages.is_empty(),
+            "Earlier completion contaminated the new mantle window"
+        );
     }
 
     #[test]
@@ -13069,26 +18388,56 @@ mod tests {
         state.entered = true;
         state.spawn_translation = Some(start);
         world.run_system_once(drive_manual_integration).unwrap();
-        assert!((world.get::<Position>(character).unwrap().y - start.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT - 9.0).abs() < 1e-5,
-            "Ragdoll fixture must reach the source high landing speed through an actual fall");
+        assert!(
+            (world.get::<Position>(character).unwrap().y
+                - start.y
+                - ALS_CHARACTER_CAPSULE_HALF_HEIGHT
+                - 9.0)
+                .abs()
+                < 1e-5,
+            "Ragdoll fixture must reach the source high landing speed through an actual fall"
+        );
         for delta in [0.0, 0.4, 1.0] {
-            world.resource_mut::<Time<Virtual>>().advance_by(Duration::from_secs_f32(delta));
+            world
+                .resource_mut::<Time<Virtual>>()
+                .advance_by(Duration::from_secs_f32(delta));
             world.run_system_once(drive_manual_integration).unwrap();
             let request = world.get::<AlsStateRequest>(character).unwrap();
-            assert!(!request.ragdoll_start, "Direct ragdoll start bypasses the source landing consumer");
-            assert!(request.locomotion_state.is_none(), "Grounded override suppresses the actual source fall");
+            assert!(
+                !request.ragdoll_start,
+                "Direct ragdoll start bypasses the source landing consumer"
+            );
+            assert!(
+                request.locomotion_state.is_none(),
+                "Grounded override suppresses the actual source fall"
+            );
         }
     }
 
     #[test]
     fn get_up_actor_clock_requires_source_timing_and_the_actual_fixture_input() {
-        let rows = |scale: f64, dilation: f64| (0..8).map(|index| serde_json::json!({
-            "get_up_actor_clock": true, "game_time": index as f64 * 0.02,
-            "elapsed": index as f64 * 0.02 * scale, "dilation": dilation
-        })).collect::<Vec<_>>();
-        assert!(actor_montage_clock_passed(&rows(0.5, 0.5), "get_up_actor_clock"));
-        assert!(!actor_montage_clock_passed(&rows(1.0, 0.5), "get_up_actor_clock"));
-        assert!(!actor_montage_clock_passed(&rows(0.5, 1.0), "get_up_actor_clock"));
+        let rows = |scale: f64, dilation: f64| {
+            (0..8)
+                .map(|index| {
+                    serde_json::json!({
+                        "get_up_actor_clock": true, "game_time": index as f64 * 0.02,
+                        "elapsed": index as f64 * 0.02 * scale, "dilation": dilation
+                    })
+                })
+                .collect::<Vec<_>>()
+        };
+        assert!(actor_montage_clock_passed(
+            &rows(0.5, 0.5),
+            "get_up_actor_clock"
+        ));
+        assert!(!actor_montage_clock_passed(
+            &rows(1.0, 0.5),
+            "get_up_actor_clock"
+        ));
+        assert!(!actor_montage_clock_passed(
+            &rows(0.5, 1.0),
+            "get_up_actor_clock"
+        ));
         assert!(!actor_montage_clock_passed(&[], "get_up_actor_clock"));
     }
 
@@ -13104,15 +18453,34 @@ mod tests {
             state.phase_started_seconds = 0.0;
         }
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
-        world.resource_mut::<ManualIntegrationState>().phase_started_seconds = -10.1;
+        assert_eq!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .unwrap()
+                .0,
+            0.5
+        );
+        world
+            .resource_mut::<ManualIntegrationState>()
+            .phase_started_seconds = -10.1;
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::Platform);
-        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
-        let rows = (0..8).map(|index| serde_json::json!({
-            "mantle_actor_clock": true, "game_time": index as f64 * 0.02,
-            "elapsed": index as f64 * 0.01, "dilation": 0.5
-        })).collect::<Vec<_>>();
+        assert_eq!(
+            world.resource::<ManualIntegrationState>().phase,
+            IntegrationPhase::Platform
+        );
+        assert!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .is_none()
+        );
+        let rows = (0..8)
+            .map(|index| {
+                serde_json::json!({
+                    "mantle_actor_clock": true, "game_time": index as f64 * 0.02,
+                    "elapsed": index as f64 * 0.01, "dilation": 0.5
+                })
+            })
+            .collect::<Vec<_>>();
         assert!(actor_montage_clock_passed(&rows, "mantle_actor_clock"));
         assert!(!actor_montage_clock_passed(&rows, "get_up_actor_clock"));
     }
@@ -13129,20 +18497,44 @@ mod tests {
             state.phase_started_seconds = -1.1;
         }
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
-        world.resource_mut::<ManualIntegrationState>().phase_started_seconds =
-            -(FOOT_AVATAR_REPLACEMENT_START_SECONDS as f64 + 0.1);
+        assert_eq!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .unwrap()
+                .0,
+            0.5
+        );
+        world
+            .resource_mut::<ManualIntegrationState>()
+            .phase_started_seconds = -(FOOT_AVATAR_REPLACEMENT_START_SECONDS as f64 + 0.1);
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::Roll,
-            "Roll driver ended before the source transition completed");
-        world.resource_mut::<ManualIntegrationState>().coverage.grounded_roll_completed = true;
+        assert_eq!(
+            world.resource::<ManualIntegrationState>().phase,
+            IntegrationPhase::Roll,
+            "Roll driver ended before the source transition completed"
+        );
+        world
+            .resource_mut::<ManualIntegrationState>()
+            .coverage
+            .grounded_roll_completed = true;
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::GroundedJoint);
-        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
-        let rows = (0..8).map(|index| serde_json::json!({
-            "roll_actor_clock": true, "game_time": index as f64 * 0.02,
-            "elapsed": index as f64 * 0.01, "dilation": 0.5
-        })).collect::<Vec<_>>();
+        assert_eq!(
+            world.resource::<ManualIntegrationState>().phase,
+            IntegrationPhase::GroundedJoint
+        );
+        assert!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .is_none()
+        );
+        let rows = (0..8)
+            .map(|index| {
+                serde_json::json!({
+                    "roll_actor_clock": true, "game_time": index as f64 * 0.02,
+                    "elapsed": index as f64 * 0.01, "dilation": 0.5
+                })
+            })
+            .collect::<Vec<_>>();
         assert!(actor_montage_clock_passed(&rows, "roll_actor_clock"));
         assert!(!actor_montage_clock_passed(&rows, "get_up_actor_clock"));
         assert!(!grounded_roll_exit_timed_out(19.9, false));
@@ -13161,8 +18553,16 @@ mod tests {
             state.entered = true;
         }
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
-        world.entity_mut(character).insert(crate::get_up::AlsGetUpState::new(false));
+        assert_eq!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .unwrap()
+                .0,
+            0.5
+        );
+        world
+            .entity_mut(character)
+            .insert(crate::get_up::AlsGetUpState::new(false));
         {
             let mut state = world.resource_mut::<ManualIntegrationState>();
             state.entered = false;
@@ -13171,20 +18571,32 @@ mod tests {
             state.ragdoll_exit_requested = true;
         }
         world.run_system_once(drive_manual_integration).unwrap();
-        assert_eq!(world.resource::<ManualIntegrationState>().get_up_case, 0,
-            "Get-up driver must retain the current montage until its natural end");
-        world.entity_mut(character).remove::<crate::get_up::AlsGetUpState>();
+        assert_eq!(
+            world.resource::<ManualIntegrationState>().get_up_case,
+            0,
+            "Get-up driver must retain the current montage until its natural end"
+        );
+        world
+            .entity_mut(character)
+            .remove::<crate::get_up::AlsGetUpState>();
         world.run_system_once(drive_manual_integration).unwrap();
         assert_eq!(world.resource::<ManualIntegrationState>().get_up_case, 1);
         world.run_system_once(drive_manual_integration).unwrap();
-        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
+        assert!(
+            world
+                .get::<crate::als_camera::AlsCameraCustomTimeDilation>(character)
+                .is_none()
+        );
     }
 
     #[test]
     fn get_up_driver_exits_ragdoll_through_source_jump_chain() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut world, character, _) = manual_driver_fixture();
-        world.entity_mut(character).insert(AlsRagdollGroundFollow { grounded: true, ..default() });
+        world.entity_mut(character).insert(AlsRagdollGroundFollow {
+            grounded: true,
+            ..default()
+        });
         let mut state = world.resource_mut::<ManualIntegrationState>();
         state.scenario = IntegrationScenario::GetUp;
         state.phase = IntegrationPhase::Ragdoll;
@@ -13193,10 +18605,21 @@ mod tests {
         state.coverage.ragdoll_follow = true;
         state.coverage.ragdoll_joint_drive = true;
         world.run_system_once(drive_manual_integration).unwrap();
-        assert!(world.get::<AlsInputOverride>(character).unwrap().0.jump_pressed,
-            "Source GetUp fixture must exercise Jump stopRagdolling branch");
-        assert!(!world.get::<AlsStateRequest>(character).unwrap().ragdoll_exit,
-            "Direct exit request bypasses the source Jump priority consumer");
+        assert!(
+            world
+                .get::<AlsInputOverride>(character)
+                .unwrap()
+                .0
+                .jump_pressed,
+            "Source GetUp fixture must exercise Jump stopRagdolling branch"
+        );
+        assert!(
+            !world
+                .get::<AlsStateRequest>(character)
+                .unwrap()
+                .ragdoll_exit,
+            "Direct exit request bypasses the source Jump priority consumer"
+        );
     }
 
     #[test]
@@ -13210,31 +18633,62 @@ mod tests {
         state.get_up_case = 1;
         state.ragdoll_exit_requested = true;
         for (clip_time, ready, blocked, expected) in [
-            (0.8, true, true, false), (0.91, false, true, false),
-            (0.91, true, false, false), (0.91, true, true, true),
+            (0.8, true, true, false),
+            (0.91, false, true, false),
+            (0.91, true, false, false),
+            (0.91, true, true, true),
             (1.0, true, true, false),
         ] {
             let mut get_up = crate::get_up::AlsGetUpState::new(true);
             get_up.clip_time = clip_time;
             get_up.pose_ready = ready;
             world.entity_mut(character).insert(get_up);
-            if blocked { world.entity_mut(character).insert(crate::als::motion::AlsMovementInputBlocked); }
-            else { world.entity_mut(character).remove::<crate::als::motion::AlsMovementInputBlocked>(); }
-            world.resource_mut::<Time<Virtual>>().advance_by(Duration::from_secs_f32(0.02));
+            if blocked {
+                world
+                    .entity_mut(character)
+                    .insert(crate::als::motion::AlsMovementInputBlocked);
+            } else {
+                world
+                    .entity_mut(character)
+                    .remove::<crate::als::motion::AlsMovementInputBlocked>();
+            }
+            world
+                .resource_mut::<Time<Virtual>>()
+                .advance_by(Duration::from_secs_f32(0.02));
             world.run_system_once(drive_manual_integration).unwrap();
-            assert_eq!(world.get::<AlsInputOverride>(character).unwrap().0.jump_pressed, expected,
-                "Source GetUp jump driver readiness or repeated pulse differs: clip={clip_time} ready={ready} blocked={blocked}");
+            assert_eq!(
+                world
+                    .get::<AlsInputOverride>(character)
+                    .unwrap()
+                    .0
+                    .jump_pressed,
+                expected,
+                "Source GetUp jump driver readiness or repeated pulse differs: clip={clip_time} ready={ready} blocked={blocked}"
+            );
         }
-        assert!(world.resource::<ManualIntegrationState>().get_up_jump_requested_at.is_some());
+        assert!(
+            world
+                .resource::<ManualIntegrationState>()
+                .get_up_jump_requested_at
+                .is_some()
+        );
     }
 
     #[test]
     fn camera_probe_stays_stable_and_third_person_until_collision_recovers() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut world, character, _) = manual_driver_fixture();
-        let camera = world.spawn((AlsCameraRig::default(), AlsCameraDebugInfo {
-            valid: true, trace_start: Vec3::Y * 1.6, trace_end: Vec3::new(0.0, 1.57, 2.8), ..default()
-        })).id();
+        let camera = world
+            .spawn((
+                AlsCameraRig::default(),
+                AlsCameraDebugInfo {
+                    valid: true,
+                    trace_start: Vec3::Y * 1.6,
+                    trace_end: Vec3::new(0.0, 1.57, 2.8),
+                    ..default()
+                },
+            ))
+            .id();
         for (elapsed, recovered, movement_passed, expected_look, expected_switch) in [
             (0.8, false, false, false, false),
             (2.5, false, false, false, false),
@@ -13243,9 +18697,14 @@ mod tests {
             (2.5, true, true, false, true),
         ] {
             let mut state = ManualIntegrationState {
-                character: Some(character), camera: Some(camera), initialized: true, entered: false,
-                scenario: IntegrationScenario::Camera, phase: IntegrationPhase::Camera,
-                phase_started_seconds: -elapsed, ..default()
+                character: Some(character),
+                camera: Some(camera),
+                initialized: true,
+                entered: false,
+                scenario: IntegrationScenario::Camera,
+                phase: IntegrationPhase::Camera,
+                phase_started_seconds: -elapsed,
+                ..default()
             };
             state.coverage.camera_recovery = recovered;
             state.camera_obstacle_ignored = recovered;
@@ -13254,10 +18713,25 @@ mod tests {
             world.insert_resource(state);
             world.run_system_once(drive_manual_integration).unwrap();
             let input = &world.get::<AlsInputOverride>(character).unwrap().0;
-            assert_eq!(input.look_delta != Vec2::ZERO, expected_look, "elapsed={elapsed} recovered={recovered}");
-            assert_eq!(input.view_mode_pressed, expected_switch, "elapsed={elapsed} recovered={recovered}");
+            assert_eq!(
+                input.look_delta != Vec2::ZERO,
+                expected_look,
+                "elapsed={elapsed} recovered={recovered}"
+            );
+            assert_eq!(
+                input.view_mode_pressed, expected_switch,
+                "elapsed={elapsed} recovered={recovered}"
+            );
             if !recovered {
-                assert_eq!(world.resource::<ManualIntegrationState>().camera_obstacles.iter().flatten().count(), 3);
+                assert_eq!(
+                    world
+                        .resource::<ManualIntegrationState>()
+                        .camera_obstacles
+                        .iter()
+                        .flatten()
+                        .count(),
+                    3
+                );
             }
         }
         for (blocking, first_person_override) in [(true, 0.0), (false, 1.0)] {
@@ -13267,12 +18741,23 @@ mod tests {
                 debug.first_person_override = first_person_override;
             }
             world.insert_resource(ManualIntegrationState {
-                character: Some(character), camera: Some(camera), initialized: true, entered: false,
-                scenario: IntegrationScenario::Camera, phase: IntegrationPhase::Camera,
-                phase_started_seconds: -0.8, ..default()
+                character: Some(character),
+                camera: Some(camera),
+                initialized: true,
+                entered: false,
+                scenario: IntegrationScenario::Camera,
+                phase: IntegrationPhase::Camera,
+                phase_started_seconds: -0.8,
+                ..default()
             });
             world.run_system_once(drive_manual_integration).unwrap();
-            assert!(world.resource::<ManualIntegrationState>().camera_obstacles.iter().all(Option::is_none));
+            assert!(
+                world
+                    .resource::<ManualIntegrationState>()
+                    .camera_obstacles
+                    .iter()
+                    .all(Option::is_none)
+            );
         }
     }
 
@@ -13284,24 +18769,58 @@ mod tests {
         mantle.active = true;
         mantle.root_motion_ready = true;
         let before = Transform::from_xyz(1.0, 2.0, 3.0).with_rotation(Quat::from_rotation_y(0.2));
-        world.entity_mut(character).insert((mantle, before, Position(before.translation), Rotation(before.rotation)));
-        world.insert_resource(ManualIntegrationState { character: Some(character), initialized: true,
-            entered: false, scenario: IntegrationScenario::Base, phase: IntegrationPhase::Mantle, ..default() });
+        world.entity_mut(character).insert((
+            mantle,
+            before,
+            Position(before.translation),
+            Rotation(before.rotation),
+        ));
+        world.insert_resource(ManualIntegrationState {
+            character: Some(character),
+            initialized: true,
+            entered: false,
+            scenario: IntegrationScenario::Base,
+            phase: IntegrationPhase::Mantle,
+            ..default()
+        });
         world.run_system_once(drive_manual_integration).unwrap();
         let parent = world.get::<ChildOf>(character).unwrap().parent();
-        let current = world.run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
-            helper.compute_global_transform(character).unwrap()
-        }).unwrap();
+        let current = world
+            .run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                helper.compute_global_transform(character).unwrap()
+            })
+            .unwrap();
         assert!(current.translation().distance(before.translation) < 1e-5);
         assert!(current.rotation().abs_diff_eq(before.rotation, 1e-5));
-        assert!(current.translation().distance(world.get::<Transform>(character).unwrap().translation) > 0.5);
+        assert!(
+            current
+                .translation()
+                .distance(world.get::<Transform>(character).unwrap().translation)
+                > 0.5
+        );
         world.get_mut::<AlsMantleState>(character).unwrap().active = false;
         world.run_system_once(drive_manual_integration).unwrap();
         assert!(world.get::<ChildOf>(character).is_none());
         assert!(world.get_entity(parent).is_err());
-        assert!(world.get::<Transform>(character).unwrap().translation.distance(before.translation) < 1e-5);
-        assert!(world.get::<Transform>(character).unwrap().rotation.abs_diff_eq(before.rotation, 1e-5));
-        assert_eq!(world.get::<Position>(character).unwrap().0, before.translation);
+        assert!(
+            world
+                .get::<Transform>(character)
+                .unwrap()
+                .translation
+                .distance(before.translation)
+                < 1e-5
+        );
+        assert!(
+            world
+                .get::<Transform>(character)
+                .unwrap()
+                .rotation
+                .abs_diff_eq(before.rotation, 1e-5)
+        );
+        assert_eq!(
+            world.get::<Position>(character).unwrap().0,
+            before.translation
+        );
     }
 
     #[test]
@@ -13309,14 +18828,22 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let (mut world, character, _) = manual_driver_fixture();
         for (yaw, expected) in [(1.0, Vec2::ZERO), (0.0, Vec2::Y)] {
-            world.entity_mut(character).insert(crate::als::view::AlsPlayerViewYaw(yaw));
+            world
+                .entity_mut(character)
+                .insert(crate::als::view::AlsPlayerViewYaw(yaw));
             world.insert_resource(ManualIntegrationState {
-                character: Some(character), initialized: true, entered: false,
-                scenario: IntegrationScenario::Base, phase: IntegrationPhase::Mantle,
+                character: Some(character),
+                initialized: true,
+                entered: false,
+                scenario: IntegrationScenario::Base,
+                phase: IntegrationPhase::Mantle,
                 ..default()
             });
             world.run_system_once(drive_manual_integration).unwrap();
-            assert_eq!(world.get::<AlsInputOverride>(character).unwrap().0.move_dir, expected);
+            assert_eq!(
+                world.get::<AlsInputOverride>(character).unwrap().0.move_dir,
+                expected
+            );
         }
     }
 
@@ -13457,7 +18984,10 @@ mod tests {
             .montage_index]
             .montage_curves
             .sample_all(0.8);
-        let weights = [curves[&crate::extensions::SourceCurveName::from("FootLeftIk")], curves[&crate::extensions::SourceCurveName::from("FootRightIk")]];
+        let weights = [
+            curves[&crate::extensions::SourceCurveName::from("FootLeftIk")],
+            curves[&crate::extensions::SourceCurveName::from("FootRightIk")],
+        ];
         assert_eq!(weights, [0.0, 1.0]);
         let mut apply = AlsFootIkApplyTelemetry {
             left: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {
@@ -13519,7 +19049,8 @@ mod tests {
         };
         fn evaluate(
             In((handle, entity, pose, weight)): In<(Handle<AnimationGraph>, Entity, Pose, f32)>,
-            resources: SystemResources, source_inputs: Query<&crate::extensions::SourceAnimationInputs>,
+            resources: SystemResources,
+            source_inputs: Query<&crate::extensions::SourceAnimationInputs>,
         ) -> GraphContextArena {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
@@ -13543,8 +19074,15 @@ mod tests {
                 &mut gizmos,
                 &inputs,
             );
-            source_inputs.get(entity).unwrap().evaluate(entity, || graph
-                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context))
+            source_inputs
+                .get(entity)
+                .unwrap()
+                .evaluate(entity, || {
+                    graph.query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        context,
+                    )
+                })
                 .unwrap();
             arena
         }
@@ -13607,19 +19145,26 @@ mod tests {
             },
             EntityPath::default().child("pelvis").id(),
         );
-        world.entity_mut(entity).insert(crate::extensions::SourceAnimationInputs::default());
-        world.get_mut::<crate::extensions::SourceAnimationInputs>(entity).unwrap().set_slot_input_context(
-            "post_locomotion.pose",
-            Some(crate::extensions::AnimationContextState {
-                relevant_asset: Some(crate::extensions::animation_context::SourceRelevantAsset {
-                    position: 0.7,
-                    duration: 1.5,
-                    weight: 1.0,
+        world
+            .entity_mut(entity)
+            .insert(crate::extensions::SourceAnimationInputs::default());
+        world
+            .get_mut::<crate::extensions::SourceAnimationInputs>(entity)
+            .unwrap()
+            .set_slot_input_context(
+                "post_locomotion.pose",
+                Some(crate::extensions::AnimationContextState {
+                    relevant_asset: Some(
+                        crate::extensions::animation_context::SourceRelevantAsset {
+                            position: 0.7,
+                            duration: 1.5,
+                            weight: 1.0,
+                            ..default()
+                        },
+                    ),
                     ..default()
                 }),
-                ..default()
-            }),
-        );
+            );
         assert!(
             mantle_slot_sample(&GraphContextArena::new(handle.id()), world.resource()).is_none()
         );
@@ -13666,10 +19211,10 @@ mod tests {
             mantle_slot_sample(&arena, world.resource()).is_none(),
             "A shorthand must not match the authored Slot identity"
         );
-        world.get_mut::<crate::extensions::SourceAnimationInputs>(entity).unwrap().set_slot_input_context(
-            "post_locomotion.pose",
-            None,
-        );
+        world
+            .get_mut::<crate::extensions::SourceAnimationInputs>(entity)
+            .unwrap()
+            .set_slot_input_context("post_locomotion.pose", None);
     }
 
     #[test]
@@ -13749,30 +19294,73 @@ mod tests {
 
     #[test]
     fn sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles() {
-        use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
-        let actors: Vec<PlaygroundActor> =
-            serde_json::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"))
-                .unwrap();
+        use crate::extensions::playground::{
+            PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy,
+        };
+        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"
+        ))
+        .unwrap();
         use bevy::ecs::system::RunSystemOnce;
-        let start = actors.iter().find(|actor| actor.class == "PlayerStart").unwrap();
+        let start = actors
+            .iter()
+            .find(|actor| actor.class == "PlayerStart")
+            .unwrap();
         let origin = ue_point_to_bevy(Vec3::from(start.location));
-        let yaw = crate::extensions::playground::ue_yaw_to_bevy_quat(start.rotation_yaw).to_euler(EulerRot::YXZ).0;
+        let yaw = crate::extensions::playground::ue_yaw_to_bevy_quat(start.rotation_yaw)
+            .to_euler(EulerRot::YXZ)
+            .0;
         let mut world = World::new();
         world.init_resource::<Assets<Mesh>>();
         world.init_resource::<Assets<StandardMaterial>>();
-        world.run_system_once(move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
-            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, origin, yaw, IntegrationScenario::Base);
-        }).unwrap();
-        let extra_bounds: Vec<(Vec3, Vec3)> = world.query::<(&Mesh3d, &Transform)>().iter(&world).map(|(mesh, transform)| {
-            let meshes = world.resource::<Assets<Mesh>>();
-            let points = meshes.get(&mesh.0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
-            points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)))
-        }).collect();
+        world
+            .run_system_once(
+                move |mut commands: Commands,
+                      mut meshes: ResMut<Assets<Mesh>>,
+                      mut materials: ResMut<Assets<StandardMaterial>>| {
+                    spawn_manual_integration_fixture(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        origin,
+                        yaw,
+                        IntegrationScenario::Base,
+                    );
+                },
+            )
+            .unwrap();
+        let extra_bounds: Vec<(Vec3, Vec3)> = world
+            .query::<(&Mesh3d, &Transform)>()
+            .iter(&world)
+            .map(|(mesh, transform)| {
+                let meshes = world.resource::<Assets<Mesh>>();
+                let points = meshes
+                    .get(&mesh.0)
+                    .unwrap()
+                    .attribute(Mesh::ATTRIBUTE_POSITION)
+                    .unwrap()
+                    .as_float3()
+                    .unwrap();
+                points
+                    .iter()
+                    .map(|point| transform.transform_point(Vec3::from(*point)))
+                    .fold(
+                        (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+                        |(min, max), point| (min.min(point), max.max(point)),
+                    )
+            })
+            .collect();
         let (mut driver, character, _) = manual_driver_fixture();
-        driver.resource_mut::<ManualIntegrationFixture>().locomotion_start = world.resource::<ManualIntegrationFixture>().locomotion_start;
+        driver
+            .resource_mut::<ManualIntegrationFixture>()
+            .locomotion_start = world
+            .resource::<ManualIntegrationFixture>()
+            .locomotion_start;
         driver.resource_mut::<ManualIntegrationFixture>().facing_yaw = yaw;
         driver.insert_resource(ManualIntegrationState {
-            character: Some(character), initialized: true, entered: false,
+            character: Some(character),
+            initialized: true,
+            entered: false,
             phase: IntegrationPhase::DirectionRegression,
             phase_started_seconds: -10.0 * DIRECTION_CASE_SECONDS as f64,
             ..default()
@@ -13780,11 +19368,14 @@ mod tests {
         driver.run_system_once(drive_manual_integration).unwrap();
         let rotated_start = driver.get::<Position>(character).unwrap().0;
         let case = direction_regression_case(10).unwrap();
-        let direction = crate::als::motion::view_relative_move_direction(case.move_dir, yaw + case.yaw_offset);
+        let direction =
+            crate::als::motion::view_relative_move_direction(case.move_dir, yaw + case.yaw_offset);
         let distance = AlsMovementParams::default().speeds.standing.max_run_speed
-            * (DIRECTION_CASE_SECONDS + driver.resource::<Time<Virtual>>().max_delta().as_secs_f32());
+            * (DIRECTION_CASE_SECONDS
+                + driver.resource::<Time<Virtual>>().max_delta().as_secs_f32());
         let rotated_end = rotated_start + direction * distance;
-        let sprint_end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
+        let sprint_end =
+            SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
         for (min, max) in [
             (
                 SPRINT_START.min(sprint_end) - Vec3::splat(0.35),
@@ -13795,44 +19386,54 @@ mod tests {
                 Vec3::new(-23.0, 0.0, -25.65),
             ),
             (Vec3::new(-26.0, 0.0, -28.5), Vec3::new(-6.0, 0.0, -21.0)),
-            (rotated_start.min(rotated_end) - Vec3::new(0.35, 0.0, 0.35), rotated_start.max(rotated_end) + Vec3::new(0.35, 0.0, 0.35)),
+            (
+                rotated_start.min(rotated_end) - Vec3::new(0.35, 0.0, 0.35),
+                rotated_start.max(rotated_end) + Vec3::new(0.35, 0.0, 0.35),
+            ),
         ] {
             for (lower, upper) in &extra_bounds {
-                assert!(upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z, "Movement path intersects an attached integration fixture");
-            }
-            let mut floors = Vec::new();
-        for actor in &actors {
-            if actor.mesh_path.is_none()
-                && actor
-                    .components
-                    .iter()
-                    .all(|component| component.mesh_path.is_none())
-            {
-                continue;
-            }
-            let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent) else {
-                continue;
-            };
-            let center = ue_point_to_bevy(Vec3::from(origin));
-            let extent = ue_extents_to_bevy(Vec3::from(extent));
-            let lower = center - extent;
-            let upper = center + extent;
-            if upper.y.abs() < 0.01 {
-                floors.push((lower, upper));
-            } else if upper.y > 0.01 && lower.y < 1.9 {
                 assert!(
                     upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z,
-                        "Movement path intersects {}",
-                    actor.name
+                    "Movement path intersects an attached integration fixture"
                 );
             }
-        }
-        for x in 0..=240 {
+            let mut floors = Vec::new();
+            for actor in &actors {
+                if actor.mesh_path.is_none()
+                    && actor
+                        .components
+                        .iter()
+                        .all(|component| component.mesh_path.is_none())
+                {
+                    continue;
+                }
+                let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent)
+                else {
+                    continue;
+                };
+                let center = ue_point_to_bevy(Vec3::from(origin));
+                let extent = ue_extents_to_bevy(Vec3::from(extent));
+                let lower = center - extent;
+                let upper = center + extent;
+                if upper.y.abs() < 0.01 {
+                    floors.push((lower, upper));
+                } else if upper.y > 0.01 && lower.y < 1.9 {
+                    assert!(
+                        upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z,
+                        "Movement path intersects {}",
+                        actor.name
+                    );
+                }
+            }
+            for x in 0..=240 {
                 for z in 0..=32 {
                     let point =
                         min + (max - min) * Vec3::new(x as f32 / 240.0, 0.0, z as f32 / 32.0);
-                assert!(
-                    floors.iter().any(|(min, max)| point.x >= min.x && point.x <= max.x && point.z >= min.z && point.z <= max.z),
+                    assert!(
+                        floors.iter().any(|(min, max)| point.x >= min.x
+                            && point.x <= max.x
+                            && point.z >= min.z
+                            && point.z <= max.z),
                         "Movement path leaves the original floor: {point:?}"
                     );
                 }
@@ -14029,10 +19630,14 @@ mod tests {
     #[test]
     fn crouch_direction_fixture_maps_target_axes_to_source_states() {
         let expected = [
-            (0, AlsMovementDirection::Forward), (1, AlsMovementDirection::Backward),
-            (2, AlsMovementDirection::RightForward), (3, AlsMovementDirection::LeftForward),
-            (4, AlsMovementDirection::Forward), (5, AlsMovementDirection::Backward),
-            (6, AlsMovementDirection::LeftForward), (7, AlsMovementDirection::RightForward),
+            (0, AlsMovementDirection::Forward),
+            (1, AlsMovementDirection::Backward),
+            (2, AlsMovementDirection::RightForward),
+            (3, AlsMovementDirection::LeftForward),
+            (4, AlsMovementDirection::Forward),
+            (5, AlsMovementDirection::Backward),
+            (6, AlsMovementDirection::LeftForward),
+            (7, AlsMovementDirection::RightForward),
         ];
         for (index, direction) in expected {
             let case = crouch_direction_regression_case(index).unwrap();
@@ -14084,7 +19689,10 @@ mod tests {
     #[test]
     fn crouch_stationary_fixture_waits_for_each_completed_source_action() {
         let source = include_str!("mod.rs");
-        let branch = source.split("else if let Some(validation) = next_crouch_stationary_validation").nth(1).unwrap();
+        let branch = source
+            .split("else if let Some(validation) = next_crouch_stationary_validation")
+            .nth(1)
+            .unwrap();
         let setup = branch.split("let command_index").next().unwrap();
         assert!(!setup.contains("reset_character_with_rotation"));
         assert!(!setup.contains("reinitialize_fixture_rotation_response"));
@@ -14134,12 +19742,29 @@ mod tests {
             crouch_turn_source_pose_chain(),
         ];
         for boundary in chains.into_iter().flatten() {
-            assert!(boundary.graph.starts_with("ALS/") || boundary.graph.starts_with("ALSCamera/"), "{}", boundary.graph);
+            assert!(
+                boundary.graph.starts_with("ALS/") || boundary.graph.starts_with("ALSCamera/"),
+                "{}",
+                boundary.graph
+            );
             let graph = std::fs::read_to_string(format!("assets/{}", boundary.graph)).unwrap();
-            assert!(graph.contains(&format!("name: {:?}", boundary.node)), "{}: {}", boundary.graph, boundary.node);
+            assert!(
+                graph.contains(&format!("name: {:?}", boundary.node)),
+                "{}: {}",
+                boundary.graph,
+                boundary.node
+            );
         }
-        assert_eq!(crouch_rotate_window(false, true, &[]).expected_terminal_requested_parent_transition_active, None);
-        assert_eq!(crouch_turn_window(false, true, &[]).expected_terminal_requested_parent_transition_active, None);
+        assert_eq!(
+            crouch_rotate_window(false, true, &[])
+                .expected_terminal_requested_parent_transition_active,
+            None
+        );
+        assert_eq!(
+            crouch_turn_window(false, true, &[])
+                .expected_terminal_requested_parent_transition_active,
+            None
+        );
         assert!(!crouch_rotate_window(false, false, &[]).settled);
         assert!(!crouch_turn_window(false, false, &[]).settled);
     }
@@ -14155,8 +19780,15 @@ mod tests {
             assert_eq!(case.expected_direction, direction);
             assert_eq!(case.move_dir, input);
         }
-        for chain in [crouch_turn_source_pose_chain(), crouch_rotate_source_pose_chain(true)] {
-            assert!(!chain.iter().any(|boundary| boundary.node == "Apply Additive"));
+        for chain in [
+            crouch_turn_source_pose_chain(),
+            crouch_rotate_source_pose_chain(true),
+        ] {
+            assert!(
+                !chain
+                    .iter()
+                    .any(|boundary| boundary.node == "Apply Additive")
+            );
         }
     }
 
@@ -14194,23 +19826,25 @@ mod tests {
     fn crouch_rotate_window_uses_source_terminal_angle_for_a_moving_view() {
         let window = crouch_rotate_window(false, true, &[]);
         let live_view = 1.0;
-        let command = standing_turn_mouse_command(4, Some(0.0), live_view, live_view, RotationMode::Aiming);
+        let command =
+            standing_turn_mouse_command(4, Some(0.0), live_view, live_view, RotationMode::Aiming);
         assert_eq!(command.look_delta, Vec2::ZERO);
-        let from_body = standing_turn_mouse_command(4, Some(0.0), -0.25, live_view, RotationMode::Aiming);
+        let from_body =
+            standing_turn_mouse_command(4, Some(0.0), -0.25, live_view, RotationMode::Aiming);
         assert!((from_body.look_delta.x.to_radians() - 1.25).abs() < 1e-6);
         assert_eq!(from_body.look_delta.y, 0.0);
         assert!(window.capture_every_frame);
         assert!(!crouch_rotate_window(false, false, &["sequence_completed"]).capture_source_window);
-        assert!(crouch_rotate_window(false, false, &["sequence_completed", "settled"]).capture_source_window);
+        assert!(
+            crouch_rotate_window(false, false, &["sequence_completed", "settled"])
+                .capture_source_window
+        );
         assert!(!window.requires_actor_yaw_convergence);
         assert_eq!(
             window.minimum_actor_yaw_delta_radians,
             CROUCH_ROTATE_SOURCE_MIN_YAW_CONVERGENCE_RADIANS
         );
-        assert_eq!(
-            window.minimum_actor_yaw_convergence_radians,
-            0.0
-        );
+        assert_eq!(window.minimum_actor_yaw_convergence_radians, 0.0);
         assert_eq!(window.expected_actor_yaw_delta_sign, Some(-1));
         assert_eq!(window.expected_terminal_parent_runtime_state, Some(0));
         assert_eq!(
@@ -14355,7 +19989,11 @@ mod tests {
         for elapsed in [0.5, 1.8, 3.1, 4.4] {
             let (mut world, character, _) = manual_driver_fixture();
             let yaw = world.resource::<ManualIntegrationFixture>().facing_yaw;
-            world.entity_mut(character).insert(Rotation(Quat::from_rotation_y(yaw + std::f32::consts::FRAC_PI_2)));
+            world
+                .entity_mut(character)
+                .insert(Rotation(Quat::from_rotation_y(
+                    yaw + std::f32::consts::FRAC_PI_2,
+                )));
             {
                 let mut state = world.resource_mut::<ManualIntegrationState>();
                 state.scenario = IntegrationScenario::StateMachine;
@@ -14365,9 +20003,21 @@ mod tests {
             }
             world.run_system_once(drive_manual_integration).unwrap();
             let expected = Quat::from_rotation_y(yaw);
-            assert!(world.get::<Transform>(character).unwrap().rotation.abs_diff_eq(expected, 1e-6));
-            assert!(world.get::<Rotation>(character).unwrap().0.abs_diff_eq(expected, 1e-6),
-                "The stationary rotate fixture left a different physics yaw: elapsed={elapsed}");
+            assert!(
+                world
+                    .get::<Transform>(character)
+                    .unwrap()
+                    .rotation
+                    .abs_diff_eq(expected, 1e-6)
+            );
+            assert!(
+                world
+                    .get::<Rotation>(character)
+                    .unwrap()
+                    .0
+                    .abs_diff_eq(expected, 1e-6),
+                "The stationary rotate fixture left a different physics yaw: elapsed={elapsed}"
+            );
         }
     }
 

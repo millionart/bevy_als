@@ -4,8 +4,11 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::{control_rig_hierarchy::{RigTransform, rig_normalize}, source_math::source_rotate_vector};
 use crate::extensions::control_rig_math::rig_quat_product;
+use crate::extensions::{
+    control_rig_hierarchy::{RigTransform, rig_normalize},
+    source_math::source_rotate_vector,
+};
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigGeometry {
@@ -61,7 +64,11 @@ impl RigGeometry {
     }
 
     pub fn between_vectors(&self, a: DVec3, b: DVec3) -> DQuat {
-        self.between(a, b, (source_vector_dot(a, a) * source_vector_dot(b, b)).sqrt())
+        self.between(
+            a,
+            b,
+            (source_vector_dot(a, a) * source_vector_dot(b, b)).sqrt(),
+        )
     }
 
     fn between(&self, a: DVec3, b: DVec3, norm_ab: f64) -> DQuat {
@@ -95,13 +102,17 @@ impl RigGeometry {
         let mut distance = source_vector_dot(delta, delta).sqrt();
         let centimeters_per_unit = self.meters_per_unit * 100.0;
         let delta_cm = effector * centimeters_per_unit - root * centimeters_per_unit;
-        let source_distance = source_vector_dot(delta_cm, delta_cm).sqrt() * (0.01 / self.meters_per_unit);
+        let source_distance =
+            source_vector_dot(delta_cm, delta_cm).sqrt() * (0.01 / self.meters_per_unit);
         let direction = if source_distance < self.solve_near_zero {
             distance = self.solve_near_zero;
             self.basis[0]
         } else if distance < self.solve_near_zero {
             distance = source_distance;
-            safe_normal(delta_cm, self.normalize_squared / (0.01 / self.meters_per_unit).powi(2))
+            safe_normal(
+                delta_cm,
+                self.normalize_squared / (0.01 / self.meters_per_unit).powi(2),
+            )
         } else {
             safe_normal(delta, self.normalize_squared)
         };
@@ -119,7 +130,10 @@ impl RigGeometry {
             } else {
                 self.basis[2]
             };
-            let first = safe_normal(basis - direction * source_vector_dot(basis, direction), 1e-8_f32 as f64);
+            let first = safe_normal(
+                basis - direction * source_vector_dot(basis, direction),
+                1e-8_f32 as f64,
+            );
             first.cross(direction) * self.handedness()
         } else {
             let bend = pole_delta - direction * source_vector_dot(pole_delta, direction);
@@ -200,7 +214,8 @@ impl RigGeometry {
                 fully_extended = (source_vector_dot(base, target) - 1.0).abs() < 1e-4_f32 as f64;
             }
             bones[index].rotation = rig_normalize(rig_quat_product(
-                self.between(axis, target, 1.0), bones[index].rotation,
+                self.between(axis, target, 1.0),
+                bones[index].rotation,
             ));
             if secondary_weight <= 1e-8 {
                 continue;
@@ -230,7 +245,8 @@ impl RigGeometry {
                 rotation =
                     DQuat::from_axis_angle(axis, (angle * secondary_weight.clamp(0.0, 1.0)) as f64);
             }
-            bones[index].rotation = rig_normalize(rig_quat_product(rotation, bones[index].rotation));
+            bones[index].rotation =
+                rig_normalize(rig_quat_product(rotation, bones[index].rotation));
         }
     }
 }

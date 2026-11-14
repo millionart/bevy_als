@@ -1,17 +1,25 @@
 use std::sync::Arc;
 
-use avian3d::prelude::*;
-use avian3d::parry::{partitioning::TraversalAction, shape::{Shape, TypedShape}};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use avian3d::parry::{
+    partitioning::TraversalAction,
+    shape::{Shape, TypedShape},
+};
+use avian3d::prelude::*;
 use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
 use parry3d_f64::{
     bounding_volume::Aabb,
-    query::{Ray, RayCast, RayIntersection, details::local_ray_intersection_with_support_map_with_params, gjk::VoronoiSimplex},
+    query::{
+        Ray, RayCast, RayIntersection,
+        details::local_ray_intersection_with_support_map_with_params, gjk::VoronoiSimplex,
+    },
     shape::{Ball, Capsule, Cuboid, Cylinder, SupportMap, Triangle},
 };
 
+use crate::extensions::control_rig_mesh_ray::{
+    CookedMeshRay, mesh_safe_normal, mesh_vector_length,
+};
 use crate::extensions::{control_rig_hierarchy::RigTransform, source_math::source_rotate_vector};
-use crate::extensions::control_rig_mesh_ray::{CookedMeshRay, mesh_safe_normal, mesh_vector_length};
 
 #[derive(Clone, Component)]
 pub struct RigCookedMeshRay {
@@ -51,14 +59,21 @@ fn trace_trimesh(
     mesh.bvh().traverse(|node| {
         let bounds = node.aabb();
         if Aabb::new(bounds.mins.as_dvec3(), bounds.maxs.as_dvec3())
-            .cast_local_ray(ray, nearest, true).is_none() {
+            .cast_local_ray(ray, nearest, true)
+            .is_none()
+        {
             return TraversalAction::Prune;
         }
         if let Some(index) = node.leaf_data() {
             let triangle = mesh.triangle(index);
-            let triangle = Triangle::new(triangle.a.as_dvec3(), triangle.b.as_dvec3(), triangle.c.as_dvec3());
+            let triangle = Triangle::new(
+                triangle.a.as_dvec3(),
+                triangle.b.as_dvec3(),
+                triangle.c.as_dvec3(),
+            );
             if let Some(impact) = triangle.cast_local_ray_and_get_normal(ray, nearest, true)
-                && nearer_hit(impact.time_of_impact, nearest, hit.is_some()) {
+                && nearer_hit(impact.time_of_impact, nearest, hit.is_some())
+            {
                 nearest = impact.time_of_impact;
                 hit = Some(impact);
             }
@@ -97,26 +112,46 @@ fn trace_precise_shape(
         TypedShape::Cuboid(shape) => Cuboid::new(shape.half_extents.as_dvec3())
             .cast_local_ray_and_get_normal(ray, limit, true),
         TypedShape::TriMesh(shape) => trace_trimesh(shape, ray, limit),
-        TypedShape::Ball(shape) => Ball::new(f64::from(shape.radius))
-            .cast_local_ray_and_get_normal(ray, limit, true),
-        TypedShape::Capsule(shape) => Capsule::new(shape.segment.a.as_dvec3(), shape.segment.b.as_dvec3(), f64::from(shape.radius))
-            .cast_local_ray_and_get_normal(ray, limit, true),
-        TypedShape::Cylinder(shape) => Cylinder::new(f64::from(shape.half_height), f64::from(shape.radius))
-            .cast_local_ray_and_get_normal(ray, limit, true),
+        TypedShape::Ball(shape) => {
+            Ball::new(f64::from(shape.radius)).cast_local_ray_and_get_normal(ray, limit, true)
+        }
+        TypedShape::Capsule(shape) => Capsule::new(
+            shape.segment.a.as_dvec3(),
+            shape.segment.b.as_dvec3(),
+            f64::from(shape.radius),
+        )
+        .cast_local_ray_and_get_normal(ray, limit, true),
+        TypedShape::Cylinder(shape) => {
+            Cylinder::new(f64::from(shape.half_height), f64::from(shape.radius))
+                .cast_local_ray_and_get_normal(ray, limit, true)
+        }
         TypedShape::ConvexPolyhedron(shape) => local_ray_intersection_with_support_map_with_params(
-            &PreciseConvex(shape.points()), &mut VoronoiSimplex::new(), ray, limit, true),
+            &PreciseConvex(shape.points()),
+            &mut VoronoiSimplex::new(),
+            ray,
+            limit,
+            true,
+        ),
         TypedShape::Compound(shape) => {
-            let TypedShape::Compound(unscaled) = unscaled.as_typed_shape() else { return Err(()); };
+            let TypedShape::Compound(unscaled) = unscaled.as_typed_shape() else {
+                return Err(());
+            };
             let mut nearest = limit;
             let mut result = None;
-            for ((pose, child), (_, unscaled_child)) in shape.shapes().iter().zip(unscaled.shapes()) {
+            for ((pose, child), (_, unscaled_child)) in shape.shapes().iter().zip(unscaled.shapes())
+            {
                 let rotation = pose.rotation.as_dquat();
                 let local = Ray::new(
-                    source_rotate_vector(rotation.conjugate(), ray.origin - pose.translation.as_dvec3()),
+                    source_rotate_vector(
+                        rotation.conjugate(),
+                        ray.origin - pose.translation.as_dvec3(),
+                    ),
                     source_rotate_vector(rotation.conjugate(), ray.dir),
                 );
-                if let Some(mut impact) = trace_precise_shape(&**child, &**unscaled_child, scale, &local, nearest)?
-                    && nearer_hit(impact.time_of_impact, nearest, result.is_some()) {
+                if let Some(mut impact) =
+                    trace_precise_shape(&**child, &**unscaled_child, scale, &local, nearest)?
+                    && nearer_hit(impact.time_of_impact, nearest, result.is_some())
+                {
                     nearest = impact.time_of_impact;
                     impact.normal = source_rotate_vector(rotation, impact.normal);
                     result = Some(impact);
@@ -131,7 +166,9 @@ fn trace_precise_shape(
         TypedShape::ConvexPolyhedron(_) => scale == Vec3::ONE,
         _ => true,
     };
-    Ok(hit.filter(|impact| impact.time_of_impact < limit || (inclusive && impact.time_of_impact == limit)))
+    Ok(hit.filter(|impact| {
+        impact.time_of_impact < limit || (inclusive && impact.time_of_impact == limit)
+    }))
 }
 
 impl RigQueryContext {
@@ -163,7 +200,9 @@ impl RigQueryContext {
         let delta_meters = delta * meters_per_unit;
         let start_meters = start * meters_per_unit;
         let delta_f32 = delta_meters.as_vec3();
-        let fallback = Dir3::new(delta_f32).ok().map(|direction| (direction, delta_f32.length()));
+        let fallback = Dir3::new(delta_f32)
+            .ok()
+            .map(|direction| (direction, delta_f32.length()));
         let origin = start_meters.as_vec3();
         let centimeters_per_unit = meters_per_unit * 100.0;
         let start_cm = start * centimeters_per_unit;
@@ -177,31 +216,72 @@ impl RigQueryContext {
             }
             let rotation_f64 = rotation.0.as_dquat();
             let candidate = if let Some(mesh) = self.world.mesh_ray_data.get(entity) {
-                if !length_cm.is_finite() || length_cm <= f64::from(1e-4_f32) { continue; }
+                if !length_cm.is_finite() || length_cm <= f64::from(1e-4_f32) {
+                    continue;
+                }
                 let position_cm = position.0.as_dvec3() * 100.0;
                 let start = source_rotate_vector(rotation_f64.conjugate(), start_cm - position_cm);
-                let direction = source_rotate_vector(rotation_f64.conjugate(), delta_cm * length_cm.recip());
+                let direction =
+                    source_rotate_vector(rotation_f64.conjugate(), delta_cm * length_cm.recip());
                 let scale = collider.scale();
                 let scale = source_mesh_has_scale(scale).then_some(scale);
-                mesh.geometry.trace(start, direction, length_cm * nearest, scale, mesh.cull_back_faces).map(|impact| {
-                    let point = (position_cm + source_rotate_vector(rotation_f64, impact.point_cm)) * (0.01 / meters_per_unit);
-                    let normal = mesh_safe_normal(source_rotate_vector(rotation_f64, impact.normal));
-                    (impact.time_cm / length_cm, point, normal)
-                })
+                mesh.geometry
+                    .trace(
+                        start,
+                        direction,
+                        length_cm * nearest,
+                        scale,
+                        mesh.cull_back_faces,
+                    )
+                    .map(|impact| {
+                        let point = (position_cm
+                            + source_rotate_vector(rotation_f64, impact.point_cm))
+                            * (0.01 / meters_per_unit);
+                        let normal =
+                            mesh_safe_normal(source_rotate_vector(rotation_f64, impact.normal));
+                        (impact.time_cm / length_cm, point, normal)
+                    })
             } else {
                 let local = Ray::new(
-                    source_rotate_vector(rotation_f64.conjugate(), start_meters - position.0.as_dvec3()),
+                    source_rotate_vector(
+                        rotation_f64.conjugate(),
+                        start_meters - position.0.as_dvec3(),
+                    ),
                     source_rotate_vector(rotation_f64.conjugate(), delta_meters),
                 );
                 match trace_precise_shape(
-                    &**collider.shape_scaled(), &**collider.shape(), collider.scale(), &local, nearest,
+                    &**collider.shape_scaled(),
+                    &**collider.shape(),
+                    collider.scale(),
+                    &local,
+                    nearest,
                 ) {
-                    Ok(impact) => impact.map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,
-                        source_rotate_vector(rotation_f64, impact.normal))),
-                    Err(()) => fallback.and_then(|(direction, distance)|
-                        collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)
-                            .map(|(length, normal)| (f64::from(length) / f64::from(distance),
-                                (origin + direction.as_vec3() * length).as_dvec3() / meters_per_unit, normal.as_dvec3()))),
+                    Ok(impact) => impact.map(|impact| {
+                        (
+                            impact.time_of_impact,
+                            start + delta * impact.time_of_impact,
+                            source_rotate_vector(rotation_f64, impact.normal),
+                        )
+                    }),
+                    Err(()) => fallback.and_then(|(direction, distance)| {
+                        collider
+                            .cast_ray(
+                                position.0,
+                                *rotation,
+                                origin,
+                                direction.as_vec3(),
+                                distance,
+                                true,
+                            )
+                            .map(|(length, normal)| {
+                                (
+                                    f64::from(length) / f64::from(distance),
+                                    (origin + direction.as_vec3() * length).as_dvec3()
+                                        / meters_per_unit,
+                                    normal.as_dvec3(),
+                                )
+                            })
+                    }),
                 }
             };
             let Some((fraction, point, normal)) = candidate else {
@@ -233,35 +313,66 @@ mod tests {
         let mut entities = World::new();
         let floor = entities.spawn_empty().id();
         let query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(
-                floor,
-                (Position(Vec3::new(-10.0, -0.25, -20.0)), Rotation::default(),
-                    Collider::cuboid(40.0, 0.5, 20.0), CollisionLayers::ALL),
-            )].into_iter().collect(), ..default() }),
-            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    floor,
+                    (
+                        Position(Vec3::new(-10.0, -0.25, -20.0)),
+                        Rotation::default(),
+                        Collider::cuboid(40.0, 0.5, 20.0),
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world: RigTransform::default(),
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
-        let start = DVec3::new(-1515.661_365_680_93 * 0.01, 49.999_994_039_535_52 * 0.01,
-            -1508.488_173_045_665_7 * 0.01);
+        let start = DVec3::new(
+            -1515.661_365_680_93 * 0.01,
+            49.999_994_039_535_52 * 0.01,
+            -1508.488_173_045_665_7 * 0.01,
+        );
         let end = start.with_y(-80.000_005_960_464_48 * 0.01);
-        let hit = query.trace(start, end, "Visibility", true).unwrap().unwrap();
+        let hit = query
+            .trace(start, end, "Visibility", true)
+            .unwrap()
+            .unwrap();
         assert_eq!(hit, (DVec3::new(start.x, 0.0, start.z), DVec3::Y));
         let inside = DVec3::new(-10.0, -0.25, -20.0);
-        assert_eq!(query.trace(inside, inside + DVec3::Y, "Visibility", true).unwrap(),
-            Some((inside, DVec3::NEG_Y)));
+        assert_eq!(
+            query
+                .trace(inside, inside + DVec3::Y, "Visibility", true)
+                .unwrap(),
+            Some((inside, DVec3::NEG_Y))
+        );
         let direction = DVec3::new(3.0, -4.0, 0.0);
-        let (point, normal) = query.trace(inside, inside + direction, "Visibility", true).unwrap().unwrap();
+        let (point, normal) = query
+            .trace(inside, inside + direction, "Visibility", true)
+            .unwrap()
+            .unwrap();
         assert_eq!(point, inside);
         assert!(normal.abs_diff_eq(DVec3::new(-0.6, 0.8, 0.0), 1e-12));
     }
 
     #[test]
     fn first_endpoint_hit_respects_the_source_shape_wrapper() {
-        let mesh = Collider::trimesh(vec![
-            Vec3::new(-2.0, 0.0, -2.0),
-            Vec3::new(-2.0, 0.0, 2.0),
-            Vec3::new(2.0, 0.0, -2.0),
-        ], vec![[0, 1, 2]]);
-        let compound = Collider::compound(vec![(Vec3::ZERO, Quat::IDENTITY, Collider::cuboid(2.0, 1.0, 2.0))]);
+        let mesh = Collider::trimesh(
+            vec![
+                Vec3::new(-2.0, 0.0, -2.0),
+                Vec3::new(-2.0, 0.0, 2.0),
+                Vec3::new(2.0, 0.0, -2.0),
+            ],
+            vec![[0, 1, 2]],
+        );
+        let compound = Collider::compound(vec![(
+            Vec3::ZERO,
+            Quat::IDENTITY,
+            Collider::cuboid(2.0, 1.0, 2.0),
+        )]);
         let mut entities = World::new();
         let entity = entities.spawn_empty().id();
         for (mut collider, scale, center, endpoint) in [
@@ -273,14 +384,34 @@ mod tests {
         ] {
             collider.set_scale(Vec3::splat(scale), 10);
             let query = RigQueryContext {
-                world: Arc::new(RigQueryWorld { colliders: [(entity, (Position(center),
-                    Rotation::default(), collider, CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-                to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+                world: Arc::new(RigQueryWorld {
+                    colliders: [(
+                        entity,
+                        (
+                            Position(center),
+                            Rotation::default(),
+                            collider,
+                            CollisionLayers::ALL,
+                        ),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    ..default()
+                }),
+                to_world: RigTransform::default(),
+                channel: "Visibility".to_owned(),
+                filter: default(),
             };
             let start = DVec3::new(-0.5, 1.0, -0.5);
             for (end_y, expected) in [(0.0001, false), (0.0, endpoint), (-0.0001, true)] {
-                let result = query.trace(start, start.with_y(end_y), "Visibility", true).unwrap();
-                assert_eq!(result.is_some(), expected, "Wrong ray boundary for scale {scale} and end {end_y}");
+                let result = query
+                    .trace(start, start.with_y(end_y), "Visibility", true)
+                    .unwrap();
+                assert_eq!(
+                    result.is_some(),
+                    expected,
+                    "Wrong ray boundary for scale {scale} and end {end_y}"
+                );
                 if let Some((point, normal)) = result {
                     assert!(point.y.abs() < 1e-12);
                     assert_eq!(normal, DVec3::Y);
@@ -302,10 +433,23 @@ mod tests {
             ..default()
         };
         let query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(floor,
-                (Position(Vec3::NEG_Y * 1.25), Rotation::default(), Collider::cuboid(2.0, 0.5, 2.0),
-                    CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-            to_world, channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    floor,
+                    (
+                        Position(Vec3::NEG_Y * 1.25),
+                        Rotation::default(),
+                        Collider::cuboid(2.0, 0.5, 2.0),
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world,
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
         let mut trace = |start, end: DVec3, channel: &str, complex| {
             assert_eq!(end.y, -1.0);
@@ -314,22 +458,46 @@ mod tests {
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
             meters_per_unit: 1.0,
-            near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
+            near_zero: 1e-6,
+            normalize_squared: 1e-12,
+            minimum_length: 1e-10,
+            solve_near_zero: 1e-6,
             basis: [DVec3::X, DVec3::Z, DVec3::Y],
         };
         let curves = HashMap::default();
         let mut context = RigUnitContext {
-            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
-            delta_seconds: 1.0 / 60.0, geometry: &geometry, to_world, line_trace: Some(&mut trace),
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 1.0 / 60.0,
+            geometry: &geometry,
+            to_world,
+            line_trace: Some(&mut trace),
         };
         use RigValue::*;
         let mut values = vec![
-            Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8), F32(45.0),
-            F32(0.134656), Bool(true), Bool(false), F32(0.0), Vector(DVec3::ZERO),
+            Vector(DVec3::ZERO),
+            Name("Visibility".to_owned()),
+            F32(0.5),
+            F32(0.8),
+            F32(45.0),
+            F32(0.134656),
+            Bool(true),
+            Bool(false),
+            F32(0.0),
+            Vector(DVec3::ZERO),
         ];
-        context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values).unwrap();
-        let F32(offset) = values[8] else { panic!("Missing foot offset"); };
-        assert!((offset + 0.766336).abs() < 1e-6, "Endpoint foot offset was {offset}");
+        context
+            .call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values)
+            .unwrap();
+        let F32(offset) = values[8] else {
+            panic!("Missing foot offset");
+        };
+        assert!(
+            (offset + 0.766336).abs() < 1e-6,
+            "Endpoint foot offset was {offset}"
+        );
     }
 
     #[test]
@@ -339,30 +507,68 @@ mod tests {
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
             meters_per_unit: 1.0,
-            near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
+            near_zero: 1e-6,
+            normalize_squared: 1e-12,
+            minimum_length: 1e-10,
+            solve_near_zero: 1e-6,
             basis: [DVec3::X, DVec3::Z, DVec3::Y],
         };
         let curves = HashMap::default();
         for (half_height, expected) in [(0.75, 0.5), (0.5, 0.5), (0.4, 0.4)] {
             let query = RigQueryContext {
-                world: Arc::new(RigQueryWorld { colliders: [(floor, (Position::default(), Rotation::default(),
-                    Collider::cuboid(2.0, 2.0 * half_height, 2.0), CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-                to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+                world: Arc::new(RigQueryWorld {
+                    colliders: [(
+                        floor,
+                        (
+                            Position::default(),
+                            Rotation::default(),
+                            Collider::cuboid(2.0, 2.0 * half_height, 2.0),
+                            CollisionLayers::ALL,
+                        ),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    ..default()
+                }),
+                to_world: RigTransform::default(),
+                channel: "Visibility".to_owned(),
+                filter: default(),
             };
-            let mut trace = |start, end, channel: &str, complex| query.trace(start, end, channel, complex);
+            let mut trace =
+                |start, end, channel: &str, complex| query.trace(start, end, channel, complex);
             let mut context = RigUnitContext {
-                hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
-                delta_seconds: 1.0 / 60.0, geometry: &geometry, to_world: RigTransform::default(),
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: false,
+                delta_seconds: 1.0 / 60.0,
+                geometry: &geometry,
+                to_world: RigTransform::default(),
                 line_trace: Some(&mut trace),
             };
             use RigValue::*;
             let mut values = vec![
-                Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8), F32(45.0),
-                F32(0.134656), Bool(true), Bool(false), F32(0.0), Vector(DVec3::ZERO),
+                Vector(DVec3::ZERO),
+                Name("Visibility".to_owned()),
+                F32(0.5),
+                F32(0.8),
+                F32(45.0),
+                F32(0.134656),
+                Bool(true),
+                Bool(false),
+                F32(0.0),
+                Vector(DVec3::ZERO),
             ];
-            context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values).unwrap();
-            let F32(offset) = values[8] else { panic!("Missing foot offset"); };
-            assert!((offset - expected).abs() < 1e-6, "Foot offset {offset} at half height {half_height}");
+            context
+                .call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values)
+                .unwrap();
+            let F32(offset) = values[8] else {
+                panic!("Missing foot offset");
+            };
+            assert!(
+                (offset - expected).abs() < 1e-6,
+                "Foot offset {offset} at half height {half_height}"
+            );
             assert_eq!(values[9], Vector(DVec3::Y));
         }
     }
@@ -373,19 +579,56 @@ mod tests {
         let floor = entities.spawn_empty().id();
         let sphere = entities.spawn_empty().id();
         let mut query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [
-                (floor, (Position(Vec3::new(0.0, -0.25, 0.0)), Rotation::default(),
-                    Collider::cuboid(10.0, 0.5, 10.0), CollisionLayers::ALL)),
-                (sphere, (Position(Vec3::Y), Rotation::default(),
-                    Collider::sphere(0.5), CollisionLayers::ALL)),
-            ].into_iter().collect(), ..default() }),
-            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [
+                    (
+                        floor,
+                        (
+                            Position(Vec3::new(0.0, -0.25, 0.0)),
+                            Rotation::default(),
+                            Collider::cuboid(10.0, 0.5, 10.0),
+                            CollisionLayers::ALL,
+                        ),
+                    ),
+                    (
+                        sphere,
+                        (
+                            Position(Vec3::Y),
+                            Rotation::default(),
+                            Collider::sphere(0.5),
+                            CollisionLayers::ALL,
+                        ),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world: RigTransform::default(),
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
         let start = DVec3::Y * 3.0;
         let end = DVec3::NEG_Y * 3.0;
-        assert_eq!(query.trace(start, end, "Visibility", true).unwrap().unwrap().0.y, 1.5);
+        assert_eq!(
+            query
+                .trace(start, end, "Visibility", true)
+                .unwrap()
+                .unwrap()
+                .0
+                .y,
+            1.5
+        );
         query.filter.excluded_entities.insert(sphere);
-        assert_eq!(query.trace(start, end, "Visibility", true).unwrap().unwrap().0.y, 0.0);
+        assert_eq!(
+            query
+                .trace(start, end, "Visibility", true)
+                .unwrap()
+                .unwrap()
+                .0
+                .y,
+            0.0
+        );
     }
 
     #[test]
@@ -393,30 +636,79 @@ mod tests {
         let mut entities = World::new();
         let mesh = entities.spawn_empty().id();
         let vertices = vec![
-            Vec3::new(-1.0, 0.0, -1.0), Vec3::new(-1.0, 0.0, 1.0), Vec3::new(1.0, 0.0, -1.0),
-            Vec3::new(-1.0, -1.0, -1.0), Vec3::new(-1.0, -1.0, 1.0), Vec3::new(1.0, -1.0, -1.0),
+            Vec3::new(-1.0, 0.0, -1.0),
+            Vec3::new(-1.0, 0.0, 1.0),
+            Vec3::new(1.0, 0.0, -1.0),
+            Vec3::new(-1.0, -1.0, -1.0),
+            Vec3::new(-1.0, -1.0, 1.0),
+            Vec3::new(1.0, -1.0, -1.0),
         ];
         let query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(
-                mesh, (Position::default(), Rotation::default(),
-                    Collider::trimesh(vertices, vec![[0, 1, 2], [3, 4, 5]]), CollisionLayers::ALL),
-            )].into_iter().collect(), ..default() }),
-            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    mesh,
+                    (
+                        Position::default(),
+                        Rotation::default(),
+                        Collider::trimesh(vertices, vec![[0, 1, 2], [3, 4, 5]]),
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world: RigTransform::default(),
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
         let start = DVec3::new(0.123_456_789_012 * 0.01, 2.0, -0.234_567_891_234 * 0.01);
-        let hit = query.trace(start, start.with_y(-2.0), "Visibility", true).unwrap().unwrap();
+        let hit = query
+            .trace(start, start.with_y(-2.0), "Visibility", true)
+            .unwrap()
+            .unwrap();
         assert_eq!(hit, (DVec3::new(start.x, 0.0, start.z), DVec3::Y));
-        assert_eq!(query.trace(DVec3::new(3.0, 2.0, 0.0), DVec3::new(3.0, -2.0, 0.0),
-            "Visibility", true).unwrap(), None);
+        assert_eq!(
+            query
+                .trace(
+                    DVec3::new(3.0, 2.0, 0.0),
+                    DVec3::new(3.0, -2.0, 0.0),
+                    "Visibility",
+                    true
+                )
+                .unwrap(),
+            None
+        );
         let single = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(
-                mesh, (Position::default(), Rotation::default(), Collider::trimesh(
-                    vec![Vec3::new(-1.0, 0.0, -1.0), Vec3::new(-1.0, 0.0, 1.0), Vec3::new(1.0, 0.0, -1.0)],
-                    vec![[0, 1, 2]]), CollisionLayers::ALL),
-            )].into_iter().collect(), ..default() }),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    mesh,
+                    (
+                        Position::default(),
+                        Rotation::default(),
+                        Collider::trimesh(
+                            vec![
+                                Vec3::new(-1.0, 0.0, -1.0),
+                                Vec3::new(-1.0, 0.0, 1.0),
+                                Vec3::new(1.0, 0.0, -1.0),
+                            ],
+                            vec![[0, 1, 2]],
+                        ),
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
             ..query
         };
-        assert_eq!(single.trace(start, start.with_y(-2.0), "Visibility", true).unwrap(), Some(hit));
+        assert_eq!(
+            single
+                .trace(start, start.with_y(-2.0), "Visibility", true)
+                .unwrap(),
+            Some(hit)
+        );
     }
 
     #[test]
@@ -424,13 +716,34 @@ mod tests {
         let mut entities = World::new();
         let entity = entities.spawn_empty().id();
         let start = DVec3::new(0.123_456_789_012, 2.0, -0.234_567_891_234);
-        for collider in [Collider::sphere(0.7), Collider::capsule(0.4, 0.8), Collider::cylinder(0.7, 1.0)] {
+        for collider in [
+            Collider::sphere(0.7),
+            Collider::capsule(0.4, 0.8),
+            Collider::cylinder(0.7, 1.0),
+        ] {
             let query = RigQueryContext {
-                world: Arc::new(RigQueryWorld { colliders: [(entity,
-                    (Position::default(), Rotation::default(), collider, CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-                to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+                world: Arc::new(RigQueryWorld {
+                    colliders: [(
+                        entity,
+                        (
+                            Position::default(),
+                            Rotation::default(),
+                            collider,
+                            CollisionLayers::ALL,
+                        ),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    ..default()
+                }),
+                to_world: RigTransform::default(),
+                channel: "Visibility".to_owned(),
+                filter: default(),
             };
-            let (hit, _) = query.trace(start, start.with_y(-2.0), "Visibility", true).unwrap().unwrap();
+            let (hit, _) = query
+                .trace(start, start.with_y(-2.0), "Visibility", true)
+                .unwrap()
+                .unwrap();
             assert_eq!(hit.x, start.x);
             assert_eq!(hit.z, start.z);
         }
@@ -440,20 +753,46 @@ mod tests {
     fn rig_query_handles_compound_convex_with_double_ray() {
         let mut entities = World::new();
         let entity = entities.spawn_empty().id();
-        let points = [-0.5, 0.5].into_iter().flat_map(|x|
-            [-0.5, 0.5].into_iter().flat_map(move |y|
-                [-0.5, 0.5].into_iter().map(move |z| Vec3::new(x, y, z)))).collect::<Vec<_>>();
+        let points = [-0.5, 0.5]
+            .into_iter()
+            .flat_map(|x| {
+                [-0.5, 0.5]
+                    .into_iter()
+                    .flat_map(move |y| [-0.5, 0.5].into_iter().map(move |z| Vec3::new(x, y, z)))
+            })
+            .collect::<Vec<_>>();
         let collider = Collider::compound(vec![
-            (Vec3::Y * 0.5, Quat::IDENTITY, Collider::convex_hull(&points).unwrap()),
+            (
+                Vec3::Y * 0.5,
+                Quat::IDENTITY,
+                Collider::convex_hull(&points).unwrap(),
+            ),
             (Vec3::NEG_Y, Quat::IDENTITY, Collider::sphere(0.25)),
         ]);
         let query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(entity,
-                (Position::default(), Rotation::default(), collider, CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    entity,
+                    (
+                        Position::default(),
+                        Rotation::default(),
+                        collider,
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world: RigTransform::default(),
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
         let start = DVec3::new(0.123_456_789_012, 2.0, -0.234_567_891_234);
-        let (hit, _) = query.trace(start, start.with_y(-2.0), "Visibility", true).unwrap().unwrap();
+        let (hit, _) = query
+            .trace(start, start.with_y(-2.0), "Visibility", true)
+            .unwrap()
+            .unwrap();
         assert_eq!((hit.x, hit.z), (start.x, start.z));
         assert!((hit.y - 1.0).abs() < 1e-5);
     }
@@ -463,12 +802,29 @@ mod tests {
         let mut entities = World::new();
         let entity = entities.spawn_empty().id();
         let query = RigQueryContext {
-            world: Arc::new(RigQueryWorld { colliders: [(entity,
-                (Position::default(), Rotation::default(), Collider::cone(0.7, 1.0), CollisionLayers::ALL))].into_iter().collect(), ..default() }),
-            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            world: Arc::new(RigQueryWorld {
+                colliders: [(
+                    entity,
+                    (
+                        Position::default(),
+                        Rotation::default(),
+                        Collider::cone(0.7, 1.0),
+                        CollisionLayers::ALL,
+                    ),
+                )]
+                .into_iter()
+                .collect(),
+                ..default()
+            }),
+            to_world: RigTransform::default(),
+            channel: "Visibility".to_owned(),
+            filter: default(),
         };
         let start = DVec3::new(0.123_456_789_012, 2.0, -0.234_567_891_234);
-        let (hit, _) = query.trace(start, start.with_y(-2.0), "Visibility", true).unwrap().unwrap();
+        let (hit, _) = query
+            .trace(start, start.with_y(-2.0), "Visibility", true)
+            .unwrap()
+            .unwrap();
         assert_eq!(hit.x, f64::from(start.x as f32));
     }
 
@@ -511,14 +867,20 @@ mod tests {
                 RigidBody::Static,
                 Collider::cuboid(1.0, 1.0, 1.0),
                 Transform::from_xyz(0.0, 1.0, 0.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                    LayerMask::ALL,
+                ),
             ))
             .id();
         app.world_mut().spawn((
             RigidBody::Static,
             Collider::cuboid(1.0, 0.2, 1.0),
             Transform::from_xyz(0.0, 2.0, 0.0),
-            CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL),
+            CollisionLayers::new(
+                crate::als::character::AlsCollisionLayer::Default,
+                LayerMask::ALL,
+            ),
         ));
         let floor = app
             .world_mut()
@@ -526,13 +888,18 @@ mod tests {
                 RigidBody::Static,
                 Collider::cuboid(20.0, 0.2, 20.0),
                 Transform::from_xyz(0.0, -0.1, 0.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                    LayerMask::ALL,
+                ),
             ))
             .id();
         for _ in 0..3 {
             app.update();
         }
-        let filter = SpatialQueryFilter::from_mask(crate::als::character::AlsCollisionLayer::Visibility).with_excluded_entities([owner]);
+        let filter =
+            SpatialQueryFilter::from_mask(crate::als::character::AlsCollisionLayer::Visibility)
+                .with_excluded_entities([owner]);
         let (snapshot, native) = app
             .world_mut()
             .run_system_cached_with(capture, filter.clone())

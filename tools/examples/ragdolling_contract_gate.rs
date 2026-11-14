@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy::window::ExitCondition;
 use bevy_als::extensions::{
     AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
     GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode, SourceAnimationInputs,
 };
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
-use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::{
     clip_node::ClipNode, loop_node::LoopNode, speed_node::SpeedNode,
@@ -165,8 +165,9 @@ fn verify_native_source() {
     assert!(native_link(inner, "BlendPose_0", snapshot));
     assert!(native_link(inner, "BlendPose_1", flail));
     assert!(native_link(root, "Result", outer));
-    let target = std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
-        .expect("target Ragdolling graph readable");
+    let target =
+        std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
+            .expect("target Ragdolling graph readable");
     for position in [
         "\"1a220000-0000-4000-8000-000000000001\": (-1056.000, 192.000)",
         "\"1a220000-0000-4000-8000-000000000002\": (-864.000, 192.000)",
@@ -384,8 +385,9 @@ fn verify_static(
         ]
         .into_iter()
         .all(|name| graph.io_spec.get_output_data(&name.to_owned()).is_some());
-    let source = std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
-        .unwrap_or_default();
+    let source =
+        std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
+            .unwrap_or_default();
     let architecture = !source.contains("AB_Als_Monolithic")
         && !source.contains("manual")
         && !source.contains("playground")

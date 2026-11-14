@@ -1,5 +1,5 @@
-use bevy_als::als_camera::damp_location_lag;
 use bevy::prelude::*;
+use bevy_als::als_camera::damp_location_lag;
 
 fn main() {
     let half_lives = Vec3::new(0.4, 0.8, 0.2);

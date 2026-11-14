@@ -14,8 +14,7 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::{
     raw_sequence_sampling::normalize_source_rotation,
-    source_compression::source_quaternion_product,
-    source_pose::SourcePose,
+    source_compression::source_quaternion_product, source_pose::SourcePose,
 };
 
 pub(crate) fn source_pose_difference(
@@ -40,11 +39,16 @@ pub(crate) fn source_pose_difference(
     };
     for ((_, target), &(_, reference)) in target.bones.iter_mut().zip(&reference.bones) {
         target.rotation = normalize_source_rotation(source_quaternion_product(
-            target.rotation, reference.rotation.conjugate(),
+            target.rotation,
+            reference.rotation.conjugate(),
         ));
         target.translation -= reference.translation;
         let reciprocal = reference.scale.to_array().map(|value| {
-            if value.abs() <= f64::from(1e-8_f32) { 0.0 } else { value.recip() }
+            if value.abs() <= f64::from(1e-8_f32) {
+                0.0
+            } else {
+                value.recip()
+            }
         });
         target.scale = target.scale * DVec3::from_array(reciprocal) - DVec3::ONE;
     }
@@ -140,8 +144,12 @@ fn scale_difference_for_bone(
     target: Option<Vec3>,
     default: Vec3,
 ) -> Option<Vec3> {
-    target.and_then(|target| crate::extensions::reference_local_difference::scale_difference(
-        target, base.and_then(|bone| bone.scale).unwrap_or(default)))
+    target.and_then(|target| {
+        crate::extensions::reference_local_difference::scale_difference(
+            target,
+            base.and_then(|bone| bone.scale).unwrap_or(default),
+        )
+    })
 }
 
 fn weights_difference(base: Option<&BonePose>, target: Option<&Vec<f32>>) -> Option<Vec<f32>> {

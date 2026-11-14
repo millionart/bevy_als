@@ -50,12 +50,26 @@ fn physics_profile_bakes_effective_source_solver_and_material_parameters() {
             .unwrap()
             .remove("source_instance_properties");
     }
-    let runtime = bevy_als::extensions::RagdollPhysicsProfile::from_json(&solver_material_only.to_string()).unwrap();
-    assert_eq!(runtime.bodies.len(), profile["bodies"].as_array().unwrap().len());
+    let runtime =
+        bevy_als::extensions::RagdollPhysicsProfile::from_json(&solver_material_only.to_string())
+            .unwrap();
+    assert_eq!(
+        runtime.bodies.len(),
+        profile["bodies"].as_array().unwrap().len()
+    );
     for collider in &runtime.colliders {
-        let record = profile["bodies"].as_array().unwrap().iter()
-            .find(|body| body["source_index"].as_u64() == Some(u64::from(collider.source_body_index))).unwrap();
-        assert_eq!(collider.consider_for_bounds, record["source_properties"]["bConsiderForBounds"] == "True");
+        let record = profile["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|body| {
+                body["source_index"].as_u64() == Some(u64::from(collider.source_body_index))
+            })
+            .unwrap();
+        assert_eq!(
+            collider.consider_for_bounds,
+            record["source_properties"]["bConsiderForBounds"] == "True"
+        );
     }
     assert_eq!(runtime.joints.len(), 20);
     let thigh = runtime
@@ -136,11 +150,18 @@ fn als_manny_ragdoll_definition_loads_with_expected_topology() {
     }
     let mut expected_total = 0.0;
     for body in rag.bodies.values() {
-        let volume_m3 = body.colliders.iter().map(|id| rag.colliders[id].volume()).sum::<f32>();
+        let volume_m3 = body
+            .colliders
+            .iter()
+            .map(|id| rag.colliders[id].volume())
+            .sum::<f32>();
         let expected = (volume_m3 * 1000.0).powf(0.75).max(0.001);
         expected_total += expected;
-        assert!((body_mass[body.label.as_str()] - expected).abs() <= 1e-5,
-            "Source solver density and power must reach {}", body.label);
+        assert!(
+            (body_mass[body.label.as_str()] - expected).abs() <= 1e-5,
+            "Source solver density and power must reach {}",
+            body.label
+        );
     }
     assert!((rag.total_mass - expected_total).abs() <= 1e-4);
 
@@ -253,7 +274,10 @@ fn als_manny_bone_map_serializes_with_expected_coverage() {
         bm.skeleton.to_string().contains("SKM_Als.skn.ron"),
         "bone map references the ALS skeleton"
     );
-    assert_eq!(bm.ragdoll.to_string(), RAG_PATH.strip_prefix("assets/").unwrap());
+    assert_eq!(
+        bm.ragdoll.to_string(),
+        RAG_PATH.strip_prefix("assets/").unwrap()
+    );
 }
 
 #[test]

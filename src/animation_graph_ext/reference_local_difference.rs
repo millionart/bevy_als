@@ -9,9 +9,12 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::{
-    AnimationContextState, animation_context::pose_input_context_state,
-    mesh_space_difference::source_pose_difference, normalized_blendspace::{clip_binding, pose_input_node},
-    source_compression::sample_raw_additive_reference, source_pose::SourcePose,
+    AnimationContextState,
+    animation_context::pose_input_context_state,
+    mesh_space_difference::source_pose_difference,
+    normalized_blendspace::{clip_binding, pose_input_node},
+    source_compression::sample_raw_additive_reference,
+    source_pose::SourcePose,
     time_position::{IN_POSE, TimePositionNode},
 };
 use std::sync::Arc;
@@ -52,7 +55,11 @@ fn reference_scale(reference: Option<&BonePose>, default: Transform) -> Vec3 {
 }
 
 pub(crate) fn scale_difference(target: Vec3, reference: Vec3) -> Option<Vec3> {
-    let reciprocal = Vec3::select(reference.abs().cmple(Vec3::splat(SCALE_EPSILON)), Vec3::ZERO, reference.recip());
+    let reciprocal = Vec3::select(
+        reference.abs().cmple(Vec3::splat(SCALE_EPSILON)),
+        Vec3::ZERO,
+        reference.recip(),
+    );
     let difference = target * reciprocal - Vec3::ONE;
     (difference != Vec3::ZERO).then_some(difference)
 }
@@ -132,7 +139,9 @@ pub(crate) fn precise_reference_difference(
             node
         };
         let (handle, eligible) = clip_binding(node)?;
-        if !eligible { return None; }
+        if !eligible {
+            return None;
+        }
         let clip = ctx.graph_context.resources.graph_clip_assets.get(handle)?;
         sample_raw_additive_reference(clip, reference.timestamp)
     });
@@ -140,10 +149,17 @@ pub(crate) fn precise_reference_difference(
         raw.project_into(reference);
     }
     let source = pose_input_context_state(ctx, REFERENCE_POSE);
-    let source = raw.as_ref().or_else(|| source.as_ref()?.source_pose_for(reference).map(Arc::as_ref))?;
+    let source = raw
+        .as_ref()
+        .or_else(|| source.as_ref()?.source_pose_for(reference).map(Arc::as_ref))?;
     let target_context = pose_input_context_state(ctx, TARGET_POSE)?;
-    source_pose_difference(source, target_context.source_pose_for(target)?, skeleton, mesh_space)
-        .map(Arc::new)
+    source_pose_difference(
+        source,
+        target_context.source_pose_for(target)?,
+        skeleton,
+        mesh_space,
+    )
+    .map(Arc::new)
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -182,7 +198,8 @@ impl NodeLike for ReferenceLocalDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let source_pose = precise_reference_difference(&ctx, &mut reference, &target, skeleton, false);
+        let source_pose =
+            precise_reference_difference(&ctx, &mut reference, &target, skeleton, false);
         let mut difference = make_local_difference(&reference, &target, skeleton);
         if let Some(source) = &source_pose {
             source.project_into(&mut difference);
@@ -233,7 +250,10 @@ mod tests {
 
     #[test]
     fn local_difference_reconstructs_target_and_zeroes_unit_scale() {
-        assert_eq!(scale_difference(Vec3::new(3.0, 4.0, 2.0), Vec3::new(2.0, 0.0, 1e-10)), Some(Vec3::new(0.5, -1.0, -1.0)));
+        assert_eq!(
+            scale_difference(Vec3::new(3.0, 4.0, 2.0), Vec3::new(2.0, 0.0, 1e-10)),
+            Some(Vec3::new(0.5, -1.0, -1.0))
+        );
         let path = EntityPath::default().child("root");
         let bone = path.id();
         let mut skeleton = Skeleton::default();

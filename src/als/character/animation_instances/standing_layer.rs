@@ -1,5 +1,5 @@
-use crate::als::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::als::animation::acceleration_amount;
+use crate::als::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::als::dynamics::AlsGroundedDynamics;
 use crate::als::foot_ik::AlsFootLockInput;
 use crate::als::input::AlsInputCommand;
@@ -35,7 +35,7 @@ use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::motion_view_space_direction_angle;
 use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
-use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback, AlsTransitionMontageStack};
+use crate::stop_link::{AlsTransitionKind, AlsTransitionMontageStack, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const VELOCITY_EPSILON: f32 = 0.01;
@@ -107,13 +107,18 @@ const ROTATE_LEFT_CURVE_ASSET: &str =
     "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf#AlsCurves";
 const ROTATE_RIGHT_CURVE_ASSET: &str =
     "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.gltf#AlsCurves";
-const TURN_LEFT_90_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf#AlsCurves";
-const TURN_RIGHT_90_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf#AlsCurves";
-const TURN_LEFT_180_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf#AlsCurves";
+const TURN_LEFT_90_CURVE_ASSET: &str =
+    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf#AlsCurves";
+const TURN_RIGHT_90_CURVE_ASSET: &str =
+    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf#AlsCurves";
+const TURN_LEFT_180_CURVE_ASSET: &str =
+    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf#AlsCurves";
 const TURN_RIGHT_180_CURVE_ASSET: &str =
     "ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.gltf#AlsCurves";
-const QUICK_STOP_LEFT_CURVE_ASSET: &str = "ALS/Animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
-const QUICK_STOP_RIGHT_CURVE_ASSET: &str = "ALS/Animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
+const QUICK_STOP_LEFT_CURVE_ASSET: &str =
+    "ALS/Animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
+const QUICK_STOP_RIGHT_CURVE_ASSET: &str =
+    "ALS/Animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsStandingLayerSet;
 
@@ -808,7 +813,9 @@ impl Plugin for StandingLayerPlugin {
             PostUpdate,
             AlsStandingLayerSet
                 .after(crate::gait_layer::AlsGaitLayerSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         )
         .add_message::<AlsPivotNotify>()
         .add_systems(Startup, load_standing_curve_assets)
@@ -827,7 +834,9 @@ impl Plugin for StandingLayerPlugin {
 
 fn pivot_notify_system(mut commands: Commands, mut notices: MessageReader<AlsPivotNotify>) {
     for notice in notices.read() {
-        commands.entity(notice.character).insert(AlsPivotRequest(notice.activated));
+        commands
+            .entity(notice.character)
+            .insert(AlsPivotRequest(notice.activated));
     }
 }
 
@@ -1514,11 +1523,17 @@ fn update_standing_inputs(
         runtime.velocity_blend = damp_velocity_blend(
             runtime.velocity_blend,
             target_velocity_blend,
-            damper_exact_alpha(delta_seconds, crate::standing_source::velocity_blend_interpolation_half_life()),
+            damper_exact_alpha(
+                delta_seconds,
+                crate::standing_source::velocity_blend_interpolation_half_life(),
+            ),
         );
         runtime.lean = runtime.lean.lerp(
             target_lean,
-            damper_exact_alpha(delta_seconds, crate::locomotion_layer::lean_interpolation_half_life()),
+            damper_exact_alpha(
+                delta_seconds,
+                crate::locomotion_layer::lean_interpolation_half_life(),
+            ),
         );
     } else {
         runtime.velocity_blend = target_velocity_blend;
@@ -2251,7 +2266,11 @@ fn standing_layer_writer(
     animation_curves: Res<Assets<AlsAnimCurves>>,
     mut curve_handles: ResMut<StandingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
+    mut players: Query<(
+        &mut AnimationGraphPlayer,
+        Option<&AlsRootAnimationContext>,
+        Option<&crate::extensions::post_physics_animation::InitialAnimation>,
+    )>,
 ) {
     update_stop_leg_masks(&mut curve_handles, &skeletons);
     for (entity, parent, avatar_transform, instance, current_runtime, turn, turn_stack) in
@@ -2290,7 +2309,11 @@ fn standing_layer_writer(
         let Ok((mut player, context, initial)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
-        let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() };
+        let delta_seconds = if initial.is_some() {
+            0.0
+        } else {
+            time.delta_secs()
+        };
         let hips_direction_lock_amount = context
             .and_then(|state| state.f32("HipsDirectionLock"))
             .unwrap_or(0.0)
@@ -2312,7 +2335,9 @@ fn standing_layer_writer(
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
-        if let Some(request) = pivot_request { runtime.pivot_pending = request.0; }
+        if let Some(request) = pivot_request {
+            runtime.pivot_pending = request.0;
+        }
         player.set_global_input_data("standing_source.pivot_requested", pivot_request.is_some());
         player.set_global_input_data(
             "standing_source.pivot_activated",
@@ -2359,8 +2384,14 @@ fn standing_layer_writer(
         write_standing_inputs(&mut player, inputs);
         write_stop_leg_masks(&mut player, &curve_handles);
         commands.entity(parent.parent()).insert(AlsFootLockInput {
-            left_ik_amount: context.and_then(|state| state.f32("FootLeftIk")).unwrap_or(0.0).clamp(0.0, 1.0),
-            right_ik_amount: context.and_then(|state| state.f32("FootRightIk")).unwrap_or(0.0).clamp(0.0, 1.0),
+            left_ik_amount: context
+                .and_then(|state| state.f32("FootLeftIk"))
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0),
+            right_ik_amount: context
+                .and_then(|state| state.f32("FootRightIk"))
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0),
             left_lock_amount: context
                 .and_then(|state| state.f32("FootLeftLock"))
                 .unwrap_or(0.0)
@@ -2577,8 +2608,11 @@ mod tests {
     #[test]
     fn source_velocity_and_lean_half_lives_are_exact() {
         assert!(
-            (damper_exact_alpha(crate::standing_source::velocity_blend_interpolation_half_life(),
-                crate::standing_source::velocity_blend_interpolation_half_life()) - 0.5).abs()
+            (damper_exact_alpha(
+                crate::standing_source::velocity_blend_interpolation_half_life(),
+                crate::standing_source::velocity_blend_interpolation_half_life()
+            ) - 0.5)
+                .abs()
                 < 1e-6
         );
         let lean_half_life = crate::locomotion_layer::lean_interpolation_half_life();
@@ -2628,7 +2662,8 @@ mod tests {
         let acceleration = Vec3::NEG_X * 5.0;
         let velocity = Vec3::X;
         let current = acceleration_amount(acceleration, velocity, transform.rotation, 20.0, 5.0);
-        let static_params = acceleration_amount(acceleration, velocity, transform.rotation, 20.0, 15.0);
+        let static_params =
+            acceleration_amount(acceleration, velocity, transform.rotation, 20.0, 15.0);
         let passed = (current.length() - 1.0).abs() < 1e-6
             && (static_params.length() - 1.0 / 3.0).abs() < 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
@@ -2781,9 +2816,13 @@ mod tests {
             backward.markers,
             true,
         );
-        let forward_marker =
-            crate::extensions::marker_position_at_time(forward.markers, forward.duration, forward_time, true)
-                .unwrap();
+        let forward_marker = crate::extensions::marker_position_at_time(
+            forward.markers,
+            forward.duration,
+            forward_time,
+            true,
+        )
+        .unwrap();
         let backward_marker = crate::extensions::marker_position_at_time(
             backward.markers,
             backward.duration,
@@ -3104,80 +3143,209 @@ mod tests {
     #[test]
     fn cached_blend_actual_land_movement_updates_standing_at_three_quarters() {
         for alpha in [0.25_f32, 1.0] {
-        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
-        let locomotion: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron");
-        let machine = {
-            let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
-            let mut graph = graphs.get_mut(&locomotion).unwrap();
-            let node = graph.nodes.values_mut().find(|node| node.name == "Locomotion States\nState Machine").unwrap();
-            let mut fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap().clone();
-            fsm.source_entry_conditions[0].target_state_id = "14e291d3-4d0c-1c14-bde0-b1a262bbe55a".into();
-            fsm.source_transition_conditions.retain(|condition| condition.source_state_id != "14e291d3-4d0c-1c14-bde0-b1a262bbe55a");
-            let handle = fsm.fsm.clone();
-            node.inner = bevy_animation_graph::core::animation_node::AnimationNode::new("fixture", fsm).inner;
-            handle
-        };
-        {
-            let mut machines = app.world_mut().resource_mut::<Assets<bevy_animation_graph::core::state_machine::high_level::StateMachine>>();
-            let mut machine = machines.get_mut(&machine).unwrap();
-            machine.start_state = machine.states.values().find(|state| state.label == "Land Movement").unwrap().id;
-            machine.update_low_level_fsm();
-        }
-        if alpha == 1.0 {
-            let land: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron");
-            let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
-            let mut graph = graphs.get_mut(&land).unwrap();
-            let node = graph.nodes.values_mut().find(|node| node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
-                .is_some_and(|blend| blend.alpha_key == "in_air_state.vertical_velocity_world_space")).unwrap();
-            let mut blend = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>().unwrap().clone();
-            blend.mapping.output_min = 1.0;
-            blend.mapping.output_max = 1.0;
-            node.inner = bevy_animation_graph::core::animation_node::AnimationNode::new("fixture", blend).inner;
-        }
-        #[derive(Resource)]
-        struct LandFixture(Gait);
-        app.insert_resource(LandFixture(Gait::Walking));
-        app.add_systems(PostUpdate, (move |fixture: Res<LandFixture>, mut actors: Query<(&mut AlsActualMotion, &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
-            let (mut motion, mut gait, mut stance, mut mode, mut input) = actors.get_mut(character).unwrap();
-            *gait = fixture.0; *stance = Stance::Standing; *mode = LocomotionState::Grounded;
-            motion.horizontal_speed = 1.0; motion.world_velocity = Vec3::NEG_Z; motion.has_input = true; input.move_dir = Vec2::Y;
-        }).after(crate::gait_layer::AlsGaitLayerSet).before(crate::ab_als_root::AlsRootGraphSet));
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let original = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(root) = original.get_animation_source() else { panic!("Source graph is missing"); };
-        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(root.clone());
-        app.world_mut().entity_mut(player).insert(replacement);
-        for _ in 0..90 { app.update(); }
-        let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        assert!(instance.get_error().is_none(), "Actual Land graph failed: {:?}", instance.get_error());
-        let arena = instance.get_context_arena().unwrap();
-        let mut observed = false;
-        for id in arena.iter_context_ids() {
-            let context = arena.get_context(id).unwrap();
-            let Some(path) = app.world().resource::<AssetServer>().get_path(context.get_graph_id()) else { continue; };
-            if path.path().to_string_lossy().contains("S4_Land_Movement") {
-                let graph = app.world().resource::<Assets<AnimationGraph>>().get(context.get_graph_id()).unwrap();
-                let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>().is_some_and(|blend| blend.alpha_key == "in_air_state.vertical_velocity_world_space")).unwrap();
-                let blend = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
-                assert_eq!(blend.blend_alpha, alpha, "The actual Land blend did not use the configured Alpha");
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(character).insert((
+                avian3d::prelude::RigidBody::Kinematic,
+                bevy_tnua::TnuaToggle::Disabled,
+            ));
+            let locomotion: Handle<AnimationGraph> = app
+                .world()
+                .resource::<AssetServer>()
+                .load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron");
+            let machine = {
+                let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
+                let mut graph = graphs.get_mut(&locomotion).unwrap();
+                let node = graph
+                    .nodes
+                    .values_mut()
+                    .find(|node| node.name == "Locomotion States\nState Machine")
+                    .unwrap();
+                let mut fsm = node
+                    .try_inner_downcast_ref::<InterruptibleFsmNode>()
+                    .unwrap()
+                    .clone();
+                fsm.source_entry_conditions[0].target_state_id =
+                    "14e291d3-4d0c-1c14-bde0-b1a262bbe55a".into();
+                fsm.source_transition_conditions.retain(|condition| {
+                    condition.source_state_id != "14e291d3-4d0c-1c14-bde0-b1a262bbe55a"
+                });
+                let handle = fsm.fsm.clone();
+                node.inner =
+                    bevy_animation_graph::core::animation_node::AnimationNode::new("fixture", fsm)
+                        .inner;
+                handle
+            };
+            {
+                let mut machines = app.world_mut().resource_mut::<Assets<bevy_animation_graph::core::state_machine::high_level::StateMachine>>();
+                let mut machine = machines.get_mut(&machine).unwrap();
+                machine.start_state = machine
+                    .states
+                    .values()
+                    .find(|state| state.label == "Land Movement")
+                    .unwrap()
+                    .id;
+                machine.update_low_level_fsm();
             }
-            if path.path() != Path::new("ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron") { continue; }
-            let graph = app.world().resource::<Assets<AnimationGraph>>().get(context.get_graph_id()).unwrap();
-            let node = graph.nodes.values().find(|node| node.name == "Standing States\nState Machine").unwrap();
-            if !context.node_caches.is_updated(node.id, bevy_animation_graph::core::context::node_states::StateKey::Default) { continue; }
-            for state in context.node_states.get_all_upcoming_states::<InterruptibleFsmState>(node.id).unwrap().filter(|state| state.last_output_pose().is_some()) {
-                assert!((state.recorded_machine_weight() - alpha.max(1.0 - alpha)).abs() < 1e-5, "Land cache used the wrong maximum weight: {}", state.recorded_machine_weight());
-                observed = true;
+            if alpha == 1.0 {
+                let land: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron");
+                let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
+                let mut graph = graphs.get_mut(&land).unwrap();
+                let node = graph
+                    .nodes
+                    .values_mut()
+                    .find(|node| {
+                        node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+                            .is_some_and(|blend| {
+                                blend.alpha_key == "in_air_state.vertical_velocity_world_space"
+                            })
+                    })
+                    .unwrap();
+                let mut blend = node
+                    .try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+                    .unwrap()
+                    .clone();
+                blend.mapping.output_min = 1.0;
+                blend.mapping.output_max = 1.0;
+                node.inner = bevy_animation_graph::core::animation_node::AnimationNode::new(
+                    "fixture", blend,
+                )
+                .inner;
             }
-        }
-        assert!(observed);
-        app.world_mut().resource_mut::<LandFixture>().0 = Gait::Running;
-        for _ in 0..10 { app.update(); }
-        let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        assert!(instance.get_error().is_none());
-        let arena = instance.get_context_arena().unwrap();
-        let actual = arena.iter_context_ids().find_map(|id| {
+            #[derive(Resource)]
+            struct LandFixture(Gait);
+            app.insert_resource(LandFixture(Gait::Walking));
+            app.add_systems(
+                PostUpdate,
+                (move |fixture: Res<LandFixture>,
+                       mut actors: Query<(
+                    &mut AlsActualMotion,
+                    &mut Gait,
+                    &mut Stance,
+                    &mut LocomotionState,
+                    &mut AlsInputCommand,
+                )>| {
+                    let (mut motion, mut gait, mut stance, mut mode, mut input) =
+                        actors.get_mut(character).unwrap();
+                    *gait = fixture.0;
+                    *stance = Stance::Standing;
+                    *mode = LocomotionState::Grounded;
+                    motion.horizontal_speed = 1.0;
+                    motion.world_velocity = Vec3::NEG_Z;
+                    motion.has_input = true;
+                    input.move_dir = Vec2::Y;
+                })
+                .after(crate::gait_layer::AlsGaitLayerSet)
+                .before(crate::ab_als_root::AlsRootGraphSet),
+            );
+            let player = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
+            let original = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(root) =
+                original.get_animation_source()
+            else {
+                panic!("Source graph is missing");
+            };
+            let replacement =
+                AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(root.clone());
+            app.world_mut().entity_mut(player).insert(replacement);
+            for _ in 0..90 {
+                app.update();
+            }
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(
+                instance.get_error().is_none(),
+                "Actual Land graph failed: {:?}",
+                instance.get_error()
+            );
+            let arena = instance.get_context_arena().unwrap();
+            let mut observed = false;
+            for id in arena.iter_context_ids() {
+                let context = arena.get_context(id).unwrap();
+                let Some(path) = app
+                    .world()
+                    .resource::<AssetServer>()
+                    .get_path(context.get_graph_id())
+                else {
+                    continue;
+                };
+                if path.path().to_string_lossy().contains("S4_Land_Movement") {
+                    let graph = app
+                        .world()
+                        .resource::<Assets<AnimationGraph>>()
+                        .get(context.get_graph_id())
+                        .unwrap();
+                    let node = graph
+                        .nodes
+                        .values()
+                        .find(|node| {
+                            node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>(
+                            )
+                            .is_some_and(|blend| {
+                                blend.alpha_key == "in_air_state.vertical_velocity_world_space"
+                            })
+                        })
+                        .unwrap();
+                    let blend = context
+                        .node_states
+                        .get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(
+                            node.id,
+                            bevy_animation_graph::core::context::node_states::StateKey::Default,
+                        )
+                        .unwrap();
+                    assert_eq!(
+                        blend.blend_alpha, alpha,
+                        "The actual Land blend did not use the configured Alpha"
+                    );
+                }
+                if path.path()
+                    != Path::new(
+                        "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+                    )
+                {
+                    continue;
+                }
+                let graph = app
+                    .world()
+                    .resource::<Assets<AnimationGraph>>()
+                    .get(context.get_graph_id())
+                    .unwrap();
+                let node = graph
+                    .nodes
+                    .values()
+                    .find(|node| node.name == "Standing States\nState Machine")
+                    .unwrap();
+                if !context.node_caches.is_updated(
+                    node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default,
+                ) {
+                    continue;
+                }
+                for state in context
+                    .node_states
+                    .get_all_upcoming_states::<InterruptibleFsmState>(node.id)
+                    .unwrap()
+                    .filter(|state| state.last_output_pose().is_some())
+                {
+                    assert!(
+                        (state.recorded_machine_weight() - alpha.max(1.0 - alpha)).abs() < 1e-5,
+                        "Land cache used the wrong maximum weight: {}",
+                        state.recorded_machine_weight()
+                    );
+                    observed = true;
+                }
+            }
+            assert!(observed);
+            app.world_mut().resource_mut::<LandFixture>().0 = Gait::Running;
+            for _ in 0..10 {
+                app.update();
+            }
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none());
+            let arena = instance.get_context_arena().unwrap();
+            let actual = arena.iter_context_ids().find_map(|id| {
             let context = arena.get_context(id)?;
             if app.world().resource::<AssetServer>().get_path(context.get_graph_id())?.path()
                 != Path::new("ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron") { return None; }
@@ -3187,7 +3355,15 @@ mod tests {
             context.node_states.get_all_upcoming_states::<InterruptibleFsmState>(node.id).ok()?
                 .find(|state| state.last_output_pose().is_some())?.active_state_id()
         }).unwrap();
-        assert_eq!(actual, if alpha < 1.0 { "b055da3a-470a-1f79-cb9c-4bbff45f405b" } else { "76440e54-4107-34de-7e55-95b4ebfbe064" }, "Actual T8/T9 selected the wrong start state");
+            assert_eq!(
+                actual,
+                if alpha < 1.0 {
+                    "b055da3a-470a-1f79-cb9c-4bbff45f405b"
+                } else {
+                    "76440e54-4107-34de-7e55-95b4ebfbe064"
+                },
+                "Actual T8/T9 selected the wrong start state"
+            );
         }
     }
 
@@ -3207,35 +3383,84 @@ mod tests {
             }).unwrap()
         }
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::RigidBody::Kinematic,
+            bevy_tnua::TnuaToggle::Disabled,
+        ));
         #[derive(Resource)]
         struct PauseFixture(Stance);
         app.insert_resource(PauseFixture(Stance::Standing));
-        app.add_systems(PostUpdate, (move |fixture: Res<PauseFixture>, mut actors: Query<(&mut AlsActualMotion, &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
-            let (mut motion, mut gait, mut stance, mut mode, mut input) = actors.get_mut(character).unwrap();
-            *gait = Gait::Running; *stance = fixture.0; *mode = LocomotionState::Grounded;
-            motion.horizontal_speed = 2.5; motion.world_velocity = Vec3::NEG_Z * 2.5; motion.has_input = true; input.move_dir = Vec2::Y;
-        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
-        for _ in 0..90 { app.update(); }
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.add_systems(
+            PostUpdate,
+            (move |fixture: Res<PauseFixture>,
+                   mut actors: Query<(
+                &mut AlsActualMotion,
+                &mut Gait,
+                &mut Stance,
+                &mut LocomotionState,
+                &mut AlsInputCommand,
+            )>| {
+                let (mut motion, mut gait, mut stance, mut mode, mut input) =
+                    actors.get_mut(character).unwrap();
+                *gait = Gait::Running;
+                *stance = fixture.0;
+                *mode = LocomotionState::Grounded;
+                motion.horizontal_speed = 2.5;
+                motion.world_velocity = Vec3::NEG_Z * 2.5;
+                motion.has_input = true;
+                input.move_dir = Vec2::Y;
+            })
+            .after(crate::actual_motion::AlsActualMotionSet)
+            .before(crate::gait_layer::AlsGaitLayerSet),
+        );
+        for _ in 0..90 {
+            app.update();
+        }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(0.1),
+        ));
         app.world_mut().resource_mut::<PauseFixture>().0 = Stance::Crouching;
         app.update();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let before = elapsed(&app, player);
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().pause();
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .pause();
         for _ in 0..3 {
             app.update();
-            assert_eq!(elapsed(&app, player), before, "The paused generated FSM consumed positive global delta");
+            assert_eq!(
+                elapsed(&app, player),
+                before,
+                "The paused generated FSM consumed positive global delta"
+            );
         }
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().play_one_frame();
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .play_one_frame();
         app.update();
         let one_frame = elapsed(&app, player);
         assert!((one_frame - before - 0.1).abs() < 1e-5);
-        assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().is_paused());
+        assert!(
+            app.world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .is_paused()
+        );
         app.update();
         assert_eq!(elapsed(&app, player), one_frame);
-        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().resume();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .resume();
         app.update();
         assert!((elapsed(&app, player) - one_frame - 0.05).abs() < 1e-5);
     }
@@ -3243,46 +3468,136 @@ mod tests {
     #[test]
     fn visibility_initializes_a_new_hidden_instance_before_applying_tick_policy() {
         let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
-        for _ in 0..16 { app.update(); }
-        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut()
+            .entity_mut(avatar)
+            .remove::<crate::animation_visibility::AlsAnimationTickOption>()
+            .insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(0.1),
+        ));
+        for _ in 0..16 {
+            app.update();
+        }
+        let entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let original = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
-        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source() else { panic!("Source graph is missing"); };
-        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) =
+            original.get_animation_source()
+        else {
+            panic!("Source graph is missing");
+        };
+        let replacement =
+            AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
         app.world_mut().entity_mut(entity).insert(replacement);
         app.update();
         let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
-        assert!(player.get_error().is_none() && player.get_default_output_pose().is_some(), "Source InitAnim did not initialize the hidden instance");
-        assert_eq!(player.elapsed(), 0.0, "Initialization advanced the animation clock");
+        assert!(
+            player.get_error().is_none() && player.get_default_output_pose().is_some(),
+            "Source InitAnim did not initialize the hidden instance"
+        );
+        assert_eq!(
+            player.elapsed(),
+            0.0,
+            "Initialization advanced the animation clock"
+        );
         let frame = player.get_context_arena().unwrap().frame_index();
         app.update();
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_context_arena().unwrap().frame_index(), frame);
-        let clip = app.world().resource::<AssetServer>().load("ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron");
-        let node = bevy_animation_graph::core::animation_node::AnimationNode::new("unsynchronized source clip", crate::extensions::SourceSequencePlayerNode { clip, ..default() });
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(entity)
+                .unwrap()
+                .get_context_arena()
+                .unwrap()
+                .frame_index(),
+            frame
+        );
+        let clip = app
+            .world()
+            .resource::<AssetServer>()
+            .load("ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron");
+        let node = bevy_animation_graph::core::animation_node::AnimationNode::new(
+            "unsynchronized source clip",
+            crate::extensions::SourceSequencePlayerNode { clip, ..default() },
+        );
         let mut graph = AnimationGraph::new();
         graph.add_node(node.clone());
-        graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose);
+        graph.add_output_data(
+            "pose".into(),
+            bevy_animation_graph::core::edge_data::DataSpec::Pose,
+        );
         graph.add_output_data_edge(node.id, "Pose", "pose");
-        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
-        let skeleton = app.world().get::<AnimationGraphPlayer>(entity).unwrap().skeleton().clone();
-        app.world_mut().entity_mut(entity).insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(graph);
+        let skeleton = app
+            .world()
+            .get::<AnimationGraphPlayer>(entity)
+            .unwrap()
+            .skeleton()
+            .clone();
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
         app.update();
-        assert_eq!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().elapsed(), 0.0, "Unsynchronized initialization advanced engine time");
+        assert_eq!(
+            app.world()
+                .get::<AnimationGraphPlayer>(entity)
+                .unwrap()
+                .elapsed(),
+            0.0,
+            "Unsynchronized initialization advanced engine time"
+        );
     }
 
     #[test]
     fn visibility_hidden_mesh_stops_the_default_animation_graph_after_render_recentness_expires() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
-        for _ in 0..16 { app.update(); }
-        assert!(!app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().active);
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let before = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
-        for _ in 0..5 { app.update(); }
-        let after = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
-        assert_eq!(after, before, "Hidden mesh without a montage kept ticking its graph");
+        app.world_mut()
+            .entity_mut(avatar)
+            .remove::<crate::animation_visibility::AlsAnimationTickOption>()
+            .insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(0.1),
+        ));
+        for _ in 0..16 {
+            app.update();
+        }
+        assert!(
+            !app.world()
+                .get::<crate::als::roll::AlsRollState>(character)
+                .unwrap()
+                .active
+        );
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let before = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_context_arena()
+            .unwrap()
+            .frame_index();
+        for _ in 0..5 {
+            app.update();
+        }
+        let after = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_context_arena()
+            .unwrap()
+            .frame_index();
+        assert_eq!(
+            after, before,
+            "Hidden mesh without a montage kept ticking its graph"
+        );
     }
 
     #[test]
@@ -3290,22 +3605,45 @@ mod tests {
         use crate::extensions::source_instance::SourceInstanceProperties;
         use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::RigidBody::Kinematic,
+            bevy_tnua::TnuaToggle::Disabled,
+        ));
         #[derive(Resource)]
         struct FadeFixture(Stance, Gait, f32);
         app.insert_resource(FadeFixture(Stance::Standing, Gait::Running, 2.5));
-        app.add_systems(PostUpdate, (move |fixture: Res<FadeFixture>, mut characters: Query<(&mut AlsActualMotion, &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
-            let (mut motion, mut gait, mut stance, mut mode, mut input) = characters.get_mut(character).unwrap();
-            *gait = fixture.1;
-            *stance = fixture.0;
-            *mode = LocomotionState::Grounded;
-            motion.horizontal_speed = fixture.2;
-            motion.world_velocity = Vec3::NEG_Z * fixture.2;
-            motion.has_input = fixture.2 > 0.0;
-            input.move_dir = if fixture.2 > 0.0 { Vec2::Y } else { Vec2::ZERO };
-        }).after(crate::actual_motion::AlsActualMotionSet).after(crate::als::gait::refresh_gait_system).before(crate::gait_layer::AlsGaitLayerSet));
-        for _ in 0..90 { app.update(); }
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.add_systems(
+            PostUpdate,
+            (move |fixture: Res<FadeFixture>,
+                   mut characters: Query<(
+                &mut AlsActualMotion,
+                &mut Gait,
+                &mut Stance,
+                &mut LocomotionState,
+                &mut AlsInputCommand,
+            )>| {
+                let (mut motion, mut gait, mut stance, mut mode, mut input) =
+                    characters.get_mut(character).unwrap();
+                *gait = fixture.1;
+                *stance = fixture.0;
+                *mode = LocomotionState::Grounded;
+                motion.horizontal_speed = fixture.2;
+                motion.world_velocity = Vec3::NEG_Z * fixture.2;
+                motion.has_input = fixture.2 > 0.0;
+                input.move_dir = if fixture.2 > 0.0 { Vec2::Y } else { Vec2::ZERO };
+            })
+            .after(crate::actual_motion::AlsActualMotionSet)
+            .after(crate::als::gait::refresh_gait_system)
+            .before(crate::gait_layer::AlsGaitLayerSet),
+        );
+        for _ in 0..90 {
+            app.update();
+        }
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let mut relevant_frames = 0;
         let mut inactive_frames = 0;
         let mut transition_observed = false;
@@ -3320,22 +3658,54 @@ mod tests {
             for _ in 0..frames {
                 app.update();
                 let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-                assert!(instance.get_error().is_none() && instance.get_default_output_pose().is_some(), "Outgoing graph failed: {:?}", instance.get_error());
+                assert!(
+                    instance.get_error().is_none() && instance.get_default_output_pose().is_some(),
+                    "Outgoing graph failed: {:?}",
+                    instance.get_error()
+                );
                 let arena = instance.get_context_arena().unwrap();
-                let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
-                let relevant = state.write_frames.get("standing_state.walk_run_blend_amount") == Some(&arena.frame_index());
-                assert_eq!(app.world().get::<Gait>(character), Some(&gait), "Source fixture did not establish current actor gait");
+                let state = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                    .unwrap();
+                let relevant = state
+                    .write_frames
+                    .get("standing_state.walk_run_blend_amount")
+                    == Some(&arena.frame_index());
+                assert_eq!(
+                    app.world().get::<Gait>(character),
+                    Some(&gait),
+                    "Source fixture did not establish current actor gait"
+                );
                 if stance == Stance::Crouching && relevant {
                     relevant_frames += 1;
-                    assert_eq!(state.values["standing_state.walk_run_blend_amount"].as_f32().unwrap(), if gait == Gait::Walking { 0.0 } else { 1.0 }, "Outgoing Standing reused the previous gait");
+                    assert_eq!(
+                        state.values["standing_state.walk_run_blend_amount"]
+                            .as_f32()
+                            .unwrap(),
+                        if gait == Gait::Walking { 0.0 } else { 1.0 },
+                        "Outgoing Standing reused the previous gait"
+                    );
                 }
-                if stance == Stance::Crouching && !relevant { inactive_frames += 1; }
+                if stance == Stance::Crouching && !relevant {
+                    inactive_frames += 1;
+                }
                 if stance == Stance::Crouching && gait == Gait::Walking && relevant {
                     for context_id in arena.iter_context_ids() {
                         let context = arena.get_context(context_id).unwrap();
-                        if !app.world().resource::<AssetServer>().get_path(context.get_graph_id()).is_some_and(|path| is_generated_standing_graph(path.path())) { continue; }
+                        if !app
+                            .world()
+                            .resource::<AssetServer>()
+                            .get_path(context.get_graph_id())
+                            .is_some_and(|path| is_generated_standing_graph(path.path()))
+                        {
+                            continue;
+                        }
                         let graphs = app.world().resource::<Assets<AnimationGraph>>();
-                        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+                        let Some(graph) = graphs.get(context.get_graph_id()) else {
+                            continue;
+                        };
                         for node in graph.nodes.values().filter(|node| node.try_inner_downcast_ref::<crate::extensions::normalized_blendspace::CubicVec2AxisFilterNode>().is_some()) {
                             if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
                             if let Some(value) = context.node_caches.get_output_data(node.id, StateKey::Default, "value".to_owned()).and_then(|value| value.as_vec2().ok()) {
@@ -3345,50 +3715,142 @@ mod tests {
                     }
                 }
                 if relevant {
-                    for key in ["standing_state.walk_run_blend_amount", "standing_state.stride_blend_amount", "standing_state.play_rate", "standing_state.sprint_block_amount"] {
-                        assert_eq!(state.write_frames.get(key), Some(&arena.frame_index()), "Relevant source callback did not refresh {key}");
-                        let expected = instance.get_global_input_data(format!("source_frame_input.{key}")).unwrap().as_f32().unwrap();
-                        assert!((state.values[key].as_f32().unwrap() - expected).abs() < 1e-6, "Stale relevant input: {key}");
+                    for key in [
+                        "standing_state.walk_run_blend_amount",
+                        "standing_state.stride_blend_amount",
+                        "standing_state.play_rate",
+                        "standing_state.sprint_block_amount",
+                    ] {
+                        assert_eq!(
+                            state.write_frames.get(key),
+                            Some(&arena.frame_index()),
+                            "Relevant source callback did not refresh {key}"
+                        );
+                        let expected = instance
+                            .get_global_input_data(format!("source_frame_input.{key}"))
+                            .unwrap()
+                            .as_f32()
+                            .unwrap();
+                        assert!(
+                            (state.values[key].as_f32().unwrap() - expected).abs() < 1e-6,
+                            "Stale relevant input: {key}"
+                        );
                     }
                 }
-                transition_observed |= app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap().transition_active == Some(true);
+                transition_observed |= app
+                    .world()
+                    .get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character)
+                    .unwrap()
+                    .transition_active
+                    == Some(true);
             }
         }
-        assert!(relevant_frames > 3 && inactive_frames > 3 && transition_observed, "Standing fade relevance lifecycle was not exercised: relevant={relevant_frames}, inactive={inactive_frames}, transition={transition_observed}");
-        assert!(walking_filter_min < 0.9, "The actual Standing BlendSpace filter did not receive Walking: {walking_filter_min}");
-        *app.world_mut().resource_mut::<FadeFixture>() = FadeFixture(Stance::Standing, Gait::Walking, 0.0);
-        for _ in 0..90 { app.update(); }
-        *app.world_mut().resource_mut::<FadeFixture>() = FadeFixture(Stance::Crouching, Gait::Running, 0.0);
+        assert!(
+            relevant_frames > 3 && inactive_frames > 3 && transition_observed,
+            "Standing fade relevance lifecycle was not exercised: relevant={relevant_frames}, inactive={inactive_frames}, transition={transition_observed}"
+        );
+        assert!(
+            walking_filter_min < 0.9,
+            "The actual Standing BlendSpace filter did not receive Walking: {walking_filter_min}"
+        );
+        *app.world_mut().resource_mut::<FadeFixture>() =
+            FadeFixture(Stance::Standing, Gait::Walking, 0.0);
+        for _ in 0..90 {
+            app.update();
+        }
+        *app.world_mut().resource_mut::<FadeFixture>() =
+            FadeFixture(Stance::Crouching, Gait::Running, 0.0);
         let mut inertial_state_observed = false;
         for _ in 0..90 {
             app.update();
-            let telemetry = app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap();
+            let telemetry = app
+                .world()
+                .get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character)
+                .unwrap();
             inertial_state_observed |= telemetry.actual_state == Some(3);
             let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-            assert!(instance.get_error().is_none() && instance.get_default_output_pose().is_some(), "Outgoing graph failed: {:?}", instance.get_error());
+            assert!(
+                instance.get_error().is_none() && instance.get_default_output_pose().is_some(),
+                "Outgoing graph failed: {:?}",
+                instance.get_error()
+            );
         }
-        assert!(inertial_state_observed, "The separate T18 inertialization path was not exercised");
-        assert_eq!(app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap().actual_state, Some(2));
+        assert!(
+            inertial_state_observed,
+            "The separate T18 inertialization path was not exercised"
+        );
+        assert_eq!(
+            app.world()
+                .get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character)
+                .unwrap()
+                .actual_state,
+            Some(2)
+        );
     }
 
     #[test]
     fn pivot_request_uses_the_call_frame_decision_after_speed_changes() {
         use bevy::ecs::system::RunSystemOnce;
         for prior_active in [false, true] {
-        for (call_speed, next_speed) in [(1.9_f32, 2.1_f32), (2.1, 1.9), (2.0, 1.9), (1.9, 1.9), (2.1, 2.1)] {
-            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            app.world_mut().get_mut::<StandingLayerRuntime>(avatar).unwrap().pivot_pending = prior_active;
-            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("locomotion_state.speed", call_speed);
-            app.world_mut().resource_mut::<Messages<AlsPivotNotify>>().write(AlsPivotNotify { character, activated: source_pivot_activates(true, call_speed) });
-            app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().horizontal_speed = next_speed;
-            app.world_mut().run_system_once(pivot_notify_system).unwrap();
-            app.world_mut().run_system_once(standing_layer_writer).unwrap();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-            assert!(player.get_global_input_data("standing_source.pivot_requested").unwrap().as_bool().unwrap());
-            assert_eq!(player.get_global_input_data("standing_source.pivot_activated").unwrap().as_bool().unwrap(), call_speed < 2.0,
-                "Pivot recomputed its qualification in the consumption frame: call={call_speed}, next={next_speed}");
-        }
+            for (call_speed, next_speed) in [
+                (1.9_f32, 2.1_f32),
+                (2.1, 1.9),
+                (2.0, 1.9),
+                (1.9, 1.9),
+                (2.1, 2.1),
+            ] {
+                let (mut app, character, avatar) =
+                    crate::roll_drive::tests::loaded_roll_character();
+                app.world_mut()
+                    .get_mut::<StandingLayerRuntime>(avatar)
+                    .unwrap()
+                    .pivot_pending = prior_active;
+                let player_entity = app
+                    .world()
+                    .get::<AnimatedSceneInstance>(avatar)
+                    .unwrap()
+                    .player_entity();
+                app.world_mut()
+                    .get_mut::<AnimationGraphPlayer>(player_entity)
+                    .unwrap()
+                    .set_global_input_data("locomotion_state.speed", call_speed);
+                app.world_mut()
+                    .resource_mut::<Messages<AlsPivotNotify>>()
+                    .write(AlsPivotNotify {
+                        character,
+                        activated: source_pivot_activates(true, call_speed),
+                    });
+                app.world_mut()
+                    .get_mut::<AlsActualMotion>(character)
+                    .unwrap()
+                    .horizontal_speed = next_speed;
+                app.world_mut()
+                    .run_system_once(pivot_notify_system)
+                    .unwrap();
+                app.world_mut()
+                    .run_system_once(standing_layer_writer)
+                    .unwrap();
+                let player = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player_entity)
+                    .unwrap();
+                assert!(
+                    player
+                        .get_global_input_data("standing_source.pivot_requested")
+                        .unwrap()
+                        .as_bool()
+                        .unwrap()
+                );
+                assert_eq!(
+                    player
+                        .get_global_input_data("standing_source.pivot_activated")
+                        .unwrap()
+                        .as_bool()
+                        .unwrap(),
+                    call_speed < 2.0,
+                    "Pivot recomputed its qualification in the consumption frame: call={call_speed}, next={next_speed}"
+                );
+            }
         }
     }
 

@@ -1,5 +1,5 @@
-use avian3d::prelude::{Collider, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use avian3d::prelude::{Collider, SpatialQueryFilter};
 use bevy::prelude::*;
 
 pub const ALS_PLAYER_START_SOURCE_CLEARANCE: f32 = 0.019;
@@ -103,10 +103,17 @@ pub fn yaw_only_transform(mut transform: Transform) -> Transform {
 }
 
 pub(crate) fn player_start_tag_matches(tag: Option<&str>, incoming: &str) -> bool {
-    let is_none = |value: &str| value.is_empty() || value.eq_ignore_ascii_case("None")
-        || value.strip_prefix('_').is_some_and(|digits| digits.parse::<u32>().ok()
-            .filter(|number| *number < i32::MAX as u32)
-            .is_some_and(|number| number.to_string() == digits));
+    let is_none = |value: &str| {
+        value.is_empty()
+            || value.eq_ignore_ascii_case("None")
+            || value.strip_prefix('_').is_some_and(|digits| {
+                digits
+                    .parse::<u32>()
+                    .ok()
+                    .filter(|number| *number < i32::MAX as u32)
+                    .is_some_and(|number| number.to_string() == digits)
+            })
+    };
     let tag = tag.unwrap_or_default();
     tag.eq_ignore_ascii_case(incoming) || (is_none(tag) && is_none(incoming))
 }
@@ -232,16 +239,28 @@ fn proposed_overlap_adjustment(
         let (collider, obstacle) = colliders.get(*entity).ok()?;
         let obstacle = obstacle.compute_transform();
         let contact = avian3d::collision::collider::contact_query::contact(
-            shape, transform.translation, transform.rotation,
-            collider, obstacle.translation, obstacle.rotation, 0.0,
-        ).ok()??;
+            shape,
+            transform.translation,
+            transform.rotation,
+            collider,
+            obstacle.translation,
+            obstacle.rotation,
+            0.0,
+        )
+        .ok()??;
         let normal = transform.rotation * contact.local_normal1;
-        let depth = if let (Some(first), Some(second)) =
-            (shape.shape_scaled().as_support_map(), collider.shape_scaled().as_support_map()) {
-            let first = transform.translation + transform.rotation * first.local_support_point(contact.local_normal1);
-            let second = obstacle.translation + obstacle.rotation * second.local_support_point(contact.local_normal2);
+        let depth = if let (Some(first), Some(second)) = (
+            shape.shape_scaled().as_support_map(),
+            collider.shape_scaled().as_support_map(),
+        ) {
+            let first = transform.translation
+                + transform.rotation * first.local_support_point(contact.local_normal1);
+            let second = obstacle.translation
+                + obstacle.rotation * second.local_support_point(contact.local_normal2);
             (first - second).dot(normal)
-        } else { contact.penetration };
+        } else {
+            contact.penetration
+        };
         adjustment -= normal * depth;
     }
     (adjustment.length_squared() > f32::EPSILON).then_some(adjustment)
@@ -262,12 +281,8 @@ pub fn find_teleport_spot(
     if intersections.is_empty() {
         return Some((transform, Vec3::ZERO));
     }
-    let adjustment = proposed_overlap_adjustment(
-        &transform,
-        &full_shape,
-        &intersections,
-        colliders,
-    )?;
+    let adjustment =
+        proposed_overlap_adjustment(&transform, &full_shape, &intersections, colliders)?;
     if adjustment.y.abs() > f32::EPSILON {
         let mut candidate = transform;
         candidate.translation.y += adjustment.y;
@@ -406,11 +421,14 @@ fn prepare_player_starts(
     >,
 ) {
     let ground_filter = SpatialQueryFilter::from_excluded_entities(characters.iter());
-    let occupancy_filter = SpatialQueryFilter::default()
-        .with_mask(crate::als::character::AlsCollisionLayer::Default);
+    let occupancy_filter =
+        SpatialQueryFilter::default().with_mask(crate::als::character::AlsCollisionLayer::Default);
     for (entity, player_start, start, probe, ready) in &mut starts {
         let mut start = *start;
-        for parent in transforms.iter_many(parents.iter_ancestors(entity)).filter_map(Result::ok) {
+        for parent in transforms
+            .iter_many(parents.iter_ancestors(entity))
+            .filter_map(Result::ok)
+        {
             start.translation = parent.transform_point(start.translation);
             start.rotation = parent.rotation * start.rotation;
         }
@@ -423,7 +441,10 @@ fn prepare_player_starts(
                 true,
                 &ground_filter,
             ) else {
-                commands.entity(entity).remove::<AlsPlayerStartReady>().insert(AlsPlayerStartProbe::default());
+                commands
+                    .entity(entity)
+                    .remove::<AlsPlayerStartReady>()
+                    .insert(AlsPlayerStartProbe::default());
                 continue;
             };
             probe_origin.y - hit.distance
@@ -439,7 +460,10 @@ fn prepare_player_starts(
             &colliders,
             &occupancy_filter,
         ) else {
-            commands.entity(entity).remove::<AlsPlayerStartReady>().insert(AlsPlayerStartProbe::default());
+            commands
+                .entity(entity)
+                .remove::<AlsPlayerStartReady>()
+                .insert(AlsPlayerStartProbe::default());
             continue;
         };
         let stable_frames = match probe {
@@ -527,25 +551,33 @@ mod tests {
             PhysicsPlugins::new(FixedPostUpdate),
             AlsPlayerStartPlugin,
         ));
-        app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 1;
+        app.world_mut()
+            .resource_mut::<AlsPlayerStartSettings>()
+            .required_stable_frames = 1;
         app.finish();
         app.cleanup();
         let center = Vec3::Y * player_start_grounded_height(0.0, 0.9);
-        let start = app.world_mut().spawn((
-            AlsPlayerStart::default(),
-            Transform::from_translation(center),
-        )).id();
+        let start = app
+            .world_mut()
+            .spawn((
+                AlsPlayerStart::default(),
+                Transform::from_translation(center),
+            ))
+            .id();
         app.world_mut().spawn((
             RigidBody::Static,
             avian3d::prelude::Collider::cuboid(20.0, 0.2, 20.0),
             Transform::from_xyz(0.0, -0.1, 0.0),
         ));
-        let occupant = app.world_mut().spawn((
-            crate::als::character::AlsCharacter,
-            RigidBody::Static,
-            crate::als::character::als_character_capsule(0.9, 0.3),
-            Transform::from_translation(center),
-        )).id();
+        let occupant = app
+            .world_mut()
+            .spawn((
+                crate::als::character::AlsCharacter,
+                RigidBody::Static,
+                crate::als::character::als_character_capsule(0.9, 0.3),
+                Transform::from_translation(center),
+            ))
+            .id();
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
         app.update();
@@ -555,13 +587,20 @@ mod tests {
         assert_eq!(ready.occupancy, AlsPlayerStartOccupancy::OccupiedAdjusted);
 
         app.world_mut().entity_mut(occupant).despawn();
-        app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 2;
+        app.world_mut()
+            .resource_mut::<AlsPlayerStartSettings>()
+            .required_stable_frames = 2;
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
         app.update();
         app.update();
-        assert_eq!(app.world().get::<AlsPlayerStartReady>(start).unwrap().occupancy,
-            AlsPlayerStartOccupancy::Unoccupied);
+        assert_eq!(
+            app.world()
+                .get::<AlsPlayerStartReady>(start)
+                .unwrap()
+                .occupancy,
+            AlsPlayerStartOccupancy::Unoccupied
+        );
         app.world_mut().spawn((
             crate::als::character::AlsCharacter,
             RigidBody::Static,
@@ -570,12 +609,19 @@ mod tests {
         ));
         app.world_mut().run_schedule(FixedPostUpdate);
         app.update();
-        assert!(app.world().get::<AlsPlayerStartReady>(start).is_none(),
+        assert!(
+            app.world().get::<AlsPlayerStartReady>(start).is_none(),
             "Stale unoccupied readiness must not admit a pawn during occupancy stabilization: {:?}",
-            app.world().get::<AlsPlayerStartReady>(start));
+            app.world().get::<AlsPlayerStartReady>(start)
+        );
         app.update();
-        assert_eq!(app.world().get::<AlsPlayerStartReady>(start).unwrap().occupancy,
-            AlsPlayerStartOccupancy::OccupiedAdjusted);
+        assert_eq!(
+            app.world()
+                .get::<AlsPlayerStartReady>(start)
+                .unwrap()
+                .occupancy,
+            AlsPlayerStartOccupancy::OccupiedAdjusted
+        );
     }
 
     fn fit(occupancy: AlsPlayerStartOccupancy) -> AlsPlayerSpawnFit {
@@ -647,12 +693,16 @@ mod tests {
             (None, Some(""), false),
             (None, None, false),
         ] {
-            let candidates = [candidate(1, tag, AlsPlayerStartOccupancy::Unoccupied),
-                candidate(2, Some("Other"), AlsPlayerStartOccupancy::Unoccupied)];
+            let candidates = [
+                candidate(1, tag, AlsPlayerStartOccupancy::Unoccupied),
+                candidate(2, Some("Other"), AlsPlayerStartOccupancy::Unoccupied),
+            ];
             let selection = choose_player_start(&candidates, request, 1).unwrap();
             let expected = &candidates[usize::from(!named)];
-            assert_eq!(selection.entity, expected.entity,
-                "Named PlayerStart FName identity: tag={tag:?} request={request:?}");
+            assert_eq!(
+                selection.entity, expected.entity,
+                "Named PlayerStart FName identity: tag={tag:?} request={request:?}"
+            );
             assert_eq!(selection.tag, expected.tag);
         }
     }

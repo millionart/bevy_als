@@ -20,7 +20,9 @@ impl Plugin for AirJumpLayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PostUpdate,
-            capture_jump_variant.after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            capture_jump_variant.after(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
         );
     }
 }
@@ -28,7 +30,9 @@ impl Plugin for AirJumpLayerPlugin {
 fn source_jump_variant(path: &str) -> Option<JumpStartVariant> {
     match path {
         "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron" => Some(JumpStartVariant::WalkLeft),
-        "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron" => Some(JumpStartVariant::WalkRight),
+        "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron" => {
+            Some(JumpStartVariant::WalkRight)
+        }
         "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron" => Some(JumpStartVariant::RunLeft),
         "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron" => Some(JumpStartVariant::RunRight),
         _ => None,

@@ -1,6 +1,4 @@
-use bevy::{
-    math::{DQuat, DVec3},
-};
+use bevy::math::{DQuat, DVec3};
 
 use crate::extensions::{
     control_rig_hierarchy::{
@@ -116,12 +114,8 @@ impl RigUnitContext<'_> {
                 let (offset, length_factor) = length_slot(offset, meters_per_unit)?;
                 let hit = if *enabled {
                     let horizontal = *foot - up * foot.dot(up);
-                    let start = self
-                        .to_world
-                        .transform_point(horizontal + up * upward);
-                    let end = self
-                        .to_world
-                        .transform_point(horizontal - up * downward);
+                    let start = self.to_world.transform_point(horizontal + up * upward);
+                    let end = self.to_world.transform_point(horizontal - up * downward);
                     let trace = self
                         .line_trace
                         .as_deref_mut()
@@ -180,7 +174,12 @@ impl RigUnitContext<'_> {
                 let Some(thigh) = self.hierarchy.item_index(thigh)? else {
                     return Ok(());
                 };
-                let [F32(velocity) | Centimeters(velocity), F32(previous) | Centimeters(previous), Bool(valid)] = state.as_mut_slice() else {
+                let [
+                    F32(velocity) | Centimeters(velocity),
+                    F32(previous) | Centimeters(previous),
+                    Bool(valid),
+                ] = state.as_mut_slice()
+                else {
                     return Err("rig offset spring state layout is invalid".to_owned());
                 };
                 let (offset, length_factor) = length_slot(offset, meters_per_unit)?;
@@ -189,11 +188,13 @@ impl RigUnitContext<'_> {
                     .hierarchy
                     .transform(pelvis, RigSpace::Global, false)?
                     .translation
-                    .dot(up) * length_factor) as f32;
+                    .dot(up)
+                    * length_factor) as f32;
                 let thigh = self
                     .hierarchy
                     .transform(thigh, RigSpace::Global, false)?
-                    .translation * length_factor;
+                    .translation
+                    * length_factor;
                 let target = *target * length_factor;
                 let maximum = pelvis - *pelvis_distance - target.dot(up) as f32;
                 let target_offset = foot_offset.min(maximum).max(*pelvis_offset);
@@ -406,28 +407,31 @@ impl RigUnitContext<'_> {
                     RigTransform::from_value(effector)?,
                 ];
                 let minimum_length = f64::from(self.geometry.minimum_length);
-                let mut lengths = [length_in_units(length_a, meters_per_unit)?, length_in_units(length_b, meters_per_unit)?];
+                let mut lengths = [
+                    length_in_units(length_a, meters_per_unit)?,
+                    length_in_units(length_b, meters_per_unit)?,
+                ];
                 let centimeters_per_unit = 100.0 * meters_per_unit;
                 for (index, (parent, child)) in [(a, Some(b)), (b, end)].into_iter().enumerate() {
                     if lengths[index] < minimum_length
                         && let Some(child) = child
                     {
                         let initial = self.hierarchy.transform(parent, RigSpace::Global, true)?;
-                        let scale = if source_vector_dot(initial.scale, initial.scale) > 1e-8_f32 as f64 {
-                            bones[index].scale / initial.scale
-                        } else {
-                            bevy::math::DVec3::ONE
-                        };
+                        let scale =
+                            if source_vector_dot(initial.scale, initial.scale) > 1e-8_f32 as f64 {
+                                bones[index].scale / initial.scale
+                            } else {
+                                bevy::math::DVec3::ONE
+                            };
                         let child = self.hierarchy.transform(child, RigSpace::Global, true)?;
-                        let delta_cm = (initial.translation * centimeters_per_unit - child.translation * centimeters_per_unit) * scale;
+                        let delta_cm = (initial.translation * centimeters_per_unit
+                            - child.translation * centimeters_per_unit)
+                            * scale;
                         let length_cm = source_vector_dot(delta_cm, delta_cm).sqrt() as f32;
                         lengths[index] = f64::from(length_cm) * (0.01 / meters_per_unit);
                     }
                 }
-                if lengths
-                    .iter()
-                    .any(|&length| length < minimum_length)
-                {
+                if lengths.iter().any(|&length| length < minimum_length) {
                     return Ok(());
                 }
                 self.geometry.solve(
@@ -595,13 +599,14 @@ impl RigUnitContext<'_> {
                     && let Some(descendant) = self.hierarchy.item_index(descendant)?
                 {
                     let (output, length_factor) = length_slot(output, meters_per_unit)?;
-                    *output =
-                        if let Some(length) = self.chain_length(ancestor, descendant, *initial, length_factor)? {
-                            length
-                        } else {
-                            self.chain_length(descendant, ancestor, *initial, length_factor)?
-                                .unwrap_or(0.0)
-                        };
+                    *output = if let Some(length) =
+                        self.chain_length(ancestor, descendant, *initial, length_factor)?
+                    {
+                        length
+                    } else {
+                        self.chain_length(descendant, ancestor, *initial, length_factor)?
+                            .unwrap_or(0.0)
+                    };
                 }
             }
             (
@@ -646,13 +651,13 @@ impl RigUnitContext<'_> {
 
 #[cfg(test)]
 mod tests {
-    use bevy::platform::collections::HashMap;
     use super::*;
     use crate::extensions::{
         control_rig_hierarchy::{RigBone, RigTransform},
         control_rig_program::{RigInstruction, RigProgram, RigValueRef},
     };
     use bevy::math::DVec3;
+    use bevy::platform::collections::HashMap;
 
     fn geometry() -> RigGeometry {
         RigGeometry {
@@ -669,31 +674,93 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn control_rig_pole_and_ik_preserve_source_vector_order() {
         let geometry = geometry();
-        let (projection, direction) = geometry.pole(
-            DVec3::ZERO, DVec3::new(0.5, 2.0, 1.0), DVec3::new(3.0, 5.0, 4.0),
-        ).unwrap();
+        let (projection, direction) = geometry
+            .pole(
+                DVec3::ZERO,
+                DVec3::new(0.5, 2.0, 1.0),
+                DVec3::new(3.0, 5.0, 4.0),
+            )
+            .unwrap();
         assert_eq!(projection, DVec3::new(0.93, 1.55, 1.24));
-        assert_eq!(direction, DVec3::new(-0.644_597_252_536_441, 0.674_578_520_096_275_3,
-            -0.359_775_210_718_013_55));
+        assert_eq!(
+            direction,
+            DVec3::new(
+                -0.644_597_252_536_441,
+                0.674_578_520_096_275_3,
+                -0.359_775_210_718_013_55
+            )
+        );
 
-        let (projection, direction) = geometry.pole(
-            DVec3::new(8.925_669_401_805_589, 94.925_253_710_169_7, -1.717_870_670_449_023_2),
-            DVec3::new(15.873_860_534_693_453, 53.219_259_420_003_425, 3.023_558_198_420_145_6),
-            DVec3::new(18.975_329_039_394_797, 13.409_921_254_359_077, -1.599_313_650_113_666_4),
-        ).unwrap();
-        assert_eq!(projection, DVec3::new(14.095_286_683_713_653, 52.993_179_729_490_16,
-            -1.656_884_085_497_952));
-        assert_eq!(direction, DVec3::new(0.354_857_215_564_911_07, 0.045_106_931_841_553_17,
-            0.933_831_741_408_140_3));
+        let (projection, direction) = geometry
+            .pole(
+                DVec3::new(
+                    8.925_669_401_805_589,
+                    94.925_253_710_169_7,
+                    -1.717_870_670_449_023_2,
+                ),
+                DVec3::new(
+                    15.873_860_534_693_453,
+                    53.219_259_420_003_425,
+                    3.023_558_198_420_145_6,
+                ),
+                DVec3::new(
+                    18.975_329_039_394_797,
+                    13.409_921_254_359_077,
+                    -1.599_313_650_113_666_4,
+                ),
+            )
+            .unwrap();
+        assert_eq!(
+            projection,
+            DVec3::new(
+                14.095_286_683_713_653,
+                52.993_179_729_490_16,
+                -1.656_884_085_497_952
+            )
+        );
+        assert_eq!(
+            direction,
+            DVec3::new(
+                0.354_857_215_564_911_07,
+                0.045_106_931_841_553_17,
+                0.933_831_741_408_140_3
+            )
+        );
 
         let mut bones = [RigTransform::default(); 3];
-        bones[0].translation = DVec3::new(-9.017_389_605_395_621, 94.903_783_166_794_78, -3.242_183_316_710_252_5);
-        bones[2].translation = DVec3::new(-17.076_301_574_707_03, 13.465_195_894_241_333, -5.072_212_219_238_281);
-        geometry.solve(&mut bones,
-            DVec3::new(-35.484_576_782_270_3, 52.930_200_444_555, 33.857_362_981_432_14),
-            DVec3::X, DVec3::Y, 0.0, [42.572_25_f32, 40.196_82_f32], false, 0.75, 1.25);
-        assert_eq!(bones[1].translation,
-            DVec3::new(-16.246_864_416_758_697, 53.175_769_941_310_58, 1.105_702_083_001_855_1));
+        bones[0].translation = DVec3::new(
+            -9.017_389_605_395_621,
+            94.903_783_166_794_78,
+            -3.242_183_316_710_252_5,
+        );
+        bones[2].translation = DVec3::new(
+            -17.076_301_574_707_03,
+            13.465_195_894_241_333,
+            -5.072_212_219_238_281,
+        );
+        geometry.solve(
+            &mut bones,
+            DVec3::new(
+                -35.484_576_782_270_3,
+                52.930_200_444_555,
+                33.857_362_981_432_14,
+            ),
+            DVec3::X,
+            DVec3::Y,
+            0.0,
+            [42.572_25_f32, 40.196_82_f32],
+            false,
+            0.75,
+            1.25,
+        );
+        assert_eq!(
+            bones[1].translation,
+            DVec3::new(
+                -16.246_864_416_758_697,
+                53.175_769_941_310_58,
+                1.105_702_083_001_855_1
+            )
+        );
     }
 
     #[test]
@@ -729,7 +796,8 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d165b/foot-history.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let curves = HashMap::default();
         let geometry = geometry();
         for trace in fixture.trace {
@@ -751,25 +819,61 @@ mod tests {
                 to_world: RigTransform::default(),
                 line_trace: Some(&mut hit),
             };
-            let mut args = [Vector(DVec3::ZERO), Name("ECC_Visibility".to_owned()),
-                Centimeters(50.0), Centimeters(80.0), F32(45.0), Centimeters(13.5), Bool(true),
-                Bool(false), Centimeters(0.0), Vector(DVec3::ZERO)];
-            context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args).unwrap();
+            let mut args = [
+                Vector(DVec3::ZERO),
+                Name("ECC_Visibility".to_owned()),
+                Centimeters(50.0),
+                Centimeters(80.0),
+                F32(45.0),
+                Centimeters(13.5),
+                Bool(true),
+                Bool(false),
+                Centimeters(0.0),
+                Vector(DVec3::ZERO),
+            ];
+            context
+                .call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args)
+                .unwrap();
             assert_eq!(args[8], Centimeters(trace.offset));
             assert_eq!(args[9], Vector(normal));
         }
 
-        let mut feet: [[RigValue; 17]; 2] = std::array::from_fn(|_| [
-            item("Bone0"), item("Bone1"), Vector(DVec3::ZERO),
-            Centimeters(0.0), Centimeters(0.0), Centimeters(0.0), Centimeters(0.0),
-            F32(0.0), F32(0.0), F32(0.0), F32(0.0), Bool(false), List(vec![]), List(vec![]),
-            List(vec![Centimeters(0.0), Centimeters(0.0), Bool(false)]), Centimeters(0.0), Vector(DVec3::ZERO),
-        ]);
+        let mut feet: [[RigValue; 17]; 2] = std::array::from_fn(|_| {
+            [
+                item("Bone0"),
+                item("Bone1"),
+                Vector(DVec3::ZERO),
+                Centimeters(0.0),
+                Centimeters(0.0),
+                Centimeters(0.0),
+                Centimeters(0.0),
+                F32(0.0),
+                F32(0.0),
+                F32(0.0),
+                F32(0.0),
+                Bool(false),
+                List(vec![]),
+                List(vec![]),
+                List(vec![Centimeters(0.0), Centimeters(0.0), Bool(false)]),
+                Centimeters(0.0),
+                Vector(DVec3::ZERO),
+            ]
+        });
         for case in fixture.cases {
             let mut hierarchy = hierarchy();
             for (bone, position) in [(0, case.pelvis), (1, case.thigh)] {
-                hierarchy.set_transform(bone, RigSpace::Global, false,
-                    RigTransform { translation: DVec3::from_array(position), ..Default::default() }, true).unwrap();
+                hierarchy
+                    .set_transform(
+                        bone,
+                        RigSpace::Global,
+                        false,
+                        RigTransform {
+                            translation: DVec3::from_array(position),
+                            ..Default::default()
+                        },
+                        true,
+                    )
+                    .unwrap();
             }
             let mut context = RigUnitContext {
                 hierarchy: &mut hierarchy,
@@ -784,19 +888,44 @@ mod tests {
             let args = &mut feet[case.foot];
             args[2] = Vector(DVec3::from_array(case.target));
             for (index, value) in case.inputs.into_iter().enumerate() {
-                args[index + 3] = if index < 4 { Centimeters(value) } else { F32(value) };
+                args[index + 3] = if index < 4 {
+                    Centimeters(value)
+                } else {
+                    F32(value)
+                };
             }
-            context.call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", args).unwrap();
+            context
+                .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", args)
+                .unwrap();
             let (velocity, previous, valid) = case.state;
             assert_eq!(args[11], Bool(true));
-            assert_eq!(args[14], List(vec![Centimeters(velocity), Centimeters(previous), Bool(valid)]),
-                "Frame {} foot {}", case.query, case.foot);
-            assert_eq!(args[15], Centimeters(case.offset), "Frame {} foot {}", case.query, case.foot);
+            assert_eq!(
+                args[14],
+                List(vec![
+                    Centimeters(velocity),
+                    Centimeters(previous),
+                    Bool(valid)
+                ]),
+                "Frame {} foot {}",
+                case.query,
+                case.foot
+            );
+            assert_eq!(
+                args[15],
+                Centimeters(case.offset),
+                "Frame {} foot {}",
+                case.query,
+                case.foot
+            );
             let Vector(location) = args[16] else {
                 panic!("foot location is missing");
             };
-            assert!(location.distance(DVec3::from_array(case.location)) < 1e-12,
-                "Frame {} foot {}: {location:?}", case.query, case.foot);
+            assert!(
+                location.distance(DVec3::from_array(case.location)) < 1e-12,
+                "Frame {} foot {}: {location:?}",
+                case.query,
+                case.foot
+            );
         }
     }
 
@@ -806,27 +935,81 @@ mod tests {
         use RigValue::*;
         let mut hierarchy = hierarchy();
         for (index, translation) in [
-            (0, DVec3::new(1.700_763_719_368_582_5e-28, 96.750_599_145_889_28, -3.056_153_282_523_155)),
-            (1, DVec3::new(-9.005_802_624_670_832, 95.300_045_790_121, -2.529_951_274_917_837)),
+            (
+                0,
+                DVec3::new(
+                    1.700_763_719_368_582_5e-28,
+                    96.750_599_145_889_28,
+                    -3.056_153_282_523_155,
+                ),
+            ),
+            (
+                1,
+                DVec3::new(
+                    -9.005_802_624_670_832,
+                    95.300_045_790_121,
+                    -2.529_951_274_917_837,
+                ),
+            ),
         ] {
-            hierarchy.set_transform(index, RigSpace::Global, false,
-                RigTransform { translation, ..Default::default() }, true).unwrap();
+            hierarchy
+                .set_transform(
+                    index,
+                    RigSpace::Global,
+                    false,
+                    RigTransform {
+                        translation,
+                        ..Default::default()
+                    },
+                    true,
+                )
+                .unwrap();
         }
         let curves = HashMap::default();
         let mut context = RigUnitContext {
-            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
-            delta_seconds: 0.0, geometry: &geometry(), to_world: RigTransform::default(), line_trace: None,
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
         };
         let mut args = [
-            item("Bone0"), item("Bone1"),
-            Vector(DVec3::new(-17.076_301_574_707_03, 13.465_189_933_776_855, -5.072_212_219_238_281)),
-            F32(5.960_464_5e-6), F32(5.960_464_5e-6), F32(82.768_73), F32(20.0), F32(0.99),
-            F32(12.0), F32(2.0), F32(0.0), Bool(false), List(vec![]), List(vec![]),
-            List(vec![F32(0.0), F32(0.0), Bool(false)]), F32(0.0), Vector(DVec3::ZERO),
+            item("Bone0"),
+            item("Bone1"),
+            Vector(DVec3::new(
+                -17.076_301_574_707_03,
+                13.465_189_933_776_855,
+                -5.072_212_219_238_281,
+            )),
+            F32(5.960_464_5e-6),
+            F32(5.960_464_5e-6),
+            F32(82.768_73),
+            F32(20.0),
+            F32(0.99),
+            F32(12.0),
+            F32(2.0),
+            F32(0.0),
+            Bool(false),
+            List(vec![]),
+            List(vec![]),
+            List(vec![F32(0.0), F32(0.0), Bool(false)]),
+            F32(0.0),
+            Vector(DVec3::ZERO),
         ];
-        context.call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args).unwrap();
-        assert_eq!(args[16], Vector(DVec3::new(-17.043_921_025_986_54, 13.793_534_620_321_694,
-            -5.062_012_130_634_415_5)));
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(
+            args[16],
+            Vector(DVec3::new(
+                -17.043_921_025_986_54,
+                13.793_534_620_321_694,
+                -5.062_012_130_634_415_5
+            ))
+        );
     }
 
     #[test]
@@ -963,17 +1146,38 @@ mod tests {
         let curves = HashMap::default();
         let mut query = |_: DVec3, _: DVec3, _: &str, _: bool| Ok(Some((DVec3::ZERO, DVec3::Y)));
         let mut context = RigUnitContext {
-            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
-            delta_seconds: 0.1, geometry: &geometry(),
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.1,
+            geometry: &geometry(),
             to_world: RigTransform {
-                rotation: DQuat::from_xyzw(0.0, 0.382_683_455_944_061_3, 0.0, 0.923_879_504_203_796_4),
+                rotation: DQuat::from_xyzw(
+                    0.0,
+                    0.382_683_455_944_061_3,
+                    0.0,
+                    0.923_879_504_203_796_4,
+                ),
                 ..Default::default()
             },
             line_trace: Some(&mut query),
         };
-        let mut args = [Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8),
-            F32(45.0), F32(0.135), Bool(true), Bool(false), F32(9.0), Vector(DVec3::ZERO)];
-        context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args).unwrap();
+        let mut args = [
+            Vector(DVec3::ZERO),
+            Name("Visibility".to_owned()),
+            F32(0.5),
+            F32(0.8),
+            F32(45.0),
+            F32(0.135),
+            Bool(true),
+            Bool(false),
+            F32(9.0),
+            Vector(DVec3::ZERO),
+        ];
+        context
+            .call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args)
+            .unwrap();
         assert_eq!(args[8], F32(0.0));
         assert_eq!(args[9], Vector(DVec3::Y));
     }
@@ -1140,19 +1344,34 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d163b/products.replay.json"
-        )).unwrap();
-        let transform = |rotation| RigTransform { rotation, ..Default::default() };
+        ))
+        .unwrap();
+        let transform = |rotation| RigTransform {
+            rotation,
+            ..Default::default()
+        };
         for case in fixture.cases {
             let start = DQuat::from_array(case.start);
             let expected = DQuat::from_array(case.expected);
-            let actual = case.factors.iter().copied().map(DQuat::from_array).fold(start, rig_quat_product);
+            let actual = case
+                .factors
+                .iter()
+                .copied()
+                .map(DQuat::from_array)
+                .fold(start, rig_quat_product);
             assert_eq!(actual, expected, "{}", case.name);
             if case.name.starts_with("forward_pose_") {
                 let local = transform(DQuat::from_array(case.factors[0]));
-                assert_eq!(local.global(transform(start)).rotation, rig_normalize(expected));
+                assert_eq!(
+                    local.global(transform(start)).rotation,
+                    rig_normalize(expected)
+                );
             } else if case.name.starts_with("initial_relative_") {
                 let foot = transform(DQuat::from_array(case.factors[0]));
-                assert_eq!(foot.relative(transform(start.conjugate())).rotation, rig_normalize(expected));
+                assert_eq!(
+                    foot.relative(transform(start.conjugate())).rotation,
+                    rig_normalize(expected)
+                );
             } else if case.name == "controlled_roll" {
                 assert_eq!(rig_euler(actual).x, fixture.foot.native_roll);
             }
@@ -1160,8 +1379,15 @@ mod tests {
 
         let mut hierarchy = hierarchy();
         for (index, rotation) in [(1, fixture.foot.calf), (2, fixture.foot.foot)] {
-            hierarchy.set_transform(index, RigSpace::Global, false,
-                transform(DQuat::from_array(rotation)), true).unwrap();
+            hierarchy
+                .set_transform(
+                    index,
+                    RigSpace::Global,
+                    false,
+                    transform(DQuat::from_array(rotation)),
+                    true,
+                )
+                .unwrap();
         }
         let curves = HashMap::default();
         let mut context = RigUnitContext {
@@ -1177,16 +1403,31 @@ mod tests {
         let zero_limit = List(vec![F32(0.0), F32(0.0)]);
         let target = DQuat::from_array(fixture.foot.target);
         let mut args = [
-            item("Bone1"), item("Bone2"), Quaternion(target), Vector(DVec3::Y),
-            zero_limit.clone(), zero_limit.clone(), zero_limit, F32(0.1), Bool(true),
-            List(vec![]), List(vec![]), Vector(DVec3::Y), Quaternion(DQuat::IDENTITY),
+            item("Bone1"),
+            item("Bone2"),
+            Quaternion(target),
+            Vector(DVec3::Y),
+            zero_limit.clone(),
+            zero_limit.clone(),
+            zero_limit,
+            F32(0.1),
+            Bool(true),
+            List(vec![]),
+            List(vec![]),
+            Vector(DVec3::Y),
+            Quaternion(DQuat::IDENTITY),
             Quaternion(DQuat::from_array(fixture.foot.initial)),
         ];
-        context.call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args).unwrap();
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
         let Quaternion(actual) = args[12] else {
             panic!("foot rotation is missing");
         };
-        assert!(rig_quat_near(actual, target, 1e-7), "Wrong constrained foot rotation: {actual:?}");
+        assert!(
+            rig_quat_near(actual, target, 1e-7),
+            "Wrong constrained foot rotation: {actual:?}"
+        );
     }
 
     #[test]
@@ -1291,8 +1532,11 @@ mod tests {
         context
             .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
             .unwrap();
-        assert!(matches!(args[12], Quaternion(actual) if rig_quat_near(actual, DQuat::IDENTITY, 1e-12)),
-            "An effectively zero foot offset must preserve the identity orientation: {:?}", args[12]);
+        assert!(
+            matches!(args[12], Quaternion(actual) if rig_quat_near(actual, DQuat::IDENTITY, 1e-12)),
+            "An effectively zero foot offset must preserve the identity orientation: {:?}",
+            args[12]
+        );
         assert_eq!(args[11], Vector(DVec3::Z * 1e-8));
         args[0] = item("Missing");
         args[8] = Bool(false);
@@ -1306,17 +1550,39 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn control_rig_ik_uses_source_rotated_axes_for_recorded_input() {
         let mut bones = [RigTransform::default(); 3];
-        bones[0].translation = DVec3::new(-0.107_983_336_080_343_25, 0.820_029_764_262_862_6,
-            0.012_280_340_777_750_365);
-        bones[2].translation = DVec3::new(-0.017_576_217_651_367_188, 0.184_527_194_127_440_45,
-            -0.431_320_190_429_687_5);
-        let initial = DQuat::from_xyzw(0.680_567_360_775_579_1, -0.702_881_658_872_854_5,
-            0.100_461_295_035_963_95, -0.180_811_972_133_496_28);
+        bones[0].translation = DVec3::new(
+            -0.107_983_336_080_343_25,
+            0.820_029_764_262_862_6,
+            0.012_280_340_777_750_365,
+        );
+        bones[2].translation = DVec3::new(
+            -0.017_576_217_651_367_188,
+            0.184_527_194_127_440_45,
+            -0.431_320_190_429_687_5,
+        );
+        let initial = DQuat::from_xyzw(
+            0.680_567_360_775_579_1,
+            -0.702_881_658_872_854_5,
+            0.100_461_295_035_963_95,
+            -0.180_811_972_133_496_28,
+        );
         bones[0].rotation = initial;
         bones[1].rotation = initial;
-        geometry().solve(&mut bones,
-            DVec3::new(-0.265_311_954_503_788_14, 0.251_595_211_436_327_24, 0.390_121_188_974_275_5),
-            DVec3::X, DVec3::NEG_Z, 1.0, [0.425_722_5_f32, 0.401_968_18_f32], false, 0.75, 1.25);
+        geometry().solve(
+            &mut bones,
+            DVec3::new(
+                -0.265_311_954_503_788_14,
+                0.251_595_211_436_327_24,
+                0.390_121_188_974_275_5,
+            ),
+            DVec3::X,
+            DVec3::NEG_Z,
+            1.0,
+            [0.425_722_5_f32, 0.401_968_18_f32],
+            false,
+            0.75,
+            1.25,
+        );
         assert_eq!(bones[0].rotation.w as f32, -0.210_394_19);
     }
 
@@ -1489,11 +1755,11 @@ mod tests {
                 .unwrap();
             let expected_root = DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4);
             let expected_joint = DVec3::new(1.0, 1.0, 0.0) * std::f64::consts::FRAC_1_SQRT_2;
-            assert!(rig_quat_near(
-                root.rotation.normalize(),
-                expected_root,
-                1e-9
-            ), "Partial IK root rotation: {:?}", root.rotation);
+            assert!(
+                rig_quat_near(root.rotation.normalize(), expected_root, 1e-9),
+                "Partial IK root rotation: {:?}",
+                root.rotation
+            );
             assert!(joint.translation.distance(expected_joint) < 1e-9);
             assert!(end.translation.distance(expected_joint + DVec3::X) < 1e-9);
             assert!(rig_quat_near(
@@ -1603,13 +1869,18 @@ mod tests {
         let local_pole = DVec3::new(0.0, 2.0, 3.0);
         for kind in ["Direction", "Location"] {
             context.hierarchy.set_input_pose(&translated).unwrap();
-            let pole_space = context.hierarchy.transform(0, RigSpace::Global, false).unwrap();
-            let world_pole = crate::extensions::source_math::source_rotate_vector(pole_space.rotation, local_pole)
-                + if kind == "Location" {
-                    pole_space.translation
-                } else {
-                    DVec3::ZERO
-                };
+            let pole_space = context
+                .hierarchy
+                .transform(0, RigSpace::Global, false)
+                .unwrap();
+            let world_pole = crate::extensions::source_math::source_rotate_vector(
+                pole_space.rotation,
+                local_pole,
+            ) + if kind == "Location" {
+                pole_space.translation
+            } else {
+                DVec3::ZERO
+            };
             values = program.initial_values.clone();
             values[3] = RigTransform {
                 translation: translated[0].translation + DVec3::new(1.0, 0.2, 0.0),
@@ -1649,7 +1920,9 @@ mod tests {
     ) -> [DVec3; 2] {
         use RigValue::*;
 
-        hierarchy.set_transform(0, RigSpace::Global, false, root, true).unwrap();
+        hierarchy
+            .set_transform(0, RigSpace::Global, false, root, true)
+            .unwrap();
         let curves = HashMap::default();
         let mut context = RigUnitContext {
             hierarchy,
@@ -1661,17 +1934,43 @@ mod tests {
             to_world: RigTransform::default(),
             line_trace: None,
         };
-        let effector = RigTransform { translation: effector, ..Default::default() };
+        let effector = RigTransform {
+            translation: effector,
+            ..Default::default()
+        };
         let mut args = [
-            item("Bone0"), item("Bone1"), item("Bone2"), effector.value(),
-            Vector(DVec3::ZERO), Vector(DVec3::ZERO), F32(0.0), Vector(pole),
-            Name("Location".to_owned()), item(""), Bool(false), F32(0.75), F32(1.25), F32(1.0),
-            F32(lengths[0]), F32(lengths[1]), Bool(true),
-            List(vec![]), List(vec![]), List(vec![]), List(vec![]), List(vec![]),
+            item("Bone0"),
+            item("Bone1"),
+            item("Bone2"),
+            effector.value(),
+            Vector(DVec3::ZERO),
+            Vector(DVec3::ZERO),
+            F32(0.0),
+            Vector(pole),
+            Name("Location".to_owned()),
+            item(""),
+            Bool(false),
+            F32(0.75),
+            F32(1.25),
+            F32(1.0),
+            F32(lengths[0]),
+            F32(lengths[1]),
+            Bool(true),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
         ];
-        context.call("FRigUnit_TwoBoneIKSimplePerItem::Execute", &mut args).unwrap();
+        context
+            .call("FRigUnit_TwoBoneIKSimplePerItem::Execute", &mut args)
+            .unwrap();
         [1, 2].map(|bone| {
-            context.hierarchy.transform(bone, RigSpace::Global, false).unwrap().translation
+            context
+                .hierarchy
+                .transform(bone, RigSpace::Global, false)
+                .unwrap()
+                .translation
         })
     }
 
@@ -1692,19 +1991,28 @@ mod tests {
             end: [f64; 3],
         }
 
-        let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d164/goal.replay.json"
-        )).unwrap();
+        let fixture: Fixture =
+            serde_json::from_str(include_str!("../../docs/audit/bf144/d164/goal.replay.json"))
+                .unwrap();
         for case in fixture.cases {
             let mut hierarchy = hierarchy();
             let root = RigTransform {
                 translation: DVec3::from_array(case.root),
                 ..Default::default()
             };
-            let actual = solve_ik_unit_positions(&mut hierarchy, root,
-                DVec3::from_array(case.effector), DVec3::from_array(case.pole), [0.5, 0.75]);
+            let actual = solve_ik_unit_positions(
+                &mut hierarchy,
+                root,
+                DVec3::from_array(case.effector),
+                DVec3::from_array(case.pole),
+                [0.5, 0.75],
+            );
             for (position, expected) in actual.into_iter().zip([case.joint, case.end]) {
-                assert!(position.distance(DVec3::from_array(expected)) < 1e-12, "{}: {position:?}", case.name);
+                assert!(
+                    position.distance(DVec3::from_array(expected)) < 1e-12,
+                    "{}: {position:?}",
+                    case.name
+                );
             }
         }
     }
@@ -1731,32 +2039,49 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d165a/lengths.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in fixture.cases {
             let globals: [RigTransform; 3] = std::array::from_fn(|index| RigTransform {
                 translation: DVec3::from_array(case.initials[index]),
                 scale: DVec3::from_array(case.initial_scales[index]),
                 ..Default::default()
             });
-            let bones = globals.iter().copied().enumerate().map(|(index, initial_global)| {
-                let parent = index.checked_sub(1);
-                RigBone {
-                    name: format!("Bone{index}"),
-                    parent,
-                    initial_local: parent.map_or(initial_global, |parent| initial_global.relative(globals[parent])),
-                    initial_global,
-                }
-            }).collect();
+            let bones = globals
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(index, initial_global)| {
+                    let parent = index.checked_sub(1);
+                    RigBone {
+                        name: format!("Bone{index}"),
+                        parent,
+                        initial_local: parent.map_or(initial_global, |parent| {
+                            initial_global.relative(globals[parent])
+                        }),
+                        initial_global,
+                    }
+                })
+                .collect();
             let mut hierarchy = RigHierarchy::new(bones, 1e-6).unwrap();
             let root = RigTransform {
                 translation: DVec3::from_array(case.root),
                 scale: DVec3::from_array(case.scale),
                 ..Default::default()
             };
-            let actual = solve_ik_unit_positions(&mut hierarchy, root,
-                DVec3::from_array(case.effector), DVec3::from_array(case.pole), [0.0, 0.0]);
+            let actual = solve_ik_unit_positions(
+                &mut hierarchy,
+                root,
+                DVec3::from_array(case.effector),
+                DVec3::from_array(case.pole),
+                [0.0, 0.0],
+            );
             for (position, expected) in actual.into_iter().zip([case.joint, case.end]) {
-                assert!(position.distance(DVec3::from_array(expected)) < 1e-8, "{}: {position:?}", case.name);
+                assert!(
+                    position.distance(DVec3::from_array(expected)) < 1e-8,
+                    "{}: {position:?}",
+                    case.name
+                );
             }
         }
     }
@@ -2389,7 +2714,11 @@ mod tests {
                 &mut rotation,
             )
             .unwrap();
-        let delta = rig_slerp(DQuat::IDENTITY, DQuat::from_rotation_z(0.9), f64::from(1.0_f32 / 3.0));
+        let delta = rig_slerp(
+            DQuat::IDENTITY,
+            DQuat::from_rotation_z(0.9),
+            f64::from(1.0_f32 / 3.0),
+        );
         let root = context
             .hierarchy
             .transform(0, RigSpace::Global, false)
@@ -2398,17 +2727,27 @@ mod tests {
             .hierarchy
             .transform(1, RigSpace::Global, false)
             .unwrap();
-        assert!(rig_quat_near(
-            root.rotation.normalize(),
-            (delta * pose[0].rotation).normalize(),
-            1e-12
-        ), "Distributed root rotation: actual={:?} expected={:?}", root.rotation, delta * pose[0].rotation);
+        assert!(
+            rig_quat_near(
+                root.rotation.normalize(),
+                (delta * pose[0].rotation).normalize(),
+                1e-12
+            ),
+            "Distributed root rotation: actual={:?} expected={:?}",
+            root.rotation,
+            delta * pose[0].rotation
+        );
         assert!(rig_quat_near(
             child.rotation.normalize(),
             (delta * delta * pose[0].rotation * pose[1].rotation).normalize(),
             1e-12
         ));
-        assert!((child.translation - crate::extensions::source_math::source_rotate_vector(root.rotation, DVec3::X)).length() < 1e-12);
+        assert!(
+            (child.translation
+                - crate::extensions::source_math::source_rotate_vector(root.rotation, DVec3::X))
+            .length()
+                < 1e-12
+        );
         let before = child;
         rotation[1] = Quaternion(-DQuat::IDENTITY);
         context

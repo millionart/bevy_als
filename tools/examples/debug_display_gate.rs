@@ -1,7 +1,9 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
-use bevy_als::als_camera::{AlsCameraDebugInfo, AlsCameraPlugin};
+use avian3d::prelude::PhysicsPlugins;
+use bevy::prelude::*;
+use bevy::window::WindowResolution;
 use bevy_als::als::character::AlsCharacter;
 use bevy_als::als::input::{
     AlsInputCommand, AlsInputMap, OnFoot, RotationModeAction, ViewModeAction, spawn_als_actions,
@@ -9,9 +11,7 @@ use bevy_als::als::input::{
 use bevy_als::als::motion::{AlsCharacterDebug, CharacterDebugFrame};
 use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use bevy_als::als::transition::AlsStateRequest;
-use avian3d::prelude::PhysicsPlugins;
-use bevy::prelude::*;
-use bevy::window::WindowResolution;
+use bevy_als::als_camera::{AlsCameraDebugInfo, AlsCameraPlugin};
 use bevy_als::debug_display::{AlsDebugDisplayPlugin, AlsDebugDisplayStats};
 use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
 use bevy_enhanced_input::prelude::*;
@@ -288,7 +288,9 @@ fn script_driver(world: &mut World) {
         world
             .resource_mut::<ButtonInput<KeyCode>>()
             .release(KeyCode::ShiftLeft);
-        world.resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit1);
+        world
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::Digit1);
         true
     }) {}
 
@@ -351,7 +353,9 @@ fn script_driver(world: &mut World) {
     if phase!(10, 1.82, { true }) {}
 
     if phase!(11, 1.83, {
-        world.resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit1);
+        world
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::Digit1);
         if let Some(action) = find_rotation_mode_action(world, player) {
             if let Some(mut mock) = world.get_mut::<ActionMock>(action) {
                 mock.enabled = false;

@@ -1,8 +1,8 @@
+use bevy::prelude::*;
 use bevy_als::extensions::ik::{
     StableTwoBonePole, blend_ik_rotation, child_world_rotation_after_parent_rotation,
     solve_two_bone_ik,
 };
-use bevy::prelude::*;
 
 fn main() {
     let left_hip = Vec3::new(-0.2, 0.0, 0.0);

@@ -6,8 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::als_camera::AlsCameraSet;
 use crate::als::character::AlsCharacter;
+use crate::als_camera::AlsCameraSet;
 use crate::extensions::{InterruptibleFsmState, player_animation_context_state};
 use avian3d::prelude::{PhysicsSystems, Position};
 use bevy::prelude::*;
@@ -29,9 +29,7 @@ use serde::Serialize;
 use crate::{
     animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet},
     character_assembly::AlsCharacterAvatar,
-    control_rig_apply::{
-        AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet,
-    },
+    control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet},
     foot_ik_apply::{
         AlsFootIkApplyTelemetry, AlsFootIkApplyTelemetrySide, AlsFootIkSpaceSide,
         AlsFootIkSpaceState, AlsFootLockTeleportTelemetry, FootIkApplySet,
@@ -935,31 +933,65 @@ fn limb_plane(
 }
 
 fn limb_crosses_degenerate_joint_plane(
-    previous: &BTreeMap<String, LocalBonePose>, current: &BTreeMap<String, LocalBonePose>,
-    previous_positions: &BTreeMap<String, Vec3>, bones: &BTreeMap<String, FinalBone>,
-    first: &str, second: &str, third: &str, frame_seconds: f32,
+    previous: &BTreeMap<String, LocalBonePose>,
+    current: &BTreeMap<String, LocalBonePose>,
+    previous_positions: &BTreeMap<String, Vec3>,
+    bones: &BTreeMap<String, FinalBone>,
+    first: &str,
+    second: &str,
+    third: &str,
+    frame_seconds: f32,
 ) -> bool {
-    let (Some(old_joint), Some(new_joint), Some(old_tip), Some(new_tip)) =
-        (previous.get(second), current.get(second), previous.get(third), current.get(third)) else { return false };
+    let (Some(old_joint), Some(new_joint), Some(old_tip), Some(new_tip)) = (
+        previous.get(second),
+        current.get(second),
+        previous.get(third),
+        current.get(third),
+    ) else {
+        return false;
+    };
     if rotation_delta_radians(old_joint.rotation, new_joint.rotation) / frame_seconds
-        >= TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
+        >= TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND
+    {
         return false;
     }
-    let (Some(old_a), Some(old_b), Some(old_c), Some(new_a), Some(new_b), Some(new_c)) =
-        (previous_positions.get(first), previous_positions.get(second), previous_positions.get(third),
-            bones.get(first), bones.get(second), bones.get(third)) else { return false };
+    let (Some(old_a), Some(old_b), Some(old_c), Some(new_a), Some(new_b), Some(new_c)) = (
+        previous_positions.get(first),
+        previous_positions.get(second),
+        previous_positions.get(third),
+        bones.get(first),
+        bones.get(second),
+        bones.get(third),
+    ) else {
+        return false;
+    };
     let old_lower = old_joint.rotation * (old_joint.scale * old_tip.translation);
     let new_lower = new_joint.rotation * (new_joint.scale * new_tip.translation);
     for (upper, lower, actual_upper, actual_lower) in [
-        (old_joint.translation, old_lower, *old_b - *old_a, *old_c - *old_b),
-        (new_joint.translation, new_lower, new_b.0 - new_a.0, new_c.0 - new_b.0),
+        (
+            old_joint.translation,
+            old_lower,
+            *old_b - *old_a,
+            *old_c - *old_b,
+        ),
+        (
+            new_joint.translation,
+            new_lower,
+            new_b.0 - new_a.0,
+            new_c.0 - new_b.0,
+        ),
     ] {
         let local_lengths = upper.length() * lower.length();
         let actual_lengths = actual_upper.length() * actual_lower.length();
-        if !local_lengths.is_finite() || !actual_lengths.is_finite()
-            || local_lengths <= f32::EPSILON || actual_lengths <= f32::EPSILON
+        if !local_lengths.is_finite()
+            || !actual_lengths.is_finite()
+            || local_lengths <= f32::EPSILON
+            || actual_lengths <= f32::EPSILON
             || (upper.cross(lower).length() / local_lengths
-                - actual_upper.cross(actual_lower).length() / actual_lengths).abs() > TEMPORAL_LIMB_BEND_SINE {
+                - actual_upper.cross(actual_lower).length() / actual_lengths)
+                .abs()
+                > TEMPORAL_LIMB_BEND_SINE
+        {
             return false;
         }
     }
@@ -967,9 +999,11 @@ fn limb_crosses_degenerate_joint_plane(
         let alpha = index as f32 / 32.0;
         let upper = old_joint.translation.lerp(new_joint.translation, alpha);
         let lower = old_joint.rotation.slerp(new_joint.rotation, alpha)
-            * (old_joint.scale.lerp(new_joint.scale, alpha) * old_tip.translation.lerp(new_tip.translation, alpha));
+            * (old_joint.scale.lerp(new_joint.scale, alpha)
+                * old_tip.translation.lerp(new_tip.translation, alpha));
         let lengths = upper.length() * lower.length();
-        lengths.is_finite() && lengths > f32::EPSILON
+        lengths.is_finite()
+            && lengths > f32::EPSILON
             && upper.cross(lower).length() / lengths < TEMPORAL_LIMB_BEND_SINE
     })
 }
@@ -1051,7 +1085,8 @@ impl TemporalSkeletonGuard {
                 let rotation_delta = rotation_delta_radians(previous.rotation, current.rotation);
                 let rotation_speed = rotation_delta / frame_seconds;
                 let rotation_trigger = if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS
-                    && rotation_speed > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
+                    && rotation_speed > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND
+                {
                     Some(("jump", TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS))
                 } else if rotation_delta > TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS
                     && rotation_speed > TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND
@@ -1121,8 +1156,17 @@ impl TemporalSkeletonGuard {
                 let plane_rate = dot.clamp(-1.0, 1.0).acos() / frame_seconds;
                 if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT
                     && plane_rate > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND
-                    && !limb_crosses_degenerate_joint_plane(&self.previous_local, local, &self.previous_relative,
-                        bones, first, second, third, frame_seconds) {
+                    && !limb_crosses_degenerate_joint_plane(
+                        &self.previous_local,
+                        local,
+                        &self.previous_relative,
+                        bones,
+                        first,
+                        second,
+                        third,
+                        frame_seconds,
+                    )
+                {
                     metrics.push(TemporalSkeletonMetric {
                         kind: "limb_plane_flip",
                         subject: (*name).to_owned(),
@@ -1138,8 +1182,13 @@ impl TemporalSkeletonGuard {
             limb_planes.insert((*name).to_owned(), current);
         }
         self.previous_limb_planes = limb_planes;
-        for (name, current) in local { self.previous_local.insert(name.clone(), *current); }
-        for (name, (translation, _, _, _)) in bones { self.previous_relative.insert(name.clone(), *translation - avatar_position); }
+        for (name, current) in local {
+            self.previous_local.insert(name.clone(), *current);
+        }
+        for (name, (translation, _, _, _)) in bones {
+            self.previous_relative
+                .insert(name.clone(), *translation - avatar_position);
+        }
         TemporalSkeletonObservation { metrics }
     }
 }
@@ -1159,12 +1208,12 @@ fn record_temporal_metrics(
         let source_boundary = (stage == "pre_rig_source_landing_selector"
             && metric.kind == "global_position_speed"
             && matches!(metric.subject.as_str(), "hand_l" | "hand_r"))
-            .then_some("source_fall_heavy_to_light_on_physics_entry");
-        let duplicate = state
-            .temporal_anomalies
-            .iter()
-            .any(|value| value.kind == metric.kind && value.subject == metric.subject
-                && value.source_boundary == source_boundary);
+        .then_some("source_fall_heavy_to_light_on_physics_entry");
+        let duplicate = state.temporal_anomalies.iter().any(|value| {
+            value.kind == metric.kind
+                && value.subject == metric.subject
+                && value.source_boundary == source_boundary
+        });
         if !duplicate && state.temporal_anomalies.len() < MAX_TEMPORAL_ANOMALIES {
             warn!(
                 "[ANIMATION-VISUAL][TEMPORAL] stage={} kind={} trigger={} subject={} previous={:.6} current={:.6} threshold={:.6} rate={:?} rate_threshold={:?} elapsed={:.6} frame_ms={:.3}",
@@ -1181,7 +1230,11 @@ fn record_temporal_metrics(
                 frame_ms,
             );
             state.temporal_anomalies.push(TemporalSkeletonAnomaly {
-                stage: if source_boundary.is_some() { "pre_rig".to_owned() } else { stage.to_owned() },
+                stage: if source_boundary.is_some() {
+                    "pre_rig".to_owned()
+                } else {
+                    stage.to_owned()
+                },
                 kind: metric.kind.to_owned(),
                 subject: metric.subject.clone(),
                 previous: metric.previous,
@@ -1199,7 +1252,9 @@ fn record_temporal_metrics(
                 source_selector_inputs: None,
             });
         }
-        if source_boundary.is_some() { continue; }
+        if source_boundary.is_some() {
+            continue;
+        }
         detected |= append_unique(
             &mut state.faults,
             format!("temporal_{stage}_{}:{}", metric.kind, metric.subject),
@@ -1249,8 +1304,13 @@ fn evidence_capture_complete(
         && state.eval_ms.len() >= config.min_pose_samples
         && stages.physics_steps_per_render.len() >= config.min_pose_samples
         && state.screenshots.len() >= config.capture_count
-        && state.required_motion_windows.iter().all(|label| state.motion_windows.get(label).is_some_and(|window|
-            window.sample_count >= 2 && (!window.requires_non_reference_root_pose || window.root_pose_sample_count >= 2)))
+        && state.required_motion_windows.iter().all(|label| {
+            state.motion_windows.get(label).is_some_and(|window| {
+                window.sample_count >= 2
+                    && (!window.requires_non_reference_root_pose
+                        || window.root_pose_sample_count >= 2)
+            })
+        })
         && state
             .screenshots
             .iter()
@@ -1362,11 +1422,17 @@ fn animation_visual_control_rig_time(
     mut stages: ResMut<AnimationVisualStageTiming>,
     executions: Query<&AlsControlRigExecution, With<AlsCharacter>>,
 ) {
-    if visual.started.is_some_and(|started| started.elapsed() >= config.warmup)
+    if visual
+        .started
+        .is_some_and(|started| started.elapsed() >= config.warmup)
         && let Ok(execution) = executions.single()
         && execution.executed_steps > 0
     {
-        stages.samples.entry("control_rig".into()).or_default().push(execution.elapsed_seconds * 1000.0);
+        stages
+            .samples
+            .entry("control_rig".into())
+            .or_default()
+            .push(execution.elapsed_seconds * 1000.0);
     }
 }
 
@@ -1458,7 +1524,10 @@ fn capture_animation_visual_pre_rig_pose(
     transforms: bevy::transform::helper::TransformHelper,
     graphs: Res<Assets<AnimationGraph>>,
     skeletons: Res<Assets<Skeleton>>,
-    bodies: Query<(&avian3d::prelude::RigidBody, &crate::extensions::RagdollActiveMode)>,
+    bodies: Query<(
+        &avian3d::prelude::RigidBody,
+        &crate::extensions::RagdollActiveMode,
+    )>,
 ) {
     let previous_selector = pre_rig.landing_selector.take();
     let previously_active = pre_rig.physics_readback_active;
@@ -1467,93 +1536,217 @@ fn capture_animation_visual_pre_rig_pose(
     pre_rig.bones.clear();
     pre_rig.global_bones.clear();
     pre_rig.delta_seconds = time.delta_secs();
-    let Ok(instance) = avatars.single() else { return; };
-    let Ok(player) = players.get(instance.player_entity()) else { return; };
-    let Ok(player_world) = transforms.compute_global_transform(instance.player_entity()) else { return; };
-    let Some((context, node, _)) = crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
-    let rig = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>().unwrap();
-    let Some(graph) = graphs.get(context.get_graph_id()) else { return; };
-    let Some(SourcePin::NodeData(source, pin)) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone())) else { return; };
-    let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()) else { return; };
-    let Some(skeleton) = skeletons.get(&pose.skeleton) else { return; };
+    let Ok(instance) = avatars.single() else {
+        return;
+    };
+    let Ok(player) = players.get(instance.player_entity()) else {
+        return;
+    };
+    let Ok(player_world) = transforms.compute_global_transform(instance.player_entity()) else {
+        return;
+    };
+    let Some((context, node, _)) =
+        crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs)
+    else {
+        return;
+    };
+    let rig = node
+        .try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>(
+        )
+        .unwrap();
+    let Some(graph) = graphs.get(context.get_graph_id()) else {
+        return;
+    };
+    let Some(SourcePin::NodeData(source, pin)) = graph
+        .edges_inverted
+        .get(&TargetPin::NodeData(node.id, rig.pose_input.clone()))
+    else {
+        return;
+    };
+    let Some(DataValue::Pose(pose)) =
+        context
+            .node_caches
+            .get_output_data(*source, StateKey::Default, pin.clone())
+    else {
+        return;
+    };
+    let Some(skeleton) = skeletons.get(&pose.skeleton) else {
+        return;
+    };
     if let Some(arena) = player.get_context_arena() {
         for id in arena.iter_context_ids() {
-            let Some(context) = arena.get_context(id) else { continue; };
-            let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
-            let Some(node) = graph.nodes.values().find(|node| node.id.uuid().to_string() == "10be798e-43e2-1f53-a3b6-6aaf258498ff") else { continue; };
-            if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
-            let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>() else { continue; };
+            let Some(context) = arena.get_context(id) else {
+                continue;
+            };
+            let Some(graph) = graphs.get(context.get_graph_id()) else {
+                continue;
+            };
+            let Some(node) = graph
+                .nodes
+                .values()
+                .find(|node| node.id.uuid().to_string() == "10be798e-43e2-1f53-a3b6-6aaf258498ff")
+            else {
+                continue;
+            };
+            if !context.node_caches.is_updated(node.id, StateKey::Default) {
+                continue;
+            }
+            let Some(blend) =
+                node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
+            else {
+                continue;
+            };
             let mapping = &blend.mapping;
             if blend.alpha_key != "in_air_state.vertical_velocity_world_space"
-                || !mapping.source_semantics || !mapping.map_range || mapping.interpolate_result
-                || mapping.input_min != -1000.0 || mapping.input_max != -500.0
-                || mapping.output_min != 0.0 || mapping.output_max != 1.0
-                || mapping.scale != 1.0 || mapping.bias != 0.0 || mapping.clamp_result
-                || blend.alpha_scale != 1.0 || blend.alpha_bias != 0.0
-            { continue; }
-            let Ok(state) = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
-            pre_rig.landing_selector = Some([(f64::from(state.input_alpha) * 0.01) as f32, state.blend_alpha]);
+                || !mapping.source_semantics
+                || !mapping.map_range
+                || mapping.interpolate_result
+                || mapping.input_min != -1000.0
+                || mapping.input_max != -500.0
+                || mapping.output_min != 0.0
+                || mapping.output_max != 1.0
+                || mapping.scale != 1.0
+                || mapping.bias != 0.0
+                || mapping.clamp_result
+                || blend.alpha_scale != 1.0
+                || blend.alpha_bias != 0.0
+            {
+                continue;
+            }
+            let Ok(state) = context
+                .node_states
+                .get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(
+                node.id,
+                StateKey::Default,
+            ) else {
+                continue;
+            };
+            pre_rig.landing_selector = Some([
+                (f64::from(state.input_alpha) * 0.01) as f32,
+                state.blend_alpha,
+            ]);
         }
     }
-    pre_rig.physics_readback_active = player.get_outputs().get("ragdoll_config")
+    pre_rig.physics_readback_active = player
+        .get_outputs()
+        .get("ragdoll_config")
         .and_then(|value| value.as_ragdoll_config().ok())
-        .is_some_and(|config| config.default_readback == Some(true) && config.readback_overrides.values().all(|enabled| *enabled))
-        && player.get_spawned_ragdoll().is_some_and(|spawned| !spawned.bodies.is_empty()
-            && spawned.bodies.values().all(|entity| bodies.get(*entity).is_ok_and(|(actual, expected)| {
-                *actual == match expected.0 {
-                    bevy_animation_graph::core::ragdoll::definition::BodyMode::Dynamic => avian3d::prelude::RigidBody::Dynamic,
-                    bevy_animation_graph::core::ragdoll::definition::BodyMode::Kinematic => avian3d::prelude::RigidBody::Kinematic,
-                }
-            })));
-    if source_landing_selector_boundary(previous_selector,
-        pre_rig.landing_selector, previously_active, pre_rig.physics_readback_active) {
-        pre_rig.source_selector_inputs = previous_selector.zip(pre_rig.landing_selector)
+        .is_some_and(|config| {
+            config.default_readback == Some(true)
+                && config.readback_overrides.values().all(|enabled| *enabled)
+        })
+        && player.get_spawned_ragdoll().is_some_and(|spawned| {
+            !spawned.bodies.is_empty()
+                && spawned.bodies.values().all(|entity| {
+                    bodies.get(*entity).is_ok_and(|(actual, expected)| {
+                        *actual == match expected.0 {
+                        bevy_animation_graph::core::ragdoll::definition::BodyMode::Dynamic => {
+                            avian3d::prelude::RigidBody::Dynamic
+                        }
+                        bevy_animation_graph::core::ragdoll::definition::BodyMode::Kinematic => {
+                            avian3d::prelude::RigidBody::Kinematic
+                        }
+                    }
+                    })
+                })
+        });
+    if source_landing_selector_boundary(
+        previous_selector,
+        pre_rig.landing_selector,
+        previously_active,
+        pre_rig.physics_readback_active,
+    ) {
+        pre_rig.source_selector_inputs = previous_selector
+            .zip(pre_rig.landing_selector)
             .map(|(previous, current)| [previous, current]);
     }
     pre_rig.global_bones = pose_global_bones(&pose, skeleton, &player_world);
     pre_rig.root_position = player_world.translation();
     for path in skeleton.iter_paths() {
-        let Some(name) = path.parts.last() else { continue; };
-        if !REQUIRED_BONES.contains(&name.as_str()) { continue; }
-        let Some(reference) = skeleton.default_transforms(path.id()) else { continue; };
+        let Some(name) = path.parts.last() else {
+            continue;
+        };
+        if !REQUIRED_BONES.contains(&name.as_str()) {
+            continue;
+        }
+        let Some(reference) = skeleton.default_transforms(path.id()) else {
+            continue;
+        };
         let bone = pose.get_bone(path.id());
-        pre_rig.bones.insert(name.to_string(), LocalBonePose {
-            translation: bone.and_then(|bone| bone.translation).unwrap_or(reference.local.translation),
-            rotation: bone.and_then(|bone| bone.rotation).unwrap_or(reference.local.rotation),
-            scale: bone.and_then(|bone| bone.scale).unwrap_or(reference.local.scale),
-        });
+        pre_rig.bones.insert(
+            name.to_string(),
+            LocalBonePose {
+                translation: bone
+                    .and_then(|bone| bone.translation)
+                    .unwrap_or(reference.local.translation),
+                rotation: bone
+                    .and_then(|bone| bone.rotation)
+                    .unwrap_or(reference.local.rotation),
+                scale: bone
+                    .and_then(|bone| bone.scale)
+                    .unwrap_or(reference.local.scale),
+            },
+        );
     }
 }
 
-fn source_landing_selector_boundary(previous: Option<[f32; 2]>, current: Option<[f32; 2]>, previously_active: bool, active: bool) -> bool {
-    !previously_active && active && previous.zip(current).is_some_and(|(previous, current)|
-        previous[0].is_finite() && current[0].is_finite()
-        && previous[0] <= -10.0 && previous[1] == 0.0
-        && current[0] >= -5.0 && current[1] == 1.0)
+fn source_landing_selector_boundary(
+    previous: Option<[f32; 2]>,
+    current: Option<[f32; 2]>,
+    previously_active: bool,
+    active: bool,
+) -> bool {
+    !previously_active
+        && active
+        && previous.zip(current).is_some_and(|(previous, current)| {
+            previous[0].is_finite()
+                && current[0].is_finite()
+                && previous[0] <= -10.0
+                && previous[1] == 0.0
+                && current[0] >= -5.0
+                && current[1] == 1.0
+        })
 }
 
-fn pose_global_bones(pose: &Pose, skeleton: &Skeleton, root: &GlobalTransform) -> BTreeMap<String, FinalBone> {
+fn pose_global_bones(
+    pose: &Pose,
+    skeleton: &Skeleton,
+    root: &GlobalTransform,
+) -> BTreeMap<String, FinalBone> {
     let mut output = BTreeMap::new();
     for path in skeleton.iter_paths() {
-        let Some(name) = path.parts.last() else { continue; };
-        if !REQUIRED_BONES.contains(&name.as_str()) { continue; }
+        let Some(name) = path.parts.last() else {
+            continue;
+        };
+        if !REQUIRED_BONES.contains(&name.as_str()) {
+            continue;
+        }
         let mut chain = Vec::new();
         let mut current = Some(path.id());
         for _ in 0..path.parts.len() {
-            let Some(id) = current else { break; };
+            let Some(id) = current else {
+                break;
+            };
             chain.push(id);
             current = skeleton.parent(&id);
         }
         let mut matrix = root.to_matrix();
         let mut local_scale = Vec3::ONE;
         for id in chain.into_iter().rev() {
-            let Some(reference) = skeleton.default_transforms(id) else { continue; };
-            let local = pose.get_bone(id).map_or(reference.local, |bone| bone.to_transform_with_base(reference.local));
+            let Some(reference) = skeleton.default_transforms(id) else {
+                continue;
+            };
+            let local = pose.get_bone(id).map_or(reference.local, |bone| {
+                bone.to_transform_with_base(reference.local)
+            });
             matrix *= local.to_matrix();
             local_scale = local.scale;
         }
         let (scale, rotation, translation) = matrix.to_scale_rotation_translation();
-        output.insert(name.to_string(), (translation, rotation, scale, local_scale));
+        output.insert(
+            name.to_string(),
+            (translation, rotation, scale, local_scale),
+        );
     }
     output
 }
@@ -1795,14 +1988,16 @@ fn graph_failure_node_candidates(
                 continue;
             };
             let context_curves = crate::extensions::animation_context::node_context_state(
-                &context.node_states, StateKey::Default, node_id,
+                &context.node_states,
+                StateKey::Default,
+                node_id,
             )
-                .map(|state| state.curves.clone())
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|(_, value)| value.is_finite())
-                .map(|(name, value)| (name.to_string(), value))
-                .collect();
+            .map(|state| state.curves.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(_, value)| value.is_finite())
+            .map(|(name, value)| (name.to_string(), value))
+            .collect();
             add_graph_failure_node_candidate(
                 &mut candidates,
                 asset_server,
@@ -1856,8 +2051,11 @@ fn graph_failure_context_nodes(
         };
         for node in graph.nodes.values() {
             let context_curves = crate::extensions::animation_context::node_context_state(
-                &context.node_states, StateKey::Default, node.id,
-            ).map(|state| state.curves.clone());
+                &context.node_states,
+                StateKey::Default,
+                node.id,
+            )
+            .map(|state| state.curves.clone());
             let Some(context_curves) = context_curves else {
                 continue;
             };
@@ -1912,7 +2110,8 @@ fn graph_evaluation_failure(
     rotation_mode: Option<String>,
     reported_before_ready: bool,
 ) -> GraphEvaluationFailure {
-    let node_candidates = error.and_then(graph_error_node_id)
+    let node_candidates = error
+        .and_then(graph_error_node_id)
         .map(|node_id| graph_failure_node_candidates(player, asset_server, graphs, node_id))
         .unwrap_or_default();
     let active_context_nodes = graph_failure_context_nodes(player, asset_server, graphs);
@@ -2004,7 +2203,11 @@ enum SourcePoseOutputOrigin {
 }
 
 fn source_pose_node(graph: &AnimationGraph, identity: &str) -> Option<NodeId> {
-    graph.nodes.values().find(|node| node.name == identity || node.id.uuid().to_string() == identity).map(|node| node.id)
+    graph
+        .nodes
+        .values()
+        .find(|node| node.name == identity || node.id.uuid().to_string() == identity)
+        .map(|node| node.id)
 }
 
 fn source_pose_boundary_output(
@@ -2025,7 +2228,8 @@ fn source_pose_boundary_output(
         let Some(graph) = graphs.get(context.get_graph_id()) else {
             continue;
         };
-        let Some(node) = source_pose_node(graph, boundary.node).and_then(|id| graph.nodes.get(&id)) else {
+        let Some(node) = source_pose_node(graph, boundary.node).and_then(|id| graph.nodes.get(&id))
+        else {
             continue;
         };
         if boundary.output == "Pose"
@@ -2257,8 +2461,7 @@ fn record_actor_yaw_delta(tracker: &mut MotionWindowTracker, actor_yaw: f32) {
     if let Some(reference) = tracker.actor_yaw_reference {
         tracker.actor_yaw_cumulative_delta += wrapped_yaw_delta(reference, actor_yaw);
         let delta = tracker.actor_yaw_cumulative_delta;
-        tracker.max_actor_yaw_delta_radians =
-            tracker.max_actor_yaw_delta_radians.max(delta.abs());
+        tracker.max_actor_yaw_delta_radians = tracker.max_actor_yaw_delta_radians.max(delta.abs());
         if let Some(expected_sign) = tracker.expected_actor_yaw_delta_sign {
             let signed_delta = delta * f32::from(expected_sign);
             tracker.max_actor_yaw_signed_delta_radians = tracker
@@ -2380,9 +2583,9 @@ fn record_motion_window(
 ) -> bool {
     let sync_phase = evidence.sync_phase_global.and_then(|key| {
         if key.starts_with("sync_groups.") {
-            player
-                .get_context_arena()
-                .and_then(|arena| crate::extensions::sync_group_phase::source_sync_phase(arena, graphs, key))
+            player.get_context_arena().and_then(|arena| {
+                crate::extensions::sync_group_phase::source_sync_phase(arena, graphs, key)
+            })
         } else {
             player
                 .get_global_input_data(key)
@@ -2556,7 +2759,8 @@ fn record_motion_window(
     let first_sample_game_seconds = tracker
         .first_sample_game_seconds
         .get_or_insert(game_elapsed_seconds);
-    tracker.observation_seconds = (game_elapsed_seconds - *first_sample_game_seconds).max(0.0) as f32;
+    tracker.observation_seconds =
+        (game_elapsed_seconds - *first_sample_game_seconds).max(0.0) as f32;
     let (pre_rig_translation_span, pre_rig_rotation_span) =
         local_motion_span(&tracker.pre_rig_reference, &pre_rig_current);
     tracker.max_pre_rig_translation_span = tracker
@@ -2802,45 +3006,95 @@ fn rotation_rate_matches_source_ik(
     definition: &crate::extensions::control_rig_program::RigDefinition,
     bones: &BTreeMap<String, FinalBone>,
 ) -> bool {
-    if metric.kind != "local_rotation_spike" || metric.trigger != "rate" { return false; }
+    if metric.kind != "local_rotation_spike" || metric.trigger != "rate" {
+        return false;
+    }
     let names = match metric.subject.as_str() {
         "calf_l" => ["thigh_l", "calf_l", "foot_l"],
         "calf_r" => ["thigh_r", "calf_r", "foot_r"],
         _ => return false,
     };
     let reference = |input: &crate::foot_ik_apply::FootIkSolveInput| -> Option<([Quat; 2], Quat)> {
-        let armature = Transform { translation: Vec3::from_array(input.armature_world_trs.0),
-            rotation: Quat::from_array(input.armature_world_trs.1), scale: Vec3::from_array(input.armature_world_trs.2) };
+        let armature = Transform {
+            translation: Vec3::from_array(input.armature_world_trs.0),
+            rotation: Quat::from_array(input.armature_world_trs.1),
+            scale: Vec3::from_array(input.armature_world_trs.2),
+        };
         let inverse = armature.rotation.inverse();
-        let point = |value| inverse * (Vec3::from_array(value) - armature.translation) / armature.scale;
+        let point =
+            |value| inverse * (Vec3::from_array(value) - armature.translation) / armature.scale;
         let rotation = |value| inverse * Quat::from_array(value);
         let hip = rotation(input.thigh_world_trs.1);
         let calf = rotation(input.calf_world_trs.1);
         let mut lengths = [input.upper_length, input.lower_length];
         for index in 0..2 {
-            if lengths[index] > 0.0 { continue; }
-            let a = definition.bones.iter().find(|bone| bone.name == names[index])?.initial_global;
-            let b = definition.bones.iter().find(|bone| bone.name == names[index + 1])?.initial_global;
+            if lengths[index] > 0.0 {
+                continue;
+            }
+            let a = definition
+                .bones
+                .iter()
+                .find(|bone| bone.name == names[index])?
+                .initial_global;
+            let b = definition
+                .bones
+                .iter()
+                .find(|bone| bone.name == names[index + 1])?
+                .initial_global;
             let scale = Vec3::from_array(input.thigh_world_trs.2) / armature.scale;
             lengths[index] = crate::extensions::ik::scaled_initial_bone_length(
-                (a.translation - b.translation).as_vec3(), a.scale.as_vec3(), scale);
+                (a.translation - b.translation).as_vec3(),
+                a.scale.as_vec3(),
+                scale,
+            );
         }
         let solved = crate::extensions::ik::solve_basic_two_bone_ik(
-            point(input.thigh_world_trs.0), hip, point(input.calf_world_trs.0), point(input.target_world),
-            point(input.pole_world), lengths[0], lengths[1], Vec3::from_array(input.primary_axis),
-            Vec3::from_array(input.secondary_axis), 1.0)?;
+            point(input.thigh_world_trs.0),
+            hip,
+            point(input.calf_world_trs.0),
+            point(input.target_world),
+            point(input.pole_world),
+            lengths[0],
+            lengths[1],
+            Vec3::from_array(input.primary_axis),
+            Vec3::from_array(input.secondary_axis),
+            1.0,
+        )?;
         let hip = hip.slerp(solved.hip_rotation_world, input.weight);
         let calf = calf.slerp(solved.knee_rotation_world, input.weight);
-        Some(([armature.rotation * hip, armature.rotation * calf], hip.inverse() * calf))
+        Some((
+            [armature.rotation * hip, armature.rotation * calf],
+            hip.inverse() * calf,
+        ))
     };
-    let Some((_, previous_local)) = reference(previous) else { return false; };
-    let Some((world, current_local)) = reference(current) else { return false; };
-    if (rotation_delta_radians(previous_local, current_local) - metric.current).abs() > 0.0001 { return false; }
+    let Some((_, previous_local)) = reference(previous) else {
+        return false;
+    };
+    let Some((world, current_local)) = reference(current) else {
+        return false;
+    };
+    if (rotation_delta_radians(previous_local, current_local) - metric.current).abs() > 0.0001 {
+        return false;
+    }
     names[..2].iter().zip(world).all(|(name, expected)| {
         bones.get(*name).is_some_and(|(_, actual, _, _)| {
-            actual.is_finite() && expected.is_finite()
-                && (actual.to_array().into_iter().zip(expected.to_array()).map(|(a, b)| (a - b).abs()).fold(0.0_f32, f32::max)
-                    .min(actual.to_array().into_iter().zip(expected.to_array()).map(|(a, b)| (a + b).abs()).fold(0.0_f32, f32::max)) < 0.00005)
+            actual.is_finite()
+                && expected.is_finite()
+                && (actual
+                    .to_array()
+                    .into_iter()
+                    .zip(expected.to_array())
+                    .map(|(a, b)| (a - b).abs())
+                    .fold(0.0_f32, f32::max)
+                    .min(
+                        actual
+                            .to_array()
+                            .into_iter()
+                            .zip(expected.to_array())
+                            .map(|(a, b)| (a + b).abs())
+                            .fold(0.0_f32, f32::max),
+                    )
+                    < 0.00005)
         })
     })
 }
@@ -2901,13 +3155,30 @@ fn rig_inputs_sample(
     state: &crate::extensions::root_graph_boundaries::ControlRigNodeState,
 ) -> serde_json::Value {
     use crate::extensions::control_rig_program::RigInstruction;
-    let calls: Vec<_> = state.calls.iter().filter_map(|call| {
-        let RigInstruction::Call { function, .. } = definition.program.instructions.get(call.instruction)? else { return None; };
-        if !matches!(function.as_str(), "FAlsRigUnit_ApplyFootOffsetLocation::Execute" | "FRigUnit_TwoBoneIKSimplePerItem::Execute"
-            | "FAlsRigUnit_ApplyFootOffsetRotation::Execute" | "FRigUnit_SetRotation::Execute") { return None; }
-        Some(serde_json::json!({"instruction": call.instruction, "function": function,
-            "arguments": call.arguments, "bones_before": call.bones_before}))
-    }).collect();
+    let calls: Vec<_> = state
+        .calls
+        .iter()
+        .filter_map(|call| {
+            let RigInstruction::Call { function, .. } =
+                definition.program.instructions.get(call.instruction)?
+            else {
+                return None;
+            };
+            if !matches!(
+                function.as_str(),
+                "FAlsRigUnit_ApplyFootOffsetLocation::Execute"
+                    | "FRigUnit_TwoBoneIKSimplePerItem::Execute"
+                    | "FAlsRigUnit_ApplyFootOffsetRotation::Execute"
+                    | "FRigUnit_SetRotation::Execute"
+            ) {
+                return None;
+            }
+            Some(
+                serde_json::json!({"instruction": call.instruction, "function": function,
+            "arguments": call.arguments, "bones_before": call.bones_before}),
+            )
+        })
+        .collect();
     serde_json::json!({"elapsed_seconds": state.elapsed_seconds, "initialization_count": state.initialization_count, "calls": calls})
 }
 
@@ -2959,10 +3230,20 @@ fn segment_name(first: &str, second: &str) -> String {
 }
 
 fn bone_samples(bones: &BTreeMap<String, FinalBone>) -> BTreeMap<String, BoneSample> {
-    bones.iter().map(|(name, (translation, rotation, scale, local_scale))| (name.clone(), BoneSample {
-        translation: translation.to_array().map(safe), rotation: rotation.to_array().map(safe),
-        scale: scale.to_array().map(safe), local_scale: local_scale.to_array().map(safe),
-    })).collect()
+    bones
+        .iter()
+        .map(|(name, (translation, rotation, scale, local_scale))| {
+            (
+                name.clone(),
+                BoneSample {
+                    translation: translation.to_array().map(safe),
+                    rotation: rotation.to_array().map(safe),
+                    scale: scale.to_array().map(safe),
+                    local_scale: local_scale.to_array().map(safe),
+                },
+            )
+        })
+        .collect()
 }
 
 fn snapshot(
@@ -3437,7 +3718,10 @@ fn collect_animation_visual_evidence(
     pre_rig: (Res<AnimationVisualPreRigPose>, Res<Time<Virtual>>),
     asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
-    avatars: Query<(Entity, &AnimatedSceneInstance, &GlobalTransform, &Transform), With<AlsCharacterAvatar>>,
+    avatars: Query<
+        (Entity, &AnimatedSceneInstance, &GlobalTransform, &Transform),
+        With<AlsCharacterAvatar>,
+    >,
     players: Query<(
         &AnimationGraphPlayer,
         Option<&AlsRootAnimationContext>,
@@ -3458,12 +3742,26 @@ fn collect_animation_visual_evidence(
     >,
     children: Query<&Children>,
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
-    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>, Query<&crate::extensions::overlay_materials::AvatarMaterialApplied>, Query<&crate::overlay_object::AlsOverlayObject>, Query<&AnimatedSceneInstance>),
+    cameras: (
+        Query<Entity, With<Camera3d>>,
+        Query<(
+            &crate::camera_component::AlsSourceCameraComponent,
+            &AnimatedSceneInstance,
+        )>,
+        Query<&crate::extensions::overlay_materials::AvatarMaterialApplied>,
+        Query<&crate::overlay_object::AlsOverlayObject>,
+        Query<&AnimatedSceneInstance>,
+    ),
 ) {
     let (pre_rig, game_time) = pre_rig;
-    if state.primary_failure.is_some() { return; }
+    if state.primary_failure.is_some() {
+        return;
+    }
     if cameras.2.iter().any(|applied| !applied.source_slot_pattern) {
-        append_unique(&mut state.faults, "mesh_material_source_slot_pattern_mismatch".to_owned());
+        append_unique(
+            &mut state.faults,
+            "mesh_material_source_slot_pattern_mismatch".to_owned(),
+        );
     }
     let direction_case = animation_window
         .as_deref()
@@ -3488,23 +3786,57 @@ fn collect_animation_visual_evidence(
     let rotation_mode = phase_evidence.as_deref().and_then(|evidence| {
         (!evidence.rotation_mode.is_empty()).then_some(evidence.rotation_mode.as_str())
     });
-    let body_has_error = avatars.single().ok()
+    let body_has_error = avatars
+        .single()
+        .ok()
         .and_then(|(_, instance, _, _)| players.get(instance.player_entity()).ok())
         .is_some_and(|(player, _, _, _)| player.get_error().is_some());
     if !body_has_error {
-        let secondary_players = cameras.1.iter().filter(|(component, _)| component.is_active()).map(|(_, instance)| instance.player_entity())
-            .chain(cameras.3.iter().filter_map(|object| cameras.4.get(object.content).ok().map(AnimatedSceneInstance::player_entity)));
+        let secondary_players = cameras
+            .1
+            .iter()
+            .filter(|(component, _)| component.is_active())
+            .map(|(_, instance)| instance.player_entity())
+            .chain(cameras.3.iter().filter_map(|object| {
+                cameras
+                    .4
+                    .get(object.content)
+                    .ok()
+                    .map(AnimatedSceneInstance::player_entity)
+            }));
         for entity in secondary_players {
-            let Ok((player, _, _, _)) = players.get(entity) else { continue; };
+            let Ok((player, _, _, _)) = players.get(entity) else {
+                continue;
+            };
             let error = player.get_error();
             let root_pose = root_pose_activity(player);
-            let evaluated = player.get_context_arena().is_some_and(|arena| arena.frame_index() > 0);
-            if error.is_none() && (!evaluated || root_pose_has_animation_channels(root_pose)) { continue; }
+            let evaluated = player
+                .get_context_arena()
+                .is_some_and(|arena| arena.frame_index() > 0);
+            if error.is_none() && (!evaluated || root_pose_has_animation_channels(root_pose)) {
+                continue;
+            }
             record_graph_evaluation_failure(
-                &mut commands, &config, &mut state, &stages, manual_integration.as_deref(),
-                error.as_ref(), player, &asset_server, &graphs, root_pose,
-                direction_case.as_deref(), phase, phase_elapsed_secs, locomotion, gait, stance, rotation_mode,
-                None, &BTreeMap::new(), cameras.0.iter().next().is_some(),
+                &mut commands,
+                &config,
+                &mut state,
+                &stages,
+                manual_integration.as_deref(),
+                error.as_ref(),
+                player,
+                &asset_server,
+                &graphs,
+                root_pose,
+                direction_case.as_deref(),
+                phase,
+                phase_elapsed_secs,
+                locomotion,
+                gait,
+                stance,
+                rotation_mode,
+                None,
+                &BTreeMap::new(),
+                cameras.0.iter().next().is_some(),
             );
             return;
         }
@@ -3586,9 +3918,12 @@ fn collect_animation_visual_evidence(
         "right_amount",
     ]
     .map(|direction| {
-        crate::extensions::source_instance::source_player_property(player, &format!("grounded_state.velocity_blend.{direction}"))
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or_default()
+        crate::extensions::source_instance::source_player_property(
+            player,
+            &format!("grounded_state.velocity_blend.{direction}"),
+        )
+        .and_then(|value| value.as_f32().ok())
+        .unwrap_or_default()
     });
     let source_movement_direction =
         ["b_forward", "b_backward", "b_left", "b_right"].map(|direction| {
@@ -3782,7 +4117,11 @@ fn collect_animation_visual_evidence(
         fault_detected |= record_temporal_metrics(
             &mut state,
             pre_rig_metrics,
-            if pre_rig.source_selector_inputs.is_some() { "pre_rig_source_landing_selector" } else { "pre_rig" },
+            if pre_rig.source_selector_inputs.is_some() {
+                "pre_rig_source_landing_selector"
+            } else {
+                "pre_rig"
+            },
             elapsed.as_secs_f64(),
             frame_ms,
             frame_seconds,
@@ -3938,9 +4277,10 @@ fn collect_animation_visual_evidence(
     }
     if config.capture_count > 0
         && nonfault_capture_allowed(
-        fault_detected,
-        scheduled_capture_allowed(direction_settled, teleport_detected),
-    ) && state.capture_index < config.capture_count
+            fault_detected,
+            scheduled_capture_allowed(direction_settled, teleport_detected),
+        )
+        && state.capture_index < config.capture_count
         && state
             .next_capture
             .is_some_and(|next_capture| now >= next_capture)
@@ -3972,9 +4312,10 @@ fn collect_animation_visual_evidence(
     }
     if config.capture_count > 0
         && nonfault_capture_allowed(
-        fault_detected,
-        direction_capture_allowed(direction_settled, teleport_detected),
-    ) && let Some(direction_case) = direction_case.as_ref()
+            fault_detected,
+            direction_capture_allowed(direction_settled, teleport_detected),
+        )
+        && let Some(direction_case) = direction_case.as_ref()
         && state
             .captured_direction_cases
             .insert(direction_case.clone())
@@ -4065,26 +4406,68 @@ mod tests {
         use bevy_animation_graph::core::animation_clip::EntityPath;
         let root_path = EntityPath::from(vec!["pelvis".to_owned()]);
         let spine_path = EntityPath::from(vec!["pelvis".to_owned(), "spine_01".to_owned()]);
-        let hand_path = EntityPath::from(vec!["pelvis".to_owned(), "spine_01".to_owned(), "hand_l".to_owned()]);
+        let hand_path = EntityPath::from(vec![
+            "pelvis".to_owned(),
+            "spine_01".to_owned(),
+            "hand_l".to_owned(),
+        ]);
         let mut skeleton = Skeleton::default();
         skeleton.add_bone(root_path.clone(), Transform::IDENTITY, Transform::IDENTITY);
-        skeleton.add_bone(spine_path.clone(), Transform::from_translation(Vec3::X), Transform::from_translation(Vec3::X));
-        skeleton.add_bone(hand_path.clone(), Transform::from_translation(Vec3::X), Transform::from_translation(Vec3::X * 2.0));
+        skeleton.add_bone(
+            spine_path.clone(),
+            Transform::from_translation(Vec3::X),
+            Transform::from_translation(Vec3::X),
+        );
+        skeleton.add_bone(
+            hand_path.clone(),
+            Transform::from_translation(Vec3::X),
+            Transform::from_translation(Vec3::X * 2.0),
+        );
         skeleton.set_root(root_path.id());
-        let world = GlobalTransform::from(Transform::from_xyz(8.0,2.0,-4.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2)));
+        let world = GlobalTransform::from(
+            Transform::from_xyz(8.0, 2.0, -4.0)
+                .with_rotation(Quat::from_rotation_y(0.3))
+                .with_scale(Vec3::splat(1.2)),
+        );
         let mut pose = Pose::default();
         let before = pose_global_bones(&pose, &skeleton, &world);
-        assert!(before["hand_l"].0.abs_diff_eq(world.transform_point(Vec3::X * 2.0), 1e-5));
+        assert!(
+            before["hand_l"]
+                .0
+                .abs_diff_eq(world.transform_point(Vec3::X * 2.0), 1e-5)
+        );
         let rotation = Quat::from_rotation_z(0.7);
-        pose.add_bone(BonePose { rotation:Some(rotation), ..default() }, root_path.id());
-        pose.add_bone(BonePose { rotation:Some(rotation), ..default() }, spine_path.id());
+        pose.add_bone(
+            BonePose {
+                rotation: Some(rotation),
+                ..default()
+            },
+            root_path.id(),
+        );
+        pose.add_bone(
+            BonePose {
+                rotation: Some(rotation),
+                ..default()
+            },
+            spine_path.id(),
+        );
         let after = pose_global_bones(&pose, &skeleton, &world);
         let expected = rotation * Vec3::X + rotation * rotation * Vec3::X;
-        assert!(after["hand_l"].0.abs_diff_eq(world.transform_point(expected), 1e-5));
+        assert!(
+            after["hand_l"]
+                .0
+                .abs_diff_eq(world.transform_point(expected), 1e-5)
+        );
         let mut guard = TemporalSkeletonGuard::default();
         guard.observe(&BTreeMap::new(), &before, world.translation(), 0.04);
-        let metrics = guard.observe(&BTreeMap::new(), &after, world.translation(), 0.04).metrics;
-        assert!(metrics.iter().any(|metric| metric.kind == "global_position_speed" && metric.subject == "hand_l"));
+        let metrics = guard
+            .observe(&BTreeMap::new(), &after, world.translation(), 0.04)
+            .metrics;
+        assert!(
+            metrics
+                .iter()
+                .any(|metric| metric.kind == "global_position_speed" && metric.subject == "hand_l")
+        );
         let sample = bone_samples(&after);
         assert_eq!(sample["hand_l"].translation, after["hand_l"].0.to_array());
     }
@@ -4095,96 +4478,221 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         crate::playground_collision::PlaygroundCollisionPlugin.build(&mut app);
-        let data: serde_json::Value = serde_json::from_str(include_str!("../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf")).unwrap();
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf"
+        ))
+        .unwrap();
         let bytes = include_bytes!("../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.bin");
         let primitive = &data["meshes"][0]["primitives"][0];
         let accessor_bytes = |index: usize, width: usize| {
             let accessor = &data["accessors"][index];
             let view = &data["bufferViews"][accessor["bufferView"].as_u64().unwrap() as usize];
-            let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize + accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
+            let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize
+                + accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
             &bytes[offset..offset + accessor["count"].as_u64().unwrap() as usize * width]
         };
-        let positions = accessor_bytes(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize, 12)
-            .chunks_exact(12).map(|point| std::array::from_fn::<_,3,_>(|i| f32::from_le_bytes(point[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
-        let indices = accessor_bytes(primitive["indices"].as_u64().unwrap() as usize, 2).chunks_exact(2)
-            .map(|index| u16::from_le_bytes(index.try_into().unwrap()) as u32).collect();
-        let mut mesh = Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList, default());
+        let positions = accessor_bytes(
+            primitive["attributes"]["POSITION"].as_u64().unwrap() as usize,
+            12,
+        )
+        .chunks_exact(12)
+        .map(|point| {
+            std::array::from_fn::<_, 3, _>(|i| {
+                f32::from_le_bytes(point[i * 4..i * 4 + 4].try_into().unwrap())
+            })
+        })
+        .collect::<Vec<_>>();
+        let indices = accessor_bytes(primitive["indices"].as_u64().unwrap() as usize, 2)
+            .chunks_exact(2)
+            .map(|index| u16::from_le_bytes(index.try_into().unwrap()) as u32)
+            .collect();
+        let mut mesh = Mesh::new(
+            bevy::render::render_resource::PrimitiveTopology::TriangleList,
+            default(),
+        );
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
         mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
         let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
         let source = Transform::from_xyz(-3.3333, 0.18, -30.0);
-        let stairs = app.world_mut().spawn((crate::extensions::PlaygroundCollisionSource::new("SM_Als_Stairs_01"), source, GlobalTransform::from(source))).id();
-        app.world_mut().spawn((ChildOf(stairs), Mesh3d(mesh), Transform::IDENTITY, GlobalTransform::from(source)));
+        let stairs = app
+            .world_mut()
+            .spawn((
+                crate::extensions::PlaygroundCollisionSource::new("SM_Als_Stairs_01"),
+                source,
+                GlobalTransform::from(source),
+            ))
+            .id();
+        app.world_mut().spawn((
+            ChildOf(stairs),
+            Mesh3d(mesh),
+            Transform::IDENTITY,
+            GlobalTransform::from(source),
+        ));
         let start = Vec3::new(0.001699686, 0.924, -29.0);
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(start), Transform::from_translation(start), avian3d::prelude::LinearVelocity::ZERO));
-        for _ in 0..30 { app.update(); }
-        assert!(app.world().entity(stairs).contains::<crate::playground_collision::PlaygroundMeshColliderBuilt>());
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::Position(start),
+            Transform::from_translation(start),
+            avian3d::prelude::LinearVelocity::ZERO,
+        ));
+        for _ in 0..30 {
+            app.update();
+        }
+        assert!(
+            app.world()
+                .entity(stairs)
+                .contains::<crate::playground_collision::PlaygroundMeshColliderBuilt>()
+        );
         app.init_resource::<AnimationVisualPreRigPose>();
-        app.world_mut().get_mut::<crate::als::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Sprinting;
-        app.world_mut().entity_mut(character).insert((RotationMode::VelocityDirection,
-            crate::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection)));
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.world_mut()
+            .get_mut::<crate::als::gait::AlsDesiredGait>(character)
+            .unwrap()
+            .0 = Gait::Sprinting;
+        app.world_mut().entity_mut(character).insert((
+            RotationMode::VelocityDirection,
+            crate::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection),
+        ));
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(character)
+            .unwrap()
+            .move_dir = Vec2::Y;
         for _ in 0..60 {
-            if start.z - app.world().get::<avian3d::prelude::Position>(character).unwrap().z >= 0.85 { break; }
+            if start.z
+                - app
+                    .world()
+                    .get::<avian3d::prelude::Position>(character)
+                    .unwrap()
+                    .z
+                >= 0.85
+            {
+                break;
+            }
             app.update();
         }
         let mut guard = TemporalSkeletonGuard::default();
-        let cadence = [0.1136718_f32, 0.0810643, 0.0513584, 0.054793, 0.0254989, 0.055838, 0.048991, 0.0456682];
+        let cadence = [
+            0.1136718_f32,
+            0.0810643,
+            0.0513584,
+            0.054793,
+            0.0254989,
+            0.055838,
+            0.048991,
+            0.0456682,
+        ];
         let mut airborne = false;
         let mut landed = false;
         let mut failed = Vec::new();
         for frame in 0..80 {
             let delta = cadence[frame % cadence.len()];
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
-            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = frame == 0;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
+            app.world_mut()
+                .get_mut::<crate::als::input::AlsInputCommand>(character)
+                .unwrap()
+                .jump_pressed = frame == 0;
             app.update();
-            app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+            app.world_mut()
+                .run_system_once(capture_animation_visual_pre_rig_pose)
+                .unwrap();
             let mode = *app.world().get::<LocomotionState>(character).unwrap();
             airborne |= mode == LocomotionState::Air;
             landed |= airborne && mode == LocomotionState::Grounded;
             let capture = app.world().resource::<AnimationVisualPreRigPose>();
             if !capture.global_bones.is_empty() {
-                let observed = guard.observe(&capture.bones, &capture.global_bones, capture.root_position, capture.temporal_delta_seconds());
-                failed.extend(observed.metrics.into_iter().filter(|metric| metric.kind == "limb_plane_flip"));
+                let observed = guard.observe(
+                    &capture.bones,
+                    &capture.global_bones,
+                    capture.root_position,
+                    capture.temporal_delta_seconds(),
+                );
+                failed.extend(
+                    observed
+                        .metrics
+                        .into_iter()
+                        .filter(|metric| metric.kind == "limb_plane_flip"),
+                );
             }
         }
         assert!(airborne && landed);
-        assert!(failed.is_empty(), "Source landing pre-rig pose must preserve leg-plane continuity under the observed cadence: {failed:?}");
+        assert!(
+            failed.is_empty(),
+            "Source landing pre-rig pose must preserve leg-plane continuity under the observed cadence: {failed:?}"
+        );
     }
 
     #[test]
     fn high_landing_pre_rig_hands_keep_the_source_stage_space() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0122101)));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(0.0122101),
+        ));
         app.init_resource::<AnimationVisualPreRigPose>();
         let position = Vec3::new(-15.0, 10.824, -15.0);
-        let transform = Transform::from_translation(position).with_scale(Vec3::splat(2.0))
+        let transform = Transform::from_translation(position)
+            .with_scale(Vec3::splat(2.0))
             .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4));
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(position), transform,
-            GlobalTransform::from(transform), avian3d::prelude::LinearVelocity::ZERO));
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::Position(position),
+            transform,
+            GlobalTransform::from(transform),
+            avian3d::prelude::LinearVelocity::ZERO,
+        ));
         let mut guard = TemporalSkeletonGuard::default();
         let mut state = AnimationVisualValidationState::default();
         let mut saw_ragdoll = false;
         for _ in 0..130 {
             app.update();
-            app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+            app.world_mut()
+                .run_system_once(capture_animation_visual_pre_rig_pose)
+                .unwrap();
             let capture = app.world().resource::<AnimationVisualPreRigPose>();
             if !capture.global_bones.is_empty() {
-                let observed = guard.observe(&capture.bones, &capture.global_bones, capture.root_position, capture.temporal_delta_seconds());
-                let failed = record_temporal_metrics(&mut state, observed.metrics,
-                    if capture.source_selector_inputs.is_some() { "pre_rig_source_landing_selector" } else { "pre_rig" },
-                    0.0, 12.2101, capture.temporal_delta_seconds(), None, None);
-                assert!(!failed, "Actual high landing has an unclassified temporal fault: {:?}", state.faults);
+                let observed = guard.observe(
+                    &capture.bones,
+                    &capture.global_bones,
+                    capture.root_position,
+                    capture.temporal_delta_seconds(),
+                );
+                let failed = record_temporal_metrics(
+                    &mut state,
+                    observed.metrics,
+                    if capture.source_selector_inputs.is_some() {
+                        "pre_rig_source_landing_selector"
+                    } else {
+                        "pre_rig"
+                    },
+                    0.0,
+                    12.2101,
+                    capture.temporal_delta_seconds(),
+                    None,
+                    None,
+                );
+                assert!(
+                    !failed,
+                    "Actual high landing has an unclassified temporal fault: {:?}",
+                    state.faults
+                );
             }
-            saw_ragdoll |= app.world().get::<crate::animation_events::AlsNotifyLocomotionAction>(character)
+            saw_ragdoll |= app
+                .world()
+                .get::<crate::animation_events::AlsNotifyLocomotionAction>(character)
                 == Some(&crate::animation_events::AlsNotifyLocomotionAction::Ragdolling);
-            if saw_ragdoll { break; }
+            if saw_ragdoll {
+                break;
+            }
         }
         assert!(saw_ragdoll);
         assert_eq!(state.temporal_anomalies.len(), 2);
-        assert!(state.temporal_anomalies.iter().all(|metric| metric.source_boundary.is_some()
-            && metric.current > metric.threshold && metric.threshold == 40.0));
+        assert!(
+            state
+                .temporal_anomalies
+                .iter()
+                .all(|metric| metric.source_boundary.is_some()
+                    && metric.current > metric.threshold
+                    && metric.threshold == 40.0)
+        );
         assert!(state.faults.is_empty());
     }
 
@@ -4192,31 +4700,81 @@ mod tests {
     fn source_landing_selector_classification_rejects_wrong_input_stage_and_physics() {
         let previous = Some([-13.295677, 0.0]);
         let current = Some([0.0, 1.0]);
-        assert!(source_landing_selector_boundary(previous, current, false, true));
+        assert!(source_landing_selector_boundary(
+            previous, current, false, true
+        ));
         for (previous, current, was_active, active) in [
-            (previous, current, false, false), (previous, current, true, true),
-            (None, current, false, true), (previous, None, false, true),
+            (previous, current, false, false),
+            (previous, current, true, true),
+            (None, current, false, true),
+            (previous, None, false, true),
             (Some([-9.999, 0.0]), current, false, true),
             (previous, Some([-5.001, 1.0]), false, true),
             (Some([-13.295677, 0.2]), current, false, true),
             (previous, Some([0.0, 0.8]), false, true),
             (Some([f32::NAN, 0.0]), current, false, true),
-        ] { assert!(!source_landing_selector_boundary(previous, current, was_active, active)); }
-        let metric = |kind, subject: &str| TemporalSkeletonMetric { kind, subject: subject.into(),
-            previous: 0.0, current: 46.0, threshold: 40.0, trigger: "rate", rate: Some(46.0), rate_threshold: Some(40.0) };
+        ] {
+            assert!(!source_landing_selector_boundary(
+                previous, current, was_active, active
+            ));
+        }
+        let metric = |kind, subject: &str| TemporalSkeletonMetric {
+            kind,
+            subject: subject.into(),
+            previous: 0.0,
+            current: 46.0,
+            threshold: 40.0,
+            trigger: "rate",
+            rate: Some(46.0),
+            rate_threshold: Some(40.0),
+        };
         for (stage, kind, subject, expected_failure) in [
-            ("pre_rig_source_landing_selector", "global_position_speed", "hand_l", false),
-            ("pre_rig_source_landing_selector", "global_position_speed", "hand_r", false),
+            (
+                "pre_rig_source_landing_selector",
+                "global_position_speed",
+                "hand_l",
+                false,
+            ),
+            (
+                "pre_rig_source_landing_selector",
+                "global_position_speed",
+                "hand_r",
+                false,
+            ),
             ("pre_rig", "global_position_speed", "hand_l", true),
             ("final", "global_position_speed", "hand_l", true),
-            ("pre_rig_source_landing_selector", "global_position_speed", "head", true),
-            ("pre_rig_source_landing_selector", "local_rotation_spike", "hand_l", true),
+            (
+                "pre_rig_source_landing_selector",
+                "global_position_speed",
+                "head",
+                true,
+            ),
+            (
+                "pre_rig_source_landing_selector",
+                "local_rotation_spike",
+                "hand_l",
+                true,
+            ),
         ] {
             let mut state = AnimationVisualValidationState::default();
-            assert_eq!(record_temporal_metrics(&mut state, vec![metric(kind, subject)], stage,
-                1.0, 12.2101, 0.0122101, None, None), expected_failure);
+            assert_eq!(
+                record_temporal_metrics(
+                    &mut state,
+                    vec![metric(kind, subject)],
+                    stage,
+                    1.0,
+                    12.2101,
+                    0.0122101,
+                    None,
+                    None
+                ),
+                expected_failure
+            );
             assert_eq!(state.temporal_anomalies.len(), 1);
-            assert_eq!(state.temporal_anomalies[0].source_boundary.is_none(), expected_failure);
+            assert_eq!(
+                state.temporal_anomalies[0].source_boundary.is_none(),
+                expected_failure
+            );
             assert_eq!(!state.faults.is_empty(), expected_failure);
         }
     }
@@ -4224,92 +4782,285 @@ mod tests {
     #[test]
     fn source_landing_classification_preserves_later_final_fault_evidence() {
         let mut state = AnimationVisualValidationState::default();
-        for (stage, expected_failure) in [("pre_rig_source_landing_selector", false), ("final", true)] {
-            let metric = TemporalSkeletonMetric { kind: "global_position_speed", subject: "hand_l".into(),
-                previous: 0.0, current: 46.0, threshold: 40.0, trigger: "rate", rate: Some(46.0), rate_threshold: Some(40.0) };
-            assert_eq!(record_temporal_metrics(&mut state, vec![metric], stage, 1.0, 12.21, 0.01221, None, None), expected_failure);
+        for (stage, expected_failure) in
+            [("pre_rig_source_landing_selector", false), ("final", true)]
+        {
+            let metric = TemporalSkeletonMetric {
+                kind: "global_position_speed",
+                subject: "hand_l".into(),
+                previous: 0.0,
+                current: 46.0,
+                threshold: 40.0,
+                trigger: "rate",
+                rate: Some(46.0),
+                rate_threshold: Some(40.0),
+            };
+            assert_eq!(
+                record_temporal_metrics(
+                    &mut state,
+                    vec![metric],
+                    stage,
+                    1.0,
+                    12.21,
+                    0.01221,
+                    None,
+                    None
+                ),
+                expected_failure
+            );
         }
         assert_eq!(state.temporal_anomalies.len(), 2);
         assert!(state.temporal_anomalies[0].source_boundary.is_some());
         assert_eq!(state.temporal_anomalies[1].stage, "final");
         assert!(state.temporal_anomalies[1].source_boundary.is_none());
-        assert_eq!(state.faults, ["temporal_final_global_position_speed:hand_l"]);
+        assert_eq!(
+            state.faults,
+            ["temporal_final_global_position_speed:hand_l"]
+        );
     }
 
     #[test]
     fn pre_rig_capture_uses_current_graph_input_and_skeleton_defaults() {
-        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
-        use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
-            animation_clip::EntityPath, animation_node::AnimationNode, edge_data::DataSpec,
-            skeleton::Skeleton, systems::animation_player}};
-        use crate::extensions::{control_rig_program::RigDefinition, root_graph_boundaries::{ControlRigBoundaryNode, RigInputBinding, RIG_GAME_WORLD_KEY}};
+        use crate::extensions::{
+            control_rig_program::RigDefinition,
+            root_graph_boundaries::{ControlRigBoundaryNode, RIG_GAME_WORLD_KEY, RigInputBinding},
+        };
+        use bevy::{
+            ecs::system::RunSystemOnce,
+            world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner},
+        };
+        use bevy_animation_graph::{
+            AnimationGraphPlugin,
+            core::{
+                animated_scene::AnimatedSceneHandle, animation_clip::EntityPath,
+                animation_node::AnimationNode, edge_data::DataSpec, skeleton::Skeleton,
+                systems::animation_player,
+            },
+        };
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
-            bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), crate::extensions::AlsExtPlugin))
-            .init_asset::<WorldAsset>().init_resource::<AnimationVisualPreRigPose>();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            bevy::gizmos::GizmoPlugin,
+            AnimationGraphPlugin::default(),
+            crate::extensions::AlsExtPlugin,
+        ))
+        .init_asset::<WorldAsset>()
+        .init_resource::<AnimationVisualPreRigPose>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
-        let reference = Transform::from_xyz(0.0, 0.4, 0.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2));
+        let definition: RigDefinition =
+            serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json"))
+                .unwrap();
+        let reference = Transform::from_xyz(0.0, 0.4, 0.0)
+            .with_rotation(Quat::from_rotation_y(0.3))
+            .with_scale(Vec3::splat(1.2));
         let mut skeleton = Skeleton::default();
         let mut paths: Vec<Vec<String>> = Vec::new();
         let local = |value: crate::extensions::control_rig_hierarchy::RigTransform| Transform {
-            translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
+            translation: value.translation.as_vec3(),
+            rotation: value.rotation.as_quat(),
+            scale: value.scale.as_vec3(),
+        };
         for bone in &definition.bones {
-            let mut path = bone.parent.map(|index| paths[index].clone()).unwrap_or_default();
+            let mut path = bone
+                .parent
+                .map(|index| paths[index].clone())
+                .unwrap_or_default();
             path.push(bone.name.clone());
-            skeleton.add_bone(EntityPath::from(path.clone()), if bone.name == "foot_l" { reference } else { local(bone.initial_local) }, local(bone.initial_global));
+            skeleton.add_bone(
+                EntityPath::from(path.clone()),
+                if bone.name == "foot_l" {
+                    reference
+                } else {
+                    local(bone.initial_local)
+                },
+                local(bone.initial_global),
+            );
             paths.push(path);
         }
         skeleton.set_root(EntityPath::from(paths[0].clone()).id());
-        let foot = EntityPath::from(paths[definition.bones.iter().position(|bone| bone.name == "foot_l").unwrap()].clone());
-        let spine = EntityPath::from(paths[definition.bones.iter().position(|bone| bone.name == "spine_01").unwrap()].clone());
-        let spine_reference = skeleton.default_transforms(spine.id()).unwrap().local.rotation;
-        let skeleton = app.world_mut().resource_mut::<Assets<Skeleton>>().add(skeleton);
-        let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
-        pose.add_bone(BonePose { translation: Some(Vec3::new(0.2, 0.4, 0.0)), ..default() }, foot.id());
+        let foot = EntityPath::from(
+            paths[definition
+                .bones
+                .iter()
+                .position(|bone| bone.name == "foot_l")
+                .unwrap()]
+            .clone(),
+        );
+        let spine = EntityPath::from(
+            paths[definition
+                .bones
+                .iter()
+                .position(|bone| bone.name == "spine_01")
+                .unwrap()]
+            .clone(),
+        );
+        let spine_reference = skeleton
+            .default_transforms(spine.id())
+            .unwrap()
+            .local
+            .rotation;
+        let skeleton = app
+            .world_mut()
+            .resource_mut::<Assets<Skeleton>>()
+            .add(skeleton);
+        let mut pose = Pose {
+            skeleton: skeleton.clone(),
+            ..default()
+        };
+        pose.add_bone(
+            BonePose {
+                translation: Some(Vec3::new(0.2, 0.4, 0.0)),
+                ..default()
+            },
+            foot.id(),
+        );
         let mut graph = AnimationGraph::new();
-        let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode { key: "source".into(), output: "Pose".into() });
-        let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition), internalize_time: true,
-            input_bindings: vec![RigInputBinding { external: "RigInput".into(), path: vec![5], property: "yaw".into() }], ..default() });
+        let source = AnimationNode::new(
+            "source",
+            crate::extensions::GlobalPoseInputNode {
+                key: "source".into(),
+                output: "Pose".into(),
+            },
+        );
+        let rig = AnimationNode::new(
+            "rig",
+            ControlRigBoundaryNode {
+                definition: Some(definition),
+                internalize_time: true,
+                input_bindings: vec![RigInputBinding {
+                    external: "RigInput".into(),
+                    path: vec![5],
+                    property: "yaw".into(),
+                }],
+                ..default()
+            },
+        );
         graph.add_node(source.clone());
         graph.add_node(rig.clone());
         graph.add_node_parameter_edge(source.id, "Pose", rig.id, "source_pose");
         graph.add_output_data("pose".into(), DataSpec::Pose);
         graph.add_output_data_edge(rig.id, "Pose", "pose");
-        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(graph);
         let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
         player.set_global_input_data("source", DataValue::Pose(pose));
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
         player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
         player.set_global_input_data("yaw", 30.0_f32);
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: Entity::PLACEHOLDER }, Transform::IDENTITY, AnimatedSceneHandle::default())).id();
-        let player_entity = app.world_mut().spawn((player, Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
-        app.world_mut().spawn((Name::new("foot_l"), Transform::from_xyz(9.0, 8.0, 7.0), ChildOf(player_entity)));
-        app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar {
+                    character: Entity::PLACEHOLDER,
+                },
+                Transform::IDENTITY,
+                AnimatedSceneHandle::default(),
+            ))
+            .id();
+        let player_entity = app
+            .world_mut()
+            .spawn((
+                player,
+                Name::new("root"),
+                Transform::IDENTITY,
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().spawn((
+            Name::new("foot_l"),
+            Transform::from_xyz(9.0, 8.0, 7.0),
+            ChildOf(player_entity),
+        ));
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
         app.world_mut().flush();
         app.world_mut().run_system_once(animation_player).unwrap();
-        assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none(), "{:?}", app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error());
-        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+        assert!(
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_error()
+                .is_none(),
+            "{:?}",
+            app.world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_error()
+        );
+        app.world_mut()
+            .run_system_once(capture_animation_visual_pre_rig_pose)
+            .unwrap();
         let captured = &app.world().resource::<AnimationVisualPreRigPose>().bones["foot_l"];
         assert_eq!(captured.translation, Vec3::new(0.2, 0.4, 0.0));
         assert_eq!(captured.rotation, reference.rotation);
         assert_eq!(captured.scale, reference.scale);
-        assert!(app.world().resource::<AnimationVisualPreRigPose>().global_bones.contains_key("hand_l"));
-        assert_eq!(app.world().resource::<AnimationVisualPreRigPose>().bones["spine_01"].rotation, spine_reference);
-        let output = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_default_output_pose().unwrap();
-        assert!(rotation_delta_radians(spine_reference, output.get_bone(spine.id()).unwrap().rotation.unwrap()) > 0.05);
-        let previous = app.world().resource::<AnimationVisualPreRigPose>().global_bones["hand_l"].0;
-        let moved = Transform::from_xyz(6.0, 2.0, -3.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
+        assert!(
+            app.world()
+                .resource::<AnimationVisualPreRigPose>()
+                .global_bones
+                .contains_key("hand_l")
+        );
+        assert_eq!(
+            app.world().resource::<AnimationVisualPreRigPose>().bones["spine_01"].rotation,
+            spine_reference
+        );
+        let output = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .get_default_output_pose()
+            .unwrap();
+        assert!(
+            rotation_delta_radians(
+                spine_reference,
+                output.get_bone(spine.id()).unwrap().rotation.unwrap()
+            ) > 0.05
+        );
+        let previous = app
+            .world()
+            .resource::<AnimationVisualPreRigPose>()
+            .global_bones["hand_l"]
+            .0;
+        let moved = Transform::from_xyz(6.0, 2.0, -3.0)
+            .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
         app.world_mut().entity_mut(avatar).insert(moved);
-        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+        app.world_mut()
+            .run_system_once(capture_animation_visual_pre_rig_pose)
+            .unwrap();
         let captured = app.world().resource::<AnimationVisualPreRigPose>();
-        assert!(captured.global_bones["hand_l"].0.abs_diff_eq(moved.transform_point(previous), 1e-5));
+        assert!(
+            captured.global_bones["hand_l"]
+                .0
+                .abs_diff_eq(moved.transform_point(previous), 1e-5)
+        );
         assert!(captured.root_position.abs_diff_eq(moved.translation, 1e-5));
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(graph);
-        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
-        assert!(app.world().resource::<AnimationVisualPreRigPose>().bones.is_empty());
-        assert!(app.world().resource::<AnimationVisualPreRigPose>().global_bones.is_empty());
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .start(graph);
+        app.world_mut()
+            .run_system_once(capture_animation_visual_pre_rig_pose)
+            .unwrap();
+        assert!(
+            app.world()
+                .resource::<AnimationVisualPreRigPose>()
+                .bones
+                .is_empty()
+        );
+        assert!(
+            app.world()
+                .resource::<AnimationVisualPreRigPose>()
+                .global_bones
+                .is_empty()
+        );
     }
 
     #[test]
@@ -4317,67 +5068,136 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let mut app = App::new();
         app.insert_resource(AnimationVisualValidationConfig {
-            directory: default(), case: "fixture".into(), capture_count: 0, capture_interval: Duration::ZERO,
-            min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
-            max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
-        }).insert_resource(AnimationVisualValidationState { started: Some(Instant::now()), ..default() })
-            .init_resource::<AnimationVisualStageTiming>();
-        let actor = app.world_mut().spawn((AlsCharacter, AlsControlRigExecution { executed_steps: 153, elapsed_seconds: 0.0125, ..default() })).id();
-        app.world_mut().run_system_once(animation_visual_control_rig_time).unwrap();
-        assert_eq!(app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"], [12.5]);
-        app.world_mut().get_mut::<AlsControlRigExecution>(actor).unwrap().executed_steps = 0;
-        app.world_mut().run_system_once(animation_visual_control_rig_time).unwrap();
-        assert_eq!(app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"], [12.5]);
+            directory: default(),
+            case: "fixture".into(),
+            capture_count: 0,
+            capture_interval: Duration::ZERO,
+            min_pose_samples: 1,
+            warmup: Duration::ZERO,
+            max_frame_p95_ms: 25.0,
+            max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0,
+            max_physics_steps_per_render: 3.0,
+        })
+        .insert_resource(AnimationVisualValidationState {
+            started: Some(Instant::now()),
+            ..default()
+        })
+        .init_resource::<AnimationVisualStageTiming>();
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsControlRigExecution {
+                    executed_steps: 153,
+                    elapsed_seconds: 0.0125,
+                    ..default()
+                },
+            ))
+            .id();
+        app.world_mut()
+            .run_system_once(animation_visual_control_rig_time)
+            .unwrap();
+        assert_eq!(
+            app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"],
+            [12.5]
+        );
+        app.world_mut()
+            .get_mut::<AlsControlRigExecution>(actor)
+            .unwrap()
+            .executed_steps = 0;
+        app.world_mut()
+            .run_system_once(animation_visual_control_rig_time)
+            .unwrap();
+        assert_eq!(
+            app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"],
+            [12.5]
+        );
     }
     use bevy::ecs::system::In;
 
     #[test]
     fn visual_report_waits_for_exit_and_includes_the_final_samples() {
-        let directory = std::env::temp_dir().join(format!("als_visual_exit_{}", std::process::id()));
+        let directory =
+            std::env::temp_dir().join(format!("als_visual_exit_{}", std::process::id()));
         fs::create_dir_all(&directory).unwrap();
         let report_path = directory.join("report.json");
-        if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+        if report_path.exists() {
+            fs::remove_file(&report_path).unwrap();
+        }
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).add_message::<AppExit>()
+        app.add_plugins(MinimalPlugins)
+            .add_message::<AppExit>()
             .insert_resource(AnimationVisualValidationConfig {
-                directory: directory.clone(), case: "fixture".into(), capture_count: 0,
-                capture_interval: Duration::from_secs(1), min_pose_samples: 1, warmup: Duration::ZERO,
-                max_frame_p95_ms: 25.0, max_frame_ms: 75.0, max_eval_p95_ms: 4.0,
+                directory: directory.clone(),
+                case: "fixture".into(),
+                capture_count: 0,
+                capture_interval: Duration::from_secs(1),
+                min_pose_samples: 1,
+                warmup: Duration::ZERO,
+                max_frame_p95_ms: 25.0,
+                max_frame_ms: 75.0,
+                max_eval_p95_ms: 4.0,
                 max_physics_steps_per_render: 3.0,
             })
             .insert_resource(AnimationVisualValidationState {
-                started: Some(Instant::now() - Duration::from_secs(2)), ..default()
+                started: Some(Instant::now() - Duration::from_secs(2)),
+                ..default()
             })
             .init_resource::<ManualIntegrationGateReport>()
             .init_resource::<AnimationVisualStageTiming>()
             .add_systems(Last, flush_animation_visual_report);
         app.world_mut().run_schedule(Last);
-        assert!(!report_path.exists(), "running capture must not serialize the accumulated report");
+        assert!(
+            !report_path.exists(),
+            "running capture must not serialize the accumulated report"
+        );
         for exit in [AppExit::Success, AppExit::Error(NonZeroU8::new(7).unwrap())] {
-            app.world_mut().resource_mut::<AnimationVisualValidationState>().frame_ms.push(12.0);
-            let samples = app.world().resource::<AnimationVisualValidationState>().frame_ms.len();
+            app.world_mut()
+                .resource_mut::<AnimationVisualValidationState>()
+                .frame_ms
+                .push(12.0);
+            let samples = app
+                .world()
+                .resource::<AnimationVisualValidationState>()
+                .frame_ms
+                .len();
             let completed = matches!(exit, AppExit::Success);
             {
-                let mut manual = app.world_mut().resource_mut::<ManualIntegrationGateReport>();
+                let mut manual = app
+                    .world_mut()
+                    .resource_mut::<ManualIntegrationGateReport>();
                 manual.completed = completed;
-                manual.direction_trace.push(serde_json::json!({"final_sample": samples}));
-                manual.camera_trace.push(crate::manual_playground_integration::ManualCameraTraceSample {
-                    phase_elapsed_seconds: samples as f64,
-                    obstacles_present: false,
-                    obstacles_ignored: true,
-                    blocked_ratio: Some(0.3),
-                    first_person_requested: false,
-                    actual_first_person: false,
-                    ragdoll_active: false,
-                    camera: crate::als_camera::AlsCameraDebugInfo { trace_distance_ratio: 0.8, valid: true, ..default() },
-                });
+                manual
+                    .direction_trace
+                    .push(serde_json::json!({"final_sample": samples}));
+                manual.camera_trace.push(
+                    crate::manual_playground_integration::ManualCameraTraceSample {
+                        phase_elapsed_seconds: samples as f64,
+                        obstacles_present: false,
+                        obstacles_ignored: true,
+                        blocked_ratio: Some(0.3),
+                        first_person_requested: false,
+                        actual_first_person: false,
+                        ragdoll_active: false,
+                        camera: crate::als_camera::AlsCameraDebugInfo {
+                            trace_distance_ratio: 0.8,
+                            valid: true,
+                            ..default()
+                        },
+                    },
+                );
             }
             app.world_mut().write_message(exit);
             app.world_mut().run_schedule(Last);
-            let report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            let report: serde_json::Value =
+                serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
             assert_eq!(report["frame_time"]["samples"], samples);
             assert_eq!(report["manual_integration"]["completed"], completed);
-            assert_eq!(report["manual_integration"]["direction_trace"][samples - 1]["final_sample"], samples);
+            assert_eq!(
+                report["manual_integration"]["direction_trace"][samples - 1]["final_sample"],
+                samples
+            );
             assert_eq!(report["manual_integration"]["camera_trace"][samples - 1]["camera"]["trace_distance_ratio"].as_f64().unwrap() as f32, 0.8_f32);
             fs::remove_file(&report_path).unwrap();
             app.world_mut().run_schedule(Last);
@@ -4389,63 +5209,163 @@ mod tests {
     #[test]
     fn temporal_rate_guard_recognizes_source_equivalent_near_extended_ik() {
         let (previous, current, hip, calf) = include!("fixtures/source_ik_rate_boundary.rs");
-        let definition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        let definition =
+            serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json"))
+                .unwrap();
         let bones = BTreeMap::from([
-            ("thigh_r".to_owned(), (Vec3::ZERO, Quat::from_array(hip), Vec3::ONE, Vec3::ONE)),
-            ("calf_r".to_owned(), (Vec3::ZERO, Quat::from_array(calf), Vec3::ONE, Vec3::ONE)),
+            (
+                "thigh_r".to_owned(),
+                (Vec3::ZERO, Quat::from_array(hip), Vec3::ONE, Vec3::ONE),
+            ),
+            (
+                "calf_r".to_owned(),
+                (Vec3::ZERO, Quat::from_array(calf), Vec3::ONE, Vec3::ONE),
+            ),
         ]);
-        let metric = TemporalSkeletonMetric { kind: "local_rotation_spike", subject: "calf_r".to_owned(),
-            previous: 0.0, current: 1.3006219, threshold: 80.0, trigger: "rate",
-            rate: Some(87.05111), rate_threshold: Some(80.0) };
-        assert!(rotation_rate_matches_source_ik(&metric, &previous, &current, &definition, &bones),
-            "Native IK produces this same calf motion; a raw rate cannot classify it as a porting fault");
+        let metric = TemporalSkeletonMetric {
+            kind: "local_rotation_spike",
+            subject: "calf_r".to_owned(),
+            previous: 0.0,
+            current: 1.3006219,
+            threshold: 80.0,
+            trigger: "rate",
+            rate: Some(87.05111),
+            rate_threshold: Some(80.0),
+        };
+        assert!(
+            rotation_rate_matches_source_ik(&metric, &previous, &current, &definition, &bones),
+            "Native IK produces this same calf motion; a raw rate cannot classify it as a porting fault"
+        );
         let mut wrong_output = bones.clone();
-        wrong_output.get_mut("calf_r").unwrap().1 = Quat::from_rotation_x(0.2) * Quat::from_array(calf);
-        assert!(!rotation_rate_matches_source_ik(&metric, &previous, &current, &definition, &wrong_output));
+        wrong_output.get_mut("calf_r").unwrap().1 =
+            Quat::from_rotation_x(0.2) * Quat::from_array(calf);
+        assert!(!rotation_rate_matches_source_ik(
+            &metric,
+            &previous,
+            &current,
+            &definition,
+            &wrong_output
+        ));
         let mut wrong_previous = previous;
         wrong_previous.target_world[2] += 0.2;
-        assert!(!rotation_rate_matches_source_ik(&metric, &wrong_previous, &current, &definition, &bones));
+        assert!(!rotation_rate_matches_source_ik(
+            &metric,
+            &wrong_previous,
+            &current,
+            &definition,
+            &bones
+        ));
         let mut wrong_metric = metric.clone();
         wrong_metric.current = 0.9;
-        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
+        assert!(!rotation_rate_matches_source_ik(
+            &wrong_metric,
+            &previous,
+            &current,
+            &definition,
+            &bones
+        ));
         let mut wrong_metric = metric.clone();
         wrong_metric.subject = "head".to_owned();
-        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
+        assert!(!rotation_rate_matches_source_ik(
+            &wrong_metric,
+            &previous,
+            &current,
+            &definition,
+            &bones
+        ));
         let mut wrong_metric = metric;
         wrong_metric.trigger = "jump";
-        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
+        assert!(!rotation_rate_matches_source_ik(
+            &wrong_metric,
+            &previous,
+            &current,
+            &definition,
+            &bones
+        ));
     }
 
     #[test]
     fn foot_ik_sample_preserves_adjacent_actual_solver_inputs() {
-        let previous = crate::foot_ik_apply::FootIkSolveInput { weight: 0.46678212, target_world: [1.0, 0.4, 2.0], ..default() };
-        let current = crate::foot_ik_apply::FootIkSolveInput { weight: 0.20929879, target_world: [1.0, 0.7, 2.0], ..previous };
-        let space = AlsFootIkSpaceSide { solve_input: Some(current), previous_solve_input: Some(previous), ..default() };
+        let previous = crate::foot_ik_apply::FootIkSolveInput {
+            weight: 0.46678212,
+            target_world: [1.0, 0.4, 2.0],
+            ..default()
+        };
+        let current = crate::foot_ik_apply::FootIkSolveInput {
+            weight: 0.20929879,
+            target_world: [1.0, 0.7, 2.0],
+            ..previous
+        };
+        let space = AlsFootIkSpaceSide {
+            solve_input: Some(current),
+            previous_solve_input: Some(previous),
+            ..default()
+        };
         let sample = serde_json::to_value(foot_ik_side_sample(&space, &default())).unwrap();
-        assert_eq!(sample["solve_input"], serde_json::to_value(current).unwrap());
-        assert_eq!(sample["previous_solve_input"], serde_json::to_value(previous).unwrap());
-        let skipped = AlsFootIkSpaceSide { solve_input: None, ..space };
-        assert!(serde_json::to_value(foot_ik_side_sample(&skipped, &default())).unwrap()["solve_input"].is_null());
+        assert_eq!(
+            sample["solve_input"],
+            serde_json::to_value(current).unwrap()
+        );
+        assert_eq!(
+            sample["previous_solve_input"],
+            serde_json::to_value(previous).unwrap()
+        );
+        let skipped = AlsFootIkSpaceSide {
+            solve_input: None,
+            ..space
+        };
+        assert!(
+            serde_json::to_value(foot_ik_side_sample(&skipped, &default())).unwrap()["solve_input"]
+                .is_null()
+        );
     }
 
     #[test]
     fn rig_inputs_sample_preserves_double_precision_and_call_inputs() {
-        use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_math::RigValue,
-            control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigNodeState, RigCallSample}};
-        let mut definition: RigDefinition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
-        definition.program.instructions = ["FRigUnit_TwoBoneIKSimplePerItem::Execute", "FRigUnit_GetTransform::Execute"]
-            .map(|function| RigInstruction::Call { function: function.into(), arguments: Vec::new(), outputs: Vec::new() }).to_vec();
+        use crate::extensions::{
+            control_rig_hierarchy::RigTransform,
+            control_rig_math::RigValue,
+            control_rig_program::{RigDefinition, RigInstruction},
+            root_graph_boundaries::{ControlRigNodeState, RigCallSample},
+        };
+        let mut definition: RigDefinition =
+            serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json"))
+                .unwrap();
+        definition.program.instructions = [
+            "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+            "FRigUnit_GetTransform::Execute",
+        ]
+        .map(|function| RigInstruction::Call {
+            function: function.into(),
+            arguments: Vec::new(),
+            outputs: Vec::new(),
+        })
+        .to_vec();
         let value = 1.0_f64 + 1e-10;
-        let transform = RigTransform { translation: bevy::math::DVec3::splat(value), ..default() };
+        let transform = RigTransform {
+            translation: bevy::math::DVec3::splat(value),
+            ..default()
+        };
         let mut state = ControlRigNodeState::default();
         state.initialization_count = 2;
-        state.calls = (0..2).map(|instruction| RigCallSample { instruction, arguments: vec![RigValue::F64(value)],
-            bones_before: vec![(3, transform)] }).collect();
+        state.calls = (0..2)
+            .map(|instruction| RigCallSample {
+                instruction,
+                arguments: vec![RigValue::F64(value)],
+                bones_before: vec![(3, transform)],
+            })
+            .collect();
         let sample = rig_inputs_sample(&definition, &state);
         assert_eq!(sample["initialization_count"], 2);
         assert_eq!(sample["calls"].as_array().unwrap().len(), 1);
-        assert_eq!(sample["calls"][0]["arguments"][0]["F64"].as_f64(), Some(value));
-        assert_eq!(sample["calls"][0]["bones_before"][0][1]["translation"][0].as_f64(), Some(value));
+        assert_eq!(
+            sample["calls"][0]["arguments"][0]["F64"].as_f64(),
+            Some(value)
+        );
+        assert_eq!(
+            sample["calls"][0]["bones_before"][0][1]["translation"][0].as_f64(),
+            Some(value)
+        );
         assert_ne!(Some(value), Some(value as f32 as f64));
     }
 
@@ -4453,10 +5373,23 @@ mod tests {
     fn source_pose_node_selects_repeated_titles_by_source_identity() {
         use bevy_animation_graph::core::animation_node::AnimationNode;
         let mut graph = AnimationGraph::new();
-        let nodes = [0.0, 1.0].map(|explicit_value| AnimationNode::new("Sequence Evaluator", crate::extensions::SourceSequenceEvaluatorNode { explicit_value, ..default() }));
-        for node in &nodes { graph.add_node(node.clone()); }
+        let nodes = [0.0, 1.0].map(|explicit_value| {
+            AnimationNode::new(
+                "Sequence Evaluator",
+                crate::extensions::SourceSequenceEvaluatorNode {
+                    explicit_value,
+                    ..default()
+                },
+            )
+        });
         for node in &nodes {
-            assert_eq!(source_pose_node(&graph, &node.id.uuid().to_string()), Some(node.id));
+            graph.add_node(node.clone());
+        }
+        for node in &nodes {
+            assert_eq!(
+                source_pose_node(&graph, &node.id.uuid().to_string()),
+                Some(node.id)
+            );
         }
         assert!(source_pose_node(&graph, "Sequence Evaluator").is_some());
         assert_eq!(source_pose_node(&graph, "absent"), None);
@@ -4472,20 +5405,49 @@ mod tests {
         for (game_span, wall_span) in [(0.7, 0.1166511), (0.06, 1.0), (0.0, 1.0), (0.3, 0.3)] {
             let mut state = AnimationVisualValidationState::default();
             let evidence = ManualAnimationWindowEvidence {
-                label: Some("clock_fixture"), settled: true, capture_source_window: true,
-                requires_pre_rig_motion: true, minimum_observation_seconds: 0.12,
-                observed_animation_clip_time: Some(0.0), ..default()
+                label: Some("clock_fixture"),
+                settled: true,
+                capture_source_window: true,
+                requires_pre_rig_motion: true,
+                minimum_observation_seconds: 0.12,
+                observed_animation_clip_time: Some(0.0),
+                ..default()
             };
             let pose = AnimationVisualPreRigPose::default();
             for (game, wall) in [(10.0, 20.0), (10.0 + game_span, 20.0 + wall_span)] {
-                record_motion_window(&mut state, &evidence, &pose, &pose.bones, None, None,
-                    RootPoseActivity::default(), None, &player, asset_server, &graphs, wall, game);
+                record_motion_window(
+                    &mut state,
+                    &evidence,
+                    &pose,
+                    &pose.bones,
+                    None,
+                    None,
+                    RootPoseActivity::default(),
+                    None,
+                    &player,
+                    asset_server,
+                    &graphs,
+                    wall,
+                    game,
+                );
             }
             let tracker = &state.motion_windows["clock_fixture"];
-            assert!((f64::from(tracker.observation_seconds) - game_span).abs() < 1e-6,
-                "game span {game_span} used wall span {wall_span}: {}", tracker.observation_seconds);
-            assert_eq!(tracker.observation_seconds >= tracker.minimum_observation_seconds, game_span >= 0.12);
-            assert!((tracker.actor_yaw_trace[1].elapsed_secs - tracker.actor_yaw_trace[0].elapsed_secs - wall_span).abs() < 1e-9);
+            assert!(
+                (f64::from(tracker.observation_seconds) - game_span).abs() < 1e-6,
+                "game span {game_span} used wall span {wall_span}: {}",
+                tracker.observation_seconds
+            );
+            assert_eq!(
+                tracker.observation_seconds >= tracker.minimum_observation_seconds,
+                game_span >= 0.12
+            );
+            assert!(
+                (tracker.actor_yaw_trace[1].elapsed_secs
+                    - tracker.actor_yaw_trace[0].elapsed_secs
+                    - wall_span)
+                    .abs()
+                    < 1e-9
+            );
         }
     }
 
@@ -4550,7 +5512,8 @@ mod tests {
         assert!(tracker.observed_runtime_states.is_empty());
         let trace = serde_json::to_value(&tracker.actor_yaw_trace).unwrap();
         assert_eq!(
-            trace.as_array().unwrap().len(), 4,
+            trace.as_array().unwrap().len(),
+            4,
             "A clip without actor yaw still requires its actual playback trace"
         );
         assert!(trace[0]["actor_yaw_radians"].is_null());
@@ -4659,33 +5622,86 @@ mod tests {
     #[test]
     fn overlay_object_graph_failure_uses_the_public_failure_report() {
         let (mut app, object, player_entity) = crate::overlay_object::tests::loaded_bow_scene();
-        app.world_mut().spawn(crate::overlay_object::AlsOverlayObject {
-            character: Entity::PLACEHOLDER, content: object, overlay: crate::als::state::OverlayState::Bow,
-            definition: crate::overlay_object::tests::SOURCE_LIBRARY.0[&crate::als::state::OverlayState::Bow].object.clone().unwrap(), attachment_bone: crate::overlay_object::LEFT_GUN_BONE.into(),
-        });
-        let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf116_finish/object_fault");
+        app.world_mut()
+            .spawn(crate::overlay_object::AlsOverlayObject {
+                character: Entity::PLACEHOLDER,
+                content: object,
+                overlay: crate::als::state::OverlayState::Bow,
+                definition: crate::overlay_object::tests::SOURCE_LIBRARY.0
+                    [&crate::als::state::OverlayState::Bow]
+                    .object
+                    .clone()
+                    .unwrap(),
+                attachment_bone: crate::overlay_object::LEFT_GUN_BONE.into(),
+            });
+        let directory =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf116_finish/object_fault");
         fs::create_dir_all(&directory).unwrap();
         let report_path = directory.join("report.json");
-        if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+        if report_path.exists() {
+            fs::remove_file(&report_path).unwrap();
+        }
         app.insert_resource(AnimationVisualValidationConfig {
-            directory, case: "bow".into(), capture_count: 0, capture_interval: Duration::from_secs(1),
-            min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
-            max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
-        }).init_resource::<AnimationVisualValidationState>().init_resource::<AnimationVisualStageTiming>()
-            .init_resource::<AnimationVisualPreRigPose>()
-            .insert_resource(ManualRuntimePhaseEvidence { phase: "BowOverlay".into(), ..default() })
-            .add_systems(PostUpdate, (collect_animation_visual_evidence, finish_fatal_animation_visual_failure).chain().after(AlsCameraSet));
-        let handle = match app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_animation_source() {
-            AnimationSource::Graph(handle) => handle.clone(), _ => panic!("Object must use its generated graph"),
+            directory,
+            case: "bow".into(),
+            capture_count: 0,
+            capture_interval: Duration::from_secs(1),
+            min_pose_samples: 1,
+            warmup: Duration::ZERO,
+            max_frame_p95_ms: 25.0,
+            max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0,
+            max_physics_steps_per_render: 3.0,
+        })
+        .init_resource::<AnimationVisualValidationState>()
+        .init_resource::<AnimationVisualStageTiming>()
+        .init_resource::<AnimationVisualPreRigPose>()
+        .insert_resource(ManualRuntimePhaseEvidence {
+            phase: "BowOverlay".into(),
+            ..default()
+        })
+        .add_systems(
+            PostUpdate,
+            (
+                collect_animation_visual_evidence,
+                finish_fatal_animation_visual_failure,
+            )
+                .chain()
+                .after(AlsCameraSet),
+        );
+        let handle = match app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .get_animation_source()
+        {
+            AnimationSource::Graph(handle) => handle.clone(),
+            _ => panic!("Object must use its generated graph"),
         };
         let mut graph = AnimationGraph::new();
-        graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose);
-        *app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&handle).unwrap() = graph;
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(handle);
+        graph.add_output_data(
+            "pose".into(),
+            bevy_animation_graph::core::edge_data::DataSpec::Pose,
+        );
+        *app.world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .get_mut(&handle)
+            .unwrap() = graph;
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .start(handle);
         app.update();
-        let report: serde_json::Value = serde_json::from_slice(&fs::read(report_path).expect("Object graph failure must write a report on its first frame")).unwrap();
+        let report: serde_json::Value = serde_json::from_slice(
+            &fs::read(report_path)
+                .expect("Object graph failure must write a report on its first frame"),
+        )
+        .unwrap();
         let failure = &report["primary_failure"];
-        assert_eq!(failure["root_graph_path"], "ALS/OverlayObjects/Bow/AB_Als_Bow.runtime.animgraph.ron");
+        assert_eq!(
+            failure["root_graph_path"],
+            "ALS/OverlayObjects/Bow/AB_Als_Bow.runtime.animgraph.ron"
+        );
         assert_eq!(failure["phase"], "BowOverlay");
         assert_eq!(failure["category"], "graph_evaluation_error");
         assert_eq!(failure["pin"]["pin_id"], "pose");
@@ -4693,87 +5709,212 @@ mod tests {
         assert_eq!(failure["screenshot_status"], "disabled_by_configuration");
         let mut exits = app.world().resource::<Messages<AppExit>>().get_cursor();
         app.update();
-        assert!(exits.read(app.world().resource::<Messages<AppExit>>()).any(|event| matches!(event, AppExit::Error(code) if code.get() == 92)));
+        assert!(
+            exits
+                .read(app.world().resource::<Messages<AppExit>>())
+                .any(|event| matches!(event, AppExit::Error(code) if code.get() == 92))
+        );
     }
 
     #[test]
     fn camera_graph_failure_is_reported_before_body_ready_and_exits() {
-        use bevy_animation_graph::core::animation_node::AnimationNode;
         use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::animation_node::AnimationNode;
         for failure_case in ["edge", "missing", "empty"] {
             let (mut app, _, component, _) = crate::camera_component::tests::loaded_camera_scene();
-            let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf115_camera").join(format!("c4c_camera_fault_{failure_case}"));
+            let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("target/bf115_camera")
+                .join(format!("c4c_camera_fault_{failure_case}"));
             fs::create_dir_all(&directory).unwrap();
             let report_path = directory.join("report.json");
-            if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+            if report_path.exists() {
+                fs::remove_file(&report_path).unwrap();
+            }
             app.insert_resource(AnimationVisualValidationConfig {
-                directory, case: "camera".into(), capture_count: 0, capture_interval: Duration::from_secs(1),
-                min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
-                max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
-            }).init_resource::<AnimationVisualValidationState>()
-                .init_resource::<AnimationVisualStageTiming>()
-                .init_resource::<AnimationVisualPreRigPose>()
-                .insert_resource(ManualRuntimePhaseEvidence { phase: "Camera".into(), gait: "Walking".into(), ..default() })
-                .add_systems(PostUpdate, (collect_animation_visual_evidence, finish_fatal_animation_visual_failure).chain().after(AlsCameraSet));
-            let player_entity = app.world().get::<AnimatedSceneInstance>(component).unwrap().player_entity();
-            let handle = match app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_animation_source() {
+                directory,
+                case: "camera".into(),
+                capture_count: 0,
+                capture_interval: Duration::from_secs(1),
+                min_pose_samples: 1,
+                warmup: Duration::ZERO,
+                max_frame_p95_ms: 25.0,
+                max_frame_ms: 75.0,
+                max_eval_p95_ms: 4.0,
+                max_physics_steps_per_render: 3.0,
+            })
+            .init_resource::<AnimationVisualValidationState>()
+            .init_resource::<AnimationVisualStageTiming>()
+            .init_resource::<AnimationVisualPreRigPose>()
+            .insert_resource(ManualRuntimePhaseEvidence {
+                phase: "Camera".into(),
+                gait: "Walking".into(),
+                ..default()
+            })
+            .add_systems(
+                PostUpdate,
+                (
+                    collect_animation_visual_evidence,
+                    finish_fatal_animation_visual_failure,
+                )
+                    .chain()
+                    .after(AlsCameraSet),
+            );
+            let player_entity = app
+                .world()
+                .get::<AnimatedSceneInstance>(component)
+                .unwrap()
+                .player_entity();
+            let handle = match app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_animation_source()
+            {
                 AnimationSource::Graph(handle) => handle.clone(),
                 _ => panic!("Camera must use its source graph"),
             };
-            app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
-            assert!(!report_path.exists(), "Valid camera reference pose was rejected");
+            app.world_mut()
+                .run_system_once(collect_animation_visual_evidence)
+                .unwrap();
+            assert!(
+                !report_path.exists(),
+                "Valid camera reference pose was rejected"
+            );
             if failure_case == "edge" {
-                let material_fault = app.world_mut().spawn(crate::extensions::overlay_materials::AvatarMaterialApplied {
-                    slots: 16, body_slots: 15, main_slots: 1, source_slot_pattern: false,
-                }).id();
-                app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
-                assert!(app.world().resource::<AnimationVisualValidationState>().faults.iter().any(|fault| fault == "mesh_material_source_slot_pattern_mismatch"));
+                let material_fault = app
+                    .world_mut()
+                    .spawn(
+                        crate::extensions::overlay_materials::AvatarMaterialApplied {
+                            slots: 16,
+                            body_slots: 15,
+                            main_slots: 1,
+                            source_slot_pattern: false,
+                        },
+                    )
+                    .id();
+                app.world_mut()
+                    .run_system_once(collect_animation_visual_evidence)
+                    .unwrap();
+                assert!(
+                    app.world()
+                        .resource::<AnimationVisualValidationState>()
+                        .faults
+                        .iter()
+                        .any(|fault| fault == "mesh_material_source_slot_pattern_mismatch")
+                );
                 app.world_mut().entity_mut(material_fault).despawn();
-                app.world_mut().resource_mut::<AnimationVisualValidationState>().faults.clear();
+                app.world_mut()
+                    .resource_mut::<AnimationVisualValidationState>()
+                    .faults
+                    .clear();
             }
-            let skeleton = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().skeleton().clone();
+            let skeleton = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .skeleton()
+                .clone();
             let mut fresh_player = AnimationGraphPlayer::new(skeleton);
             fresh_player.start(handle.clone());
-            app.world_mut().entity_mut(player_entity).insert(fresh_player);
-            app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
+            app.world_mut()
+                .entity_mut(player_entity)
+                .insert(fresh_player);
+            app.world_mut()
+                .run_system_once(collect_animation_visual_evidence)
+                .unwrap();
             assert!(!report_path.exists(), "Unevaluated camera was rejected");
             let mut graph = AnimationGraph::new();
-            if failure_case != "missing" { graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose); }
+            if failure_case != "missing" {
+                graph.add_output_data(
+                    "pose".into(),
+                    bevy_animation_graph::core::edge_data::DataSpec::Pose,
+                );
+            }
             if failure_case == "empty" {
-                let node = AnimationNode::new("Empty camera pose fixture", crate::extensions::LocalRefPoseNode { internalize_time: true });
+                let node = AnimationNode::new(
+                    "Empty camera pose fixture",
+                    crate::extensions::LocalRefPoseNode {
+                        internalize_time: true,
+                    },
+                );
                 graph.add_output_data_edge(node.id, "pose", "pose");
                 graph.add_node(node);
             }
-            *app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&handle).unwrap() = graph;
-            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(handle);
-            app.world_mut().get_mut::<crate::camera_component::AlsSourceCameraComponent>(component).unwrap().deactivate();
+            *app.world_mut()
+                .resource_mut::<Assets<AnimationGraph>>()
+                .get_mut(&handle)
+                .unwrap() = graph;
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .start(handle);
+            app.world_mut()
+                .get_mut::<crate::camera_component::AlsSourceCameraComponent>(component)
+                .unwrap()
+                .deactivate();
             app.update();
-            assert!(!report_path.exists(), "Inactive camera was evaluated as a failure");
-            app.world_mut().get_mut::<crate::camera_component::AlsSourceCameraComponent>(component).unwrap().activate(true);
+            assert!(
+                !report_path.exists(),
+                "Inactive camera was evaluated as a failure"
+            );
+            app.world_mut()
+                .get_mut::<crate::camera_component::AlsSourceCameraComponent>(component)
+                .unwrap()
+                .activate(true);
             app.update();
-            assert!(report_path.exists(), "Camera {failure_case} failure was hidden by missing body Avatar");
-            let report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            assert!(
+                report_path.exists(),
+                "Camera {failure_case} failure was hidden by missing body Avatar"
+            );
+            let report: serde_json::Value =
+                serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
             let failure = &report["primary_failure"];
             assert_eq!(failure["case"], "camera");
             assert_eq!(failure["phase"], "Camera");
             assert_eq!(failure["reported_before_ready"], true);
             assert_eq!(failure["screenshot_status"], "disabled_by_configuration");
             assert!(failure["screenshot_path"].is_null());
-            assert_eq!(failure["root_graph_path"], "ALSCamera/AB_Als_Camera.runtime.animgraph.ron");
+            assert_eq!(
+                failure["root_graph_path"],
+                "ALSCamera/AB_Als_Camera.runtime.animgraph.ron"
+            );
             if failure_case == "edge" {
                 assert_eq!(failure["category"], "graph_evaluation_error");
                 assert!(failure["raw_error"].as_str().unwrap().contains("pose"));
                 assert_eq!(failure["pin"]["pin_id"], "pose");
             } else {
-                assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
+                assert!(
+                    app.world()
+                        .get::<AnimationGraphPlayer>(player_entity)
+                        .unwrap()
+                        .get_error()
+                        .is_none()
+                );
                 assert_eq!(failure["category"], "root_pose_contract_error");
-                assert_eq!(failure["error_kind"], if failure_case == "missing" { "MissingRootPose" } else { "EmptyRootPose" });
+                assert_eq!(
+                    failure["error_kind"],
+                    if failure_case == "missing" {
+                        "MissingRootPose"
+                    } else {
+                        "EmptyRootPose"
+                    }
+                );
             }
             let mut exits = app.world().resource::<Messages<AppExit>>().get_cursor();
-            assert!(exits.read(app.world().resource::<Messages<AppExit>>()).next().is_none());
+            assert!(
+                exits
+                    .read(app.world().resource::<Messages<AppExit>>())
+                    .next()
+                    .is_none()
+            );
             app.update();
-            assert!(exits.read(app.world().resource::<Messages<AppExit>>()).any(|event| matches!(event, AppExit::Error(code) if code.get() == 92)));
-            let final_report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            assert!(
+                exits
+                    .read(app.world().resource::<Messages<AppExit>>())
+                    .any(|event| matches!(event, AppExit::Error(code) if code.get() == 92))
+            );
+            let final_report: serde_json::Value =
+                serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
             assert_eq!(final_report["primary_failure"], *failure);
         }
     }
@@ -4791,15 +5932,26 @@ mod tests {
     fn actor_yaw_direction_tracks_multiple_turns_and_still_rejects_reversal() {
         for direction in [-1.0_f32, 1.0] {
             let mut tracker = MotionWindowTracker {
-                expected_actor_yaw_delta_sign: Some(1), actor_yaw_reference: Some(0.0), ..default()
+                expected_actor_yaw_delta_sign: Some(1),
+                actor_yaw_reference: Some(0.0),
+                ..default()
             };
             for step in 0..=48 {
-                record_actor_yaw_delta(&mut tracker, wrapped_yaw_delta(0.0, direction * (step as f32 * 15.0).to_radians()));
+                record_actor_yaw_delta(
+                    &mut tracker,
+                    wrapped_yaw_delta(0.0, direction * (step as f32 * 15.0).to_radians()),
+                );
             }
             let (expected, opposite) = if direction > 0.0 {
-                (tracker.max_actor_yaw_signed_delta_radians, tracker.max_actor_yaw_opposite_delta_radians)
+                (
+                    tracker.max_actor_yaw_signed_delta_radians,
+                    tracker.max_actor_yaw_opposite_delta_radians,
+                )
             } else {
-                (tracker.max_actor_yaw_opposite_delta_radians, tracker.max_actor_yaw_signed_delta_radians)
+                (
+                    tracker.max_actor_yaw_opposite_delta_radians,
+                    tracker.max_actor_yaw_signed_delta_radians,
+                )
             };
             assert!((expected - 2.0 * std::f32::consts::TAU).abs() < 1e-5);
             assert!(opposite < 1e-6);
@@ -4982,28 +6134,81 @@ mod tests {
     fn temporal_guard_accepts_native_uphill_landing_motion() {
         let mut rejected = Vec::new();
         for (name, previous, current, delta) in [
-            ("hand_l", Vec3::new(0.5178596, 1.4902093, 0.566879), Vec3::new(0.46625707, 1.1090595, 0.687198), 0.0148442),
-            ("calf_l", Vec3::new(-0.1704133, 0.4692102, -0.2130673), Vec3::new(-0.15643789, 0.39046794, 0.07042244), 0.0100415),
-            ("hand_r", Vec3::new(-0.66575725, 1.2844432, 0.060162455), Vec3::new(-0.6196818, 1.1758767, 0.5142271), 0.0141097),
+            (
+                "hand_l",
+                Vec3::new(0.5178596, 1.4902093, 0.566879),
+                Vec3::new(0.46625707, 1.1090595, 0.687198),
+                0.0148442,
+            ),
+            (
+                "calf_l",
+                Vec3::new(-0.1704133, 0.4692102, -0.2130673),
+                Vec3::new(-0.15643789, 0.39046794, 0.07042244),
+                0.0100415,
+            ),
+            (
+                "hand_r",
+                Vec3::new(-0.66575725, 1.2844432, 0.060162455),
+                Vec3::new(-0.6196818, 1.1758767, 0.5142271),
+                0.0141097,
+            ),
         ] {
-            let bones = |position| BTreeMap::from([(name.to_owned(), (position, Quat::IDENTITY, Vec3::ONE, Vec3::ONE))]);
+            let bones = |position| {
+                BTreeMap::from([(
+                    name.to_owned(),
+                    (position, Quat::IDENTITY, Vec3::ONE, Vec3::ONE),
+                )])
+            };
             let mut guard = TemporalSkeletonGuard::default();
             guard.observe(&BTreeMap::new(), &bones(previous), Vec3::ZERO, delta);
-            rejected.extend(guard.observe(&BTreeMap::new(), &bones(current), Vec3::ZERO, delta).metrics);
+            rejected.extend(
+                guard
+                    .observe(&BTreeMap::new(), &bones(current), Vec3::ZERO, delta)
+                    .metrics,
+            );
         }
-        for (rotations, delta) in [([
-            Quat::from_xyzw(-0.0029632404, -0.24226911, 0.007246189, 0.9701775),
-            Quat::from_xyzw(-0.00900114, -0.61373883, 0.02740959, 0.78898185),
-        ], 0.0159982), ([
-            Quat::from_xyzw(-0.006461881, -0.40865546, 0.017139463, 0.9125049),
-            Quat::from_xyzw(-0.012386095, -0.73553616, 0.040971845, 0.676132),
-        ], 0.0122713)] {
-            let poses = rotations.map(|rotation| BTreeMap::from([("calf_r".to_owned(), LocalBonePose { rotation, scale:Vec3::ONE, ..default() })]));
+        for (rotations, delta) in [
+            (
+                [
+                    Quat::from_xyzw(-0.0029632404, -0.24226911, 0.007246189, 0.9701775),
+                    Quat::from_xyzw(-0.00900114, -0.61373883, 0.02740959, 0.78898185),
+                ],
+                0.0159982,
+            ),
+            (
+                [
+                    Quat::from_xyzw(-0.006461881, -0.40865546, 0.017139463, 0.9125049),
+                    Quat::from_xyzw(-0.012386095, -0.73553616, 0.040971845, 0.676132),
+                ],
+                0.0122713,
+            ),
+        ] {
+            let poses = rotations.map(|rotation| {
+                BTreeMap::from([(
+                    "calf_r".to_owned(),
+                    LocalBonePose {
+                        rotation,
+                        scale: Vec3::ONE,
+                        ..default()
+                    },
+                )])
+            });
             let mut guard = TemporalSkeletonGuard::default();
             guard.observe(&poses[0], &BTreeMap::new(), Vec3::ZERO, delta);
-            rejected.extend(guard.observe(&poses[1], &BTreeMap::new(), Vec3::ZERO, delta).metrics);
+            rejected.extend(
+                guard
+                    .observe(&poses[1], &BTreeMap::new(), Vec3::ZERO, delta)
+                    .metrics,
+            );
         }
-        assert!(rejected.is_empty(), "native motion was rejected: {:?}", rejected.iter().map(|metric| (metric.subject.as_str(), metric.current)).collect::<Vec<_>>());
+        assert!(
+            rejected.is_empty(),
+            "native motion was rejected: {:?}",
+            rejected
+                .iter()
+                .map(|metric| (metric.subject.as_str(), metric.current))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -5020,7 +6225,12 @@ mod tests {
             Vec3::ZERO,
             0.1,
         );
-        assert!(!source.metrics.iter().any(|metric| matches!(metric.kind, "local_rotation_spike" | "limb_plane_flip")));
+        assert!(
+            !source
+                .metrics
+                .iter()
+                .any(|metric| matches!(metric.kind, "local_rotation_spike" | "limb_plane_flip"))
+        );
 
         let mut guard = TemporalSkeletonGuard::default();
         guard.observe(&local, &bones, Vec3::ZERO, 0.1);
@@ -5030,16 +6240,23 @@ mod tests {
             Vec3::ZERO,
             0.1,
         );
-        assert!(flip.metrics.iter().any(|metric| metric.kind == "local_rotation_spike"));
-        assert!(flip.metrics.iter().any(|metric| metric.kind == "limb_plane_flip"));
+        assert!(
+            flip.metrics
+                .iter()
+                .any(|metric| metric.kind == "local_rotation_spike")
+        );
+        assert!(
+            flip.metrics
+                .iter()
+                .any(|metric| metric.kind == "limb_plane_flip")
+        );
     }
 
     #[test]
     fn temporal_guard_uses_the_animation_step_after_a_collection_stall() {
-        for (angle, animation_delta, expected_spike) in [
-            (0.76698923, 0.0854492, false),
-            (1.2263747, 0.0148859, true),
-        ] {
+        for (angle, animation_delta, expected_spike) in
+            [(0.76698923, 0.0854492, false), (1.2263747, 0.0148859, true)]
+        {
             let pre_rig = AnimationVisualPreRigPose {
                 delta_seconds: animation_delta,
                 ..default()
@@ -5047,11 +6264,25 @@ mod tests {
             let delta = pre_rig.temporal_delta_seconds();
             let mut guard = TemporalSkeletonGuard::default();
             let bones = temporal_bones(0.25);
-            guard.observe(&temporal_local_pose(Quat::IDENTITY), &bones, Vec3::ZERO, delta);
-            let observation = guard.observe(
-                &temporal_local_pose(Quat::from_rotation_x(angle)), &bones, Vec3::ZERO, delta,
+            guard.observe(
+                &temporal_local_pose(Quat::IDENTITY),
+                &bones,
+                Vec3::ZERO,
+                delta,
             );
-            assert_eq!(observation.metrics.iter().any(|metric| metric.kind == "local_rotation_spike"), expected_spike);
+            let observation = guard.observe(
+                &temporal_local_pose(Quat::from_rotation_x(angle)),
+                &bones,
+                Vec3::ZERO,
+                delta,
+            );
+            assert_eq!(
+                observation
+                    .metrics
+                    .iter()
+                    .any(|metric| metric.kind == "local_rotation_spike"),
+                expected_spike
+            );
         }
     }
 
@@ -5088,40 +6319,108 @@ mod tests {
     fn temporal_guard_accepts_source_additive_joint_motion_through_a_degenerate_plane() {
         let mut guard = TemporalSkeletonGuard::default();
         for (thigh, calf) in [
-            (Quat::from_xyzw(0.092057794, 0.34182903, 0.018209398, 0.93506515), Quat::from_xyzw(-0.05224237, -0.82909095, 0.040767312, 0.555173)),
-            (Quat::from_xyzw(0.14291288, 0.78061044, 0.005640864, 0.60843354), Quat::from_xyzw(0.018322527, -0.99552083, 0.083647355, -0.04007089)),
+            (
+                Quat::from_xyzw(0.092057794, 0.34182903, 0.018209398, 0.93506515),
+                Quat::from_xyzw(-0.05224237, -0.82909095, 0.040767312, 0.555173),
+            ),
+            (
+                Quat::from_xyzw(0.14291288, 0.78061044, 0.005640864, 0.60843354),
+                Quat::from_xyzw(0.018322527, -0.99552083, 0.083647355, -0.04007089),
+            ),
         ] {
             let local = BTreeMap::from([
-                ("thigh_l".to_owned(), LocalBonePose { rotation: thigh.normalize(), scale: Vec3::ONE, ..default() }),
-                ("calf_l".to_owned(), LocalBonePose { translation: Vec3::NEG_X * 0.422, rotation: calf.normalize(), scale: Vec3::ONE }),
-                ("foot_l".to_owned(), LocalBonePose { translation: Vec3::NEG_X * 0.402, rotation: Quat::IDENTITY, scale: Vec3::ONE }),
+                (
+                    "thigh_l".to_owned(),
+                    LocalBonePose {
+                        rotation: thigh.normalize(),
+                        scale: Vec3::ONE,
+                        ..default()
+                    },
+                ),
+                (
+                    "calf_l".to_owned(),
+                    LocalBonePose {
+                        translation: Vec3::NEG_X * 0.422,
+                        rotation: calf.normalize(),
+                        scale: Vec3::ONE,
+                    },
+                ),
+                (
+                    "foot_l".to_owned(),
+                    LocalBonePose {
+                        translation: Vec3::NEG_X * 0.402,
+                        rotation: Quat::IDENTITY,
+                        scale: Vec3::ONE,
+                    },
+                ),
             ]);
             let thigh = Transform::from_rotation(thigh.normalize());
-            let knee = thigh * Transform::from_translation(Vec3::NEG_X * 0.422).with_rotation(calf.normalize());
+            let knee = thigh
+                * Transform::from_translation(Vec3::NEG_X * 0.422).with_rotation(calf.normalize());
             let ankle = knee * Transform::from_translation(Vec3::NEG_X * 0.402);
             let bones = BTreeMap::from([
-                ("thigh_l".to_owned(), (thigh.translation, thigh.rotation, Vec3::ONE, Vec3::ONE)),
-                ("calf_l".to_owned(), (knee.translation, knee.rotation, Vec3::ONE, Vec3::ONE)),
-                ("foot_l".to_owned(), (ankle.translation, ankle.rotation, Vec3::ONE, Vec3::ONE)),
+                (
+                    "thigh_l".to_owned(),
+                    (thigh.translation, thigh.rotation, Vec3::ONE, Vec3::ONE),
+                ),
+                (
+                    "calf_l".to_owned(),
+                    (knee.translation, knee.rotation, Vec3::ONE, Vec3::ONE),
+                ),
+                (
+                    "foot_l".to_owned(),
+                    (ankle.translation, ankle.rotation, Vec3::ONE, Vec3::ONE),
+                ),
             ]);
             let metrics = guard.observe(&local, &bones, Vec3::ZERO, 0.0810643).metrics;
-            assert!(!metrics.iter().any(|metric| metric.kind == "limb_plane_flip"),
-                "Source-equivalent additive motion crosses a collinear knee configuration without an instantaneous joint flip: {metrics:?}");
+            assert!(
+                !metrics
+                    .iter()
+                    .any(|metric| metric.kind == "limb_plane_flip"),
+                "Source-equivalent additive motion crosses a collinear knee configuration without an instantaneous joint flip: {metrics:?}"
+            );
         }
     }
 
     #[test]
     fn temporal_guard_rejects_a_global_flip_with_unchanged_valid_local_joint_geometry() {
         let local = BTreeMap::from([
-            ("thigh_l".to_owned(), LocalBonePose { rotation: Quat::IDENTITY, scale: Vec3::ONE, ..default() }),
-            ("calf_l".to_owned(), LocalBonePose { translation: Vec3::new(0.25, -0.5, 0.0), rotation: Quat::IDENTITY, scale: Vec3::ONE }),
-            ("foot_l".to_owned(), LocalBonePose { translation: Vec3::new(-0.25, -0.5, 0.0), rotation: Quat::IDENTITY, scale: Vec3::ONE }),
+            (
+                "thigh_l".to_owned(),
+                LocalBonePose {
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    ..default()
+                },
+            ),
+            (
+                "calf_l".to_owned(),
+                LocalBonePose {
+                    translation: Vec3::new(0.25, -0.5, 0.0),
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                },
+            ),
+            (
+                "foot_l".to_owned(),
+                LocalBonePose {
+                    translation: Vec3::new(-0.25, -0.5, 0.0),
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                },
+            ),
         ]);
         let mut guard = TemporalSkeletonGuard::default();
         guard.observe(&local, &temporal_bones(0.25), Vec3::ZERO, 1.0 / 60.0);
-        let metrics = guard.observe(&local, &temporal_bones(-0.25), Vec3::ZERO, 1.0 / 60.0).metrics;
-        assert!(metrics.iter().any(|metric| metric.kind == "limb_plane_flip"),
-            "A global limb flip cannot be excused by unchanged or inconsistent local joint data: {metrics:?}");
+        let metrics = guard
+            .observe(&local, &temporal_bones(-0.25), Vec3::ZERO, 1.0 / 60.0)
+            .metrics;
+        assert!(
+            metrics
+                .iter()
+                .any(|metric| metric.kind == "limb_plane_flip"),
+            "A global limb flip cannot be excused by unchanged or inconsistent local joint data: {metrics:?}"
+        );
     }
 
     #[test]
@@ -5400,13 +6699,26 @@ mod tests {
         assert!(!evidence_capture_complete(&config, &state, &stages));
         stages.physics_steps_per_render.push(1.0);
         assert!(!evidence_capture_complete(&config, &state, &stages));
-        state.motion_windows.insert("fixture".to_owned(), MotionWindowTracker {
-            requires_non_reference_root_pose: true, sample_count: 1, ..default()
-        });
+        state.motion_windows.insert(
+            "fixture".to_owned(),
+            MotionWindowTracker {
+                requires_non_reference_root_pose: true,
+                sample_count: 1,
+                ..default()
+            },
+        );
         assert!(!evidence_capture_complete(&config, &state, &stages));
-        state.motion_windows.get_mut("fixture").unwrap().sample_count = 2;
+        state
+            .motion_windows
+            .get_mut("fixture")
+            .unwrap()
+            .sample_count = 2;
         assert!(!evidence_capture_complete(&config, &state, &stages));
-        state.motion_windows.get_mut("fixture").unwrap().root_pose_sample_count = 2;
+        state
+            .motion_windows
+            .get_mut("fixture")
+            .unwrap()
+            .root_pose_sample_count = 2;
         assert!(evidence_capture_complete(&config, &state, &stages));
         config.capture_count = 1;
         assert!(!evidence_capture_complete(&config, &state, &stages));

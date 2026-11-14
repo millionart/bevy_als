@@ -31,12 +31,7 @@ fn main() {
     ))
     .init_resource::<GateFlags>()
     .add_systems(Startup, setup)
-    .add_systems(
-        Update,
-        (
-            script_driver.before(AlsShowDebugHudSet::Input),
-        ),
-    )
+    .add_systems(Update, (script_driver.before(AlsShowDebugHudSet::Input),))
     .add_systems(PostUpdate, verdict.after(AlsShowDebugHudSet::Sync));
 
     let secs: f64 = std::env::var("ALS_BOOT_AUTO_QUIT_SECS")
@@ -85,7 +80,10 @@ fn setup(mut commands: Commands) {
             AlsViewYaw(0.35),
             AlsViewPitch(-0.10),
         ))
-        .insert((AlsViewSmoothed(-0.10), bevy_als::character_assembly::AlsPlayerCharacter));
+        .insert((
+            AlsViewSmoothed(-0.10),
+            bevy_als::character_assembly::AlsPlayerCharacter,
+        ));
 
     commands.spawn((
         Camera3d::default(),

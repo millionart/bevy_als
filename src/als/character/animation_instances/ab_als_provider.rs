@@ -1,5 +1,3 @@
-#[cfg(test)]
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use crate::als::{
     character::{AlsCharacter, AlsMovementParamsHandle},
     dynamics::{AlsGroundedDynamics, AlsMovementBase},
@@ -10,10 +8,12 @@ use crate::als::{
     params::AlsMovementParams,
     state::{Gait, LocomotionState, RotationMode, Stance},
 };
+use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::platform::collections::HashMap;
-use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::prelude::*;
+#[cfg(test)]
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
 };
@@ -28,18 +28,28 @@ pub(crate) struct AnimationComponentDefinition {
     pub(crate) recently_rendered_seconds: f64,
 }
 
-pub(crate) static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/ALS/Character/animation_component.runtime.json"))
+pub(crate) static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> =
+    LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../../../../assets/ALS/Character/animation_component.runtime.json"
+        ))
         .expect("Animation component definition must be valid")
-});
+    });
 
 fn write_animation_component_inputs(
     player: &mut AnimationGraphPlayer,
     skeleton: &bevy_animation_graph::core::skeleton::Skeleton,
 ) {
-    if let Some(root) = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == ANIMATION_COMPONENT.root_bone)) {
+    if let Some(root) = skeleton.iter_paths().find(|path| {
+        path.parts
+            .last()
+            .is_some_and(|name| name.as_str() == ANIMATION_COMPONENT.root_bone)
+    }) {
         player.set_global_input_data("component.root_bone", root.clone());
-        player.set_global_input_data("component.teleport_distance_threshold", ANIMATION_COMPONENT.teleport_distance_threshold);
+        player.set_global_input_data(
+            "component.teleport_distance_threshold",
+            ANIMATION_COMPONENT.teleport_distance_threshold,
+        );
     }
 }
 
@@ -76,12 +86,11 @@ impl Plugin for AbAlsProviderPlugin {
                 .after(AlsRootGraphSet)
                 .after(AlsRagdollingLayerSet)
                 .after(AlsStandingLayerSet)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
         )
-        .add_systems(
-            PostUpdate,
-            ab_als_input_writer.in_set(AbAlsProviderSet),
-        );
+        .add_systems(PostUpdate, ab_als_input_writer.in_set(AbAlsProviderSet));
     }
 }
 
@@ -136,7 +145,10 @@ fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool)
     ]
 }
 
-fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>, feet: Option<&AlsFootLockState>) -> [(&'static str, f32); 9] {
+fn source_pose_curve_inputs(
+    context: Option<&AlsRootAnimationContext>,
+    feet: Option<&AlsFootLockState>,
+) -> [(&'static str, f32); 9] {
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     [
         (
@@ -155,8 +167,14 @@ fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>, feet: Opt
             "pose_state.gait_walking_amount",
             curve("PoseGait").clamp(0.0, 1.0),
         ),
-        ("pose_state.gait_running_amount", (curve("PoseGait") - 1.0).clamp(0.0, 1.0)),
-        ("pose_state.gait_sprinting_amount", (curve("PoseGait") - 2.0).clamp(0.0, 1.0)),
+        (
+            "pose_state.gait_running_amount",
+            (curve("PoseGait") - 1.0).clamp(0.0, 1.0),
+        ),
+        (
+            "pose_state.gait_sprinting_amount",
+            (curve("PoseGait") - 2.0).clamp(0.0, 1.0),
+        ),
     ]
 }
 
@@ -224,13 +242,23 @@ fn ab_als_input_writer(
             Option<&AlsFirstPersonView>,
             Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
-            (&Transform, &AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>,
-                Option<&crate::roll_drive::AlsRollSlotRuntime>),
+            (
+                &Transform,
+                &AlsMovementParamsHandle,
+                Option<&AlsGroundedDynamics>,
+                Option<&LocomotionState>,
+                Option<&crate::roll_drive::AlsRollSlotRuntime>,
+            ),
         ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
+    mut players: Query<(
+        &mut AnimationGraphPlayer,
+        Option<&AlsRootAnimationContext>,
+        Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
+        Option<&crate::extensions::post_physics_animation::InitialAnimation>,
+    )>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
     parents: Query<&ChildOf>,
@@ -255,14 +283,28 @@ fn ab_als_input_writer(
         let Some(params) = params_assets.get(&params_handle.0) else {
             continue;
         };
-        let Ok(transform) = transforms.compute_global_transform(character) else { continue; };
+        let Ok(transform) = transforms.compute_global_transform(character) else {
+            continue;
+        };
         let attach_parent = parents.get(character).ok().map(ChildOf::parent);
-        let cursor = attachment_state.entry(character).or_insert((attach_parent, 0));
+        let cursor = attachment_state
+            .entry(character)
+            .or_insert((attach_parent, 0));
         let attachment_epoch = update_attachment_epoch(cursor, attach_parent) as f32;
-        let Some(player_entity) = animated_player_for_character(character, Some(assembly), &avatars) else { continue; };
-        let Ok(avatar_transform) = transforms.compute_global_transform(assembly.avatar) else { continue; };
-        let Ok((mut player, context, tick, initial)) = players.get_mut(player_entity) else { continue; };
-        let Ok(mut source) = source_inputs.get_mut(player_entity) else { continue; };
+        let Some(player_entity) =
+            animated_player_for_character(character, Some(assembly), &avatars)
+        else {
+            continue;
+        };
+        let Ok(avatar_transform) = transforms.compute_global_transform(assembly.avatar) else {
+            continue;
+        };
+        let Ok((mut player, context, tick, initial)) = players.get_mut(player_entity) else {
+            continue;
+        };
+        let Ok(mut source) = source_inputs.get_mut(player_entity) else {
+            continue;
+        };
         if let Some(skeleton) = skeletons.get(player.skeleton()) {
             write_animation_component_inputs(&mut player, skeleton);
         }
@@ -274,11 +316,16 @@ fn ab_als_input_writer(
             source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
         let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
             standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
-        let (animation_speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
+        let (animation_speed, has_input) = roll
+            .and_then(|roll| roll.animation_locomotion)
             .map_or((motion.horizontal_speed, motion.has_input), |locomotion| {
                 (locomotion.speed, locomotion.has_input)
             });
-        let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0) };
+        let delta_seconds = if initial.is_some() {
+            0.0
+        } else {
+            time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)
+        };
         let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
         let previous_view = player
             .get_global_input_data("view_state.rotation_yaw")
@@ -291,14 +338,27 @@ fn ab_als_input_writer(
             );
         }
         player.set_global_input_data("view_state.rotation_yaw", view_degrees);
-        player.set_global_input_data("movement_base.b_has_relative_rotation", motion.movement_base_snapshot.is_some());
-        player.set_global_input_data("movement_base.delta_yaw", if !virtual_time.is_paused() {
-            motion.movement_base_delta_yaw_degrees
-        } else { 0.0 });
+        player.set_global_input_data(
+            "movement_base.b_has_relative_rotation",
+            motion.movement_base_snapshot.is_some(),
+        );
+        player.set_global_input_data(
+            "movement_base.delta_yaw",
+            if !virtual_time.is_paused() {
+                motion.movement_base_delta_yaw_degrees
+            } else {
+                0.0
+            },
+        );
         let body_degrees =
             crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
-        player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -motion.input_yaw_degrees);
-        let action_active = source.gameplay_tag_input("locomotion_action").is_some_and(|tag| tag.is_valid());
+        player.set_global_input_data(
+            "locomotion_state.input_yaw_angle_world_space",
+            -motion.input_yaw_degrees,
+        );
+        let action_active = source
+            .gameplay_tag_input("locomotion_action")
+            .is_some_and(|tag| tag.is_valid());
         if !action_active {
             player.set_global_input_data(
                 "view_state.yaw_angle",
@@ -311,7 +371,8 @@ fn ab_als_input_writer(
         );
         let pending_update = player
             .get_context_arena()
-            .is_none_or(|arena| arena.frame_index() == 0) || tick.is_some_and(|tick| tick.pending_update);
+            .is_none_or(|arena| arena.frame_index() == 0)
+            || tick.is_some_and(|tick| tick.pending_update);
         player.set_global_input_data("animation.pending_update", pending_update);
         player.set_global_input_data(
             "locomotion_state.velocity_world_space",
@@ -319,7 +380,11 @@ fn ab_als_input_writer(
         );
         player.set_global_input_data(
             "locomotion_state.rotation_quaternion_world_space",
-            if attach_parent.is_some() { transform.rotation() } else { local.rotation },
+            if attach_parent.is_some() {
+                transform.rotation()
+            } else {
+                local.rotation
+            },
         );
         player.set_global_input_data(
             "locomotion_state.acceleration_world_space",
@@ -340,7 +405,9 @@ fn ab_als_input_writer(
             if locomotion == Some(&LocomotionState::Custom) {
                 0.0
             } else {
-                dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration)
+                dynamics.map_or(params.acceleration.braking_deceleration, |value| {
+                    value.0.braking_deceleration
+                })
             },
         );
         for (key, value) in [
@@ -384,31 +451,68 @@ fn ab_als_input_writer(
                 foot.map_or(Vec3::ZERO, |foot| foot.lock_location.as_vec3()),
             );
         }
-        let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {
-            let owner = owners.get(entity).map_or(entity, |collider| collider.body);
-            bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
-        });
-        let pose_gait = context.and_then(|state| state.f32("PoseGait")).unwrap_or(0.0).clamp(0.0, 3.0);
-        let pose_grounded = context.and_then(|state| state.f32("PoseGrounded")).unwrap_or(0.0);
-        let (running, sprinting) = crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
+        let has_relative_location =
+            movement_base
+                .and_then(|base| base.entity)
+                .is_some_and(|entity| {
+                    let owner = owners.get(entity).map_or(entity, |collider| collider.body);
+                    bodies
+                        .get(owner)
+                        .is_ok_and(|body| *body != RigidBody::Static)
+                });
+        let pose_gait = context
+            .and_then(|state| state.f32("PoseGait"))
+            .unwrap_or(0.0)
+            .clamp(0.0, 3.0);
+        let pose_grounded = context
+            .and_then(|state| state.f32("PoseGrounded"))
+            .unwrap_or(0.0);
+        let (running, sprinting) =
+            crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
         let speed = animation_speed / avatar_transform.to_scale_rotation_translation().0.y;
         let stride = crate::standing_source::standing_stride_amount(running, speed);
         for (key, value) in [
-            ("standing_state.walk_run_blend_amount", if *gait == Gait::Walking { 0.0 } else { 1.0 }),
+            (
+                "standing_state.walk_run_blend_amount",
+                if *gait == Gait::Walking { 0.0 } else { 1.0 },
+            ),
             ("standing_state.stride_blend_amount", stride),
-            ("standing_state.sprint_block_amount", context.and_then(|state| state.f32("SprintBlock")).unwrap_or(0.0).clamp(0.0, 1.0)),
-            ("standing_state.play_rate", crate::standing_layer::standing_play_rate(params, speed, stride, running, sprinting)),
+            (
+                "standing_state.sprint_block_amount",
+                context
+                    .and_then(|state| state.f32("SprintBlock"))
+                    .unwrap_or(0.0)
+                    .clamp(0.0, 1.0),
+            ),
+            (
+                "standing_state.play_rate",
+                crate::standing_layer::standing_play_rate(
+                    params, speed, stride, running, sprinting,
+                ),
+            ),
         ] {
             crate::extensions::source_instance::set_source_frame_input(&mut player, key, value);
         }
-        player.set_global_input_data("als_standing_gait_is_sprinting", (*gait == Gait::Sprinting) as u8 as f32);
+        player.set_global_input_data(
+            "als_standing_gait_is_sprinting",
+            (*gait == Gait::Sprinting) as u8 as f32,
+        );
         let hips_direction_lock = context
             .and_then(|state| state.f32("HipsDirectionLock"))
             .unwrap_or(0.0)
             .clamp(-1.0, 1.0);
-        source.set_gameplay_tag_input("grounded_entry_mode", grounded_entry_mode.copied().unwrap_or_default().tag());
-        source.set_foot_lock_distances_squared_cm(feet.map(|feet| [&feet.left, &feet.right].map(|foot|
-            crate::als::transitions::foot_lock_distance_squared_cm(foot.target_location, foot.lock_location))));
+        source.set_gameplay_tag_input(
+            "grounded_entry_mode",
+            grounded_entry_mode.copied().unwrap_or_default().tag(),
+        );
+        source.set_foot_lock_distances_squared_cm(feet.map(|feet| {
+            [&feet.left, &feet.right].map(|foot| {
+                crate::als::transitions::foot_lock_distance_squared_cm(
+                    foot.target_location,
+                    foot.lock_location,
+                )
+            })
+        }));
         for (key, value) in [
             ("animation.delta_seconds", delta_seconds),
             (
@@ -469,32 +573,70 @@ mod tests {
 
         for delta in [1.0_f32 / 30.0, 1.0 / 60.0] {
             let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+                delta,
+            )));
+            let player = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
             let mut different_root_speed = false;
             let mut saw_fade = false;
             for frame in 0..(1.3 / delta).ceil() as usize {
                 let before = *app.world().get::<AlsActualMotion>(character).unwrap();
-                app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = frame == 0;
+                app.world_mut()
+                    .get_mut::<AlsInputCommand>(character)
+                    .unwrap()
+                    .roll_pressed = frame == 0;
                 app.update();
                 let world = app.world();
-                let roll = world.get::<crate::als::roll::AlsRollState>(character).unwrap();
+                let roll = world
+                    .get::<crate::als::roll::AlsRollState>(character)
+                    .unwrap();
                 let current = world.get::<AlsActualMotion>(character).unwrap();
                 let early = roll.root_motion_active_at_frame_start();
                 let expected = if early { &before } else { current };
-                different_root_speed |= early && (before.horizontal_speed - current.horizontal_speed).abs() > 1e-3;
+                different_root_speed |=
+                    early && (before.horizontal_speed - current.horizontal_speed).abs() > 1e-3;
                 saw_fade |= !early && roll.active;
                 let graph = world.get::<AnimationGraphPlayer>(player).unwrap();
                 let scalar = |key| graph.get_global_input_data(key).unwrap().as_f32().unwrap();
-                assert_eq!(scalar("locomotion_state.speed"), expected.horizontal_speed, "delta={delta} frame={frame}");
-                let moving = graph.get_global_input_data("locomotion_state.b_moving_smooth").unwrap().as_bool().unwrap();
-                assert_eq!(moving, source_moving_smooth(expected.has_input, expected.horizontal_speed));
+                assert_eq!(
+                    scalar("locomotion_state.speed"),
+                    expected.horizontal_speed,
+                    "delta={delta} frame={frame}"
+                );
+                let moving = graph
+                    .get_global_input_data("locomotion_state.b_moving_smooth")
+                    .unwrap()
+                    .as_bool()
+                    .unwrap();
+                assert_eq!(
+                    moving,
+                    source_moving_smooth(expected.has_input, expected.horizontal_speed)
+                );
 
                 let params_handle = world.get::<AlsMovementParamsHandle>(character).unwrap();
-                let params = world.resource::<Assets<AlsMovementParams>>().get(&params_handle.0).unwrap();
-                let scale = world.get::<GlobalTransform>(avatar).unwrap().to_scale_rotation_translation().0.y;
-                for (key, value) in source_crouching_movement_inputs(expected.horizontal_speed, scale, params.crouch.animated_crouch_speed) {
-                    assert!((scalar(key) - value).abs() < 1e-6, "delta={delta} frame={frame} key={key}");
+                let params = world
+                    .resource::<Assets<AlsMovementParams>>()
+                    .get(&params_handle.0)
+                    .unwrap();
+                let scale = world
+                    .get::<GlobalTransform>(avatar)
+                    .unwrap()
+                    .to_scale_rotation_translation()
+                    .0
+                    .y;
+                for (key, value) in source_crouching_movement_inputs(
+                    expected.horizontal_speed,
+                    scale,
+                    params.crouch.animated_crouch_speed,
+                ) {
+                    assert!(
+                        (scalar(key) - value).abs() < 1e-6,
+                        "delta={delta} frame={frame} key={key}"
+                    );
                 }
             }
             assert!(different_root_speed && saw_fade);
@@ -505,16 +647,39 @@ mod tests {
     fn public_half_turn_input_publishes_source_head_yaw() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(actor).remove::<AlsInputOverride>();
-        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = Quat::IDENTITY;
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut()
+            .entity_mut(actor)
+            .remove::<AlsInputOverride>();
+        app.world_mut()
+            .get_mut::<Transform>(actor)
+            .unwrap()
+            .rotation = Quat::IDENTITY;
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         for counts in [-180.0, 180.0] {
             app.world_mut().get_mut::<AlsViewYaw>(actor).unwrap().0 = 0.0;
-            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().look_delta.x = counts;
-            app.world_mut().run_system_once(crate::als::view::apply_view_input_system).unwrap();
-            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-            let yaw = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-                .get_global_input_data("view_state.yaw_angle").unwrap().as_f32().unwrap();
+            app.world_mut()
+                .get_mut::<AlsInputCommand>(actor)
+                .unwrap()
+                .look_delta
+                .x = counts;
+            app.world_mut()
+                .run_system_once(crate::als::view::apply_view_input_system)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(ab_als_input_writer)
+                .unwrap();
+            let yaw = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_global_input_data("view_state.yaw_angle")
+                .unwrap()
+                .as_f32()
+                .unwrap();
             assert_eq!(yaw, 180.0);
         }
     }
@@ -523,35 +688,76 @@ mod tests {
     fn provider_reads_current_actor_world_rotation() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let heading = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2);
-        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = heading;
-        app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-        let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-            .get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+        app.world_mut()
+            .get_mut::<Transform>(actor)
+            .unwrap()
+            .rotation = heading;
+        app.world_mut()
+            .run_system_once(ab_als_input_writer)
+            .unwrap();
+        let actual = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+            .unwrap()
+            .as_quat()
+            .unwrap();
         assert_eq!(actual, heading);
         let parent = app.world_mut().spawn(Transform::IDENTITY).id();
-        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY));
+        app.world_mut()
+            .entity_mut(actor)
+            .insert((ChildOf(parent), Transform::IDENTITY));
         for yaw in [90.0_f32, -45.0] {
             let rotation = Quat::from_rotation_y(yaw.to_radians());
-            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
-                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
-            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-            let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-                .get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
-            assert!(actual.angle_between(rotation).abs() < 1e-3, "Source provider world quaternion differs at {yaw}");
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() =
+                Transform::from_xyz(4.0, 2.0, -1.0)
+                    .with_rotation(rotation)
+                    .with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut()
+                .run_system_once(ab_als_input_writer)
+                .unwrap();
+            let actual = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+                .unwrap()
+                .as_quat()
+                .unwrap();
+            assert!(
+                actual.angle_between(rotation).abs() < 1e-3,
+                "Source provider world quaternion differs at {yaw}"
+            );
             let expected_scale = 3.0 * app.world().get::<Transform>(avatar).unwrap().scale.y;
-            let actual_scale = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-                .get_global_input_data("locomotion_state.scale_world_space").unwrap().as_f32().unwrap();
-            assert!((actual_scale - expected_scale).abs() < 1e-5,
-                "Source provider current mesh world scale differs: {actual_scale} != {expected_scale}");
+            let actual_scale = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap()
+                .get_global_input_data("locomotion_state.scale_world_space")
+                .unwrap()
+                .as_f32()
+                .unwrap();
+            assert!(
+                (actual_scale - expected_scale).abs() < 1e-5,
+                "Source provider current mesh world scale differs: {actual_scale} != {expected_scale}"
+            );
         }
     }
 
     #[test]
     fn generated_grounded_lean_uses_the_source_animation_acceleration_clock() {
         use crate::actual_motion::AlsActualMotionSet;
-        use crate::extensions::{post_physics_animation::PostPhysicsAnimationSet, source_instance::source_player_property};
+        use crate::extensions::{
+            post_physics_animation::PostPhysicsAnimationSet,
+            source_instance::source_player_property,
+        };
 
         #[derive(Resource)]
         struct Fixture {
@@ -560,73 +766,184 @@ mod tests {
             previous_velocity: Vec3,
             expected_lean: f32,
         }
-        fn set_velocity(fixture: Res<Fixture>, mut actors: Query<&mut avian3d::prelude::LinearVelocity>) {
+        fn set_velocity(
+            fixture: Res<Fixture>,
+            mut actors: Query<&mut avian3d::prelude::LinearVelocity>,
+        ) {
             actors.get_mut(fixture.actor).unwrap().0 = fixture.velocity;
         }
-        fn source_lean(mut fixture: ResMut<Fixture>, actors: Query<(&crate::character_assembly::AlsCharacterAssembly, &crate::als::state::LocomotionState)>, avatars: Query<&AnimatedSceneInstance>, players: Query<&AnimationGraphPlayer>) {
+        fn source_lean(
+            mut fixture: ResMut<Fixture>,
+            actors: Query<(
+                &crate::character_assembly::AlsCharacterAssembly,
+                &crate::als::state::LocomotionState,
+            )>,
+            avatars: Query<&AnimatedSceneInstance>,
+            players: Query<&AnimationGraphPlayer>,
+        ) {
             let (assembly, state) = actors.get(fixture.actor).unwrap();
             assert_eq!(*state, crate::als::state::LocomotionState::Grounded);
-            let player = players.get(avatars.get(assembly.avatar).unwrap().player_entity()).unwrap();
-            let scalar = |key| player.get_global_input_data(key).and_then(|value| value.as_f32().ok()).unwrap();
-            assert_eq!(player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()), Some(false));
+            let player = players
+                .get(avatars.get(assembly.avatar).unwrap().player_entity())
+                .unwrap();
+            let scalar = |key| {
+                player
+                    .get_global_input_data(key)
+                    .and_then(|value| value.as_f32().ok())
+                    .unwrap()
+            };
+            assert_eq!(
+                player
+                    .get_global_input_data("animation.pending_update")
+                    .and_then(|value| value.as_bool().ok()),
+                Some(false)
+            );
             let delta = scalar("animation.delta_seconds");
             let acceleration = if delta > 1e-8 {
                 (fixture.velocity - fixture.previous_velocity) / delta
-            } else { Vec3::ZERO };
-            let rotation = player.get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
-            let target = crate::als::animation::acceleration_amount(acceleration, fixture.velocity, rotation,
-                scalar("locomotion_state.max_acceleration"), scalar("locomotion_state.max_braking_deceleration")).x;
-            let previous = source_player_property(player, "lean_state.forward_amount").and_then(|value| value.as_f32().ok()).unwrap();
-            let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * delta);
+            } else {
+                Vec3::ZERO
+            };
+            let rotation = player
+                .get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+                .unwrap()
+                .as_quat()
+                .unwrap();
+            let target = crate::als::animation::acceleration_amount(
+                acceleration,
+                fixture.velocity,
+                rotation,
+                scalar("locomotion_state.max_acceleration"),
+                scalar("locomotion_state.max_braking_deceleration"),
+            )
+            .x;
+            let previous = source_player_property(player, "lean_state.forward_amount")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap();
+            let alpha = 1.0
+                - crate::als::animation::inv_exp_approx(
+                    std::f32::consts::LN_2 / (0.2 + 1e-8) * delta,
+                );
             fixture.expected_lean = previous + (target - previous) * alpha;
             fixture.previous_velocity = fixture.velocity;
         }
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(actor).insert(crate::als::transition::AlsStateRequest::default().with_rotation_mode(RotationMode::ViewDirection));
-        for _ in 0..3 { app.update(); }
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let previous_velocity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
-            .get_global_input_data("locomotion_state.velocity_world_space").unwrap().as_vec3().unwrap();
-        app.insert_resource(Fixture { actor, velocity: Vec3::NEG_Z, previous_velocity, expected_lean: 0.0 });
-        app.add_systems(PostUpdate, set_velocity.after(crate::als::motion::AlsActualVelocitySet).before(AlsActualMotionSet));
+        app.world_mut().entity_mut(actor).insert(
+            crate::als::transition::AlsStateRequest::default()
+                .with_rotation_mode(RotationMode::ViewDirection),
+        );
+        for _ in 0..3 {
+            app.update();
+        }
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let previous_velocity = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .get_global_input_data("locomotion_state.velocity_world_space")
+            .unwrap()
+            .as_vec3()
+            .unwrap();
+        app.insert_resource(Fixture {
+            actor,
+            velocity: Vec3::NEG_Z,
+            previous_velocity,
+            expected_lean: 0.0,
+        });
+        app.add_systems(
+            PostUpdate,
+            set_velocity
+                .after(crate::als::motion::AlsActualVelocitySet)
+                .before(AlsActualMotionSet),
+        );
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         let mut stable_frames = 0;
         for _ in 0..240 {
             app.update();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             let arena = player.get_context_arena().unwrap();
-            let properties = arena.get_toplevel().node_states.get::<crate::extensions::source_instance::SourceInstanceProperties>(
-                bevy_animation_graph::core::animation_graph::NodeId::default(), bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
-            if properties.write_frames.get("standing_source.acceleration_forward") == Some(&arena.frame_index()) {
+            let properties = arena
+                .get_toplevel()
+                .node_states
+                .get::<crate::extensions::source_instance::SourceInstanceProperties>(
+                    bevy_animation_graph::core::animation_graph::NodeId::default(),
+                    bevy_animation_graph::core::context::node_states::StateKey::Default,
+                )
+                .unwrap();
+            if properties
+                .write_frames
+                .get("standing_source.acceleration_forward")
+                == Some(&arena.frame_index())
+            {
                 stable_frames += 1;
-                if stable_frames == 3 { break; }
-            } else { stable_frames = 0; }
-            assert!(std::time::Instant::now() < deadline, "Grounded native lean fixture did not leave its landing state");
+                if stable_frames == 3 {
+                    break;
+                }
+            } else {
+                stable_frames = 0;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Grounded native lean fixture did not leave its landing state"
+            );
         }
-        assert_eq!(stable_frames, 3, "Grounded native lean fixture did not update on three consecutive frames");
+        assert_eq!(
+            stable_frames, 3,
+            "Grounded native lean fixture did not update on three consecutive frames"
+        );
         {
             let mut fixture = app.world_mut().resource_mut::<Fixture>();
             fixture.previous_velocity = fixture.velocity;
         }
-        app.add_systems(PostUpdate, source_lean.after(crate::head_layer::AlsHeadLayerSet).before(PostPhysicsAnimationSet::Evaluate));
+        app.add_systems(
+            PostUpdate,
+            source_lean
+                .after(crate::head_layer::AlsHeadLayerSet)
+                .before(PostPhysicsAnimationSet::Evaluate),
+        );
         for (custom_dilation, speed) in [(1.0_f32, 1.01_f32), (0.5, 1.02)] {
-            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
+            app.world_mut().entity_mut(actor).insert(
+                crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation),
+            );
             app.world_mut().resource_mut::<Fixture>().velocity = Vec3::NEG_Z * speed;
             app.update();
             let expected = app.world().resource::<Fixture>().expected_lean;
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             assert!(player.get_error().is_none());
-            let actual = source_player_property(player, "lean_state.forward_amount").and_then(|value| value.as_f32().ok()).unwrap();
-            assert!((actual - expected).abs() < 1e-6,
-                "Native grounded lean uses the wrong acceleration clock: actual={actual}, source={expected}, custom={custom_dilation}");
+            let actual = source_player_property(player, "lean_state.forward_amount")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap();
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "Native grounded lean uses the wrong acceleration clock: actual={actual}, source={expected}, custom={custom_dilation}"
+            );
         }
-        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
         app.world_mut().resource_mut::<Fixture>().velocity = Vec3::NEG_Z * 1.03;
         app.update();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        assert_eq!(player.get_global_input_data("locomotion_state.acceleration_world_space")
-            .and_then(|value| value.as_vec3().ok()), Some(Vec3::ZERO),
-            "Native animation rate-of-change must be zero when its delta is zero");
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        assert_eq!(
+            player
+                .get_global_input_data("locomotion_state.acceleration_world_space")
+                .and_then(|value| value.as_vec3().ok()),
+            Some(Vec3::ZERO),
+            "Native animation rate-of-change must be zero when its delta is zero"
+        );
     }
 
     #[test]
@@ -640,71 +957,162 @@ mod tests {
         struct Acceleration(Vec3);
 
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(avatar).insert(
+            crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones,
+        );
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let lean = "standing_source.acceleration_forward";
-        let scalar = |player: &AnimationGraphPlayer, key| player.get_global_input_data(key).unwrap().as_f32().unwrap();
+        let scalar = |player: &AnimationGraphPlayer, key| {
+            player.get_global_input_data(key).unwrap().as_f32().unwrap()
+        };
         app.insert_resource(Acceleration(Vec3::NEG_Z * 4.0));
-        app.add_systems(PostUpdate, (move |acceleration: Res<Acceleration>, mut motions: Query<&mut AlsActualMotion>| {
-            let mut motion = motions.get_mut(actor).unwrap();
-            motion.world_velocity = Vec3::NEG_Z;
-            motion.world_acceleration = acceleration.0;
-        }).after(AlsActualMotionSet).before(AbAlsProviderSet));
+        app.add_systems(
+            PostUpdate,
+            (move |acceleration: Res<Acceleration>, mut motions: Query<&mut AlsActualMotion>| {
+                let mut motion = motions.get_mut(actor).unwrap();
+                motion.world_velocity = Vec3::NEG_Z;
+                motion.world_acceleration = acceleration.0;
+            })
+            .after(AlsActualMotionSet)
+            .before(AbAlsProviderSet),
+        );
         let mut grounded_ready = false;
         for _ in 0..120 {
             app.update();
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
             let arena = player.get_context_arena().unwrap();
-            let properties = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+            let properties = arena
+                .get_toplevel()
+                .node_states
+                .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                .unwrap();
             if properties.write_frames.get(lean) == Some(&arena.frame_index()) {
                 grounded_ready = true;
                 break;
             }
         }
-        assert!(grounded_ready, "Grounded lean must be evaluated before High Mantle begins");
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(
+            grounded_ready,
+            "Grounded lean must be evaluated before High Mantle begins"
+        );
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
         let walking_braking = scalar(player, "locomotion_state.max_braking_deceleration");
         assert!(walking_braking > 0.0);
-        let origin = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+        let origin = app
+            .world()
+            .get::<avian3d::prelude::Position>(actor)
+            .unwrap()
+            .0;
         let mut mantle = AlsMantleState::default();
-        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        mantle.begin(
+            MantleKind::High,
+            origin,
+            origin + Vec3::new(0.0, 1.5, -0.8),
+            1.5,
+            0.0,
+            0.0,
+        );
         app.world_mut().entity_mut(actor).insert(mantle);
 
         for braking in [false, true] {
-            app.world_mut().resource_mut::<Acceleration>().0 = if braking { Vec3::Z * 4.0 } else { Vec3::NEG_Z * 4.0 };
+            app.world_mut().resource_mut::<Acceleration>().0 = if braking {
+                Vec3::Z * 4.0
+            } else {
+                Vec3::NEG_Z * 4.0
+            };
             let mut sampled = false;
             for _ in 0..12 {
                 app.update();
-                if *app.world().get::<LocomotionState>(actor).unwrap() != LocomotionState::Custom { continue; }
-                let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+                if *app.world().get::<LocomotionState>(actor).unwrap() != LocomotionState::Custom {
+                    continue;
+                }
+                let player = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player_entity)
+                    .unwrap();
                 let weight = scalar(player, crate::get_up::POST_LOCOMOTION_WEIGHT);
                 let arena = player.get_context_arena().unwrap();
-                let properties = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
-                if !(0.0 < weight && weight < 1.0) || properties.write_frames.get(lean) != Some(&arena.frame_index()) { continue; }
-                let vector = |key| player.get_global_input_data(key).unwrap().as_vec3().unwrap();
+                let properties = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                    .unwrap();
+                if !(0.0 < weight && weight < 1.0)
+                    || properties.write_frames.get(lean) != Some(&arena.frame_index())
+                {
+                    continue;
+                }
+                let vector = |key| {
+                    player
+                        .get_global_input_data(key)
+                        .unwrap()
+                        .as_vec3()
+                        .unwrap()
+                };
                 let velocity = vector("locomotion_state.velocity_world_space");
                 let acceleration = vector("locomotion_state.acceleration_world_space");
                 assert_eq!(acceleration.dot(velocity) < 0.0, braking);
-                let rotation = player.get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+                let rotation = player
+                    .get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+                    .unwrap()
+                    .as_quat()
+                    .unwrap();
                 let max_acceleration = scalar(player, "locomotion_state.max_acceleration");
-                let expected = crate::als::animation::acceleration_amount(acceleration, velocity, rotation, max_acceleration, 0.0).x;
-                let walking = crate::als::animation::acceleration_amount(acceleration, velocity, rotation, max_acceleration, walking_braking).x;
+                let expected = crate::als::animation::acceleration_amount(
+                    acceleration,
+                    velocity,
+                    rotation,
+                    max_acceleration,
+                    0.0,
+                )
+                .x;
+                let walking = crate::als::animation::acceleration_amount(
+                    acceleration,
+                    velocity,
+                    rotation,
+                    max_acceleration,
+                    walking_braking,
+                )
+                .x;
                 assert_eq!((expected - walking).abs() > 1e-3, braking);
-                assert_eq!(scalar(player, "locomotion_state.max_braking_deceleration"), 0.0);
+                assert_eq!(
+                    scalar(player, "locomotion_state.max_braking_deceleration"),
+                    0.0
+                );
                 assert!((properties.values[lean].as_f32().unwrap() - expected).abs() < 1e-6);
                 assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
                 sampled = true;
                 break;
             }
-            assert!(sampled, "High Mantle did not evaluate a partial slot with Grounded lean (braking={braking})");
+            assert!(
+                sampled,
+                "High Mantle did not evaluate a partial slot with Grounded lean (braking={braking})"
+            );
         }
     }
 
     #[test]
     fn animation_input_follows_consumed_motion_through_the_actual_motor_and_writer() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        app.world_mut().get_mut::<Transform>(character).unwrap().rotation = Quat::IDENTITY;
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut()
+            .get_mut::<Transform>(character)
+            .unwrap()
+            .rotation = Quat::IDENTITY;
         for (blocked, command, override_input, control_yaw, expected_input, expected_yaw) in [
             (true, Vec2::Y, None, 0.0_f32, false, 0.0_f32),
             (false, Vec2::X, None, 0.0, true, 90.0),
@@ -716,27 +1124,62 @@ mod tests {
             (false, Vec2::Y, None, 45.0, true, -45.0),
         ] {
             app.world_mut().entity_mut(character).insert((
-                AlsInputCommand { move_dir: command, ..default() }, AlsViewYaw(control_yaw.to_radians()),
+                AlsInputCommand {
+                    move_dir: command,
+                    ..default()
+                },
+                AlsViewYaw(control_yaw.to_radians()),
                 crate::als::view::AlsPlayerViewYaw(control_yaw.to_radians()),
             ));
             if blocked {
-                app.world_mut().entity_mut(character).insert(crate::als::motion::AlsMovementInputBlocked);
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(crate::als::motion::AlsMovementInputBlocked);
             } else {
-                app.world_mut().entity_mut(character).remove::<crate::als::motion::AlsMovementInputBlocked>();
+                app.world_mut()
+                    .entity_mut(character)
+                    .remove::<crate::als::motion::AlsMovementInputBlocked>();
             }
             if let Some(move_dir) = override_input {
-                app.world_mut().entity_mut(character).insert(AlsInputOverride(AlsInputCommand { move_dir, ..default() }));
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsInputOverride(AlsInputCommand {
+                        move_dir,
+                        ..default()
+                    }));
             } else {
-                app.world_mut().entity_mut(character).remove::<AlsInputOverride>();
+                app.world_mut()
+                    .entity_mut(character)
+                    .remove::<AlsInputOverride>();
             }
             app.update();
             let motion = app.world().get::<AlsActualMotion>(character).unwrap();
-            assert_eq!(motion.has_input, expected_input, "Consumed motion differs: blocked={blocked}, command={command:?}, override={override_input:?}");
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-            assert_eq!(player.get_global_input_data("locomotion_state.b_has_input").unwrap().as_bool().unwrap(),
-                expected_input, "Animation input differs: blocked={blocked}, command={command:?}, override={override_input:?}");
-            let yaw = player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").unwrap().as_f32().unwrap();
-            assert!((yaw - expected_yaw).abs() < 1e-4, "Consumed input yaw differs: {yaw} != {expected_yaw}");
+            assert_eq!(
+                motion.has_input, expected_input,
+                "Consumed motion differs: blocked={blocked}, command={command:?}, override={override_input:?}"
+            );
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
+                .unwrap();
+            assert_eq!(
+                player
+                    .get_global_input_data("locomotion_state.b_has_input")
+                    .unwrap()
+                    .as_bool()
+                    .unwrap(),
+                expected_input,
+                "Animation input differs: blocked={blocked}, command={command:?}, override={override_input:?}"
+            );
+            let yaw = player
+                .get_global_input_data("locomotion_state.input_yaw_angle_world_space")
+                .unwrap()
+                .as_f32()
+                .unwrap();
+            assert!(
+                (yaw - expected_yaw).abs() < 1e-4,
+                "Consumed input yaw differs: {yaw} != {expected_yaw}"
+            );
         }
     }
 
@@ -744,52 +1187,147 @@ mod tests {
     fn animation_input_projection_uses_source_state_through_the_actual_writers() {
         use crate::als::{motion::AlsRotationResponseState, state::LocomotionState};
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
-        use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
+        use bevy_animation_graph::{
+            AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle,
+        };
         let mut app = App::new();
         app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
-            bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin,
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin,
             avian3d::prelude::PhysicsPlugins::new(PostUpdate),
             AnimationGraphPlugin::from_physics_schedule(PostUpdate),
-            crate::ab_als_root::AlsRootGraphPlugin, AbAlsProviderPlugin,
-            crate::layering_layer::LayeringLayerPlugin, crate::head_layer::HeadLayerPlugin))
-            .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
+            crate::ab_als_root::AlsRootGraphPlugin,
+            AbAlsProviderPlugin,
+            crate::layering_layer::LayeringLayerPlugin,
+            crate::head_layer::HeadLayerPlugin,
+        ))
+        .init_asset::<WorldAsset>()
+        .init_asset::<AlsMovementParams>();
         app.finish();
         app.cleanup();
-        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
-        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
-            Gait::Sprinting, Stance::Standing, RotationMode::VelocityDirection,
-            LocomotionState::Air, crate::als::state::OverlayState::Default,
-            AlsActualMotion { horizontal_speed: 0.2, ..default() }, AlsViewYaw(0.0),
-            AlsInputCommand { move_dir: Vec2::Y, ..default() },
-            AlsRotationResponseState { initialized: true, target_yaw: 55.0_f32.to_radians(), ..default() },
-            AlsMovementParamsHandle(params))).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character),
-            Transform::IDENTITY, AnimatedSceneHandle::default(),
-            crate::stance_layer::AlsStanceBlend::with_weight(0.9),
-            crate::gait_layer::AlsGaitBlend { weights: crate::als::gait::GaitWeights::from_gait_amount(3.0) })).id();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
-        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
-            Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
-        app.world_mut().spawn((Name::new("bone"), Transform::IDENTITY, ChildOf(player)));
-        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::IDENTITY,
+                Gait::Sprinting,
+                Stance::Standing,
+                RotationMode::VelocityDirection,
+                LocomotionState::Air,
+                crate::als::state::OverlayState::Default,
+                AlsActualMotion {
+                    horizontal_speed: 0.2,
+                    ..default()
+                },
+                AlsViewYaw(0.0),
+                AlsInputCommand {
+                    move_dir: Vec2::Y,
+                    ..default()
+                },
+                AlsRotationResponseState {
+                    initialized: true,
+                    target_yaw: 55.0_f32.to_radians(),
+                    ..default()
+                },
+                AlsMovementParamsHandle(params),
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                Transform::IDENTITY,
+                AnimatedSceneHandle::default(),
+                crate::stance_layer::AlsStanceBlend::with_weight(0.9),
+                crate::gait_layer::AlsGaitBlend {
+                    weights: crate::als::gait::GaitWeights::from_gait_amount(3.0),
+                },
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
+        let player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                Name::new("root"),
+                Transform::IDENTITY,
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut()
+            .spawn((Name::new("bone"), Transform::IDENTITY, ChildOf(player)));
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            player
+        );
         for (stance, moving, curve_values) in [
-            (Stance::Standing, false, Some([0.35, 0.2, 0.25, 1.25, 0.9998])),
-            (Stance::Crouching, true, Some([0.1, 0.6, 0.3, 2.25, 0.999995])),
+            (
+                Stance::Standing,
+                false,
+                Some([0.35, 0.2, 0.25, 1.25, 0.9998]),
+            ),
+            (
+                Stance::Crouching,
+                true,
+                Some([0.1, 0.6, 0.3, 2.25, 0.999995]),
+            ),
             (Stance::Standing, false, None),
         ] {
-            app.world_mut().entity_mut(character).insert((stance, AlsInputOverride(AlsInputCommand {
-                move_dir: if moving { Vec2::Y } else { Vec2::ZERO }, ..default()
-            })));
-            app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().has_input = moving;
+            app.world_mut().entity_mut(character).insert((
+                stance,
+                AlsInputOverride(AlsInputCommand {
+                    move_dir: if moving { Vec2::Y } else { Vec2::ZERO },
+                    ..default()
+                }),
+            ));
+            app.world_mut()
+                .get_mut::<AlsActualMotion>(character)
+                .unwrap()
+                .has_input = moving;
             let values = curve_values.unwrap_or([0.0; 5]);
-            let curves = curve_values.map(|values| ["PoseStanding", "PoseCrouching", "PoseInAir", "PoseGait", "AllowTransitions"]
-                .into_iter().zip(values).map(|(key, value)| (key.into(), value)).collect()).unwrap_or_default();
-            app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves });
-            app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap()
+            let curves = curve_values
+                .map(|values| {
+                    [
+                        "PoseStanding",
+                        "PoseCrouching",
+                        "PoseInAir",
+                        "PoseGait",
+                        "AllowTransitions",
+                    ]
+                    .into_iter()
+                    .zip(values)
+                    .map(|(key, value)| (key.into(), value))
+                    .collect()
+                })
+                .unwrap_or_default();
+            app.world_mut()
+                .entity_mut(player)
+                .insert(AlsRootAnimationContext { curves });
+            app.world_mut()
+                .get_mut::<AnimationGraphPlayer>(player)
+                .unwrap()
                 .set_global_input_data("als_standing_curve_allow_transitions", 1.0_f32);
             app.world_mut().run_schedule(PostUpdate);
             let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
@@ -798,93 +1336,245 @@ mod tests {
                 ("pose_state.crouching_amount", values[1]),
                 ("pose_state.in_air_amount", values[2]),
                 ("pose_state.gait_walking_amount", values[3].clamp(0.0, 1.0)),
-                ("pose_state.gait_running_amount", (values[3] - 1.0).clamp(0.0, 1.0)),
-                ("pose_state.gait_sprinting_amount", (values[3] - 2.0).clamp(0.0, 1.0)),
+                (
+                    "pose_state.gait_running_amount",
+                    (values[3] - 1.0).clamp(0.0, 1.0),
+                ),
+                (
+                    "pose_state.gait_sprinting_amount",
+                    (values[3] - 2.0).clamp(0.0, 1.0),
+                ),
                 ("locomotion_state.target_yaw_angle_world_space", -55.0),
             ] {
                 let actual = player.get_global_input_data(key).unwrap().as_f32().unwrap();
-                assert!((actual - expected).abs() < 1e-5, "{key}: {actual} != {expected}");
+                assert!(
+                    (actual - expected).abs() < 1e-5,
+                    "{key}: {actual} != {expected}"
+                );
             }
             for (key, expected) in [
                 ("locomotion_state.b_has_input", moving),
                 ("locomotion_state.b_moving", moving),
-                ("transitions_state.b_transitions_allowed", values[4] >= 1.0 - 1e-5),
+                (
+                    "transitions_state.b_transitions_allowed",
+                    values[4] >= 1.0 - 1e-5,
+                ),
             ] {
-                assert_eq!(player.get_global_input_data(key).unwrap().as_bool().unwrap(), expected, "{key}");
+                assert_eq!(
+                    player
+                        .get_global_input_data(key)
+                        .unwrap()
+                        .as_bool()
+                        .unwrap(),
+                    expected,
+                    "{key}"
+                );
             }
-            for key in ["als_overlay_standing_amount", "als_overlay_crouching_amount",
-                "als_overlay_gait_walking_amount", "als_overlay_gait_running_amount",
-                "als_overlay_gait_sprinting_amount", "als_overlay_in_air_amount", "als_overlay_is_in_air",
-                "als_overlay_is_moving", "als_overlay_is_sprinting", "als_overlay_transitions_allowed",
-                "als_overlay_velocity_forward_amount", "als_overlay_velocity_backward_amount",
-                "als_overlay_velocity_left_amount", "als_overlay_velocity_right_amount", "als_root_has_input"] {
-                assert!(player.get_global_input_data(key).is_none(), "Obsolete projection remains: {key}");
+            for key in [
+                "als_overlay_standing_amount",
+                "als_overlay_crouching_amount",
+                "als_overlay_gait_walking_amount",
+                "als_overlay_gait_running_amount",
+                "als_overlay_gait_sprinting_amount",
+                "als_overlay_in_air_amount",
+                "als_overlay_is_in_air",
+                "als_overlay_is_moving",
+                "als_overlay_is_sprinting",
+                "als_overlay_transitions_allowed",
+                "als_overlay_velocity_forward_amount",
+                "als_overlay_velocity_backward_amount",
+                "als_overlay_velocity_left_amount",
+                "als_overlay_velocity_right_amount",
+                "als_root_has_input",
+            ] {
+                assert!(
+                    player.get_global_input_data(key).is_none(),
+                    "Obsolete projection remains: {key}"
+                );
             }
         }
-        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
-        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
-        app.world_mut().resource_mut::<Time<Virtual>>().advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .advance_by(std::time::Duration::from_secs_f32(0.1));
         app.world_mut().run_schedule(PostUpdate);
         let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        let unscaled = player.get_global_input_data("animation.delta_seconds_without_time_dilation").unwrap().as_f32().unwrap();
-        let scaled = player.get_global_input_data("animation.delta_seconds").unwrap().as_f32().unwrap();
+        let unscaled = player
+            .get_global_input_data("animation.delta_seconds_without_time_dilation")
+            .unwrap()
+            .as_f32()
+            .unwrap();
+        let scaled = player
+            .get_global_input_data("animation.delta_seconds")
+            .unwrap()
+            .as_f32()
+            .unwrap();
         assert!((unscaled - 0.1).abs() < 1e-6, "unscaled={unscaled}");
         assert!((scaled - 0.05).abs() < 1e-6, "scaled={scaled}");
         app.world_mut().get_mut::<AlsViewYaw>(character).unwrap().0 = 10.0_f32.to_radians();
         app.world_mut().run_schedule(PostUpdate);
-        let player = app.world().get::<AnimationGraphPlayer>(
-            app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity()).unwrap();
-        let yaw_speed = player.get_global_input_data("view_state.yaw_speed").unwrap().as_f32().unwrap();
-        assert!((yaw_speed - 200.0).abs() < 1e-4, "Actor view yaw speed differs: {yaw_speed}");
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(
+                app.world()
+                    .get::<AnimatedSceneInstance>(avatar)
+                    .unwrap()
+                    .player_entity(),
+            )
+            .unwrap();
+        let yaw_speed = player
+            .get_global_input_data("view_state.yaw_speed")
+            .unwrap()
+            .as_f32()
+            .unwrap();
+        assert!(
+            (yaw_speed - 200.0).abs() < 1e-4,
+            "Actor view yaw speed differs: {yaw_speed}"
+        );
     }
 
     #[test]
     fn animation_movement_base_input_reads_the_actual_physics_owner() {
         use crate::als::{dynamics::AlsMovementBase, state::LocomotionState};
         use avian3d::prelude::*;
-        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
-        use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
+        use bevy::{
+            ecs::system::RunSystemOnce,
+            world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner},
+        };
+        use bevy_animation_graph::{
+            AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle,
+        };
         let mut app = App::new();
         app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, bevy::mesh::MeshPlugin,
-            bevy::gizmos::GizmoPlugin, PhysicsPlugins::new(PostUpdate), AnimationGraphPlugin::from_physics_schedule(PostUpdate)))
-            .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin,
+            PhysicsPlugins::new(PostUpdate),
+            AnimationGraphPlugin::from_physics_schedule(PostUpdate),
+        ))
+        .init_asset::<WorldAsset>()
+        .init_asset::<AlsMovementParams>();
         app.finish();
         app.cleanup();
-        let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
-        let child = app.world_mut().spawn((Collider::cuboid(3.0, 1.0, 3.0), ChildOf(body), Transform::IDENTITY)).id();
+        let body = app
+            .world_mut()
+            .spawn((RigidBody::Kinematic, Transform::IDENTITY))
+            .id();
+        let child = app
+            .world_mut()
+            .spawn((
+                Collider::cuboid(3.0, 1.0, 3.0),
+                ChildOf(body),
+                Transform::IDENTITY,
+            ))
+            .id();
         app.update();
         assert_eq!(app.world().get::<ColliderOf>(child).unwrap().body, body);
-        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
-        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, Gait::Walking,
-            Stance::Standing, RotationMode::ViewDirection, AlsActualMotion::default(), AlsViewYaw(0.0),
-            AlsMovementParamsHandle(params))).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character),
-            Transform::IDENTITY, AnimatedSceneHandle::default())).id();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
-        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar))).id();
-        app.world_mut().trigger(WorldInstanceReady { entity:avatar,
-            instance_id:WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::IDENTITY,
+                Gait::Walking,
+                Stance::Standing,
+                RotationMode::ViewDirection,
+                AlsActualMotion::default(),
+                AlsViewYaw(0.0),
+                AlsMovementParamsHandle(params),
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                Transform::IDENTITY,
+                AnimatedSceneHandle::default(),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
+        let player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
         app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        assert_eq!(
+            app.world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity(),
+            player
+        );
         let invalid = app.world_mut().spawn(Transform::IDENTITY).id();
         for mode in [LocomotionState::Grounded, LocomotionState::Custom] {
             app.world_mut().entity_mut(character).insert(mode);
             for kind in [RigidBody::Static, RigidBody::Kinematic, RigidBody::Dynamic] {
                 app.world_mut().entity_mut(body).insert(kind);
                 for target in [None, Some(body), Some(child), Some(invalid)] {
-                    app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().entity = target;
-                    app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-                    let actual = app.world().get::<AnimationGraphPlayer>(player).unwrap()
-                        .get_global_input_data("movement_base.b_has_relative_location").unwrap().as_bool().unwrap();
-                    let expected = kind != RigidBody::Static && target.is_some_and(|entity| entity == body || entity == child);
-                    assert_eq!(actual, expected, "Source movement-base input differs: {mode:?}, {kind:?}, {target:?}");
+                    app.world_mut()
+                        .get_mut::<AlsMovementBase>(character)
+                        .unwrap()
+                        .entity = target;
+                    app.world_mut()
+                        .run_system_once(ab_als_input_writer)
+                        .unwrap();
+                    let actual = app
+                        .world()
+                        .get::<AnimationGraphPlayer>(player)
+                        .unwrap()
+                        .get_global_input_data("movement_base.b_has_relative_location")
+                        .unwrap()
+                        .as_bool()
+                        .unwrap();
+                    let expected = kind != RigidBody::Static
+                        && target.is_some_and(|entity| entity == body || entity == child);
+                    assert_eq!(
+                        actual, expected,
+                        "Source movement-base input differs: {mode:?}, {kind:?}, {target:?}"
+                    );
                 }
             }
         }
         let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-        assert_eq!(player.get_global_input_data("component.attach_parent_epoch").unwrap().as_f32().unwrap(), 0.0);
-        assert!(!player.get_global_input_data("component.attached_to_actor").unwrap().as_bool().unwrap());
+        assert_eq!(
+            player
+                .get_global_input_data("component.attach_parent_epoch")
+                .unwrap()
+                .as_f32()
+                .unwrap(),
+            0.0
+        );
+        assert!(
+            !player
+                .get_global_input_data("component.attached_to_actor")
+                .unwrap()
+                .as_bool()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -898,80 +1588,231 @@ mod tests {
         skeleton.add_bone(root.clone(), Transform::IDENTITY, Transform::IDENTITY);
         let mut player = AnimationGraphPlayer::new(Handle::default());
         write_animation_component_inputs(&mut player, &skeleton);
-        assert_eq!(player.get_global_input_data("component.root_bone").unwrap().as_entity_path().unwrap(), &root);
-        assert_eq!(player.get_global_input_data("component.teleport_distance_threshold").unwrap().as_f32().unwrap(), 3.0);
+        assert_eq!(
+            player
+                .get_global_input_data("component.root_bone")
+                .unwrap()
+                .as_entity_path()
+                .unwrap(),
+            &root
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("component.teleport_distance_threshold")
+                .unwrap()
+                .as_f32()
+                .unwrap(),
+            3.0
+        );
     }
 
     #[test]
     fn grounded_entry_tags_reach_the_authored_roll_entry_condition() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::platform::collections::HashMap;
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, edge_data::DataValue, context::{graph_context_arena::GraphContextArena, deferred_gizmos::DeferredGizmos, system_resources::SystemResources}};
-        fn query(In((root, entity, source, moving, rotating)): In<(Handle<AnimationGraph>, Entity, crate::extensions::SourceAnimationInputs, bool, bool)>, resources: SystemResources) -> bool {
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+        };
+        fn query(
+            In((root, entity, source, moving, rotating)): In<(
+                Handle<AnimationGraph>,
+                Entity,
+                crate::extensions::SourceAnimationInputs,
+                bool,
+                bool,
+            )>,
+            resources: SystemResources,
+        ) -> bool {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let globals = HashMap::from([
-                ("locomotion_state.b_moving_smooth".to_owned(), DataValue::Bool(moving)),
-                ("rotate_in_place_state.b_rotating_left".to_owned(), DataValue::Bool(rotating)),
-                ("rotate_in_place_state.b_rotating_right".to_owned(), DataValue::Bool(false)),
+                (
+                    "locomotion_state.b_moving_smooth".to_owned(),
+                    DataValue::Bool(moving),
+                ),
+                (
+                    "rotate_in_place_state.b_rotating_left".to_owned(),
+                    DataValue::Bool(rotating),
+                ),
+                (
+                    "rotate_in_place_state.b_rotating_right".to_owned(),
+                    DataValue::Bool(false),
+                ),
             ]);
-            source.evaluate(entity, || graph.query(bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0), &mut arena, &resources, entity, &HashMap::new(), &mut DeferredGizmos::default(), &globals).unwrap()["bCanEnterTransition"].as_bool().unwrap())
+            source.evaluate(entity, || {
+                graph
+                    .query(
+                        bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0),
+                        &mut arena,
+                        &resources,
+                        entity,
+                        &HashMap::new(),
+                        &mut DeferredGizmos::default(),
+                        &globals,
+                    )
+                    .unwrap()["bCanEnterTransition"]
+                    .as_bool()
+                    .unwrap()
+            })
         }
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let condition: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/T2_Transition.condition.animgraph.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-        while app.world().resource::<Assets<AnimationGraph>>().get(&condition).is_none() {
+        while app
+            .world()
+            .resource::<Assets<AnimationGraph>>()
+            .get(&condition)
+            .is_none()
+        {
             app.update();
-            assert!(std::time::Instant::now() < deadline, "Grounded entry condition did not load");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Grounded entry condition did not load"
+            );
         }
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        for tag in ["Als.GroundedEntryMode.FromRoll", "", "Als.GroundedEntryMode.Custom", "Als.GroundedEntryMode.FromRoll", ""] {
-            app.world_mut().entity_mut(character).insert(AlsGroundedEntryMode::new(tag).unwrap());
-            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-            let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().clone();
-            assert_eq!(source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str(), tag);
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        for tag in [
+            "Als.GroundedEntryMode.FromRoll",
+            "",
+            "Als.GroundedEntryMode.Custom",
+            "Als.GroundedEntryMode.FromRoll",
+            "",
+        ] {
+            app.world_mut()
+                .entity_mut(character)
+                .insert(AlsGroundedEntryMode::new(tag).unwrap());
+            app.world_mut()
+                .run_system_once(ab_als_input_writer)
+                .unwrap();
+            let source = app
+                .world()
+                .get::<crate::extensions::SourceAnimationInputs>(player)
+                .unwrap()
+                .clone();
+            assert_eq!(
+                source
+                    .gameplay_tag_input("grounded_entry_mode")
+                    .unwrap()
+                    .as_str(),
+                tag
+            );
             for (moving, rotating) in [(false, false), (true, false), (false, true), (true, true)] {
-                let actual = app.world_mut().run_system_once_with(query, (condition.clone(), player, source.clone(), moving, rotating)).unwrap();
-                assert_eq!(actual, tag == "Als.GroundedEntryMode.FromRoll" && !moving && !rotating, "Authored T2 differs for tag={tag}, moving={moving}, rotating={rotating}");
+                let actual = app
+                    .world_mut()
+                    .run_system_once_with(
+                        query,
+                        (condition.clone(), player, source.clone(), moving, rotating),
+                    )
+                    .unwrap();
+                assert_eq!(
+                    actual,
+                    tag == "Als.GroundedEntryMode.FromRoll" && !moving && !rotating,
+                    "Authored T2 differs for tag={tag}, moving={moving}, rotating={rotating}"
+                );
             }
         }
         for (action, changed) in [
             (crate::als::state::AlsNotifyLocomotionAction::None, false),
-            (crate::als::state::AlsNotifyLocomotionAction::GettingUp, true),
-            (crate::als::state::AlsNotifyLocomotionAction::GettingUp, false),
+            (
+                crate::als::state::AlsNotifyLocomotionAction::GettingUp,
+                true,
+            ),
+            (
+                crate::als::state::AlsNotifyLocomotionAction::GettingUp,
+                false,
+            ),
             (crate::als::state::AlsNotifyLocomotionAction::None, true),
         ] {
-            app.world_mut().entity_mut(character).insert((AlsGroundedEntryMode::FromRoll, action));
+            app.world_mut()
+                .entity_mut(character)
+                .insert((AlsGroundedEntryMode::FromRoll, action));
             app.update();
-            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
-            let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().clone();
-            assert_eq!(app.world_mut().run_system_once_with(query, (condition.clone(), player, source, false, false)).unwrap(), !changed,
-                "Source NativeUpdateAnimation clears GroundedEntryMode only when the actual locomotion action changes before the authored Roll entry condition: action={action:?}");
+            app.world_mut()
+                .run_system_once(ab_als_input_writer)
+                .unwrap();
+            let source = app
+                .world()
+                .get::<crate::extensions::SourceAnimationInputs>(player)
+                .unwrap()
+                .clone();
+            assert_eq!(
+                app.world_mut()
+                    .run_system_once_with(query, (condition.clone(), player, source, false, false))
+                    .unwrap(),
+                !changed,
+                "Source NativeUpdateAnimation clears GroundedEntryMode only when the actual locomotion action changes before the authored Roll entry condition: action={action:?}"
+            );
         }
     }
-
 
     #[test]
     fn roll_branching_action_end_keeps_the_native_trigger_offset() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let end = 0.933333_f32;
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(character)
+            .unwrap()
+            .roll_pressed = true;
         app.update();
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
-        for _ in 0..36 { app.update(); }
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(character)
+            .unwrap()
+            .roll_pressed = false;
+        for _ in 0..36 {
+            app.update();
+        }
         for clip_time in [end - 0.01, end + 0.00005, end + 0.00015] {
-            let position = app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().clip_time();
+            let position = app
+                .world()
+                .get::<crate::als::roll::AlsRollState>(character)
+                .unwrap()
+                .clip_time();
             assert!(position < clip_time);
             let delta = (clip_time - position) / crate::als::roll::ROLL_PLAY_RATE;
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
             app.update();
-            let position = app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().clip_time();
-            assert!((position - clip_time).abs() < 2e-7, "Expected clip {clip_time}, observed {position}");
-            let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap();
-            let expected = if clip_time <= end + 0.0001 { "Als.LocomotionAction.Rolling" } else { "" };
-            assert_eq!(source.gameplay_tag_input("locomotion_action").unwrap().as_str(), expected,
-                "Native branching end offset differs at clip time {clip_time}");
+            let position = app
+                .world()
+                .get::<crate::als::roll::AlsRollState>(character)
+                .unwrap()
+                .clip_time();
+            assert!(
+                (position - clip_time).abs() < 2e-7,
+                "Expected clip {clip_time}, observed {position}"
+            );
+            let source = app
+                .world()
+                .get::<crate::extensions::SourceAnimationInputs>(player)
+                .unwrap();
+            let expected = if clip_time <= end + 0.0001 {
+                "Als.LocomotionAction.Rolling"
+            } else {
+                ""
+            };
+            assert_eq!(
+                source
+                    .gameplay_tag_input("locomotion_action")
+                    .unwrap()
+                    .as_str(),
+                expected,
+                "Native branching end offset differs at clip time {clip_time}"
+            );
         }
     }
 
@@ -980,7 +1821,11 @@ mod tests {
         #[derive(Resource, Default)]
         struct ObservedRollEntry(Vec<(String, String, bool)>);
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         app.init_resource::<ObservedRollEntry>().add_systems(PostUpdate,
             (move |source: Query<&crate::extensions::SourceAnimationInputs>, mut observed: ResMut<ObservedRollEntry>,
                 mut events: MessageReader<crate::animation_events::AlsAnimationEvent>| {
@@ -991,19 +1836,45 @@ mod tests {
                 observed.0.push((source.gameplay_tag_input("locomotion_action").unwrap().as_str().to_owned(),
                     source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str().to_owned(), queued_point));
             }).after(crate::animation_events::AlsAnimationEventSet::SlotDispatch));
-        for _ in 0..30 { app.update(); }
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        for _ in 0..30 {
+            app.update();
+        }
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(character)
+            .unwrap()
+            .roll_pressed = true;
         app.update();
-        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
-        for _ in 0..100 { app.update(); }
+        app.world_mut()
+            .get_mut::<crate::als::input::AlsInputCommand>(character)
+            .unwrap()
+            .roll_pressed = false;
+        for _ in 0..100 {
+            app.update();
+        }
         let rows = &app.world().resource::<ObservedRollEntry>().0;
-        assert!(rows.iter().any(|(action, _, _)| action == "Als.LocomotionAction.Rolling"));
-        assert!(rows.iter().any(|(action, entry, _)| action.is_empty() && entry == "Als.GroundedEntryMode.FromRoll"),
-            "Source branching action end precedes NativeUpdate reset, then the queued FromRoll point reaches the actual graph consumer");
-        assert!(rows.iter().any(|(_, _, queued)| *queued), "Actual Roll did not dispatch its queued entry point");
-        assert!(rows.iter().filter(|(_, _, queued)| *queued).all(|(_, entry, _)| entry.is_empty()),
+        assert!(
+            rows.iter()
+                .any(|(action, _, _)| action == "Als.LocomotionAction.Rolling")
+        );
+        assert!(
+            rows.iter()
+                .any(|(action, entry, _)| action.is_empty()
+                    && entry == "Als.GroundedEntryMode.FromRoll"),
+            "Source branching action end precedes NativeUpdate reset, then the queued FromRoll point reaches the actual graph consumer"
+        );
+        assert!(
+            rows.iter().any(|(_, _, queued)| *queued),
+            "Actual Roll did not dispatch its queued entry point"
+        );
+        assert!(
+            rows.iter()
+                .filter(|(_, _, queued)| *queued)
+                .all(|(_, entry, _)| entry.is_empty()),
             "Queued Roll entry point reached graph inputs before its source post-graph dispatch: {:?}",
-            rows.iter().filter(|(_, _, queued)| *queued).collect::<Vec<_>>());
+            rows.iter()
+                .filter(|(_, _, queued)| *queued)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -1097,7 +1968,9 @@ mod tests {
             (
                 AbAlsProviderSet
                     .after(crate::gait_layer::AlsGaitLayerSet)
-                    .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                    .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
                 PhysicsSystems::First.before(PhysicsSystems::Last),
             ),
@@ -1123,7 +1996,8 @@ mod tests {
                 let motion = motion.single().unwrap();
                 assert!((motion.horizontal_speed - 1.315).abs() < 1e-5);
                 assert!(!source_locomotion_flags(false, motion.horizontal_speed)[1].1);
-            }).in_set(AbAlsProviderSet),
+            })
+            .in_set(AbAlsProviderSet),
         );
         app.update();
     }
@@ -1131,10 +2005,25 @@ mod tests {
     #[test]
     fn generated_overlay_gait_inputs_follow_pose_curve_weights() {
         for gait in [-1.0_f32, 0.0, 1.4, 2.4, 4.0] {
-            let context = AlsRootAnimationContext { curves: [("PoseGait".into(), gait)].into_iter().collect() };
-            let inputs: std::collections::HashMap<_,_> = source_pose_curve_inputs(Some(&context), None).into_iter().collect();
-            assert!((inputs["pose_state.gait_running_amount"] - (gait.clamp(0.0,3.0) - 1.0).clamp(0.0,1.0)).abs() < 1e-6);
-            assert!((inputs["pose_state.gait_sprinting_amount"] - (gait.clamp(0.0,3.0) - 2.0).clamp(0.0,1.0)).abs() < 1e-6);
+            let context = AlsRootAnimationContext {
+                curves: [("PoseGait".into(), gait)].into_iter().collect(),
+            };
+            let inputs: std::collections::HashMap<_, _> =
+                source_pose_curve_inputs(Some(&context), None)
+                    .into_iter()
+                    .collect();
+            assert!(
+                (inputs["pose_state.gait_running_amount"]
+                    - (gait.clamp(0.0, 3.0) - 1.0).clamp(0.0, 1.0))
+                .abs()
+                    < 1e-6
+            );
+            assert!(
+                (inputs["pose_state.gait_sprinting_amount"]
+                    - (gait.clamp(0.0, 3.0) - 2.0).clamp(0.0, 1.0))
+                .abs()
+                    < 1e-6
+            );
         }
     }
 
@@ -1154,10 +2043,19 @@ mod tests {
             .map(|(name, value)| (name.into(), value))
             .collect(),
         };
-        let feet = AlsFootLockState { foot_planted_amount: -1.0, feet_crossing_amount: 0.3, ..default() };
-        assert_eq!(source_pose_curve_inputs(Some(&context), Some(&feet)).map(|(_, value)| value),
-            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0, 1.0, 2.4 - 2.0]);
-        assert_eq!(source_pose_curve_inputs(Some(&context), None).map(|(_, value)| value)[..2], [0.0, 0.0]);
+        let feet = AlsFootLockState {
+            foot_planted_amount: -1.0,
+            feet_crossing_amount: 0.3,
+            ..default()
+        };
+        assert_eq!(
+            source_pose_curve_inputs(Some(&context), Some(&feet)).map(|(_, value)| value),
+            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0, 1.0, 2.4 - 2.0]
+        );
+        assert_eq!(
+            source_pose_curve_inputs(Some(&context), None).map(|(_, value)| value)[..2],
+            [0.0, 0.0]
+        );
         assert_eq!(
             source_pose_curve_inputs(None, None).map(|(_, value)| value),
             [0.0; 9]
@@ -1173,10 +2071,16 @@ mod tests {
             (-45.0, -view, -75.0, (true, false, false, false)),
             (-5.0, -view, -115.0, (false, false, true, false)),
         ] {
-            let motion = AlsActualMotion { velocity_yaw_degrees: velocity, ..default() };
+            let motion = AlsActualMotion {
+                velocity_yaw_degrees: velocity,
+                ..default()
+            };
             let angle = source_velocity_yaw_angle_view_space(&motion, view);
             assert_eq!(angle, expected_angle);
-            assert_eq!(source_direction_inputs(RotationMode::ViewDirection, Gait::Running, angle), direction);
+            assert_eq!(
+                source_direction_inputs(RotationMode::ViewDirection, Gait::Running, angle),
+                direction
+            );
         }
     }
 

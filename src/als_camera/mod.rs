@@ -1,8 +1,6 @@
 use crate::als::character::AlsCollisionLayer;
-use avian3d::prelude::{
-    Collider, Position, Rotation, SimpleCollider, SpatialQueryFilter,
-};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use avian3d::prelude::{Collider, Position, Rotation, SimpleCollider, SpatialQueryFilter};
 #[path = "notifies/shake.rs"]
 mod shake;
 #[path = "settings/source_definition.rs"]
@@ -402,7 +400,9 @@ impl Plugin for AlsCameraPlugin {
                     resolve_camera_socket_locations.after(TransformSystems::Propagate),
                     camera_movement_base_bridge_system.after(TransformSystems::Propagate),
                     ApplyDeferred,
-                    camera_rig_system.run_if(bevy::ecs::schedule::common_conditions::not(bevy::time::common_conditions::paused)),
+                    camera_rig_system.run_if(bevy::ecs::schedule::common_conditions::not(
+                        bevy::time::common_conditions::paused,
+                    )),
                     apply_camera_view,
                     shake::apply_camera_shakes,
                 )
@@ -477,10 +477,19 @@ fn resolve_camera_socket_locations(
         let Some(definition) = definitions.get(&handle.0) else {
             continue;
         };
-        let player = instances.get(binding.avatar).ok().map(|instance| instance.player_entity());
+        let player = instances
+            .get(binding.avatar)
+            .ok()
+            .map(|instance| instance.player_entity());
         if binding.root_avatar != Some(binding.avatar)
-            || player.is_some_and(|player| binding.root_bone.is_some_and(|root|
-                !animated_bones.get(root).is_ok_and(|owner| owner.0 == player))) {
+            || player.is_some_and(|player| {
+                binding.root_bone.is_some_and(|root| {
+                    !animated_bones
+                        .get(root)
+                        .is_ok_and(|owner| owner.0 == player)
+                })
+            })
+        {
             binding.root_bone = None;
             binding.root_avatar = Some(binding.avatar);
         }
@@ -488,7 +497,8 @@ fn resolve_camera_socket_locations(
             .root_bone
             .is_none_or(|entity| globals.get(entity).is_err())
         {
-            binding.root_bone = find_named_descendant(player.unwrap_or(binding.avatar), "root", &children, &names);
+            binding.root_bone =
+                find_named_descendant(player.unwrap_or(binding.avatar), "root", &children, &names);
         }
         let Some(root_bone) = binding.root_bone else {
             locations.valid = false;
@@ -724,7 +734,9 @@ fn trace_with_start_adjustment(
     let predicate = |entity| ignored.get(entity).is_err();
     if distance > 1e-10 {
         let direction = Dir3::new(vector).unwrap();
-        let Some(hit) = spatial.cast_source_sphere_predicate(shape, start, direction, distance, filter, &predicate) else {
+        let Some(hit) = spatial
+            .cast_source_sphere_predicate(shape, start, direction, distance, filter, &predicate)
+        else {
             return result;
         };
         if hit.distance > 0.0 {
@@ -753,9 +765,16 @@ fn trace_with_start_adjustment(
         result.adjustment_resolved = !has_blocking_overlap(spatial, shape, start, filter, ignored);
         if result.adjustment_resolved {
             let adjusted_vector = end - start;
-            if let Ok((adjusted_direction, adjusted_distance)) = Dir3::new_and_length(adjusted_vector) {
+            if let Ok((adjusted_direction, adjusted_distance)) =
+                Dir3::new_and_length(adjusted_vector)
+            {
                 if let Some(adjusted_hit) = spatial.cast_source_sphere_predicate(
-                    shape, start, adjusted_direction, adjusted_distance, filter, &predicate,
+                    shape,
+                    start,
+                    adjusted_direction,
+                    adjusted_distance,
+                    filter,
+                    &predicate,
                 ) && adjusted_hit.distance > 0.0
                 {
                     result.location = start + adjusted_direction.as_vec3() * adjusted_hit.distance;
@@ -1347,12 +1366,21 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for rotation in [Quat::IDENTITY, Quat::from_rotation_y(0.5)] {
             let mut world = World::new();
-            let base = world.spawn(GlobalTransform::from(Transform::from_rotation(rotation))).id();
-            let character = world.spawn((
-                AlsCameraTarget,
-                AlsMovementBaseDynamicsState { entity: Some(base), ..default() },
-            )).id();
-            world.run_system_once(camera_movement_base_bridge_system).unwrap();
+            let base = world
+                .spawn(GlobalTransform::from(Transform::from_rotation(rotation)))
+                .id();
+            let character = world
+                .spawn((
+                    AlsCameraTarget,
+                    AlsMovementBaseDynamicsState {
+                        entity: Some(base),
+                        ..default()
+                    },
+                ))
+                .id();
+            world
+                .run_system_once(camera_movement_base_bridge_system)
+                .unwrap();
             let camera_base = world.get::<AlsCameraMovementBase>(character).unwrap();
             assert_eq!(camera_base.entity, base);
             assert!(!camera_base.has_relative_rotation);
@@ -1361,47 +1389,112 @@ mod tests {
 
     #[test]
     fn source_cameras_keep_independent_frame_and_view_validity() {
-        use bevy::ecs::system::RunSystemOnce;
         use crate::camera_component::{AlsSourceCameraComponent, tests::loaded_camera_scene};
-        use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::animated_scene::{
+            AnimatedSceneHandle, AnimatedSceneInstance,
+        };
         let (mut app, character, primary, scene) = loaded_camera_scene();
-        let secondary = app.world_mut().spawn((Name::new("RetainedCamera"),
-            AlsCharacterCamera { character }, AlsSourceCameraComponent::default(),
-            AnimatedSceneHandle::new(scene), ChildOf(character))).id();
+        let secondary = app
+            .world_mut()
+            .spawn((
+                Name::new("RetainedCamera"),
+                AlsCharacterCamera { character },
+                AlsSourceCameraComponent::default(),
+                AnimatedSceneHandle::new(scene),
+                ChildOf(character),
+            ))
+            .id();
         for _ in 0..20 {
             app.update();
-            if app.world().get::<AnimatedSceneInstance>(secondary).is_some() { break; }
+            if app
+                .world()
+                .get::<AnimatedSceneInstance>(secondary)
+                .is_some()
+            {
+                break;
+            }
         }
-        assert!(app.world().get::<AnimatedSceneInstance>(secondary).is_some());
+        assert!(
+            app.world()
+                .get::<AnimatedSceneInstance>(secondary)
+                .is_some()
+        );
         for (active, inactive) in [(primary, secondary), (secondary, primary)] {
-            app.world_mut().get_mut::<AlsSourceCameraComponent>(active).unwrap().activate(true);
-            app.world_mut().get_mut::<AlsSourceCameraComponent>(inactive).unwrap().deactivate();
+            app.world_mut()
+                .get_mut::<AlsSourceCameraComponent>(active)
+                .unwrap()
+                .activate(true);
+            app.world_mut()
+                .get_mut::<AlsSourceCameraComponent>(inactive)
+                .unwrap()
+                .deactivate();
             app.update();
-            assert!(app.world().get::<crate::als_camera::AlsCameraViewInfo>(active).unwrap().valid);
-            assert!(!app.world().get::<crate::als_camera::AlsCameraViewInfo>(inactive).unwrap().valid);
+            assert!(
+                app.world()
+                    .get::<crate::als_camera::AlsCameraViewInfo>(active)
+                    .unwrap()
+                    .valid
+            );
+            assert!(
+                !app.world()
+                    .get::<crate::als_camera::AlsCameraViewInfo>(inactive)
+                    .unwrap()
+                    .valid
+            );
         }
-        app.world_mut().get_mut::<AlsSourceCameraComponent>(primary).unwrap().activate(true);
+        app.world_mut()
+            .get_mut::<AlsSourceCameraComponent>(primary)
+            .unwrap()
+            .activate(true);
         app.update();
         for (source, offset) in [(primary, 10.0), (secondary, -10.0)] {
-            app.world_mut().entity_mut(source).insert(AlsCameraCurveValues::from_pairs([
-                (crate::als_camera::AlsCameraCurve::FovOffset, offset),
-            ]));
+            app.world_mut()
+                .entity_mut(source)
+                .insert(AlsCameraCurveValues::from_pairs([(
+                    crate::als_camera::AlsCameraCurve::FovOffset,
+                    offset,
+                )]));
         }
-        app.world_mut().run_system_once(crate::als_camera::camera_rig_system).unwrap();
-        let primary_view = app.world().get::<crate::als_camera::AlsCameraViewInfo>(primary).unwrap();
-        let secondary_view = app.world().get::<crate::als_camera::AlsCameraViewInfo>(secondary).unwrap();
+        app.world_mut()
+            .run_system_once(crate::als_camera::camera_rig_system)
+            .unwrap();
+        let primary_view = app
+            .world()
+            .get::<crate::als_camera::AlsCameraViewInfo>(primary)
+            .unwrap();
+        let secondary_view = app
+            .world()
+            .get::<crate::als_camera::AlsCameraViewInfo>(secondary)
+            .unwrap();
         assert!((primary_view.field_of_view_deg - 100.0).abs() < 1e-5);
         assert!((secondary_view.field_of_view_deg - 80.0).abs() < 1e-5);
         for (source, expected) in [(primary, 100.0), (secondary, 80.0)] {
-            let view = app.world_mut().spawn((Camera3d::default(), Transform::IDENTITY,
-                AlsCameraViewSource(source), AlsCharacterCamera { character })).id();
+            let view = app
+                .world_mut()
+                .spawn((
+                    Camera3d::default(),
+                    Transform::IDENTITY,
+                    AlsCameraViewSource(source),
+                    AlsCharacterCamera { character },
+                ))
+                .id();
             app.world_mut().run_system_once(apply_camera_view).unwrap();
-            assert!((app.world().get::<AlsCameraFieldOfView>(view).unwrap().0 - expected).abs() < 1e-5);
+            assert!(
+                (app.world().get::<AlsCameraFieldOfView>(view).unwrap().0 - expected).abs() < 1e-5
+            );
         }
-        app.world_mut().entity_mut(secondary).remove::<AnimatedSceneInstance>();
+        app.world_mut()
+            .entity_mut(secondary)
+            .remove::<AnimatedSceneInstance>();
         app.update();
         assert!(app.world().get::<AlsCameraViewInfo>(primary).unwrap().valid);
-        assert!(!app.world().get::<AlsCameraViewInfo>(secondary).unwrap().valid);
+        assert!(
+            !app.world()
+                .get::<AlsCameraViewInfo>(secondary)
+                .unwrap()
+                .valid
+        );
     }
 
     #[test]
@@ -1458,9 +1551,13 @@ mod tests {
                     .entity_mut(component)
                     .insert(AlsCharacterCamera { character: owner });
             }
-            if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() { world.entity_mut(component).insert(frame); }
-        if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() { world.entity_mut(component).insert(curves); }
-        world.run_system_once(camera_rig_system).unwrap();
+            if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() {
+                world.entity_mut(component).insert(frame);
+            }
+            if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() {
+                world.entity_mut(component).insert(curves);
+            }
+            world.run_system_once(camera_rig_system).unwrap();
             assert!(
                 !world.get::<AlsCameraViewInfo>(component).unwrap().valid,
                 "Missing source camera inputs were accepted: owner={has_owner}, definition={has_definition}, frame={has_frame}"
@@ -1532,10 +1629,28 @@ mod tests {
                 .world_mut()
                 .spawn((AlsCameraRig::default(), AlsCharacterCamera { character }))
                 .id();
-            if let Some(frame) = app.world_mut().entity_mut(character).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(component).insert(frame); }
-            if let Some(curves) = app.world_mut().entity_mut(character).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(component).insert(curves); }
-            let parent = app.world_mut().spawn(Transform::from_xyz(10.0, 1.0, -2.0)
-                .with_rotation(Quat::from_rotation_y(0.6)).with_scale(Vec3::splat(1.5))).id();
+            if let Some(frame) = app
+                .world_mut()
+                .entity_mut(character)
+                .take::<AlsCameraAnimationFrame>()
+            {
+                app.world_mut().entity_mut(component).insert(frame);
+            }
+            if let Some(curves) = app
+                .world_mut()
+                .entity_mut(character)
+                .take::<AlsCameraCurveValues>()
+            {
+                app.world_mut().entity_mut(component).insert(curves);
+            }
+            let parent = app
+                .world_mut()
+                .spawn(
+                    Transform::from_xyz(10.0, 1.0, -2.0)
+                        .with_rotation(Quat::from_rotation_y(0.6))
+                        .with_scale(Vec3::splat(1.5)),
+                )
+                .id();
             let view = app
                 .world_mut()
                 .spawn((
@@ -1547,9 +1662,14 @@ mod tests {
                 .id();
             if parented {
                 app.world_mut().entity_mut(view).insert(ChildOf(parent));
-                app.add_systems(PostUpdate, (move |mut transforms: Query<&mut Transform>| {
-                    transforms.get_mut(parent).unwrap().translation.x += 0.1;
-                }).after(camera_rig_system).before(apply_camera_view));
+                app.add_systems(
+                    PostUpdate,
+                    (move |mut transforms: Query<&mut Transform>| {
+                        transforms.get_mut(parent).unwrap().translation.x += 0.1;
+                    })
+                    .after(camera_rig_system)
+                    .before(apply_camera_view),
+                );
             }
             app.finish();
             app.cleanup();
@@ -1577,15 +1697,23 @@ mod tests {
                     Quat::from_euler(EulerRot::YXZ, -angle * scale, angle * scale, -angle * scale);
             }
             let actual = if parented {
-                app.world().get::<GlobalTransform>(view).unwrap().compute_transform()
-            } else { *app.world().get::<Transform>(view).unwrap() };
+                app.world()
+                    .get::<GlobalTransform>(view)
+                    .unwrap()
+                    .compute_transform()
+            } else {
+                *app.world().get::<Transform>(view).unwrap()
+            };
             assert!(
                 actual.translation.distance(expected.translation) < tolerance,
                 "Expected {}, got {}",
                 expected.translation,
                 actual.translation
             );
-            assert!((actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z) < tolerance);
+            assert!(
+                (actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z)
+                    < tolerance
+            );
             assert!(actual.translation.distance(component_view.location) > 1e-5);
             app.world_mut()
                 .get_mut::<AlsCameraAnimationFrame>(component)
@@ -1601,31 +1729,60 @@ mod tests {
             );
             assert!(
                 app.world()
-                    .get::<GlobalTransform>(view).unwrap().translation()
+                    .get::<GlobalTransform>(view)
+                    .unwrap()
+                    .translation()
                     .distance(Vec3::Y * 0.64)
                     > 1e-5
             );
             for _ in 0..12 {
                 app.update();
             }
-            assert!(app.world().get::<GlobalTransform>(view).unwrap().translation()
-                .distance(Vec3::Y * 0.64) < tolerance);
-            assert!(app.world().get::<GlobalTransform>(view).unwrap().compute_transform().scale
-                .abs_diff_eq(Vec3::ONE, tolerance), "Parented camera changed the world view scale");
+            assert!(
+                app.world()
+                    .get::<GlobalTransform>(view)
+                    .unwrap()
+                    .translation()
+                    .distance(Vec3::Y * 0.64)
+                    < tolerance
+            );
+            assert!(
+                app.world()
+                    .get::<GlobalTransform>(view)
+                    .unwrap()
+                    .compute_transform()
+                    .scale
+                    .abs_diff_eq(Vec3::ONE, tolerance),
+                "Parented camera changed the world view scale"
+            );
             if parented {
                 let local_before = *app.world().get::<Transform>(view).unwrap();
-                let frame_before = *app.world().get::<AlsCameraAnimationFrame>(component).unwrap();
-                app.world_mut().entity_mut(component).remove::<AlsCameraAnimationFrame>();
+                let frame_before = *app
+                    .world()
+                    .get::<AlsCameraAnimationFrame>(component)
+                    .unwrap();
+                app.world_mut()
+                    .entity_mut(component)
+                    .remove::<AlsCameraAnimationFrame>();
                 app.update();
                 let local_after = *app.world().get::<Transform>(view).unwrap();
-                assert!(local_after.translation.distance(local_before.translation) < 1e-6,
-                    "A missing world view was converted from parent space twice");
+                assert!(
+                    local_after.translation.distance(local_before.translation) < 1e-6,
+                    "A missing world view was converted from parent space twice"
+                );
                 assert!(local_after.scale.abs_diff_eq(local_before.scale, 1e-6));
                 app.world_mut().entity_mut(component).insert(frame_before);
                 app.world_mut().entity_mut(character).remove::<AlsViewYaw>();
                 app.update();
-                assert!(app.world().get::<Transform>(view).unwrap().translation.distance(local_before.translation) < 1e-6,
-                    "An incomplete view owner was converted from parent space twice");
+                assert!(
+                    app.world()
+                        .get::<Transform>(view)
+                        .unwrap()
+                        .translation
+                        .distance(local_before.translation)
+                        < 1e-6,
+                    "An incomplete view owner was converted from parent space twice"
+                );
             }
         }
     }
@@ -1692,36 +1849,99 @@ mod tests {
 
     #[test]
     fn zero_joint_ragdoll_completion_excludes_self_from_camera_queries() {
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
         use avian3d::prelude::CollisionLayers;
         use bevy::ecs::system::RunSystemOnce;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
-        use bevy_animation_graph::core::{animated_scene::AnimatedSceneHandle, animation_graph_player::AnimationGraphPlayer,
-            ragdoll::{definition::{Ragdoll, ColliderShape, BodyMode}, spawning::spawn_ragdoll_avian}};
-        use crate::character_assembly::{AlsCharacterAvatar, AlsCharacterAssembly};
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneHandle,
+            animation_graph_player::AnimationGraphPlayer,
+            ragdoll::{
+                definition::{BodyMode, ColliderShape, Ragdoll},
+                spawning::spawn_ragdoll_avian,
+            },
+        };
         for penetrating in [false, true] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin, bevy::gizmos::GizmoPlugin,
-                avian3d::prelude::PhysicsPlugins::new(PostUpdate), bevy_animation_graph::AnimationGraphPlugin::default()))
-                .init_asset::<WorldAsset>().init_asset::<AlsCameraDefinition>()
-                .add_observer(crate::ragdoll_link::register_ragdoll_camera_trace_owner);
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                bevy::mesh::MeshPlugin,
+                TransformPlugin,
+                bevy::gizmos::GizmoPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                bevy_animation_graph::AnimationGraphPlugin::default(),
+            ))
+            .init_asset::<WorldAsset>()
+            .init_asset::<AlsCameraDefinition>()
+            .add_observer(crate::ragdoll_link::register_ragdoll_camera_trace_owner);
             app.finish();
             app.cleanup();
-            let mut settings: AlsCameraDefinition = ron::from_str(include_str!("../../assets/ALSCamera/Data/als_camera.camera_component.ron")).unwrap();
+            let mut settings: AlsCameraDefinition = ron::from_str(include_str!(
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
+            ))
+            .unwrap();
             settings.settings.trace_distance_smoothing = false;
-            let definition = app.world_mut().resource_mut::<Assets<AlsCameraDefinition>>().add(settings);
-            let owner = app.world_mut().spawn((AlsCameraTarget, GlobalTransform::IDENTITY, RotationMode::ViewDirection,
-                AlsViewYaw(0.0), AlsCameraSocketLocations { valid: true, ..default() }, AlsCameraDefinitionHandle(definition))).id();
-            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: owner }, AnimatedSceneHandle::default())).id();
-            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar))).id();
-            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            let definition = app
+                .world_mut()
+                .resource_mut::<Assets<AlsCameraDefinition>>()
+                .add(settings);
+            let owner = app
+                .world_mut()
+                .spawn((
+                    AlsCameraTarget,
+                    GlobalTransform::IDENTITY,
+                    RotationMode::ViewDirection,
+                    AlsViewYaw(0.0),
+                    AlsCameraSocketLocations {
+                        valid: true,
+                        ..default()
+                    },
+                    AlsCameraDefinitionHandle(definition),
+                ))
+                .id();
+            let avatar = app
+                .world_mut()
+                .spawn((
+                    AlsCharacterAvatar { character: owner },
+                    AnimatedSceneHandle::default(),
+                ))
+                .id();
+            let player = app
+                .world_mut()
+                .spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar)))
+                .id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
             app.world_mut().flush();
-            app.world_mut().entity_mut(owner).insert(AlsCharacterAssembly { avatar, camera: None });
-            let camera = app.world_mut().spawn((AlsCameraRig::default(), AlsCharacterCamera { character: owner },
-                AlsCameraCurveValues::from_pairs([(AlsCameraCurve::CameraOffsetZ, 2.0)]),
-                AlsCameraAnimationFrame { active: true, force_no_lag: true, delta_seconds: 0.1 })).id();
-            let point = if penetrating { Vec3::new(-0.1, 0.0, 0.0) } else { Vec3::Z };
-            let mut asset: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+            app.world_mut()
+                .entity_mut(owner)
+                .insert(AlsCharacterAssembly {
+                    avatar,
+                    camera: None,
+                });
+            let camera = app
+                .world_mut()
+                .spawn((
+                    AlsCameraRig::default(),
+                    AlsCharacterCamera { character: owner },
+                    AlsCameraCurveValues::from_pairs([(AlsCameraCurve::CameraOffsetZ, 2.0)]),
+                    AlsCameraAnimationFrame {
+                        active: true,
+                        force_no_lag: true,
+                        delta_seconds: 0.1,
+                    },
+                ))
+                .id();
+            let point = if penetrating {
+                Vec3::new(-0.1, 0.0, 0.0)
+            } else {
+                Vec3::Z
+            };
+            let mut asset: Ragdoll =
+                ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
             asset.joints.clear();
             asset.bodies.retain(|_, body| body.label == "pelvis");
             let body = asset.bodies.values_mut().next().unwrap();
@@ -1733,35 +1953,86 @@ mod tests {
             let collider = asset.colliders.get_mut(&collider_id).unwrap();
             collider.local_offset = bevy::math::Isometry3d::IDENTITY;
             collider.shape = ColliderShape::Cuboid(bevy::shape::Cuboid::new(0.1, 0.6, 0.6));
-            let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
-                spawn_ragdoll_avian(player, &asset, bevy::math::Isometry3d::from_translation(point), None, &mut commands)
-            }).unwrap();
+            let spawned = app
+                .world_mut()
+                .run_system_once(move |mut commands: Commands| {
+                    spawn_ragdoll_avian(
+                        player,
+                        &asset,
+                        bevy::math::Isometry3d::from_translation(point),
+                        None,
+                        &mut commands,
+                    )
+                })
+                .unwrap();
             app.world_mut().flush();
-            assert_eq!(app.world().get::<AlsCameraTraceOwner>(spawned.root).unwrap().0, owner);
+            assert_eq!(
+                app.world()
+                    .get::<AlsCameraTraceOwner>(spawned.root)
+                    .unwrap()
+                    .0,
+                owner
+            );
             app.world_mut().clear_trackers();
             app.world_mut().increment_change_tick();
-            app.world_mut().trigger(bevy_animation_graph::core::ragdoll::spawning::RagdollSpawned { ragdoll: spawned.root, animation_player: player });
+            app.world_mut().trigger(
+                bevy_animation_graph::core::ragdoll::spawning::RagdollSpawned {
+                    ragdoll: spawned.root,
+                    animation_player: player,
+                },
+            );
             app.world_mut().flush();
-            assert!(!app.world().entity(spawned.root).get_ref::<AlsCameraTraceOwner>().unwrap().is_changed());
+            assert!(
+                !app.world()
+                    .entity(spawned.root)
+                    .get_ref::<AlsCameraTraceOwner>()
+                    .unwrap()
+                    .is_changed()
+            );
             for collider in spawned.colliders.values() {
-                app.world_mut().entity_mut(*collider).insert(CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL));
+                app.world_mut()
+                    .entity_mut(*collider)
+                    .insert(CollisionLayers::new(
+                        AlsCollisionLayer::Visibility,
+                        avian3d::prelude::LayerMask::ALL,
+                    ));
             }
-            let other = app.world_mut().spawn((avian3d::prelude::RigidBody::Static, Collider::cuboid(0.1, 0.6, 0.6),
-                Transform::from_translation(point), CollisionLayers::NONE)).id();
+            let other = app
+                .world_mut()
+                .spawn((
+                    avian3d::prelude::RigidBody::Static,
+                    Collider::cuboid(0.1, 0.6, 0.6),
+                    Transform::from_translation(point),
+                    CollisionLayers::NONE,
+                ))
+                .id();
             for blocked in [false, true, false] {
                 app.world_mut().entity_mut(other).insert(if blocked {
-                    CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL)
-                } else { CollisionLayers::NONE });
+                    CollisionLayers::new(
+                        AlsCollisionLayer::Visibility,
+                        avian3d::prelude::LayerMask::ALL,
+                    )
+                } else {
+                    CollisionLayers::NONE
+                });
                 app.update();
                 app.update();
                 app.world_mut().run_system_once(camera_rig_system).unwrap();
                 let debug = app.world().get::<AlsCameraDebugInfo>(camera).unwrap();
-                assert_eq!(debug.trace_blocking_hit, blocked, "Self ragdoll exclusion failed, penetrating={penetrating}: {debug:?}");
+                assert_eq!(
+                    debug.trace_blocking_hit, blocked,
+                    "Self ragdoll exclusion failed, penetrating={penetrating}: {debug:?}"
+                );
                 assert_eq!(debug.trace_adjusted_start, blocked && penetrating);
             }
             app.world_mut().despawn(spawned.root);
             app.world_mut().flush();
-            assert!(spawned.colliders.values().all(|entity| !app.world().entities().contains(*entity)));
+            assert!(
+                spawned
+                    .colliders
+                    .values()
+                    .all(|entity| !app.world().entities().contains(*entity))
+            );
         }
     }
 
@@ -1838,9 +2109,21 @@ mod tests {
                     AlsCharacterCamera { character: owner },
                 ))
                 .id();
-            if let Some(frame) = app.world_mut().entity_mut(owner).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(camera).insert(frame); }
-        if let Some(curves) = app.world_mut().entity_mut(owner).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(camera).insert(curves); }
-        for (memberships, expected) in [
+            if let Some(frame) = app
+                .world_mut()
+                .entity_mut(owner)
+                .take::<AlsCameraAnimationFrame>()
+            {
+                app.world_mut().entity_mut(camera).insert(frame);
+            }
+            if let Some(curves) = app
+                .world_mut()
+                .entity_mut(owner)
+                .take::<AlsCameraCurveValues>()
+            {
+                app.world_mut().entity_mut(camera).insert(curves);
+            }
+            for (memberships, expected) in [
                 (LayerMask::from(AlsCollisionLayer::Default), false),
                 (
                     LayerMask::from([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility]),
@@ -1909,7 +2192,15 @@ mod tests {
     #[test]
     fn source_camera_touching_start_uses_the_padded_penetration_retry() {
         let walls = [(Vec3::new(0.0, 0.0, 0.25), Vec3::new(4.0, 4.0, 0.25))];
-        let (trace, _) = trace_fixture(&walls, Vec3::ZERO, Vec3::Z, Vec3::NEG_Z, 5.0 / 6.0, false, 1.0);
+        let (trace, _) = trace_fixture(
+            &walls,
+            Vec3::ZERO,
+            Vec3::Z,
+            Vec3::NEG_Z,
+            5.0 / 6.0,
+            false,
+            1.0,
+        );
         assert!(trace.blocking_hit);
         assert!(trace.adjusted_start && trace.adjustment_resolved);
         assert_eq!(trace.adjustment_count, 1);
@@ -1976,7 +2267,10 @@ mod tests {
             trace_fixture(&wall, Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.9);
         assert!((ratio - 0.375).abs() < 1e-6);
         assert!((trace.location.z - 0.75).abs() < 1e-6);
-        assert!((trace.end.z - 0.75).abs() < 1e-6, "Debug sweep must end at the unsmoothed collision result");
+        assert!(
+            (trace.end.z - 0.75).abs() < 1e-6,
+            "Debug sweep must end at the unsmoothed collision result"
+        );
     }
 
     #[test]
@@ -2023,46 +2317,127 @@ mod tests {
 
     #[test]
     fn camera_rebinds_root_when_player_changes_on_retained_avatar() {
-        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
-        use bevy_animation_graph::core::{animated_scene::AnimatedSceneHandle, animation_graph_player::AnimationGraphPlayer};
+        use bevy::{
+            ecs::system::RunSystemOnce,
+            world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner},
+        };
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneHandle, animation_graph_player::AnimationGraphPlayer,
+        };
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy_animation_graph::AnimationGraphPlugin::default()));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy_animation_graph::AnimationGraphPlugin::default(),
+        ));
         let mut definitions = Assets::<AlsCameraDefinition>::default();
-        let definition = definitions.add(ron::from_str::<AlsCameraDefinition>(include_str!(
-            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
-        )).unwrap());
+        let definition = definitions.add(
+            ron::from_str::<AlsCameraDefinition>(include_str!(
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
+            ))
+            .unwrap(),
+        );
         app.world_mut().insert_resource(definitions);
-        let actor = app.world_mut().spawn((GlobalTransform::IDENTITY,
-            crate::als::character::als_character_capsule(0.9, 0.3))).id();
-        let avatar = app.world_mut().spawn((AnimatedSceneHandle::default(), ChildOf(actor))).id();
-        app.world_mut().entity_mut(actor).insert((AlsCameraSocketBinding::new(avatar),
-            AlsCameraSocketLocations::default(), AlsCameraDefinitionHandle(definition)));
+        let actor = app
+            .world_mut()
+            .spawn((
+                GlobalTransform::IDENTITY,
+                crate::als::character::als_character_capsule(0.9, 0.3),
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((AnimatedSceneHandle::default(), ChildOf(actor)))
+            .id();
+        app.world_mut().entity_mut(actor).insert((
+            AlsCameraSocketBinding::new(avatar),
+            AlsCameraSocketLocations::default(),
+            AlsCameraDefinitionHandle(definition),
+        ));
         let spawn_mesh = |app: &mut App, location: Vec3| {
-            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar),
-                GlobalTransform::from_translation(location))).id();
-            let root = app.world_mut().spawn((Name::new("root"),
-                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
-                bevy::animation::AnimatedBy(player), ChildOf(player), GlobalTransform::from_translation(location))).id();
-            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            let player = app
+                .world_mut()
+                .spawn((
+                    AnimationGraphPlayer::new(default()),
+                    ChildOf(avatar),
+                    GlobalTransform::from_translation(location),
+                ))
+                .id();
+            let root = app
+                .world_mut()
+                .spawn((
+                    Name::new("root"),
+                    bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+                    bevy::animation::AnimatedBy(player),
+                    ChildOf(player),
+                    GlobalTransform::from_translation(location),
+                ))
+                .id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
             app.world_mut().flush();
             (player, root)
         };
         let (old_player, old_root) = spawn_mesh(&mut app, Vec3::X);
-        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
-        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(old_root));
+        app.world_mut()
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            Some(old_root)
+        );
         app.world_mut().entity_mut(old_player).remove::<ChildOf>();
         let (player, root) = spawn_mesh(&mut app, Vec3::Z * 2.0);
-        app.world_mut().entity_mut(old_player).insert(ChildOf(avatar));
-        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
+        app.world_mut()
+            .entity_mut(old_player)
+            .insert(ChildOf(avatar));
+        app.world_mut()
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
         assert!(app.world().entities().contains(old_root));
-        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().avatar, avatar);
-        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(root));
-        assert_eq!(app.world().get::<AlsCameraSocketLocations>(actor).unwrap().root, Vec3::Z * 2.0);
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .avatar,
+            avatar
+        );
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            Some(root)
+        );
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraSocketLocations>(actor)
+                .unwrap()
+                .root,
+            Vec3::Z * 2.0
+        );
         app.world_mut().entity_mut(player).remove::<ChildOf>();
-        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
-        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(root));
-        assert!(app.world().get::<AlsCameraSocketLocations>(actor).unwrap().valid);
+        app.world_mut()
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            Some(root)
+        );
+        assert!(
+            app.world()
+                .get::<AlsCameraSocketLocations>(actor)
+                .unwrap()
+                .valid
+        );
     }
 
     #[test]
@@ -2070,53 +2445,96 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
         let mut definitions = Assets::<AlsCameraDefinition>::default();
-        let definition = definitions.add(ron::from_str::<AlsCameraDefinition>(include_str!(
-            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
-        )).unwrap());
+        let definition = definitions.add(
+            ron::from_str::<AlsCameraDefinition>(include_str!(
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
+            ))
+            .unwrap(),
+        );
         world.insert_resource(definitions);
-        let actor = world.spawn((
-            GlobalTransform::IDENTITY,
-            crate::als::character::als_character_capsule(0.9, 0.3),
-        )).id();
+        let actor = world
+            .spawn((
+                GlobalTransform::IDENTITY,
+                crate::als::character::als_character_capsule(0.9, 0.3),
+            ))
+            .id();
         let mut spawn_avatar = |location: Vec3| {
             let avatar = world.spawn(ChildOf(actor)).id();
-            let mesh = world.spawn((ChildOf(avatar), GlobalTransform::from_translation(location))).id();
-            let root = world.spawn((
-                Name::new("root"),
-                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
-                ChildOf(mesh),
-                GlobalTransform::from_translation(location),
-            )).id();
+            let mesh = world
+                .spawn((ChildOf(avatar), GlobalTransform::from_translation(location)))
+                .id();
+            let root = world
+                .spawn((
+                    Name::new("root"),
+                    bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+                    ChildOf(mesh),
+                    GlobalTransform::from_translation(location),
+                ))
+                .id();
             (avatar, root)
         };
         let (old_avatar, old_root) = spawn_avatar(Vec3::X);
         let new_avatar = world.spawn(ChildOf(actor)).id();
-        let new_mesh = world.spawn((
-            ChildOf(new_avatar),
-            GlobalTransform::from_translation(Vec3::Z * 2.0),
-        )).id();
+        let new_mesh = world
+            .spawn((
+                ChildOf(new_avatar),
+                GlobalTransform::from_translation(Vec3::Z * 2.0),
+            ))
+            .id();
         world.entity_mut(actor).insert((
             AlsCameraSocketBinding::new(old_avatar),
             AlsCameraSocketLocations::default(),
             AlsCameraDefinitionHandle(definition),
         ));
-        world.run_system_once(resolve_camera_socket_locations).unwrap();
-        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(old_root));
-        world.get_mut::<AlsCameraSocketBinding>(actor).unwrap().avatar = new_avatar;
-        world.run_system_once(resolve_camera_socket_locations).unwrap();
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            world
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            Some(old_root)
+        );
+        world
+            .get_mut::<AlsCameraSocketBinding>(actor)
+            .unwrap()
+            .avatar = new_avatar;
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
         assert!(world.entities().contains(old_root));
-        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, None);
+        assert_eq!(
+            world
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            None
+        );
         assert!(!world.get::<AlsCameraSocketLocations>(actor).unwrap().valid);
-        let new_root = world.spawn((
-            Name::new("root"),
-            bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
-            ChildOf(new_mesh),
-            GlobalTransform::from_translation(Vec3::Z * 2.0),
-        )).id();
-        world.run_system_once(resolve_camera_socket_locations).unwrap();
-        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(new_root));
+        let new_root = world
+            .spawn((
+                Name::new("root"),
+                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+                ChildOf(new_mesh),
+                GlobalTransform::from_translation(Vec3::Z * 2.0),
+            ))
+            .id();
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            world
+                .get::<AlsCameraSocketBinding>(actor)
+                .unwrap()
+                .root_bone,
+            Some(new_root)
+        );
         assert!(world.get::<AlsCameraSocketLocations>(actor).unwrap().valid);
-        assert_eq!(world.get::<AlsCameraSocketLocations>(actor).unwrap().root, Vec3::Z * 2.0);
+        assert_eq!(
+            world.get::<AlsCameraSocketLocations>(actor).unwrap().root,
+            Vec3::Z * 2.0
+        );
     }
 
     #[test]
@@ -2406,8 +2824,20 @@ mod tests {
                 ..default()
             })
             .id();
-        if let Some(frame) = app.world_mut().entity_mut(owner).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(source).insert(frame); }
-        if let Some(curves) = app.world_mut().entity_mut(owner).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(source).insert(curves); }
+        if let Some(frame) = app
+            .world_mut()
+            .entity_mut(owner)
+            .take::<AlsCameraAnimationFrame>()
+        {
+            app.world_mut().entity_mut(source).insert(frame);
+        }
+        if let Some(curves) = app
+            .world_mut()
+            .entity_mut(owner)
+            .take::<AlsCameraCurveValues>()
+        {
+            app.world_mut().entity_mut(source).insert(curves);
+        }
         let view = app
             .world_mut()
             .spawn((
@@ -2643,8 +3073,12 @@ mod tests {
                 },
             ))
             .id();
-        if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() { world.entity_mut(component).insert(frame); }
-        if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() { world.entity_mut(component).insert(curves); }
+        if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() {
+            world.entity_mut(component).insert(frame);
+        }
+        if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() {
+            world.entity_mut(component).insert(curves);
+        }
         world.run_system_once(camera_rig_system).unwrap();
         let runtime = *world.get::<AlsCameraRuntime>(component).unwrap();
         assert_eq!(runtime.movement_base, Some(base));
@@ -2725,13 +3159,19 @@ mod tests {
             entity: base,
             has_relative_rotation: false,
         });
-        world.get_mut::<AlsCameraCurveValues>(component).unwrap()
+        world
+            .get_mut::<AlsCameraCurveValues>(component)
+            .unwrap()
             .set(AlsCameraCurve::FirstPersonOverride, 0.0);
-        world.get_mut::<AlsCameraAnimationFrame>(component).unwrap().force_no_lag = false;
+        world
+            .get_mut::<AlsCameraAnimationFrame>(component)
+            .unwrap()
+            .force_no_lag = false;
         let absolute_view = Quat::from_euler(EulerRot::YXZ, 0.2, 0.1, 0.0);
         for yaw in [1.2, 1.5] {
             world.entity_mut(base).insert(GlobalTransform::from(
-                Transform::from_translation(base_position).with_rotation(Quat::from_rotation_y(yaw)),
+                Transform::from_translation(base_position)
+                    .with_rotation(Quat::from_rotation_y(yaw)),
             ));
             world.run_system_once(camera_rig_system).unwrap();
             let runtime = world.get::<AlsCameraRuntime>(component).unwrap();

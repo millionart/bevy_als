@@ -92,7 +92,8 @@ fn spawn_character(
     translation: Vec3,
     input: Vec2,
 ) -> Entity {
-    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
+    let mut bundle =
+        AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation)
         .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
     bundle.gait = Gait::Running;

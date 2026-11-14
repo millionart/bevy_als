@@ -34,11 +34,25 @@ pub struct PlaygroundTilesSettings {
 }
 
 impl MaterialExtension for PlaygroundTilesExtension {
-    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wesl".into() }
-    fn deferred_fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wesl".into() }
-    fn specialize(_: &bevy::pbr::MaterialExtensionPipeline, descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
-        _: &bevy::mesh::MeshVertexBufferLayoutRef, _: bevy::pbr::MaterialExtensionKey<Self>) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
-        descriptor.label = Some(format!("als_playground_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());
+    fn fragment_shader() -> ShaderRef {
+        "ALSExtras/Environment/Materials/playground_tiles.wesl".into()
+    }
+    fn deferred_fragment_shader() -> ShaderRef {
+        "ALSExtras/Environment/Materials/playground_tiles.wesl".into()
+    }
+    fn specialize(
+        _: &bevy::pbr::MaterialExtensionPipeline,
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        _: &bevy::mesh::MeshVertexBufferLayoutRef,
+        _: bevy::pbr::MaterialExtensionKey<Self>,
+    ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.label = Some(
+            format!(
+                "als_playground_receiver_{}",
+                descriptor.label.as_deref().unwrap_or_default()
+            )
+            .into(),
+        );
         Ok(())
     }
 }
@@ -47,11 +61,15 @@ pub struct PlaygroundMaterialsPlugin;
 
 impl Plugin for PlaygroundMaterialsPlugin {
     fn build(&self, app: &mut App) {
-        if !app.is_plugin_added::<crate::extensions::projected_decal::PackedDecalPlugin>() { app.add_plugins(crate::extensions::projected_decal::PackedDecalPlugin); }
+        if !app.is_plugin_added::<crate::extensions::projected_decal::PackedDecalPlugin>() {
+            app.add_plugins(crate::extensions::projected_decal::PackedDecalPlugin);
+        }
         app.add_plugins(MaterialPlugin::<PlaygroundTilesMaterial>::default())
             .init_resource::<PlaygroundMaterialLibrary>()
             .add_systems(PreStartup, load_playground_textures);
-        crate::extensions::projected_decal::install_decal_receiver_bindings::<PlaygroundTilesMaterial>(app);
+        crate::extensions::projected_decal::install_decal_receiver_bindings::<
+            PlaygroundTilesMaterial,
+        >(app);
     }
 }
 
@@ -152,22 +170,36 @@ fn decode_image(bytes: &[u8], extension: &str, green_to_red: bool) -> Option<Ima
     Some(image)
 }
 
-fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: bool) -> Option<Handle<Image>> {
+fn add_image(
+    server: &AssetServer,
+    bytes: &[u8],
+    extension: &str,
+    green_to_red: bool,
+) -> Option<Handle<Image>> {
     decode_image(bytes, extension, green_to_red).map(|image| server.add(image))
 }
 
-fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>, buffers: Res<crate::extensions::projected_decal::PackedDecalBuffers>) {
-    let grid = std::fs::read("assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
+fn load_playground_textures(
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    buffers: Res<crate::extensions::projected_decal::PackedDecalBuffers>,
+) {
+    let grid =
+        std::fs::read("assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
     let normal = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.tga");
     let masks = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.tga");
 
     let library = PlaygroundMaterialLibrary {
         decal_buffers: buffers.clone(),
-        tiles_grid: grid.ok().and_then(|bytes| add_image(&server, &bytes, "tga", false)),
+        tiles_grid: grid
+            .ok()
+            .and_then(|bytes| add_image(&server, &bytes, "tga", false)),
         tiles_normal: normal
             .ok()
             .and_then(|bytes| add_image(&server, &bytes, "tga", false)),
-        tiles_occlusion: masks.ok().and_then(|bytes| add_image(&server, &bytes, "tga", true)),
+        tiles_occlusion: masks
+            .ok()
+            .and_then(|bytes| add_image(&server, &bytes, "tga", true)),
     };
     info!(
         "[PGMAT] textures loaded grid={} normal={} occlusion={}",
@@ -185,9 +217,23 @@ mod tests {
     #[test]
     fn source_grid_tga_preserves_every_rgba_pixel() {
         for (bytes, size) in [
-            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga").as_slice(), 512usize),
-            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.tga").as_slice(), 2048usize),
-            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.tga").as_slice(), 2048usize),
+            (
+                include_bytes!(
+                    "../../../assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga"
+                )
+                .as_slice(),
+                512usize,
+            ),
+            (
+                include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.tga")
+                    .as_slice(),
+                2048usize,
+            ),
+            (
+                include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.tga")
+                    .as_slice(),
+                2048usize,
+            ),
         ] {
             assert_eq!(&bytes[16..18], [32, 8]);
             let image = decode_image(bytes, "tga", false).unwrap();
@@ -195,7 +241,10 @@ mod tests {
             let pixels = image.data.unwrap();
             for (index, bgra) in bytes[18..18 + size * size * 4].chunks_exact(4).enumerate() {
                 let target = ((size - 1 - index / size) * size + index % size) * 4;
-                assert_eq!(&pixels[target..target + 4], [bgra[2], bgra[1], bgra[0], bgra[3]]);
+                assert_eq!(
+                    &pixels[target..target + 4],
+                    [bgra[2], bgra[1], bgra[0], bgra[3]]
+                );
             }
         }
     }

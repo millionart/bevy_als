@@ -1,5 +1,5 @@
-use bevy_als::extensions::{AlsExtPlugin, CurveAsset};
 use bevy::prelude::*;
+use bevy_als::extensions::{AlsExtPlugin, CurveAsset};
 
 const STRIDE_WALK_RON: &str =
     "ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.curve.ron";

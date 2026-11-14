@@ -1,5 +1,8 @@
 use std::num::NonZeroU8;
 
+use avian3d::prelude::*;
+use bevy::asset::AssetPlugin;
+use bevy::prelude::*;
 use bevy_als::als::air::{AlsAirPlugin, AlsAirState, ground_prediction_amount};
 use bevy_als::als::character::{
     AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin, AlsCmcAdapterRuntime,
@@ -12,9 +15,6 @@ use bevy_als::als::motion::{
 };
 use bevy_als::als::params::AlsMovementParams;
 use bevy_als::als::state::{LocomotionState, RotationMode};
-use avian3d::prelude::*;
-use bevy::asset::AssetPlugin;
-use bevy::prelude::*;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
@@ -73,12 +73,22 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(40.0, 0.2, 40.0),
-        avian3d::prelude::CollisionLayers::new([bevy_als::als::character::AlsCollisionLayer::Default, bevy_als::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+        avian3d::prelude::CollisionLayers::new(
+            [
+                bevy_als::als::character::AlsCollisionLayer::Default,
+                bevy_als::als::character::AlsCollisionLayer::Visibility,
+            ],
+            avian3d::prelude::LayerMask::ALL,
+        ),
         Transform::from_xyz(0.0, -0.1, 0.0),
     ));
     let params_value = AlsMovementParams::default();
     let params = params_assets.add(params_value.clone());
-    let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, initial_als_control_scheme_config(&params_value));
+    let mut bundle = AlsCharacterBundle::new(
+        params,
+        &mut config_assets,
+        initial_als_control_scheme_config(&params_value),
+    );
     bundle.transform = Transform::from_xyz(0.0, 3.0, 0.0);
     bundle.rotation_mode = RotationMode::Aiming;
     bundle.locomotion_state = LocomotionState::Air;

@@ -5,7 +5,9 @@ use crate::als::motion::AlsViewYaw;
 use crate::als::orientation::yaw_to_world_forward;
 use crate::als::start_stop::{MoveDirection, classify};
 use crate::als::state::{LocomotionState, Stance};
-use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend, advance_forward_montage_position};
+use crate::extensions::profile_blend::{
+    AlphaBlendMode, MontageBlend, advance_forward_montage_position,
+};
 
 pub const ROLL_MONTAGE_SEQUENCE_LENGTH_SECS: f32 = 1.5;
 pub const ROLL_PLAY_RATE: f32 = 1.3;
@@ -60,8 +62,9 @@ impl Default for AlsRollState {
 pub fn select_roll_direction(input_yaw: Option<f32>, basis: &AlsViewYaw) -> (MoveDirection, f32) {
     let yaw = input_yaw.unwrap_or(basis.0);
     let world = yaw_to_world_forward(yaw);
-    let direction = input_yaw.map_or(MoveDirection::Forward,
-        |_| classify(Vec2::new(world.x, -world.z), basis.0));
+    let direction = input_yaw.map_or(MoveDirection::Forward, |_| {
+        classify(Vec2::new(world.x, -world.z), basis.0)
+    });
     (direction, yaw)
 }
 
@@ -91,37 +94,55 @@ pub fn damper_exact_angle(
     if delta < -crate::als::transitions::COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES.to_radians() {
         delta += std::f32::consts::TAU;
     }
-    let alpha = 1.0 - crate::als::animation::inv_exp_approx(
-        std::f32::consts::LN_2 / (half_life_seconds + 1e-8) * delta_seconds.max(0.0),
-    );
+    let alpha = 1.0
+        - crate::als::animation::inv_exp_approx(
+            std::f32::consts::LN_2 / (half_life_seconds + 1e-8) * delta_seconds.max(0.0),
+        );
     wrap_angle(current + delta * alpha)
 }
 
 impl AlsRollState {
     pub fn weight(&self) -> f32 {
-        self.montage.map_or_else(|| self.elapsed_weight(self.time), |montage| montage.blend.weight())
+        self.montage.map_or_else(
+            || self.elapsed_weight(self.time),
+            |montage| montage.blend.weight(),
+        )
     }
 
     fn elapsed_weight(&self, time: f32) -> f32 {
         let alpha = if let Some(start) = self.natural_blend_start {
             let duration = ROLL_DURATION_SECS - start;
-            if duration > 0.0 { (ROLL_DURATION_SECS - time) / duration } else { 0.0 }
-        } else { time / ROLL_WEIGHT_IN_SECS }.clamp(0.0, 1.0);
+            if duration > 0.0 {
+                (ROLL_DURATION_SECS - time) / duration
+            } else {
+                0.0
+            }
+        } else {
+            time / ROLL_WEIGHT_IN_SECS
+        }
+        .clamp(0.0, 1.0);
         alpha * alpha * (3.0 - 2.0 * alpha)
     }
 
     pub(crate) fn previous_weight(&self) -> f32 {
-        self.montage.map_or_else(|| self.elapsed_weight(self.previous_time), |montage| montage.previous_weight)
+        self.montage.map_or_else(
+            || self.elapsed_weight(self.previous_time),
+            |montage| montage.previous_weight,
+        )
     }
 
     pub(crate) fn clip_time(&self) -> f32 {
-        self.montage.map_or_else(|| (self.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
-            |montage| montage.position)
+        self.montage.map_or_else(
+            || (self.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
+            |montage| montage.position,
+        )
     }
 
     pub(crate) fn previous_clip_time(&self) -> f32 {
-        self.montage.map_or_else(|| (self.previous_time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
-            |montage| montage.previous_position)
+        self.montage.map_or_else(
+            || (self.previous_time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
+            |montage| montage.previous_position,
+        )
     }
 
     pub(crate) fn remaining_play_time(&self) -> f32 {
@@ -138,10 +159,20 @@ impl AlsRollState {
 
     fn playback_at_elapsed(&self) -> RollMontagePlayback {
         let (mut blend, elapsed) = if let Some(start) = self.natural_blend_start {
-            (MontageBlend::new(1.0, 0.0, ROLL_DURATION_SECS - start, AlphaBlendMode::HermiteCubic),
-                (self.time - start).max(0.0))
+            (
+                MontageBlend::new(
+                    1.0,
+                    0.0,
+                    ROLL_DURATION_SECS - start,
+                    AlphaBlendMode::HermiteCubic,
+                ),
+                (self.time - start).max(0.0),
+            )
         } else {
-            (MontageBlend::new(0.0, 1.0, ROLL_WEIGHT_IN_SECS, AlphaBlendMode::HermiteCubic), self.time)
+            (
+                MontageBlend::new(0.0, 1.0, ROLL_WEIGHT_IN_SECS, AlphaBlendMode::HermiteCubic),
+                self.time,
+            )
         };
         let weight = blend.advance(elapsed);
         let position = self.clip_time();
@@ -159,7 +190,9 @@ impl AlsRollState {
         self.time += delta;
         montage.previous_position = montage.position;
         montage.previous_weight = montage.blend.weight();
-        if natural_blend { montage.blend.advance(delta); }
+        if natural_blend {
+            montage.blend.advance(delta);
+        }
         let blend = &mut montage.blend;
         let start = &mut self.natural_blend_start;
         let elapsed = self.time;
@@ -167,7 +200,8 @@ impl AlsRollState {
             let remaining = (ROLL_MONTAGE_SEQUENCE_LENGTH_SECS - position) / ROLL_PLAY_RATE;
             if natural_blend && start.is_none() && remaining <= ROLL_WEIGHT_OUT_SECS {
                 *start = Some(elapsed);
-                *blend = MontageBlend::new(blend.weight(), 0.0, remaining, AlphaBlendMode::HermiteCubic);
+                *blend =
+                    MontageBlend::new(blend.weight(), 0.0, remaining, AlphaBlendMode::HermiteCubic);
             }
         });
         let ended = natural_blend && start.is_some() && montage.blend.weight() <= 0.0;
@@ -220,7 +254,9 @@ impl AlsRollState {
         if self.active {
             let playing = self.root_motion_active();
             lifecycle.ended = self.advance_playback(dt, true);
-            if playing { return lifecycle; }
+            if playing {
+                return lifecycle;
+            }
         }
         if *loco == LocomotionState::Grounded && cmd.roll_pressed {
             self.last_direction = direction.0;
@@ -234,8 +270,14 @@ impl AlsRollState {
 }
 
 pub(crate) fn advance_roll_clip(position: &mut f32, delta: f32, after_step: impl FnMut(f32)) {
-    advance_forward_montage_position(position, delta, ROLL_PLAY_RATE,
-        ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_BRANCHING_POINTS, after_step);
+    advance_forward_montage_position(
+        position,
+        delta,
+        ROLL_PLAY_RATE,
+        ROLL_MONTAGE_SEQUENCE_LENGTH_SECS,
+        ROLL_BRANCHING_POINTS,
+        after_step,
+    );
 }
 
 #[cfg(test)]
@@ -246,22 +288,39 @@ mod tests {
     fn roll_uses_native_substeps_and_accumulated_blend_weights() {
         let native: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d118b/roll.native.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let samples = native["montage_clock_probe"]["samples"].as_array().unwrap();
         assert_eq!(samples.len(), 14);
         for sample in samples {
             let name = sample["name"].as_str().unwrap();
             let mut state = AlsRollState::default();
-            assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0),
-                &LocomotionState::Grounded, &Stance::Standing, 0.0).started);
+            assert!(
+                state
+                    .update(
+                        &base_cmd(),
+                        (MoveDirection::Forward, 0.0),
+                        &LocomotionState::Grounded,
+                        &Stance::Standing,
+                        0.0
+                    )
+                    .started
+            );
             for (index, frame) in sample["frames"].as_array().unwrap().iter().enumerate() {
                 if state.active {
                     state.advance_playback(frame["delta_seconds"].as_f64().unwrap() as f32, true);
                 }
-                assert_eq!(state.weight(), frame["weight"].as_f64().unwrap() as f32, "{name}: weight at {index}");
+                assert_eq!(
+                    state.weight(),
+                    frame["weight"].as_f64().unwrap() as f32,
+                    "{name}: weight at {index}"
+                );
                 if frame["playing"].as_bool().unwrap() {
-                    assert_eq!(state.clip_time(), frame["position"].as_f64().unwrap() as f32,
-                        "{name}: clip position at {index}");
+                    assert_eq!(
+                        state.clip_time(),
+                        frame["position"].as_f64().unwrap() as f32,
+                        "{name}: clip position at {index}"
+                    );
                 }
             }
         }
@@ -269,14 +328,14 @@ mod tests {
 
     #[test]
     fn roll_montage_weight_uses_source_hermite_cubic_blends() {
-        let mut state = AlsRollState { time: ROLL_WEIGHT_IN_SECS * 0.25, ..default() };
+        let mut state = AlsRollState {
+            time: ROLL_WEIGHT_IN_SECS * 0.25,
+            ..default()
+        };
         assert!((state.weight() - 0.15625).abs() < 1e-6);
         state.natural_blend_start = Some(ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS);
         state.time = ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS * 0.25;
-        assert!(
-            (state.weight() - 0.15625).abs()
-                < 1e-6
-        );
+        assert!((state.weight() - 0.15625).abs() < 1e-6);
     }
 
     fn base_cmd() -> AlsInputCommand {
@@ -340,8 +399,17 @@ mod tests {
             ROLL_DURATION_SECS,
         );
         assert!(end.ended && !state.active);
-        assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0),
-            &LocomotionState::Grounded, &Stance::Crouching, 0.0).started);
+        assert!(
+            state
+                .update(
+                    &base_cmd(),
+                    (MoveDirection::Forward, 0.0),
+                    &LocomotionState::Grounded,
+                    &Stance::Crouching,
+                    0.0
+                )
+                .started
+        );
         assert!((ROLL_DURATION_SECS - 1.5 / 1.3).abs() < 1e-6);
     }
 
@@ -359,21 +427,54 @@ mod tests {
     #[test]
     fn natural_roll_stop_preserves_weight_and_uses_the_remaining_budget() {
         for crossing_delta in [0.03, 0.07, 0.17] {
-            let mut state = AlsRollState { active: true,
-                time: ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS - 0.02, ..default() };
+            let mut state = AlsRollState {
+                active: true,
+                time: ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS - 0.02,
+                ..default()
+            };
             let input = AlsInputCommand::default();
-            state.update(&input, (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
-                &Stance::Standing, crossing_delta);
-            assert_eq!(state.weight(), 1.0, "Natural Stop consumed weight in its trigger frame");
+            state.update(
+                &input,
+                (MoveDirection::Forward, 0.0),
+                &LocomotionState::Grounded,
+                &Stance::Standing,
+                crossing_delta,
+            );
+            assert_eq!(
+                state.weight(),
+                1.0,
+                "Natural Stop consumed weight in its trigger frame"
+            );
             let remaining = ROLL_DURATION_SECS - state.time;
-            for (delta, weight) in [(remaining * 0.25, 0.84375), (remaining * 0.25, 0.5), (remaining * 0.5, 0.0)] {
-                state.update(&input, (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
-                    &Stance::Standing, delta);
-                assert!((state.weight() - weight).abs() < 1e-5, "Natural Roll lost the source remaining-time budget");
+            for (delta, weight) in [
+                (remaining * 0.25, 0.84375),
+                (remaining * 0.25, 0.5),
+                (remaining * 0.5, 0.0),
+            ] {
+                state.update(
+                    &input,
+                    (MoveDirection::Forward, 0.0),
+                    &LocomotionState::Grounded,
+                    &Stance::Standing,
+                    delta,
+                );
+                assert!(
+                    (state.weight() - weight).abs() < 1e-5,
+                    "Natural Roll lost the source remaining-time budget"
+                );
             }
             assert!(!state.active);
-            assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
-                &Stance::Standing, 0.0).started);
+            assert!(
+                state
+                    .update(
+                        &base_cmd(),
+                        (MoveDirection::Forward, 0.0),
+                        &LocomotionState::Grounded,
+                        &Stance::Standing,
+                        0.0
+                    )
+                    .started
+            );
             assert_eq!(state.weight(), 0.0);
         }
     }
@@ -387,14 +488,19 @@ mod tests {
             ROLL_ROTATION_HALF_LIFE_SECS,
             ROLL_ROTATION_HALF_LIFE_SECS,
         );
-        let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (ROLL_ROTATION_HALF_LIFE_SECS + 1e-8) * ROLL_ROTATION_HALF_LIFE_SECS);
+        let alpha = 1.0
+            - crate::als::animation::inv_exp_approx(
+                std::f32::consts::LN_2 / (ROLL_ROTATION_HALF_LIFE_SECS + 1e-8)
+                    * ROLL_ROTATION_HALF_LIFE_SECS,
+            );
         assert!((after_one_half_life.abs() - std::f32::consts::PI * alpha).abs() < 1e-5);
         assert!((damper_exact_angle(0.0, target, 0.1, 0.0) - target).abs() < 1e-6);
     }
 
     #[test]
     fn source_roll_damper_preserves_world_turn_across_yaw_bases() {
-        let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.1);
+        let alpha = 1.0
+            - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.1);
         for (target_degrees, source_delta_degrees) in [
             (176.0_f32, -184.0_f32),
             (174.0, 174.0),
@@ -405,8 +511,10 @@ mod tests {
             let bevy_target = (-target_degrees).to_radians();
             let actual = damper_exact_angle(0.0, bevy_target, 0.1, 0.1);
             let expected = wrap_angle((-source_delta_degrees).to_radians() * alpha);
-            assert!(yaw_to_world_forward(actual).distance(yaw_to_world_forward(expected)) < 1e-5,
-                "source target={target_degrees} actual={actual} expected={expected}");
+            assert!(
+                yaw_to_world_forward(actual).distance(yaw_to_world_forward(expected)) < 1e-5,
+                "source target={target_degrees} actual={actual} expected={expected}"
+            );
         }
     }
 
@@ -414,9 +522,18 @@ mod tests {
     fn source_landing_roll_threshold_uses_preimpact_velocity() {
         for speed in [6.999, 7.0, 7.001] {
             let mut state = AlsRollState::default();
-            let started = state.start_from_landing(speed, Some(-std::f32::consts::FRAC_PI_2), 0.0, Stance::Standing).started;
+            let started = state
+                .start_from_landing(
+                    speed,
+                    Some(-std::f32::consts::FRAC_PI_2),
+                    0.0,
+                    Stance::Standing,
+                )
+                .started;
             assert_eq!(started, speed >= 7.0);
-            if started { assert!(roll_displacement_dir(state.direction_yaw).distance(Vec3::X) < 1e-6); }
+            if started {
+                assert!(roll_displacement_dir(state.direction_yaw).distance(Vec3::X) < 1e-6);
+            }
         }
     }
 }

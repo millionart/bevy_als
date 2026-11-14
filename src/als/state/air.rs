@@ -1,5 +1,5 @@
-use avian3d::prelude::{LinearVelocity, PhysicsSystems, ShapeCastConfig, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use avian3d::prelude::{LinearVelocity, PhysicsSystems, ShapeCastConfig, SpatialQueryFilter};
 use bevy::prelude::*;
 use bevy_tnua::TnuaPipelineSystems;
 
@@ -297,7 +297,8 @@ pub fn ground_prediction_sweep(
         + (vertical_velocity - GROUND_PREDICTION_MAX_VY)
             / (GROUND_PREDICTION_MIN_VY - GROUND_PREDICTION_MAX_VY)
             * (GROUND_PREDICTION_MAX_SWEEP_M - GROUND_PREDICTION_MIN_SWEEP_M);
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]).with_mask(crate::als::character::AlsCollisionLayer::Visibility);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded])
+        .with_mask(crate::als::character::AlsCollisionLayer::Visibility);
     let shape = als_character_capsule(capsule_half_height, capsule_radius);
     let config = ShapeCastConfig::from_max_distance(distance);
     let hit = spatial.cast_shape(&shape, origin, Quat::IDENTITY, dir, &config, &filter);
@@ -306,7 +307,14 @@ pub fn ground_prediction_sweep(
         Some(h) => {
             result.sweep_end = Some(origin + dir * h.distance);
             result.ground_valid = crate::als::motion::source_sweep_impact_normal(
-                spatial, &h, *dir * distance, origin, Quat::IDENTITY, &shape).y >= WALKABLE_FLOOR_COS;
+                spatial,
+                &h,
+                *dir * distance,
+                origin,
+                Quat::IDENTITY,
+                &shape,
+            )
+            .y >= WALKABLE_FLOOR_COS;
             if result.ground_valid {
                 let time_frac = (h.distance / distance).clamp(0.0, 1.0);
                 result.hit_fraction = Some(time_frac);
@@ -325,16 +333,18 @@ pub struct AlsAirPlugin;
 impl Plugin for AlsAirPlugin {
     fn build(&self, app: &mut App) {
         app.register_required_components::<AlsCharacter, AlsAirState>()
-        .add_systems(
-            Update,
-            record_pre_impact_velocity_system
-                .after(crate::als::motion::initialize_spawn_movement_mode)
-                .before(TnuaPipelineSystems::Sensors),
-        )
-        .add_systems(
-            PostUpdate,
-            air_state_system.after(PhysicsSystems::Last).after(crate::als::motion::AlsActualVelocitySet),
-        );
+            .add_systems(
+                Update,
+                record_pre_impact_velocity_system
+                    .after(crate::als::motion::initialize_spawn_movement_mode)
+                    .before(TnuaPipelineSystems::Sensors),
+            )
+            .add_systems(
+                PostUpdate,
+                air_state_system
+                    .after(PhysicsSystems::Last)
+                    .after(crate::als::motion::AlsActualVelocitySet),
+            );
     }
 }
 
@@ -424,21 +434,37 @@ mod tests {
                 record_capsule_sweep_probe.after(PhysicsSystems::Last),
             );
         app.finish();
-        let obstacle = app.world_mut().spawn((
-            RigidBody::Static,
-            Collider::cuboid(0.05, 0.1, 0.5),
-            Position(Vec3::new(0.1, 0.0, 0.0)),
-            Transform::from_xyz(0.1, 0.0, 0.0),
-        )).id();
+        let obstacle = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(0.05, 0.1, 0.5),
+                Position(Vec3::new(0.1, 0.0, 0.0)),
+                Transform::from_xyz(0.1, 0.0, 0.0),
+            ))
+            .id();
         app.world_mut()
             .spawn((CapsuleSweepProbeOrigin, Transform::from_xyz(0.0, 2.0, 0.0)));
         for _ in 0..3 {
             app.update();
         }
-        assert!(!app.world().resource::<CapsuleSweepProbe>().prediction.unwrap().ground_valid,
-            "A physical-only collider must not block the source Visibility sweep");
-        app.world_mut().entity_mut(obstacle).insert(avian3d::prelude::CollisionLayers::new(
-            [crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL));
+        assert!(
+            !app.world()
+                .resource::<CapsuleSweepProbe>()
+                .prediction
+                .unwrap()
+                .ground_valid,
+            "A physical-only collider must not block the source Visibility sweep"
+        );
+        app.world_mut()
+            .entity_mut(obstacle)
+            .insert(avian3d::prelude::CollisionLayers::new(
+                [
+                    crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                ],
+                avian3d::prelude::LayerMask::ALL,
+            ));
         app.update();
         let probe = app.world().resource::<CapsuleSweepProbe>();
         let prediction = probe.prediction.unwrap();
@@ -462,27 +488,53 @@ mod tests {
     #[test]
     fn air_state_samples_on_spawn_and_observes_landing_in_the_same_frame() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate), AlsAirPlugin))
-            .init_resource::<Assets<Mesh>>()
-            .add_message::<AssetEvent<Mesh>>()
-            .init_resource::<Assets<crate::als::params::AlsMovementParams>>()
-            .add_systems(PostUpdate,
-                (|mut actors: Query<(&mut LocomotionState, &mut LinearVelocity), With<AlsCharacter>>| {
-                    for (mut mode, mut velocity) in &mut actors {
-                        *mode = LocomotionState::Grounded;
-                        velocity.0 = Vec3::ZERO;
-                    }
-                }).in_set(PhysicsSystems::Last));
+        app.add_plugins((
+            MinimalPlugins,
+            TransformPlugin,
+            PhysicsPlugins::new(PostUpdate),
+            AlsAirPlugin,
+        ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<AssetEvent<Mesh>>()
+        .init_resource::<Assets<crate::als::params::AlsMovementParams>>()
+        .add_systems(
+            PostUpdate,
+            (|mut actors: Query<
+                (&mut LocomotionState, &mut LinearVelocity),
+                With<AlsCharacter>,
+            >| {
+                for (mut mode, mut velocity) in &mut actors {
+                    *mode = LocomotionState::Grounded;
+                    velocity.0 = Vec3::ZERO;
+                }
+            })
+            .in_set(PhysicsSystems::Last),
+        );
         app.finish();
         app.cleanup();
-        let actor = app.world_mut().spawn((AlsCharacter, LocomotionState::Air,
-            Transform::IDENTITY, LinearVelocity(Vec3::NEG_Y * 8.0),
-            AlsAirState { phase: AirPhase::Airborne, ..default() })).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Air,
+                Transform::IDENTITY,
+                LinearVelocity(Vec3::NEG_Y * 8.0),
+                AlsAirState {
+                    phase: AirPhase::Airborne,
+                    ..default()
+                },
+            ))
+            .id();
         app.update();
         let world = app.world();
         let state = world.get::<AlsAirState>(actor).unwrap();
-        let impact = world.get::<AlsPreImpactVelocity>(actor).map(|record| record.last_air_vertical_velocity);
-        assert_eq!((state.phase, state.last_impact_vy, impact), (AirPhase::Landing, 8.0, Some(-8.0)));
+        let impact = world
+            .get::<AlsPreImpactVelocity>(actor)
+            .map(|record| record.last_air_vertical_velocity);
+        assert_eq!(
+            (state.phase, state.last_impact_vy, impact),
+            (AirPhase::Landing, 8.0, Some(-8.0))
+        );
     }
 
     #[test]

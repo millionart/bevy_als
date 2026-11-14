@@ -1,0 +1,272 @@
+{
+  "baseline_commit": "2aefc81763de6563f260f1e07bf91a1223629366",
+  "rustfmt_version": "rustfmt 1.9.0-stable (48a229ceae 2026-09-01)",
+  "before": {
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:48:11.1241330Z",
+      "last_progress_at_utc": "2026-11-14T00:48:13.6438222Z",
+      "last_progress_source": "before.stdout",
+      "finished_at_utc": "2026-11-14T00:48:13.6802990Z",
+      "elapsed_seconds": 2.556,
+      "no_progress_seconds": 0.036,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 1
+    },
+    "diff_sections": 6387,
+    "rust_files": 197,
+    "camera_component_diff_sections": 42
+  },
+  "repository_format": {
+    "command": [
+      "cargo",
+      "fmt"
+    ],
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:48:20.9683110Z",
+      "last_progress_at_utc": "2026-11-14T00:48:20.9703692Z",
+      "last_progress_source": "format.stderr",
+      "finished_at_utc": "2026-11-14T00:48:22.5140880Z",
+      "elapsed_seconds": 1.546,
+      "no_progress_seconds": 1.544,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    },
+    "first_check": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:48:39.6390350Z",
+      "last_progress_at_utc": "2026-11-14T00:48:39.9004147Z",
+      "last_progress_source": "after.stdout",
+      "finished_at_utc": "2026-11-14T00:48:41.1888940Z",
+      "elapsed_seconds": 1.55,
+      "no_progress_seconds": 1.288,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 1
+    },
+    "remaining_diff_path": "tools/animation_visual_validation.rs",
+    "remaining_diff_sections": 2
+  },
+  "standalone_format": {
+    "command": [
+      "rustfmt",
+      "--edition",
+      "2024",
+      "tools/animation_visual_validation.rs"
+    ],
+    "first_pass_check": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:51:31.5764440Z",
+      "last_progress_at_utc": "2026-11-14T00:51:31.6430489Z",
+      "last_progress_source": "qualified-paths-check-1.stdout",
+      "finished_at_utc": "2026-11-14T00:51:31.8444860Z",
+      "elapsed_seconds": 0.268,
+      "no_progress_seconds": 0.201,
+      "no_progress_limit_seconds": 15,
+      "timeout_seconds": 30,
+      "process_exit_code": 1
+    },
+    "second_pass_check": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:51:32.1313700Z",
+      "last_progress_at_utc": "2026-11-14T00:51:32.1314902Z",
+      "last_progress_source": "qualified-paths-check-2.stderr",
+      "finished_at_utc": "2026-11-14T00:51:32.3953150Z",
+      "elapsed_seconds": 0.264,
+      "no_progress_seconds": 0.264,
+      "no_progress_limit_seconds": 15,
+      "timeout_seconds": 30,
+      "process_exit_code": 0
+    },
+    "third_pass_check": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:51:32.6662700Z",
+      "last_progress_at_utc": "2026-11-14T00:51:32.6664208Z",
+      "last_progress_source": "qualified-paths-check-3.stderr",
+      "finished_at_utc": "2026-11-14T00:51:32.9303560Z",
+      "elapsed_seconds": 0.264,
+      "no_progress_seconds": 0.264,
+      "no_progress_limit_seconds": 15,
+      "timeout_seconds": 30,
+      "process_exit_code": 0
+    },
+    "restored_source_matches_standalone": true,
+    "restored_source_sha256": "fd213be8fed1e1a40efe0b956a56c888bab70b9ca603691f091c6fe4011e0f3d",
+    "restored_source_format": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:52:33.0877050Z",
+      "last_progress_at_utc": "2026-11-14T00:52:33.0895899Z",
+      "last_progress_source": "settle-file.stderr",
+      "finished_at_utc": "2026-11-14T00:52:33.3635010Z",
+      "elapsed_seconds": 0.276,
+      "no_progress_seconds": 0.274,
+      "no_progress_limit_seconds": 15,
+      "timeout_seconds": 30,
+      "process_exit_code": 0
+    }
+  },
+  "final_check": {
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:52:33.3730670Z",
+      "last_progress_at_utc": "2026-11-14T00:52:33.3731825Z",
+      "last_progress_source": "check-rustfmt-only.stderr",
+      "finished_at_utc": "2026-11-14T00:52:34.8988400Z",
+      "elapsed_seconds": 1.526,
+      "no_progress_seconds": 1.526,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    },
+    "diff_sections": 0,
+    "rust_files_sha256": "e0f17a4d6bc1daf6ef8e01de7f1db907a1803b39d78fe316ff4e80438577e85a",
+    "rust_files_sha256_input": "Sorted project-relative Rust file paths followed by a NUL and each file's 32 SHA-256 bytes."
+  },
+  "text_sensitive_checks": {
+    "crouch_stationary_fixture_source_assertions": "PASS",
+    "standing_contract_source_assertions": "PASS",
+    "control_rig_source_checks": "MATCHED_BASELINE"
+  },
+  "camera_authoring_check": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:56:50.3534080Z",
+      "last_progress_at_utc": "2026-11-14T00:56:50.6514821Z",
+      "last_progress_source": "authoring.stdout",
+      "finished_at_utc": "2026-11-14T00:56:50.6722210Z",
+      "elapsed_seconds": 0.319,
+      "no_progress_seconds": 0.021,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    },
+    "output": {
+      "id": "source_camera_first_evaluation",
+      "pass": true,
+      "failures": [],
+      "graphs": 1,
+      "graph_nodes": 1,
+      "graph_edges": 1,
+      "fsms": 0,
+      "fsm_states": 0,
+      "fsm_transitions": 0,
+      "commands": [
+        {
+          "label": "runtime_asset_boundary_inventory",
+          "scope": "source",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_positions",
+          "scope": "layout",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_editor",
+          "scope": "editor",
+          "exit_code": 0
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/source.json",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-component.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-graph.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        }
+      ]
+    }
+  },
+  "focused_rust_tests": {
+    "initial_watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "wall_timeout",
+      "started_at_utc": "2026-11-14T00:50:50.9198800Z",
+      "last_progress_at_utc": "2026-11-14T00:58:44.1308368Z",
+      "last_progress_source": "focused-test.stderr",
+      "finished_at_utc": "2026-11-14T00:58:51.1415370Z",
+      "elapsed_seconds": 480.222,
+      "no_progress_seconds": 7.011,
+      "no_progress_limit_seconds": 300,
+      "timeout_seconds": 480,
+      "process_exit_code": 137
+    },
+    "target_directory": "target_game",
+    "command": [
+      "cargo",
+      "--config",
+      "source.crates-io.replace-with=\"rsproxy\"",
+      "--config",
+      "source.rsproxy.registry=\"sparse+https://rsproxy.cn/index/\"",
+      "test",
+      "--locked",
+      "--offline",
+      "--profile",
+      "play",
+      "--jobs",
+      "2",
+      "--lib",
+      "--",
+      "camera_player_waits_for_its_definition_before_first_evaluation",
+      "crouch_stationary_fixture_waits_for_each_completed_source_action",
+      "source_landing_selector_classification_rejects_wrong_input_stage_and_physics",
+      "--test-threads=1"
+    ],
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T01:01:13.9753920Z",
+      "last_progress_at_utc": "2026-11-14T01:18:11.7761471Z",
+      "last_progress_source": "focused-cached.stdout",
+      "finished_at_utc": "2026-11-14T01:18:11.9786600Z",
+      "elapsed_seconds": 1018.003,
+      "no_progress_seconds": 0.203,
+      "no_progress_limit_seconds": 300,
+      "timeout_seconds": 1500,
+      "process_exit_code": 0
+    },
+    "output": "running 3 tests\ntest animation_visual_validation::tests::source_landing_selector_classification_rejects_wrong_input_stage_and_physics ... ok\ntest camera_component::tests::camera_player_waits_for_its_definition_before_first_evaluation ... ok\ntest manual_playground_integration::tests::crouch_stationary_fixture_waits_for_each_completed_source_action ... ok\n\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2153 filtered out; finished in 0.13s"
+  }
+}

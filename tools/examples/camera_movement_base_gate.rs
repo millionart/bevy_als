@@ -1,15 +1,15 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-use bevy_als::als_camera::{AlsCameraMovementBase, AlsCameraTarget};
-use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle};
-use bevy_als::als::control_scheme::AlsControlSchemeConfig;
-use bevy_als::als::dynamics::AlsMovementBaseDynamicsState;
-use bevy_als::als::params::AlsMovementParams;
 use avian3d::prelude::{AngularVelocity, Collider, LinearVelocity, RigidBody, Rotation};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::dynamics::AlsMovementBaseDynamicsState;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als_camera::{AlsCameraMovementBase, AlsCameraTarget};
 use bevy_tnua::TnuaPipelineSystems;
 
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
@@ -136,7 +136,8 @@ fn spawn_character(
     translation: Vec3,
 ) -> Entity {
     let params = params_assets.add(AlsMovementParams::default());
-    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
+    let mut bundle =
+        AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation);
     commands.spawn((bundle, AlsCameraTarget)).id()
 }

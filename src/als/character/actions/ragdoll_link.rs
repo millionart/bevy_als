@@ -8,18 +8,21 @@ use crate::als::motion::AlsRagdollAirExit;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
 use crate::als::transition::{StateTransitionEvent, commit_state};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SourceCollisionIgnorePawn;
+use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
 use crate::extensions::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
-use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
-use crate::extensions::SourceCollisionIgnorePawn;
-use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
+use crate::extensions::{
+    RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet,
+    RagdollPhysicsProfileApplied,
+};
 use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{
     AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
     RigidBody, Rotation, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
 };
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::math::DQuat;
 use bevy::prelude::*;
@@ -31,11 +34,14 @@ use bevy_animation_graph::core::animated_scene::{
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::physics_systems_avian::{
-    spawn_missing_ragdolls_avian, update_ragdoll_rigidbodies, update_relative_kinematic_body_velocities,
+    spawn_missing_ragdolls_avian, update_ragdoll_rigidbodies,
+    update_relative_kinematic_body_velocities,
 };
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::{BonePose, Pose};
-use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, RagdollSpawned, SpawnedRagdoll};
+use bevy_animation_graph::core::ragdoll::spawning::{
+    RagdollColliderSpawned, RagdollSpawned, SpawnedRagdoll,
+};
 use bevy_animation_graph::core::ragdoll::{
     bone_mapping::RagdollBoneMap,
     definition::{BodyLabel, BodyMode},
@@ -44,7 +50,9 @@ use bevy_animation_graph::core::ragdoll::{
 use bevy_animation_graph::core::skeleton::Skeleton;
 use bevy_tnua::TnuaToggle;
 
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, animated_player_for_character};
+use crate::character_assembly::{
+    AlsCharacterAssembly, AlsCharacterAvatar, animated_player_for_character,
+};
 
 const PELVIS_LABEL: &str = "pelvis";
 pub const RAGDOLL_REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
@@ -58,12 +66,16 @@ pub struct AlsRagdollLink {
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollColliderLayers(CollisionLayers);
 
-type RagdollColliderLayersQuery<'w, 's> = Query<'w, 's, (
-    Option<&'static AlsRagdollColliderLayers>,
-    &'static CollisionLayers,
-    Option<&'static RagdollCollisionMember>,
-    Has<SourceCollisionIgnorePawn>,
-)>;
+type RagdollColliderLayersQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Option<&'static AlsRagdollColliderLayers>,
+        &'static CollisionLayers,
+        Option<&'static RagdollCollisionMember>,
+        Has<SourceCollisionIgnorePawn>,
+    ),
+>;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 struct AlsRagdollPhysicsActive;
@@ -83,7 +95,9 @@ impl AlsRagdollScaleState {
     }
 
     fn recovering_from_zero(self, scale: Vec3) -> bool {
-        if !self.ragdolling || !self.stopped { return false; }
+        if !self.ragdolling || !self.stopped {
+            return false;
+        }
         let mut next = self;
         next.update(scale, true);
         !next.stopped
@@ -93,10 +107,14 @@ impl AlsRagdollScaleState {
         if self.uniform_scale_changed(scale) {
             let zero = scale.abs().max_element() <= 1e-4;
             let was_zero = self.previous.abs().max_element() <= 1e-4;
-            if zero != was_zero { self.stopped = zero; }
+            if zero != was_zero {
+                self.stopped = zero;
+            }
             self.previous = scale;
         }
-        if ragdolling && !self.ragdolling { self.stopped = false; }
+        if ragdolling && !self.ragdolling {
+            self.stopped = false;
+        }
         self.ragdolling = ragdolling;
     }
 }
@@ -191,10 +209,17 @@ impl Plugin for AlsRagdollLinkPlugin {
             (
                 ensure_ragdoll_link,
                 (
-                    avian3d::collider_tree::update_moved_collider_aabbs::<Collider>
-                        .run_if(|characters: Query<(&crate::als::transition::AlsStateRequest, &AlsNotifyLocomotionAction)>| {
-                            characters.iter().any(|(request, action)| request.ragdoll_exit && *action == AlsNotifyLocomotionAction::Ragdolling)
-                        }),
+                    avian3d::collider_tree::update_moved_collider_aabbs::<Collider>.run_if(
+                        |characters: Query<(
+                            &crate::als::transition::AlsStateRequest,
+                            &AlsNotifyLocomotionAction,
+                        )>| {
+                            characters.iter().any(|(request, action)| {
+                                request.ragdoll_exit
+                                    && *action == AlsNotifyLocomotionAction::Ragdolling
+                            })
+                        },
+                    ),
                     ragdoll_exit_route_system,
                 )
                     .chain()
@@ -257,9 +282,13 @@ impl Plugin for AlsRagdollLinkPlugin {
                 .after(crate::als::motion::AlsActualVelocitySet)
                 .before(crate::actual_motion::AlsActualMotionSet)
                 .run_if(
-                    |characters: Query<Option<&AlsNotifyLocomotionAction>,
-                        (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>)>| {
-                        characters.iter().any(|action| action == Some(&AlsNotifyLocomotionAction::Ragdolling))
+                    |characters: Query<
+                        Option<&AlsNotifyLocomotionAction>,
+                        (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>),
+                    >| {
+                        characters
+                            .iter()
+                            .any(|action| action == Some(&AlsNotifyLocomotionAction::Ragdolling))
                     },
                 ),
         )
@@ -267,7 +296,11 @@ impl Plugin for AlsRagdollLinkPlugin {
             PostUpdate,
             (
                 sync_ragdoll_body_modes,
-                (ragdoll_ground_follow, ApplyDeferred, apply_ragdoll_ground_follow)
+                (
+                    ragdoll_ground_follow,
+                    ApplyDeferred,
+                    apply_ragdoll_ground_follow,
+                )
                     .chain()
                     .run_if(|time: Res<Time<Virtual>>| !time.is_paused()),
                 ragdoll_joint_drive_adapter_system,
@@ -299,11 +332,19 @@ pub(crate) fn register_ragdoll_camera_trace_owner(
     owners: Query<&crate::als_camera::AlsCameraTraceOwner>,
     mut commands: Commands,
 ) {
-    if let Some((avatar_entity, avatar, _)) = avatars.iter().find(|(_, _, scene)| scene.player_entity() == event.animation_player)
-        && assemblies.get(avatar.character).is_ok_and(|assembly| assembly.avatar == avatar_entity)
-        && !owners.get(event.ragdoll).is_ok_and(|owner| owner.0 == avatar.character)
+    if let Some((avatar_entity, avatar, _)) = avatars
+        .iter()
+        .find(|(_, _, scene)| scene.player_entity() == event.animation_player)
+        && assemblies
+            .get(avatar.character)
+            .is_ok_and(|assembly| assembly.avatar == avatar_entity)
+        && !owners
+            .get(event.ragdoll)
+            .is_ok_and(|owner| owner.0 == avatar.character)
     {
-        commands.entity(event.ragdoll).insert(crate::als_camera::AlsCameraTraceOwner(avatar.character));
+        commands
+            .entity(event.ragdoll)
+            .insert(crate::als_camera::AlsCameraTraceOwner(avatar.character));
     }
 }
 
@@ -362,11 +403,21 @@ pub struct AlsRagdollStartEligibility<'w, 's> {
 
 impl AlsRagdollStartEligibility<'_, '_> {
     pub(crate) fn allows(&self, character: Entity) -> bool {
-        let Some(player) = animated_player_for_character(character, self.assemblies.get(character).ok(), &self.avatars)
-            .and_then(|player| self.players.get(player).ok()) else { return false; };
-        let Some(spawned) = player.get_spawned_ragdoll() else { return false; };
-        ["pelvis", "spine_03"].into_iter().all(|label|
-            find_body_by_label(spawned, &self.labels, label).is_some_and(|body| self.bodies.contains(body)))
+        let Some(player) = animated_player_for_character(
+            character,
+            self.assemblies.get(character).ok(),
+            &self.avatars,
+        )
+        .and_then(|player| self.players.get(player).ok()) else {
+            return false;
+        };
+        let Some(spawned) = player.get_spawned_ragdoll() else {
+            return false;
+        };
+        ["pelvis", "spine_03"].into_iter().all(|label| {
+            find_body_by_label(spawned, &self.labels, label)
+                .is_some_and(|body| self.bodies.contains(body))
+        })
     }
 }
 
@@ -395,7 +446,11 @@ fn capture_ragdoll_player_world_transform(
     mut commands: Commands,
     transform_helper: TransformHelper,
     characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>),
+        (
+            Entity,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsCharacterAssembly>,
+        ),
         (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>),
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -411,7 +466,11 @@ fn capture_ragdoll_player_world_transform(
 ) {
     for (player, detached) in &detached_players {
         if !alive.contains(detached.parent)
-            || animated_player_for_character(detached.character, assemblies.get(detached.character).ok(), &avatars) != Some(player)
+            || animated_player_for_character(
+                detached.character,
+                assemblies.get(detached.character).ok(),
+                &avatars,
+            ) != Some(player)
         {
             commands.entity(player).despawn();
         }
@@ -446,8 +505,11 @@ fn capture_ragdoll_player_world_transform(
 }
 
 pub(crate) fn clear_spawned_ragdoll(player: &mut AnimationGraphPlayer) {
-    let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("Animation graph player must reflect as a struct") };
-    let spawned = fields.field_mut("spawned_ragdoll")
+    let ReflectMut::Struct(fields) = player.reflect_mut() else {
+        panic!("Animation graph player must reflect as a struct")
+    };
+    let spawned = fields
+        .field_mut("spawned_ragdoll")
         .and_then(|field| field.try_downcast_mut::<Option<SpawnedRagdoll>>())
         .expect("Animation graph player must expose its spawned ragdoll");
     *spawned = None;
@@ -455,22 +517,45 @@ pub(crate) fn clear_spawned_ragdoll(player: &mut AnimationGraphPlayer) {
 
 fn reset_ragdoll_on_scale_recovery(
     transform_helper: TransformHelper,
-    characters: Query<(Entity, &AlsNotifyLocomotionAction, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    characters: Query<
+        (
+            Entity,
+            &AlsNotifyLocomotionAction,
+            Option<&AlsCharacterAssembly>,
+        ),
+        With<AlsCharacter>,
+    >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    mut players: Query<(&mut AnimationGraphPlayer, &Transform, &AlsRagdollScaleState, &RagdollPhysicsProfileApplied)>,
+    mut players: Query<(
+        &mut AnimationGraphPlayer,
+        &Transform,
+        &AlsRagdollScaleState,
+        &RagdollPhysicsProfileApplied,
+    )>,
     children: Query<&Children>,
     mut globals: Query<&mut GlobalTransform>,
 ) {
     for (character, action, assembly) in &characters {
-        if *action != AlsNotifyLocomotionAction::Ragdolling { continue; }
-        let Some(entity) = animated_player_for_character(character, assembly, &avatars) else { continue; };
-        let Ok((mut player, transform, state, profile)) = players.get_mut(entity) else { continue; };
-        if !state.recovering_from_zero(transform.scale)
-            || profile.spawned_root != Some(state.root)
-            || !player.get_spawned_ragdoll().is_some_and(|spawned| spawned.root == state.root) {
+        if *action != AlsNotifyLocomotionAction::Ragdolling {
             continue;
         }
-        if refresh_player_subtree_globals(&transform_helper, entity, &children, &mut globals).is_some() {
+        let Some(entity) = animated_player_for_character(character, assembly, &avatars) else {
+            continue;
+        };
+        let Ok((mut player, transform, state, profile)) = players.get_mut(entity) else {
+            continue;
+        };
+        if !state.recovering_from_zero(transform.scale)
+            || profile.spawned_root != Some(state.root)
+            || !player
+                .get_spawned_ragdoll()
+                .is_some_and(|spawned| spawned.root == state.root)
+        {
+            continue;
+        }
+        if refresh_player_subtree_globals(&transform_helper, entity, &children, &mut globals)
+            .is_some()
+        {
             clear_spawned_ragdoll(&mut player);
         }
     }
@@ -478,22 +563,51 @@ fn reset_ragdoll_on_scale_recovery(
 
 fn set_simulating_ragdoll_body_modes(
     mut commands: Commands,
-    characters: Query<(Entity, &AlsNotifyLocomotionAction, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    characters: Query<
+        (
+            Entity,
+            &AlsNotifyLocomotionAction,
+            Option<&AlsCharacterAssembly>,
+        ),
+        With<AlsCharacter>,
+    >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    players: Query<(&AnimationGraphPlayer, Option<&Transform>, Option<&AlsRagdollScaleState>)>,
+    players: Query<(
+        &AnimationGraphPlayer,
+        Option<&Transform>,
+        Option<&AlsRagdollScaleState>,
+    )>,
     bodies: Query<(&RigidBody, &RagdollActiveMode)>,
 ) {
     for (character, action, assembly) in &characters {
-        if *action != AlsNotifyLocomotionAction::Ragdolling { continue; }
-        let Some(player) = animated_player_for_character(character, assembly, &avatars) else { continue; };
-        let Ok((player, transform, scale_state)) = players.get(player) else { continue; };
-        let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
-        if let Some(mut state) = scale_state.copied().filter(|state| state.root == spawned.root) {
-            state.update(transform.map_or(Vec3::ONE, |transform| transform.scale), true);
-            if state.stopped { continue; }
+        if *action != AlsNotifyLocomotionAction::Ragdolling {
+            continue;
+        }
+        let Some(player) = animated_player_for_character(character, assembly, &avatars) else {
+            continue;
+        };
+        let Ok((player, transform, scale_state)) = players.get(player) else {
+            continue;
+        };
+        let Some(spawned) = player.get_spawned_ragdoll() else {
+            continue;
+        };
+        if let Some(mut state) = scale_state
+            .copied()
+            .filter(|state| state.root == spawned.root)
+        {
+            state.update(
+                transform.map_or(Vec3::ONE, |transform| transform.scale),
+                true,
+            );
+            if state.stopped {
+                continue;
+            }
         }
         for body in spawned.bodies.values().copied() {
-            if let Ok((&RigidBody::Kinematic, &RagdollActiveMode(BodyMode::Dynamic))) = bodies.get(body) {
+            if let Ok((&RigidBody::Kinematic, &RagdollActiveMode(BodyMode::Dynamic))) =
+                bodies.get(body)
+            {
                 commands.entity(body).insert(RigidBody::Dynamic);
             }
         }
@@ -507,8 +621,15 @@ fn sync_ragdoll_body_modes(
     scene_assets: Option<Res<Assets<AnimatedScene>>>,
     maps: Option<Res<Assets<RagdollBoneMap>>>,
     bones: Query<&GlobalTransform>,
-    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>,
-        Option<&LinearVelocity>), With<AlsCharacter>>,
+    characters: Query<
+        (
+            Entity,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsCharacterAssembly>,
+            Option<&LinearVelocity>,
+        ),
+        With<AlsCharacter>,
+    >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     layers: RagdollColliderLayersQuery,
     mut players: Query<(
@@ -517,25 +638,29 @@ fn sync_ragdoll_body_modes(
         Option<&Transform>,
         Option<&mut AlsRagdollScaleState>,
     )>,
-    mut bodies: Query<(
-        Entity,
-        &RigidBody,
-        Option<&RagdollActiveMode>,
-        Option<&Transform>,
-        &mut Position,
-        &mut Rotation,
-        &mut LinearVelocity,
-        &mut AngularVelocity,
-        &mut RelativeKinematicBody,
-        Has<AlsRagdollPhysicsActive>,
-    ), Without<AlsCharacter>>,
+    mut bodies: Query<
+        (
+            Entity,
+            &RigidBody,
+            Option<&RagdollActiveMode>,
+            Option<&Transform>,
+            &mut Position,
+            &mut Rotation,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &mut RelativeKinematicBody,
+            Has<AlsRagdollPhysicsActive>,
+        ),
+        Without<AlsCharacter>,
+    >,
 ) {
     for (character, action, assembly, actor_velocity) in &characters {
         let Some(player_entity) = animated_player_for_character(character, assembly, &avatars)
         else {
             continue;
         };
-        let Ok((mut player, profile, transform, scale_state)) = players.get_mut(player_entity) else {
+        let Ok((mut player, profile, transform, scale_state)) = players.get_mut(player_entity)
+        else {
             continue;
         };
         let Some(root) = player.get_spawned_ragdoll().map(|spawned| spawned.root) else {
@@ -543,34 +668,56 @@ fn sync_ragdoll_body_modes(
         };
         let action_ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let scale = transform.map_or(Vec3::ONE, |transform| transform.scale);
-        let recovering = action_ragdolling && scale_state.as_ref().is_some_and(|state|
-            state.root != root && state.recovering_from_zero(scale));
-        let rescaling = action_ragdolling && scale_state.as_ref().is_some_and(|state|
-            state.root == root && state.ragdolling && !state.stopped && state.uniform_scale_changed(scale));
+        let recovering = action_ragdolling
+            && scale_state
+                .as_ref()
+                .is_some_and(|state| state.root != root && state.recovering_from_zero(scale));
+        let rescaling = action_ragdolling
+            && scale_state.as_ref().is_some_and(|state| {
+                state.root == root
+                    && state.ragdolling
+                    && !state.stopped
+                    && state.uniform_scale_changed(scale)
+            });
         let repositioning = recovering || rescaling;
         let recovered_root_world = if recovering {
             transform_helper.compute_global_transform(root).ok()
-        } else { None };
+        } else {
+            None
+        };
         let stopped = if let Some(mut state) = scale_state {
             if state.root != root {
-                *state = AlsRagdollScaleState { root, previous: scale, stopped: false, ragdolling: action_ragdolling };
+                *state = AlsRagdollScaleState {
+                    root,
+                    previous: scale,
+                    stopped: false,
+                    ragdolling: action_ragdolling,
+                };
             } else {
                 state.update(scale, action_ragdolling);
             }
             state.stopped
         } else {
             commands.entity(player_entity).insert(AlsRagdollScaleState {
-                root, previous: scale, stopped: false, ragdolling: action_ragdolling,
+                root,
+                previous: scale,
+                stopped: false,
+                ragdolling: action_ragdolling,
             });
             false
         };
         let ragdolling = action_ragdolling && !stopped;
         player.set_input_data("ragdoll_dynamic", DataValue::from(ragdolling));
         player.set_input_data("ragdoll_readback", DataValue::from(ragdolling));
-        let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
-        if recovering { sync_ragdoll_collider_layers(&mut commands, spawned, &layers, true); }
+        let Some(spawned) = player.get_spawned_ragdoll() else {
+            continue;
+        };
+        if recovering {
+            sync_ragdoll_collider_layers(&mut commands, spawned, &layers, true);
+        }
         let mut handoff = false;
-        let mapping = assembly.and_then(|assembly| scene_handles.get(assembly.avatar).ok())
+        let mapping = assembly
+            .and_then(|assembly| scene_handles.get(assembly.avatar).ok())
             .and_then(|handle| scene_assets.as_ref()?.get(&handle.handle))
             .and_then(|scene| maps.as_ref()?.get(scene.ragdoll_bone_map.as_ref()?));
         for (id, body_entity) in &spawned.bodies {
@@ -591,17 +738,28 @@ fn sync_ragdoll_body_modes(
             };
             if ragdolling {
                 if !activated || repositioning {
-                    if let Some(mapping) = mapping.and_then(|mapping| mapping.bodies_from_bones.get(id))
-                        && let Some(bone) = player.bone_entity(mapping.bone.bone.id()) {
-                        let global = if repositioning { transform_helper.compute_global_transform(bone).ok() }
-                            else { bones.get(bone).ok().copied() };
+                    if let Some(mapping) =
+                        mapping.and_then(|mapping| mapping.bodies_from_bones.get(id))
+                        && let Some(bone) = player.bone_entity(mapping.bone.bone.id())
+                    {
+                        let global = if repositioning {
+                            transform_helper.compute_global_transform(bone).ok()
+                        } else {
+                            bones.get(bone).ok().copied()
+                        };
                         if let Some(global) = global {
                             let target = global.to_isometry() * mapping.bone.offset;
                             position.0 = target.translation.into();
                             rotation.0 = target.rotation;
-                            if let (Some(root_world), Some(transform)) = (recovered_root_world, transform) {
-                                let local = GlobalTransform::from(Transform::from_isometry(target)).reparented_to(&root_world);
-                                commands.entity(entity).insert(Transform { scale: transform.scale, ..local });
+                            if let (Some(root_world), Some(transform)) =
+                                (recovered_root_world, transform)
+                            {
+                                let local = GlobalTransform::from(Transform::from_isometry(target))
+                                    .reparented_to(&root_world);
+                                commands.entity(entity).insert(Transform {
+                                    scale: transform.scale,
+                                    ..local
+                                });
                             }
                         }
                     }
@@ -617,7 +775,9 @@ fn sync_ragdoll_body_modes(
                 if recovering {
                     linear_velocity.0 = if target_mode.is_dynamic() {
                         actor_velocity.map_or(Vec3::ZERO, |velocity| velocity.0)
-                    } else { Vec3::ZERO };
+                    } else {
+                        Vec3::ZERO
+                    };
                     angular_velocity.0 = Vec3::ZERO;
                     relative_body.kinematic_linear_velocity = Vec3::ZERO;
                     relative_body.kinematic_angular_velocity = Vec3::ZERO;
@@ -646,7 +806,10 @@ fn sync_ragdoll_body_modes(
 
 fn sync_animated_ragdoll_bodies(
     time: Res<Time>,
-    characters: Query<(Option<&AlsNotifyLocomotionAction>, &AlsCharacterAssembly), With<AlsCharacter>>,
+    characters: Query<
+        (Option<&AlsNotifyLocomotionAction>, &AlsCharacterAssembly),
+        With<AlsCharacter>,
+    >,
     avatars: Query<(
         Entity,
         &AlsCharacterAvatar,
@@ -669,7 +832,9 @@ fn sync_animated_ragdoll_bodies(
         let Ok((action, assembly)) = characters.get(avatar.character) else {
             continue;
         };
-        if assembly.avatar != avatar_entity || action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+        if assembly.avatar != avatar_entity
+            || action == Some(&AlsNotifyLocomotionAction::Ragdolling)
+        {
             continue;
         }
         let Some(mapping) = scenes
@@ -703,7 +868,8 @@ fn sync_animated_ragdoll_bodies(
             let target = global.to_isometry() * mapping.bone.offset;
             if !position.is_added() && delta > 0.0 {
                 linear_velocity.0 = (Vec3::from(target.translation) - position.0) / delta;
-                angular_velocity.0 = source_kinematic_angular_velocity(rotation.0, target.rotation, delta);
+                angular_velocity.0 =
+                    source_kinematic_angular_velocity(rotation.0, target.rotation, delta);
             } else {
                 linear_velocity.0 = Vec3::ZERO;
                 angular_velocity.0 = Vec3::ZERO;
@@ -727,7 +893,12 @@ fn ragdoll_joint_drive_adapter_system(
     time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, Option<&mut AlsRagdollJointDrive>),
+        (
+            Entity,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsCharacterAssembly>,
+            Option<&mut AlsRagdollJointDrive>,
+        ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -740,7 +911,9 @@ fn ragdoll_joint_drive_adapter_system(
     labels: Query<&BodyLabel>,
     velocities: Query<&LinearVelocity>,
 ) {
-    if time.is_paused() { return; }
+    if time.is_paused() {
+        return;
+    }
     for (character, action, assembly, current_drive) in &mut characters {
         let mut drive = AlsRagdollJointDrive::default();
         let player = animated_player_for_character(character, assembly, &avatars)
@@ -785,7 +958,11 @@ fn ragdoll_capsule_dimensions(
     world_scale: Vec3,
 ) -> (f32, f32) {
     let (half_height, radius) = if let Some(params) = params_assets.get(params_handle.0.id()) {
-        let half_height = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
+        let half_height = if stance == Stance::Crouching {
+            params.crouch.actual_crouched_half_height()
+        } else {
+            params.crouch.standing_capsule_half_height
+        };
         (half_height, params.crouch.standing_capsule_radius)
     } else {
         (
@@ -828,7 +1005,22 @@ pub fn ragdoll_exit_route_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, action, locomotion, mut request, follow, velocity, position, stance, desired_stance, crouch, params_handle, ownership, assembly) in &mut characters {
+    for (
+        entity,
+        action,
+        locomotion,
+        mut request,
+        follow,
+        velocity,
+        position,
+        stance,
+        desired_stance,
+        crouch,
+        params_handle,
+        ownership,
+        assembly,
+    ) in &mut characters
+    {
         if !request.ragdoll_exit {
             continue;
         }
@@ -837,13 +1029,21 @@ pub fn ragdoll_exit_route_system(
             continue;
         }
         let Some(player) = animated_player_for_character(entity, assembly, &avatars)
-            .and_then(|player| players.get(player).ok()) else {
+            .and_then(|player| players.get(player).ok())
+        else {
             request.ragdoll_exit = false;
             continue;
         };
-        let has_pose = skeletons.as_ref().and_then(|skeletons| skeletons.get(player.skeleton()))
-            .is_some_and(|skeleton| skeleton.iter_bones()
-                .any(|bone| player.bone_entity(bone).is_some_and(|bone| bone_transforms.contains(bone))));
+        let has_pose = skeletons
+            .as_ref()
+            .and_then(|skeletons| skeletons.get(player.skeleton()))
+            .is_some_and(|skeleton| {
+                skeleton.iter_bones().any(|bone| {
+                    player
+                        .bone_entity(bone)
+                        .is_some_and(|bone| bone_transforms.contains(bone))
+                })
+            });
         if !has_pose {
             request.ragdoll_exit = false;
             continue;
@@ -851,29 +1051,51 @@ pub fn ragdoll_exit_route_system(
         let Some(mut follow) = follow else {
             continue;
         };
-        let Ok(world) = transform_helper.compute_global_transform(entity) else { continue; };
+        let Ok(world) = transform_helper.compute_global_transform(entity) else {
+            continue;
+        };
         let (world_scale, _, _) = world.to_scale_rotation_translation();
-        let (half_height, radius) = ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
-        let location = if follow.pelvis == Vec3::ZERO { position.0 } else { follow.pelvis };
+        let (half_height, radius) =
+            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
+        let location = if follow.pelvis == Vec3::ZERO {
+            position.0
+        } else {
+            follow.pelvis
+        };
         let mut excluded = vec![entity];
         if let Some(spawned) = player.get_spawned_ragdoll() {
             excluded.extend(spawned.bodies.values().copied());
             excluded.extend(spawned.colliders.values().copied());
         }
         let start = location + Vec3::Y * (2.0 * radius);
-        let hit = ragdoll_ground_hit(&spatial, &candidates, start, half_height + radius,
-            radius, excluded, ownership.original_layers());
+        let hit = ragdoll_ground_hit(
+            &spatial,
+            &candidates,
+            start,
+            half_height + radius,
+            radius,
+            excluded,
+            ownership.original_layers(),
+        );
         follow.grounded = hit.is_some();
         follow.target = hit.map_or(location, |hit| {
             let center = start - Vec3::Y * hit.distance;
-            Vec3::new(location.x, center.y + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE, location.z)
+            Vec3::new(
+                location.x,
+                center.y + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE,
+                location.z,
+            )
         });
         let (state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
         if let Some(mut crouch) = crouch {
             let desired = desired_stance.map_or(*stance, |desired| desired.0);
             crouch.pending_action_stance = match state {
                 LocomotionState::Air => Some(Stance::Standing),
-                LocomotionState::Grounded if matches!(desired, Stance::Standing | Stance::Crouching) => Some(desired),
+                LocomotionState::Grounded
+                    if matches!(desired, Stance::Standing | Stance::Crouching) =>
+                {
+                    Some(desired)
+                }
                 _ => None,
             };
         }
@@ -903,7 +1125,14 @@ fn release_ragdoll_air_exit_on_ground(
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
-        (Entity, &Position, &Stance, &AlsMovementParamsHandle, Option<&CollisionLayers>, &AlsCollisionLayerOwnership),
+        (
+            Entity,
+            &Position,
+            &Stance,
+            &AlsMovementParamsHandle,
+            Option<&CollisionLayers>,
+            &AlsCollisionLayerOwnership,
+        ),
         (With<AlsCharacter>, With<AlsRagdollAirExit>),
     >,
 ) {
@@ -916,10 +1145,21 @@ fn release_ragdoll_air_exit_on_ground(
             ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
         let trace_start = position.0 + Vec3::Y * (2.0 * radius);
         let trace_distance = half_height + radius;
-        let layers = current_layers.filter(|layers| **layers != CollisionLayers::NONE)
-            .copied().unwrap_or_else(|| ownership.original_layers());
-        if ragdoll_ground_hit(&spatial, &candidates, trace_start, trace_distance, radius,
-            vec![entity], layers).is_some() {
+        let layers = current_layers
+            .filter(|layers| **layers != CollisionLayers::NONE)
+            .copied()
+            .unwrap_or_else(|| ownership.original_layers());
+        if ragdoll_ground_hit(
+            &spatial,
+            &candidates,
+            trace_start,
+            trace_distance,
+            radius,
+            vec![entity],
+            layers,
+        )
+        .is_some()
+        {
             commands.entity(entity).remove::<AlsRagdollAirExit>();
             info!("[RAGLINK] air exit hold released on ground");
         }
@@ -933,7 +1173,10 @@ fn ragdoll_character_physics_system(
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     rolls: Query<&crate::als::roll::AlsRollState>,
     mut transitions: Query<&mut crate::stop_link::AlsTransitionMontageStack>,
-    mut turns: Query<(&AlsCharacterAvatar, &mut crate::turn_layer::AlsTurnMontageStack)>,
+    mut turns: Query<(
+        &AlsCharacterAvatar,
+        &mut crate::turn_layer::AlsTurnMontageStack,
+    )>,
     mut characters: Query<
         (
             Entity,
@@ -973,7 +1216,9 @@ fn ragdoll_character_physics_system(
         if is_ragdoll {
             if previous_physics.is_none() {
                 if let Ok(mut stack) = transitions.get_mut(entity) {
-                    stack.stop_with_duration(crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds);
+                    stack.stop_with_duration(
+                        crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds,
+                    );
                 }
                 if let Some(assembly) = assembly
                     && let Ok((avatar, mut stack)) = turns.get_mut(assembly.avatar)
@@ -985,7 +1230,10 @@ fn ragdoll_character_physics_system(
                     if roll.active {
                         commands
                             .entity(entity)
-                            .insert(crate::roll_drive::AlsRollBlendOut::new(roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds));
+                            .insert(crate::roll_drive::AlsRollBlendOut::new(
+                                roll,
+                                crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds,
+                            ));
                     }
                 }
                 commands.entity(entity).insert(AlsRagdollCharacterPhysics {
@@ -993,7 +1241,9 @@ fn ragdoll_character_physics_system(
                     tnua_toggle: tnua_toggle.copied(),
                 });
                 if crate::get_up::RAGDOLL_SETTINGS.limit_initial_speed {
-                    let entry_speed = motion.get(entity).map_or(0.0, |motion| motion.world_velocity.length());
+                    let entry_speed = motion
+                        .get(entity)
+                        .map_or(0.0, |motion| motion.world_velocity.length());
                     commands
                         .entity(entity)
                         .insert(AlsRagdollInitialSpeedLimit::new(entry_speed));
@@ -1030,9 +1280,13 @@ fn ragdoll_character_physics_system(
             let (exit_state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
             let mut aligned = *transform;
             aligned.translation = if let Some(parent) = parent {
-                let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+                let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else {
+                    continue;
+                };
                 world.affine().inverse().transform_point3(follow.target)
-            } else { follow.target };
+            } else {
+                follow.target
+            };
             commands.entity(entity).insert(aligned);
             if let Some(position) = position.as_deref_mut() {
                 position.0 = follow.target;
@@ -1073,14 +1327,21 @@ fn ragdoll_character_physics_system(
 fn limit_initial_ragdoll_speed(
     time: Res<Time<Virtual>>,
     mut characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollInitialSpeedLimit),
+        (
+            Entity,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsCharacterAssembly>,
+            &mut AlsRagdollInitialSpeedLimit,
+        ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     mut velocities: Query<&mut LinearVelocity>,
 ) {
-    if time.is_paused() { return; }
+    if time.is_paused() {
+        return;
+    }
     for (character, action, assembly, mut limit) in &mut characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
@@ -1118,7 +1379,11 @@ pub(crate) fn ragdoll_recovery_rotation(pelvis: Quat) -> (Quat, bool) {
         )
     };
     let facing_up = roll <= 0.0;
-    let yaw = if facing_up { std::f64::consts::PI - yaw } else { -yaw };
+    let yaw = if facing_up {
+        std::f64::consts::PI - yaw
+    } else {
+        -yaw
+    };
     (DQuat::from_rotation_y(yaw).as_quat(), facing_up)
 }
 
@@ -1126,7 +1391,15 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut commands: Commands,
     transform_helper: TransformHelper,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    characters: Query<(Option<&AlsNotifyLocomotionAction>, &LocomotionState, &AlsCharacterAssembly, Option<&ChildOf>), With<AlsCharacter>>,
+    characters: Query<
+        (
+            Option<&AlsNotifyLocomotionAction>,
+            &LocomotionState,
+            &AlsCharacterAssembly,
+            Option<&ChildOf>,
+        ),
+        With<AlsCharacter>,
+    >,
     detached_players: Query<&AlsRagdollDetachedPlayer>,
     skeletons: Res<Assets<Skeleton>>,
     bones: Query<(&Name, &Transform, &GlobalTransform, Option<&ChildOf>)>,
@@ -1134,10 +1407,13 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (avatar_entity, avatar, instance) in &avatars {
-        let Ok((action, locomotion, assembly, actor_parent)) = characters.get(avatar.character) else {
+        let Ok((action, locomotion, assembly, actor_parent)) = characters.get(avatar.character)
+        else {
             continue;
         };
-        if assembly.avatar != avatar_entity || action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+        if assembly.avatar != avatar_entity
+            || action == Some(&AlsNotifyLocomotionAction::Ragdolling)
+        {
             continue;
         }
         let player_entity = instance.player_entity();
@@ -1166,7 +1442,9 @@ pub(crate) fn restore_ragdoll_player_parent(
             continue;
         };
         let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis_world.rotation());
-        let Ok(actor_world) = transform_helper.compute_global_transform(avatar.character) else { continue; };
+        let Ok(actor_world) = transform_helper.compute_global_transform(avatar.character) else {
+            continue;
+        };
         let yaw = rotation.to_euler(EulerRot::YXZ).0;
         let (_, pitch, roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
         let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, roll);
@@ -1176,19 +1454,30 @@ pub(crate) fn restore_ragdoll_player_parent(
         };
         let restored_actor_global = GlobalTransform::from(restored_actor_world);
         let (restored_actor, restored_actor_global) = if let Some(parent) = actor_parent {
-            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else {
+                continue;
+            };
             let local = restored_actor_global.reparented_to(&world);
             (local, world.mul_transform(local))
-        } else { (restored_actor_world, restored_actor_global) };
+        } else {
+            (restored_actor_world, restored_actor_global)
+        };
         let parent_in_actor = actor_world.affine().inverse() * parent_world.affine();
-        let restored_parent_world = GlobalTransform::from(Mat4::from(restored_actor_global.affine() * parent_in_actor));
+        let restored_parent_world =
+            GlobalTransform::from(Mat4::from(restored_actor_global.affine() * parent_in_actor));
         let mut restored_mesh = detached.local_transform;
         let actor_offset = parent_in_actor.transform_point3(restored_mesh.translation);
         let mesh_world_location = restored_actor_world.translation + rotation * actor_offset;
-        restored_mesh.translation = restored_parent_world.affine().inverse().transform_point3(mesh_world_location);
-        let Ok(detached_world) = transform_helper.compute_global_transform(player_entity) else { continue; };
+        restored_mesh.translation = restored_parent_world
+            .affine()
+            .inverse()
+            .transform_point3(mesh_world_location);
+        let Ok(detached_world) = transform_helper.compute_global_transform(player_entity) else {
+            continue;
+        };
         let parent_scale_in_mesh_axes = restored_parent_world
-            .mul_transform(Transform::from_rotation(restored_mesh.rotation)).scale();
+            .mul_transform(Transform::from_rotation(restored_mesh.rotation))
+            .scale();
         restored_mesh.scale = detached_world.scale() / parent_scale_in_mesh_axes;
         let restored_world = restored_parent_world.mul_transform(restored_mesh);
         commands
@@ -1228,11 +1517,7 @@ pub(crate) fn restore_ragdoll_player_parent(
         );
         commands
             .entity(player_entity)
-            .insert((
-                ChildOf(detached.parent),
-                restored_mesh,
-                restored_world,
-            ))
+            .insert((ChildOf(detached.parent), restored_mesh, restored_world))
             .remove::<AlsRagdollDetachedPlayer>();
         if *locomotion == LocomotionState::Grounded {
             commands
@@ -1259,10 +1544,16 @@ fn ragdoll_ground_hit(
         Dir3::NEG_Y,
         &ShapeCastConfig::from_max_distance(trace_distance),
         &filter,
-        &|candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner, _, ignores_pawn)| {
-            !sensor && !ignores_pawn && !owner.is_some_and(|owner| excluded.contains(&owner.body))
-                && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
-        }),
+        &|candidate| {
+            candidates.get(candidate).is_ok_and(
+                |(candidate_layers, sensor, owner, _, ignores_pawn)| {
+                    !sensor
+                        && !ignores_pawn
+                        && !owner.is_some_and(|owner| excluded.contains(&owner.body))
+                        && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
+                },
+            )
+        },
     )
 }
 
@@ -1290,12 +1581,13 @@ fn ragdoll_ground_follow(
     labels: Query<&BodyLabel>,
     body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
-    for (entity, position, action, stance, params_handle, collision_ownership, assembly) in &characters {
+    for (entity, position, action, stance, params_handle, collision_ownership, assembly) in
+        &characters
+    {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
-        let Some(player_entity) = animated_player_for_character(entity, assembly, &avatars)
-        else {
+        let Some(player_entity) = animated_player_for_character(entity, assembly, &avatars) else {
             continue;
         };
         let Ok(player) = players.get(player_entity) else {
@@ -1311,7 +1603,11 @@ fn ragdoll_ground_follow(
             continue;
         };
         let pelvis = pelvis_position.0;
-        let ragdoll_location = if pelvis == Vec3::ZERO { position.0 } else { pelvis };
+        let ragdoll_location = if pelvis == Vec3::ZERO {
+            position.0
+        } else {
+            pelvis
+        };
         let Ok(world) = transform_helper.compute_global_transform(entity) else {
             continue;
         };
@@ -1324,8 +1620,15 @@ fn ragdoll_ground_follow(
         excluded.push(entity);
         excluded.extend(spawned.bodies.values().copied());
         excluded.extend(spawned.colliders.values().copied());
-        let hit = ragdoll_ground_hit(&spatial, &candidates, trace_start, trace_distance, radius,
-            excluded, collision_ownership.original_layers());
+        let hit = ragdoll_ground_hit(
+            &spatial,
+            &candidates,
+            trace_start,
+            trace_distance,
+            radius,
+            excluded,
+            collision_ownership.original_layers(),
+        );
         let grounded = hit.is_some();
         let target = if let Some(hit) = hit {
             let center = trace_start - Vec3::Y * hit.distance;
@@ -1362,15 +1665,24 @@ fn apply_ragdoll_ground_follow(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, mut position, transform, mut velocity, action, ground_follow, parent) in &mut characters {
+    for (entity, mut position, transform, mut velocity, action, ground_follow, parent) in
+        &mut characters
+    {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let mut aligned = *transform;
         aligned.translation = if let Some(parent) = parent {
-            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
-            world.affine().inverse().transform_point3(ground_follow.target)
-        } else { ground_follow.target };
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else {
+                continue;
+            };
+            world
+                .affine()
+                .inverse()
+                .transform_point3(ground_follow.target)
+        } else {
+            ground_follow.target
+        };
         position.0 = ground_follow.target;
         commands.entity(entity).insert(aligned);
         velocity.0 = Vec3::ZERO;
@@ -1380,7 +1692,15 @@ fn apply_ragdoll_ground_follow(
 #[allow(clippy::type_complexity)]
 fn ragdoll_link_system(
     mut commands: Commands,
-    mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
+    mut q: Query<
+        (
+            Entity,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsCharacterAssembly>,
+            &mut AlsRagdollLink,
+        ),
+        With<AlsCharacter>,
+    >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRagdollScaleState>)>,
     layers: RagdollColliderLayersQuery,
@@ -1416,19 +1736,29 @@ fn sync_ragdoll_collider_layers(
     is_ragdoll: bool,
 ) {
     for collider in spawned.colliders.values() {
-        let Ok((stored, current, member, ignores_pawn)) = layers.get(*collider) else { continue; };
+        let Ok((stored, current, member, ignores_pawn)) = layers.get(*collider) else {
+            continue;
+        };
         if MESH_IGNORES_PAWN && !ignores_pawn {
             commands.entity(*collider).insert(SourceCollisionIgnorePawn);
         }
         if is_ragdoll {
-            if let Some(desired) = member.map(|member| member.source_layers).or(stored.map(|stored| stored.0))
+            if let Some(desired) = member
+                .map(|member| member.source_layers)
+                .or(stored.map(|stored| stored.0))
                 && *current != desired
             {
                 commands.entity(*collider).insert(desired);
             }
         } else {
-            if stored.is_none() { commands.entity(*collider).insert(AlsRagdollColliderLayers(*current)); }
-            if *current != CollisionLayers::NONE { commands.entity(*collider).insert(CollisionLayers::NONE); }
+            if stored.is_none() {
+                commands
+                    .entity(*collider)
+                    .insert(AlsRagdollColliderLayers(*current));
+            }
+            if *current != CollisionLayers::NONE {
+                commands.entity(*collider).insert(CollisionLayers::NONE);
+            }
         }
     }
 }
@@ -1446,40 +1776,93 @@ pub(crate) mod tests {
 
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-        for _ in 0..4 { app.update(); }
-        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-        let pelvis = bodies.iter().find(|(label, _)| label == "pelvis").unwrap().1;
-        let joints = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
-            .joints.values().copied().collect::<Vec<_>>();
-        app.insert_resource(SeedVelocity(Vec3::ZERO)).init_resource::<LimitedSpeed>();
-        app.add_systems(PostUpdate, (
-            (move |seed: Res<SeedVelocity>, mut velocities: Query<&mut LinearVelocity>| {
-                velocities.get_mut(pelvis).unwrap().0 = seed.0;
-            }).before(ragdoll_joint_drive_adapter_system).before(limit_initial_ragdoll_speed),
-            (move |velocities: Query<&LinearVelocity>, mut result: ResMut<LimitedSpeed>| {
-                result.0 = velocities.get(pelvis).unwrap().0.length();
-            }).after(limit_initial_ragdoll_speed).before(RagdollAngularDriveSet),
-        ));
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+            .unwrap()
+            .ragdoll_start = true;
+        for _ in 0..4 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<AlsNotifyLocomotionAction>(actor),
+            Some(&AlsNotifyLocomotionAction::Ragdolling)
+        );
+        let pelvis = bodies
+            .iter()
+            .find(|(label, _)| label == "pelvis")
+            .unwrap()
+            .1;
+        let joints = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap()
+            .joints
+            .values()
+            .copied()
+            .collect::<Vec<_>>();
+        app.insert_resource(SeedVelocity(Vec3::ZERO))
+            .init_resource::<LimitedSpeed>();
+        app.add_systems(
+            PostUpdate,
+            (
+                (move |seed: Res<SeedVelocity>, mut velocities: Query<&mut LinearVelocity>| {
+                    velocities.get_mut(pelvis).unwrap().0 = seed.0;
+                })
+                .before(ragdoll_joint_drive_adapter_system)
+                .before(limit_initial_ragdoll_speed),
+                (move |velocities: Query<&LinearVelocity>, mut result: ResMut<LimitedSpeed>| {
+                    result.0 = velocities.get(pelvis).unwrap().0.length();
+                })
+                .after(limit_initial_ragdoll_speed)
+                .before(RagdollAngularDriveSet),
+            ),
+        );
         for limiting in [false, true] {
-            for velocity in [Vec3::ZERO, Vec3::X, Vec3::new(3.0, 4.0, 0.0), Vec3::NEG_Y * 12.0] {
+            for velocity in [
+                Vec3::ZERO,
+                Vec3::X,
+                Vec3::new(3.0, 4.0, 0.0),
+                Vec3::NEG_Y * 12.0,
+            ] {
                 app.world_mut().resource_mut::<SeedVelocity>().0 = velocity;
-                let mut limit = app.world_mut().get_mut::<AlsRagdollInitialSpeedLimit>(actor).unwrap();
+                let mut limit = app
+                    .world_mut()
+                    .get_mut::<AlsRagdollInitialSpeedLimit>(actor)
+                    .unwrap();
                 limit.speed = 2.0;
                 limit.remaining_updates = u8::from(limiting);
                 app.update();
-                let expected_speed = if limiting { velocity.length().min(2.0) } else { velocity.length() };
+                let expected_speed = if limiting {
+                    velocity.length().min(2.0)
+                } else {
+                    velocity.length()
+                };
                 assert!((app.world().resource::<LimitedSpeed>().0 - expected_speed).abs() < 1e-5);
                 let expected_stiffness = (velocity.length() / 10.0).min(1.0) * 25_000.0;
-                assert!((app.world().get::<RagdollAngularDrive>(player).unwrap().stiffness - expected_stiffness).abs() < 0.01);
+                assert!(
+                    (app.world()
+                        .get::<RagdollAngularDrive>(player)
+                        .unwrap()
+                        .stiffness
+                        - expected_stiffness)
+                        .abs()
+                        < 0.01
+                );
                 let mut motor_count = 0;
                 for joint in &joints {
-                    if app.world().get::<JointDisabled>(*joint).is_some() { continue; }
+                    if app.world().get::<JointDisabled>(*joint).is_some() {
+                        continue;
+                    }
                     let joint = app.world().get::<SourcePhysicsJoint>(*joint).unwrap();
                     assert_eq!(joint.motor_stiffness_scale, 1.5);
                     for motor in &joint.motors {
-                        assert!((motor.spring.stiffness - expected_stiffness * 1.5).abs() < 0.02,
-                            "limiting={limiting} velocity={velocity:?} stiffness={}", motor.spring.stiffness);
+                        assert!(
+                            (motor.spring.stiffness - expected_stiffness * 1.5).abs() < 0.02,
+                            "limiting={limiting} velocity={velocity:?} stiffness={}",
+                            motor.spring.stiffness
+                        );
                         assert_eq!(motor.spring.damping, 0.0);
                         motor_count += 1;
                     }
@@ -1491,15 +1874,28 @@ pub(crate) mod tests {
 
     #[test]
     fn ragdoll_scale_stop_follows_relative_zero_crossings() {
-        for (scale, stopped) in [(Vec3::ZERO, true), (Vec3::splat(0.00005), true),
-            (Vec3::splat(0.0001), true), (Vec3::splat(0.0002), false), (Vec3::new(0.0, 1.0, 1.0), false)] {
-            let mut state = AlsRagdollScaleState { root: Entity::PLACEHOLDER, previous: Vec3::ONE,
-                stopped: false, ragdolling: true };
+        for (scale, stopped) in [
+            (Vec3::ZERO, true),
+            (Vec3::splat(0.00005), true),
+            (Vec3::splat(0.0001), true),
+            (Vec3::splat(0.0002), false),
+            (Vec3::new(0.0, 1.0, 1.0), false),
+        ] {
+            let mut state = AlsRagdollScaleState {
+                root: Entity::PLACEHOLDER,
+                previous: Vec3::ONE,
+                stopped: false,
+                ragdolling: true,
+            };
             state.update(scale, true);
             assert_eq!(state.stopped, stopped, "scale={scale:?}");
         }
-        let mut state = AlsRagdollScaleState { root: Entity::PLACEHOLDER, previous: Vec3::splat(0.0002),
-            stopped: false, ragdolling: true };
+        let mut state = AlsRagdollScaleState {
+            root: Entity::PLACEHOLDER,
+            previous: Vec3::splat(0.0002),
+            stopped: false,
+            ragdolling: true,
+        };
         state.update(Vec3::splat(0.0001), true);
         assert!(!state.stopped);
         assert_eq!(state.previous, Vec3::splat(0.0002));
@@ -1511,61 +1907,132 @@ pub(crate) mod tests {
 
     #[test]
     fn ragdoll_entry_preserves_body_velocity_before_physics() {
+        use crate::extensions::post_physics_animation::update_relative_kinematic_target_velocities;
         use bevy::math::Isometry3d;
         use bevy::time::TimeUpdateStrategy;
         use bevy_animation_graph::core::physics_systems_avian::update_ragdolls_avian;
         use bevy_animation_graph::core::ragdoll::relative_kinematic_body::RelativeKinematicBodyPositionBased;
-        use crate::extensions::post_physics_animation::update_relative_kinematic_target_velocities;
 
         for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            let pelvis = bodies
+                .iter()
+                .find(|(name, _)| name == PELVIS_LABEL)
+                .unwrap()
+                .1;
             let root = bodies.iter().find(|(name, _)| name == "root").unwrap().1;
-            assert!(app.world().get::<crate::extensions::post_physics_animation::PostPhysicsAnimation>(player).is_some());
-            assert_eq!(app.world().get::<RigidBody>(pelvis), Some(&RigidBody::Kinematic));
-            app.world_mut().entity_mut(pelvis).insert((LinearVelocity(Vec3::X), AngularVelocity(Vec3::ZERO)));
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
-            app.add_systems(PostUpdate, (move |mut bodies: Query<(&Position, &Rotation, &mut RelativeKinematicBodyPositionBased)>| {
-                let (position, rotation, mut target) = bodies.get_mut(pelvis).unwrap();
-                target.relative_to = None;
-                target.relative_target = Isometry3d::new(
-                    position.0 + Vec3::X * (delta * 0.5),
-                    Quat::from_rotation_y(0.15) * rotation.0,
-                );
-            }).after(update_ragdolls_avian).before(update_relative_kinematic_target_velocities));
-            app.add_systems(PostUpdate, (move |bodies: Query<(&RigidBody, &LinearVelocity, &AngularVelocity)>| {
-                let (mode, linear, angular) = bodies.get(pelvis).unwrap();
-                assert_eq!(*mode, RigidBody::Dynamic);
-                assert_eq!(linear.0, Vec3::X);
-                assert_eq!(angular.0, Vec3::ZERO);
-                assert_eq!(*bodies.get(root).unwrap().0, RigidBody::Kinematic);
-            }).after(update_relative_kinematic_body_velocities).before(RagdollPhysicsHandoffSet));
+            assert!(
+                app.world()
+                    .get::<crate::extensions::post_physics_animation::PostPhysicsAnimation>(player)
+                    .is_some()
+            );
+            assert_eq!(
+                app.world().get::<RigidBody>(pelvis),
+                Some(&RigidBody::Kinematic)
+            );
+            app.world_mut()
+                .entity_mut(pelvis)
+                .insert((LinearVelocity(Vec3::X), AngularVelocity(Vec3::ZERO)));
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
+            app.add_systems(
+                PostUpdate,
+                (move |mut bodies: Query<(
+                    &Position,
+                    &Rotation,
+                    &mut RelativeKinematicBodyPositionBased,
+                )>| {
+                    let (position, rotation, mut target) = bodies.get_mut(pelvis).unwrap();
+                    target.relative_to = None;
+                    target.relative_target = Isometry3d::new(
+                        position.0 + Vec3::X * (delta * 0.5),
+                        Quat::from_rotation_y(0.15) * rotation.0,
+                    );
+                })
+                .after(update_ragdolls_avian)
+                .before(update_relative_kinematic_target_velocities),
+            );
+            app.add_systems(
+                PostUpdate,
+                (move |bodies: Query<(&RigidBody, &LinearVelocity, &AngularVelocity)>| {
+                    let (mode, linear, angular) = bodies.get(pelvis).unwrap();
+                    assert_eq!(*mode, RigidBody::Dynamic);
+                    assert_eq!(linear.0, Vec3::X);
+                    assert_eq!(angular.0, Vec3::ZERO);
+                    assert_eq!(*bodies.get(root).unwrap().0, RigidBody::Kinematic);
+                })
+                .after(update_relative_kinematic_body_velocities)
+                .before(RagdollPhysicsHandoffSet),
+            );
             app.update();
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Ragdolling)
+            );
         }
     }
 
     #[test]
     fn paused_ragdoll_zero_scale_stops_real_bodies_and_readback() {
-        for (scale, active) in [(Vec3::ZERO, false), (Vec3::splat(0.0001), false),
-            (Vec3::splat(0.0002), true), (Vec3::new(0.0, 1.0, 1.0), true)] {
+        for (scale, active) in [
+            (Vec3::ZERO, false),
+            (Vec3::splat(0.0001), false),
+            (Vec3::splat(0.0002), true),
+            (Vec3::new(0.0, 1.0, 1.0), true),
+        ] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-            for _ in 0..4 { app.update(); }
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-            let dynamic_count = |app: &App| bodies.iter().filter(|(_, entity)|
-                app.world().get::<RigidBody>(*entity) == Some(&RigidBody::Dynamic)).count();
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            for _ in 0..4 {
+                app.update();
+            }
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Ragdolling)
+            );
+            let dynamic_count = |app: &App| {
+                bodies
+                    .iter()
+                    .filter(|(_, entity)| {
+                        app.world().get::<RigidBody>(*entity) == Some(&RigidBody::Dynamic)
+                    })
+                    .count()
+            };
             assert_eq!(dynamic_count(&app), 20);
             app.world_mut().resource_mut::<Time<Virtual>>().pause();
             app.world_mut().get_mut::<Transform>(player).unwrap().scale = scale;
             app.update();
-            assert_eq!(dynamic_count(&app), if active { 20 } else { 0 }, "scale={scale:?}");
+            assert_eq!(
+                dynamic_count(&app),
+                if active { 20 } else { 0 },
+                "scale={scale:?}"
+            );
             let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-            assert_eq!(graph.get_input_data("ragdoll_dynamic".into()).unwrap().as_bool().unwrap(), active);
-            assert_eq!(graph.get_input_data("ragdoll_readback".into()).unwrap().as_bool().unwrap(), active);
+            assert_eq!(
+                graph
+                    .get_input_data("ragdoll_dynamic".into())
+                    .unwrap()
+                    .as_bool()
+                    .unwrap(),
+                active
+            );
+            assert_eq!(
+                graph
+                    .get_input_data("ragdoll_readback".into())
+                    .unwrap()
+                    .as_bool()
+                    .unwrap(),
+                active
+            );
         }
     }
 
@@ -1579,34 +2046,84 @@ pub(crate) mod tests {
         ] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            let old_pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-            for _ in 0..10 { app.update(); }
-            let old_root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root;
+            let old_pelvis = bodies
+                .iter()
+                .find(|(name, _)| name == PELVIS_LABEL)
+                .unwrap()
+                .1;
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            for _ in 0..10 {
+                app.update();
+            }
+            let old_root = app
+                .world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_spawned_ragdoll()
+                .unwrap()
+                .root;
             app.world_mut().resource_mut::<Time<Virtual>>().pause();
             app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(near_zero);
             app.update();
-            assert_eq!(app.world().get::<AlsRagdollScaleState>(player).unwrap().stopped, rebuild);
+            assert_eq!(
+                app.world()
+                    .get::<AlsRagdollScaleState>(player)
+                    .unwrap()
+                    .stopped,
+                rebuild
+            );
             let old_linear = Vec3::new(0.3, 0.2, -0.1);
             let old_angular = Vec3::new(0.2, -0.4, 0.3);
-            app.world_mut().entity_mut(old_pelvis).insert((LinearVelocity(old_linear), AngularVelocity(old_angular)));
+            app.world_mut()
+                .entity_mut(old_pelvis)
+                .insert((LinearVelocity(old_linear), AngularVelocity(old_angular)));
             app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = owner_velocity;
-            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(recovered_scale);
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale =
+                Vec3::splat(recovered_scale);
             app.update();
 
             let world = app.world();
-            let spawned = world.get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            let spawned = world
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_spawned_ragdoll()
+                .unwrap();
             let root = spawned.root;
-            assert_eq!(root != old_root, rebuild, "Scale recovery threshold: {near_zero}");
+            assert_eq!(
+                root != old_root,
+                rebuild,
+                "Scale recovery threshold: {near_zero}"
+            );
             if rebuild {
                 assert!(world.get_entity(old_root).is_err());
                 assert!(world.get_entity(old_pelvis).is_err());
-                assert_eq!((spawned.bodies.len(), spawned.colliders.len(), spawned.joints.len()), (21, 22, 20));
-                assert_eq!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().spawned_root, Some(root));
+                assert_eq!(
+                    (
+                        spawned.bodies.len(),
+                        spawned.colliders.len(),
+                        spawned.joints.len()
+                    ),
+                    (21, 22, 20)
+                );
+                assert_eq!(
+                    world
+                        .get::<RagdollPhysicsProfileApplied>(player)
+                        .unwrap()
+                        .spawned_root,
+                    Some(root)
+                );
                 let mut dynamic = 0;
                 for body in spawned.bodies.values() {
                     let mode = world.get::<RigidBody>(*body).unwrap();
-                    let expected = if mode.is_dynamic() { dynamic += 1; owner_velocity } else { Vec3::ZERO };
+                    let expected = if mode.is_dynamic() {
+                        dynamic += 1;
+                        owner_velocity
+                    } else {
+                        Vec3::ZERO
+                    };
                     assert_eq!(world.get::<LinearVelocity>(*body).unwrap().0, expected);
                     assert_eq!(world.get::<AngularVelocity>(*body).unwrap().0, Vec3::ZERO);
                 }
@@ -1614,14 +2131,31 @@ pub(crate) mod tests {
                 for collider in spawned.colliders.values() {
                     let member = world.get::<RagdollCollisionMember>(*collider).unwrap();
                     assert_eq!(member.group, root);
-                    assert_eq!(world.get::<CollisionLayers>(*collider), Some(&member.source_layers));
+                    assert_eq!(
+                        world.get::<CollisionLayers>(*collider),
+                        Some(&member.source_layers)
+                    );
                 }
             } else {
-                assert_eq!(world.get::<LinearVelocity>(old_pelvis).unwrap().0, old_linear);
-                assert_eq!(world.get::<AngularVelocity>(old_pelvis).unwrap().0, old_angular);
+                assert_eq!(
+                    world.get::<LinearVelocity>(old_pelvis).unwrap().0,
+                    old_linear
+                );
+                assert_eq!(
+                    world.get::<AngularVelocity>(old_pelvis).unwrap().0,
+                    old_angular
+                );
             }
             app.update();
-            assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root, root);
+            assert_eq!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(player)
+                    .unwrap()
+                    .get_spawned_ragdoll()
+                    .unwrap()
+                    .root,
+                root
+            );
         }
     }
 
@@ -1631,15 +2165,35 @@ pub(crate) mod tests {
 
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-        for _ in 0..10 { app.update(); }
-        assert!(app.world().get::<AlsRagdollDetachedPlayer>(player).is_some());
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+            .unwrap()
+            .ragdoll_start = true;
+        for _ in 0..10 {
+            app.update();
+        }
+        assert!(
+            app.world()
+                .get::<AlsRagdollDetachedPlayer>(player)
+                .is_some()
+        );
         let pelvis_bone = {
             let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(graph.skeleton()).unwrap();
-            skeleton.iter_bones().find_map(|bone| graph.bone_entity(bone).filter(|entity| {
-                app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == PELVIS_LABEL)
-            })).unwrap()
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(graph.skeleton())
+                .unwrap();
+            skeleton
+                .iter_bones()
+                .find_map(|bone| {
+                    graph.bone_entity(bone).filter(|entity| {
+                        app.world()
+                            .get::<Name>(*entity)
+                            .is_some_and(|name| name.as_str() == PELVIS_LABEL)
+                    })
+                })
+                .unwrap()
         };
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         {
@@ -1652,43 +2206,92 @@ pub(crate) mod tests {
                 app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::ZERO;
                 app.update();
             }
-            let old_root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root;
+            let old_root = app
+                .world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_spawned_ragdoll()
+                .unwrap()
+                .root;
             app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
-            let expected = app.world_mut().run_system_once(move |helper: TransformHelper| {
-                helper.compute_global_transform(pelvis_bone).unwrap()
-            }).unwrap();
+            let expected = app
+                .world_mut()
+                .run_system_once(move |helper: TransformHelper| {
+                    helper.compute_global_transform(pelvis_bone).unwrap()
+                })
+                .unwrap();
             app.update();
 
             let world = app.world();
-            let spawned = world.get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            let spawned = world
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_spawned_ragdoll()
+                .unwrap();
             assert_eq!(spawned.root != old_root, from_zero);
-            let pelvis = *spawned.bodies.values().find(|entity| {
-                world.get::<BodyLabel>(**entity).is_some_and(|label| label.0 == PELVIS_LABEL)
-            }).unwrap();
+            let pelvis = *spawned
+                .bodies
+                .values()
+                .find(|entity| {
+                    world
+                        .get::<BodyLabel>(**entity)
+                        .is_some_and(|label| label.0 == PELVIS_LABEL)
+                })
+                .unwrap();
             let actual = world.get::<Position>(pelvis).unwrap().0;
             let rotation = world.get::<Rotation>(pelvis).unwrap().0;
-            assert!(actual.distance(expected.translation()) < 1e-5,
-                "Rescaled pelvis: scale={scale} from_zero={from_zero} actual={actual:?} expected={:?}", expected.translation());
+            assert!(
+                actual.distance(expected.translation()) < 1e-5,
+                "Rescaled pelvis: scale={scale} from_zero={from_zero} actual={actual:?} expected={:?}",
+                expected.translation()
+            );
             assert!(rotation.dot(expected.rotation()).abs() > 1.0 - 1e-6);
         }
     }
 
-    pub(crate) fn loaded_ragdoll_bodies(app: &mut App, avatar: Entity) -> (Entity, Vec<(String, Entity)>) {
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+    pub(crate) fn loaded_ragdoll_bodies(
+        app: &mut App,
+        avatar: Entity,
+    ) -> (Entity, Vec<(String, Entity)>) {
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
         let mut bodies = None;
         for _ in 0..600 {
-            bodies = app.world().get::<AnimationGraphPlayer>(player).and_then(|player| player.get_spawned_ragdoll())
-                .map(|spawned| spawned.bodies.values().filter_map(|entity| {
-                    app.world().get::<BodyLabel>(*entity).map(|label| (label.0.clone(), *entity))
-                }).collect::<Vec<_>>());
-            if bodies.as_ref().is_some_and(|bodies| ["pelvis", "spine_03", "foot_l"].into_iter()
-                .all(|label| bodies.iter().any(|(name, _)| name == label))) { break; }
+            bodies = app
+                .world()
+                .get::<AnimationGraphPlayer>(player)
+                .and_then(|player| player.get_spawned_ragdoll())
+                .map(|spawned| {
+                    spawned
+                        .bodies
+                        .values()
+                        .filter_map(|entity| {
+                            app.world()
+                                .get::<BodyLabel>(*entity)
+                                .map(|label| (label.0.clone(), *entity))
+                        })
+                        .collect::<Vec<_>>()
+                });
+            if bodies.as_ref().is_some_and(|bodies| {
+                ["pelvis", "spine_03", "foot_l"]
+                    .into_iter()
+                    .all(|label| bodies.iter().any(|(name, _)| name == label))
+            }) {
+                break;
+            }
             app.update();
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         let bodies = bodies.expect("Ragdoll bodies did not load within 600 frames");
-        assert!(["pelvis", "spine_03", "foot_l"].into_iter()
-            .all(|label| bodies.iter().any(|(name, _)| name == label)), "Required fixture bodies are missing");
+        assert!(
+            ["pelvis", "spine_03", "foot_l"]
+                .into_iter()
+                .all(|label| bodies.iter().any(|(name, _)| name == label)),
+            "Required fixture bodies are missing"
+        );
         (player, bodies)
     }
 
@@ -1699,27 +2302,76 @@ pub(crate) mod tests {
 
     #[test]
     fn character_queries_and_contacts_ignore_another_actors_ragdoll() {
+        use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
         use avian3d::prelude::CollisionHooks;
         use bevy::ecs::system::RunSystemOnce;
-        use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-        let other = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
-            mut params: ResMut<Assets<AlsMovementParams>>,
-            mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>| {
-            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
-                AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(4.0, 1.5, 0.0)) })
-        }).unwrap();
-        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 0.1, 1.0),
-            Transform::from_xyz(20.0, 0.0, 0.0), CollisionLayers::default())).id();
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-        for _ in 0..90 { app.update(); }
-        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-        let pelvis = bodies.iter().find(|(label, _)| label == "pelvis").unwrap().1;
+        let other = app
+            .world_mut()
+            .run_system_once(
+                |mut commands: Commands,
+                 assets: Res<AssetServer>,
+                 mut params: ResMut<Assets<AlsMovementParams>>,
+                 mut configs: ResMut<
+                    Assets<crate::als::control_scheme::AlsControlSchemeConfig>,
+                >| {
+                    spawn_als_character(
+                        &mut commands,
+                        &assets,
+                        &mut params,
+                        &mut configs,
+                        AlsCharacterBlueprint {
+                            spawn_input: false,
+                            ..AlsCharacterBlueprint::new(Transform::from_xyz(4.0, 1.5, 0.0))
+                        },
+                    )
+                },
+            )
+            .unwrap();
+        let floor = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(1.0, 0.1, 1.0),
+                Transform::from_xyz(20.0, 0.0, 0.0),
+                CollisionLayers::default(),
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+            .unwrap()
+            .ragdoll_start = true;
+        for _ in 0..90 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<AlsNotifyLocomotionAction>(actor),
+            Some(&AlsNotifyLocomotionAction::Ragdolling)
+        );
+        let pelvis = bodies
+            .iter()
+            .find(|(label, _)| label == "pelvis")
+            .unwrap()
+            .1;
         let origin = app.world().get::<Position>(pelvis).unwrap().0;
-        let rig = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
-            .colliders.values().copied().collect::<Vec<_>>();
-        assert!(!rig.is_empty() && rig.iter().all(|entity| app.world().get::<SourceCollisionIgnorePawn>(*entity).is_some()));
+        let rig = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap()
+            .colliders
+            .values()
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(
+            !rig.is_empty()
+                && rig.iter().all(|entity| app
+                    .world()
+                    .get::<SourceCollisionIgnorePawn>(*entity)
+                    .is_some())
+        );
         let queried_rig = rig.clone();
         let (raw_hits, blocking_hits, floor_blocks, ground_hit, ground_is_rig) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
             colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
@@ -1733,13 +2385,24 @@ pub(crate) mod tests {
             (raw, blocking, crate::als::motion::character_blocks_collider(other, floor, &candidates), ground.is_some(),
                 ground.is_some_and(|entity| queried_rig.contains(&entity)))
         }).unwrap();
-        assert!(raw_hits > 0, "The other character's capsule must overlap the active ragdoll");
+        assert!(
+            raw_hits > 0,
+            "The other character's capsule must overlap the active ragdoll"
+        );
         assert_eq!(blocking_hits, 0);
         assert!(floor_blocks);
         assert!(ground_hit);
         assert!(!ground_is_rig);
-        let allowed = app.world_mut().run_system_once(move |hooks: crate::extensions::RagdollCollisionHooks,
-            mut commands: Commands| rig.iter().filter(|entity| hooks.filter_pairs(other, **entity, &mut commands)).count()).unwrap();
+        let allowed = app
+            .world_mut()
+            .run_system_once(
+                move |hooks: crate::extensions::RagdollCollisionHooks, mut commands: Commands| {
+                    rig.iter()
+                        .filter(|entity| hooks.filter_pairs(other, **entity, &mut commands))
+                        .count()
+                },
+            )
+            .unwrap();
         assert_eq!(allowed, 0);
     }
 
@@ -1748,20 +2411,49 @@ pub(crate) mod tests {
         for missing in [None, Some("pelvis"), Some("spine_03"), Some("foot_l")] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            if let Some(missing) = missing { remove_ragdoll_body(&mut app, &bodies, missing); }
+            if let Some(missing) = missing {
+                remove_ragdoll_body(&mut app, &bodies, missing);
+            }
             let initial_layers = *app.world().get::<CollisionLayers>(actor).unwrap();
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
             app.update();
             let accepted = missing.is_none_or(|label| label == "foot_l");
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling), accepted,
-                "missing={missing:?}");
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor)
+                    == Some(&AlsNotifyLocomotionAction::Ragdolling),
+                accepted,
+                "missing={missing:?}"
+            );
             if !accepted {
-                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
-                assert_eq!(*app.world().get::<RigidBody>(actor).unwrap(), RigidBody::Dynamic);
-                assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), initial_layers);
+                assert_eq!(
+                    *app.world().get::<LocomotionState>(actor).unwrap(),
+                    LocomotionState::Grounded
+                );
+                assert_eq!(
+                    *app.world().get::<RigidBody>(actor).unwrap(),
+                    RigidBody::Dynamic
+                );
+                assert_eq!(
+                    *app.world().get::<CollisionLayers>(actor).unwrap(),
+                    initial_layers
+                );
             }
-            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start);
-            assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());
+            assert!(
+                !app.world()
+                    .get::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_start
+            );
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(player)
+                    .unwrap()
+                    .get_error()
+                    .is_none()
+            );
         }
     }
 
@@ -1771,50 +2463,121 @@ pub(crate) mod tests {
         for fault in ["none", "missing_player", "empty_pose"] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player_entity, _) = loaded_ragdoll_bodies(&mut app, avatar);
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
             let mut ready = false;
             for _ in 0..600 {
                 app.update();
-                if app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling)
-                    && app.world().get::<AlsRagdollGroundFollow>(actor).is_some_and(|follow| follow.grounded) {
+                if app.world().get::<AlsNotifyLocomotionAction>(actor)
+                    == Some(&AlsNotifyLocomotionAction::Ragdolling)
+                    && app
+                        .world()
+                        .get::<AlsRagdollGroundFollow>(actor)
+                        .is_some_and(|follow| follow.grounded)
+                {
                     ready = true;
                     break;
                 }
             }
-            assert!(ready, "Ragdoll did not reach its grounded exit fixture within 600 frames");
+            assert!(
+                ready,
+                "Ragdoll did not reach its grounded exit fixture within 600 frames"
+            );
             let bones = {
-                let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-                let skeleton = app.world().resource::<Assets<Skeleton>>().get(player.skeleton()).unwrap();
-                skeleton.iter_bones().filter_map(|bone| player.bone_entity(bone))
-                    .filter_map(|entity| app.world().get::<GlobalTransform>(entity).copied().map(|transform| (entity, transform)))
+                let player = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player_entity)
+                    .unwrap();
+                let skeleton = app
+                    .world()
+                    .resource::<Assets<Skeleton>>()
+                    .get(player.skeleton())
+                    .unwrap();
+                skeleton
+                    .iter_bones()
+                    .filter_map(|bone| player.bone_entity(bone))
+                    .filter_map(|entity| {
+                        app.world()
+                            .get::<GlobalTransform>(entity)
+                            .copied()
+                            .map(|transform| (entity, transform))
+                    })
                     .collect::<Vec<_>>()
             };
             assert!(!bones.is_empty());
             let saved_player = if fault == "missing_player" {
-                app.world_mut().entity_mut(player_entity).take::<AnimationGraphPlayer>()
-            } else { None };
+                app.world_mut()
+                    .entity_mut(player_entity)
+                    .take::<AnimationGraphPlayer>()
+            } else {
+                None
+            };
             if fault == "empty_pose" {
-                for (bone, _) in &bones { app.world_mut().entity_mut(*bone).remove::<GlobalTransform>(); }
+                for (bone, _) in &bones {
+                    app.world_mut()
+                        .entity_mut(*bone)
+                        .remove::<GlobalTransform>();
+                }
             }
             let layers = *app.world().get::<CollisionLayers>(actor).unwrap();
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
-            app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_exit = true;
+            app.world_mut()
+                .run_system_once(ragdoll_exit_route_system)
+                .unwrap();
             if fault != "none" {
-                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling), "fault={fault}");
-                assert_eq!(*app.world().get::<RigidBody>(actor).unwrap(), RigidBody::Kinematic);
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::Ragdolling),
+                    "fault={fault}"
+                );
+                assert_eq!(
+                    *app.world().get::<RigidBody>(actor).unwrap(),
+                    RigidBody::Kinematic
+                );
                 assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), layers);
-                assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
-                if let Some(player) = saved_player { app.world_mut().entity_mut(player_entity).insert(player); }
-                if fault == "empty_pose" {
-                    for (bone, transform) in &bones { app.world_mut().entity_mut(*bone).insert(*transform); }
+                assert!(
+                    !app.world()
+                        .get::<crate::als::transition::AlsStateRequest>(actor)
+                        .unwrap()
+                        .ragdoll_exit
+                );
+                if let Some(player) = saved_player {
+                    app.world_mut().entity_mut(player_entity).insert(player);
                 }
-                app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
-                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
-                app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
+                if fault == "empty_pose" {
+                    for (bone, transform) in &bones {
+                        app.world_mut().entity_mut(*bone).insert(*transform);
+                    }
+                }
+                app.world_mut()
+                    .run_system_once(ragdoll_exit_route_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::Ragdolling)
+                );
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_exit = true;
+                app.world_mut()
+                    .run_system_once(ragdoll_exit_route_system)
+                    .unwrap();
             }
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::None), "fault={fault}");
-            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::None),
+                "fault={fault}"
+            );
+            assert_eq!(
+                *app.world().get::<LocomotionState>(actor).unwrap(),
+                LocomotionState::Grounded
+            );
         }
     }
 
@@ -1827,9 +2590,14 @@ pub(crate) mod tests {
             let graph = schedule.graph();
             let dependencies = graph.dependency().graph();
             let hierarchy = graph.hierarchy().graph();
-            let find = |needle: &str| schedule.systems().unwrap()
-                .find(|(_, system)| system.name().contains(needle))
-                .map(|(key, _)| NodeId::System(key)).unwrap_or_else(|| panic!("Missing system: {needle}"));
+            let find = |needle: &str| {
+                schedule
+                    .systems()
+                    .unwrap()
+                    .find(|(_, system)| system.name().contains(needle))
+                    .map(|(key, _)| NodeId::System(key))
+                    .unwrap_or_else(|| panic!("Missing system: {needle}"))
+            };
             let source = find("locomotion_drive_system");
             let target = find("ragdoll_exit_route_system");
             let containing_sets = |system| {
@@ -1850,13 +2618,18 @@ pub(crate) mod tests {
             let mut visited = std::collections::HashSet::new();
             let mut reached = false;
             while let Some(node) = pending.pop() {
-                if !visited.insert(node) { continue; }
+                if !visited.insert(node) {
+                    continue;
+                }
                 for next in dependencies.neighbors(node) {
                     reached |= target_nodes.contains(&next);
                     pending.push(next);
                 }
             }
-            assert!(reached, "Jump request production must precede ragdoll exit routing");
+            assert!(
+                reached,
+                "Jump request production must precede ragdoll exit routing"
+            );
         });
     }
 
@@ -1866,9 +2639,17 @@ pub(crate) mod tests {
         for input in ["request", "ragdoll", "jump"] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
-            let clips = [false, true].map(|facing| app.world().resource::<AssetServer>()
-                .load::<bevy_animation_graph::core::animation_clip::GraphClip>(&crate::get_up::get_up_settings(facing).clip));
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            let clips = [false, true].map(|facing| {
+                app.world()
+                    .resource::<AssetServer>()
+                    .load::<bevy_animation_graph::core::animation_clip::GraphClip>(
+                    &crate::get_up::get_up_settings(facing).clip,
+                )
+            });
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
             let mut ready = false;
             for _ in 0..600 {
                 app.update();
@@ -1879,58 +2660,165 @@ pub(crate) mod tests {
                     break;
                 }
             }
-            assert!(ready, "Ragdoll did not reach its grounded exit fixture within 600 frames");
-            app.world_mut().entity_mut(actor).insert(crate::als::motion::AlsJumpPrev(false));
+            assert!(
+                ready,
+                "Ragdoll did not reach its grounded exit fixture within 600 frames"
+            );
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(crate::als::motion::AlsJumpPrev(false));
             if input == "request" {
-                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_exit = true;
             } else {
-                let mut command = app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap();
+                let mut command = app
+                    .world_mut()
+                    .get_mut::<crate::als::input::AlsInputCommand>(actor)
+                    .unwrap();
                 command.ragdoll_pressed = input == "ragdoll";
                 command.jump_pressed = input == "jump";
             }
-            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().clear();
+            app.world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .clear();
             app.update();
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp), "input={input}");
-            let transitions: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
-                .filter(|event| event.entity == actor && event.dimension == Dimension::LocomotionState)
-                .map(|event| (event.from, event.to)).collect();
-            assert_eq!(transitions, [(LocomotionState::None.into(), LocomotionState::Grounded.into())]);
-            assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), "input={input}");
-            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
-            assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::GettingUp),
+                "input={input}"
+            );
+            let transitions: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .filter(|event| {
+                    event.entity == actor && event.dimension == Dimension::LocomotionState
+                })
+                .map(|event| (event.from, event.to))
+                .collect();
+            assert_eq!(
+                transitions,
+                [(
+                    LocomotionState::None.into(),
+                    LocomotionState::Grounded.into()
+                )]
+            );
+            assert!(
+                app.world()
+                    .get::<crate::als::motion::AlsMovementInputBlocked>(actor)
+                    .is_some(),
+                "input={input}"
+            );
+            assert!(
+                !app.world()
+                    .get::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_exit
+            );
+            assert!(
+                app.world()
+                    .get::<AnimationGraphPlayer>(player)
+                    .unwrap()
+                    .get_error()
+                    .is_none()
+            );
         }
     }
 
     #[test]
     fn ragdoll_exit_preserves_desired_stance_when_get_up_starts_first() {
-        use bevy::ecs::system::RunSystemOnce;
         use crate::als::transition::AlsDesiredStance;
+        use bevy::ecs::system::RunSystemOnce;
         for initial in [Stance::Standing, Stance::Crouching] {
             for desired in [Stance::Standing, Stance::Crouching] {
                 let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
                 let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
-                app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = initial;
-                for _ in 0..6 { app.update(); }
+                app.world_mut()
+                    .get_mut::<AlsDesiredStance>(actor)
+                    .unwrap()
+                    .0 = initial;
+                for _ in 0..6 {
+                    app.update();
+                }
                 assert_eq!(*app.world().get::<Stance>(actor).unwrap(), initial);
-                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-                for _ in 0..90 { app.update(); }
-                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-                assert!(app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
-                app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = desired;
-                let colliders = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
-                    .colliders.values().copied().collect::<Vec<_>>();
-                for collider in colliders { app.world_mut().entity_mut(collider).insert(CollisionLayers::NONE); }
-                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
-                app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
-                assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap().pending_action_stance, Some(desired));
-                app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
-                app.world_mut().run_system_once(crate::als::motion::capsule_reshape_system).unwrap();
-                assert_eq!(*app.world().get::<Stance>(actor).unwrap(), desired, "initial={initial:?} desired={desired:?}");
-                let transaction = app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap();
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_start = true;
+                for _ in 0..90 {
+                    app.update();
+                }
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::Ragdolling)
+                );
+                assert!(
+                    app.world()
+                        .get::<AlsRagdollGroundFollow>(actor)
+                        .unwrap()
+                        .grounded
+                );
+                app.world_mut()
+                    .get_mut::<AlsDesiredStance>(actor)
+                    .unwrap()
+                    .0 = desired;
+                let colliders = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player)
+                    .unwrap()
+                    .get_spawned_ragdoll()
+                    .unwrap()
+                    .colliders
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
+                for collider in colliders {
+                    app.world_mut()
+                        .entity_mut(collider)
+                        .insert(CollisionLayers::NONE);
+                }
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_exit = true;
+                app.world_mut()
+                    .run_system_once(ragdoll_exit_route_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world()
+                        .get::<crate::als::motion::AlsCrouchTransaction>(actor)
+                        .unwrap()
+                        .pending_action_stance,
+                    Some(desired)
+                );
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(AlsNotifyLocomotionAction::GettingUp);
+                app.world_mut()
+                    .run_system_once(crate::als::motion::capsule_reshape_system)
+                    .unwrap();
+                assert_eq!(
+                    *app.world().get::<Stance>(actor).unwrap(),
+                    desired,
+                    "initial={initial:?} desired={desired:?}"
+                );
+                let transaction = app
+                    .world()
+                    .get::<crate::als::motion::AlsCrouchTransaction>(actor)
+                    .unwrap();
                 let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap();
-                let params = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap();
-                let expected_half = if desired == Stance::Crouching { params.crouch.actual_crouched_half_height() }
-                    else { params.crouch.standing_capsule_half_height };
+                let params = app
+                    .world()
+                    .resource::<Assets<AlsMovementParams>>()
+                    .get(handle.id())
+                    .unwrap();
+                let expected_half = if desired == Stance::Crouching {
+                    params.crouch.actual_crouched_half_height()
+                } else {
+                    params.crouch.standing_capsule_half_height
+                };
                 assert!((transaction.collider_half_height - expected_half).abs() < 1e-5);
             }
         }
@@ -1939,67 +2827,171 @@ pub(crate) mod tests {
     #[test]
     fn source_ragdoll_exit_loaded_support_lifecycle() {
         use bevy::ecs::system::RunSystemOnce;
-        for change in ["unchanged", "remove", "move_away", "move_in", "add", "raise", "sensor", "ignore", "self_query"] {
+        for change in [
+            "unchanged",
+            "remove",
+            "move_away",
+            "move_in",
+            "add",
+            "raise",
+            "sensor",
+            "ignore",
+            "self_query",
+        ] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             loaded_ragdoll_bodies(&mut app, avatar);
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-            for _ in 0..90 { app.update(); }
-            assert!(app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
-            let supports: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
-                .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            for _ in 0..90 {
+                app.update();
+            }
+            assert!(
+                app.world()
+                    .get::<AlsRagdollGroundFollow>(actor)
+                    .unwrap()
+                    .grounded
+            );
+            let supports: Vec<_> = app
+                .world_mut()
+                .query::<(Entity, &RigidBody)>()
+                .iter(app.world())
+                .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity))
+                .collect();
             assert_eq!(supports.len(), 1);
             let support = supports[0];
             let original = *app.world().get::<Transform>(support).unwrap();
             let away = original.with_translation(original.translation + Vec3::X * 1000.0);
             if matches!(change, "move_in" | "add" | "sensor" | "ignore") {
-                app.world_mut().entity_mut(support).insert((away, Position(away.translation)));
+                app.world_mut()
+                    .entity_mut(support)
+                    .insert((away, Position(away.translation)));
                 app.update();
-                assert!(!app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
+                assert!(
+                    !app.world()
+                        .get::<AlsRagdollGroundFollow>(actor)
+                        .unwrap()
+                        .grounded
+                );
             }
             match change {
-                "remove" | "self_query" => { app.world_mut().despawn(support); }
-                "move_away" => { app.world_mut().entity_mut(support).insert((away, Position(away.translation))); }
-                "move_in" => { app.world_mut().entity_mut(support).insert((original, Position(original.translation))); }
+                "remove" | "self_query" => {
+                    app.world_mut().despawn(support);
+                }
+                "move_away" => {
+                    app.world_mut()
+                        .entity_mut(support)
+                        .insert((away, Position(away.translation)));
+                }
+                "move_in" => {
+                    app.world_mut()
+                        .entity_mut(support)
+                        .insert((original, Position(original.translation)));
+                }
                 "raise" => {
                     let raised = original.with_translation(original.translation + Vec3::Y * 0.1);
-                    app.world_mut().entity_mut(support).insert((raised, Position(raised.translation)));
+                    app.world_mut()
+                        .entity_mut(support)
+                        .insert((raised, Position(raised.translation)));
                 }
                 "add" | "sensor" | "ignore" => {
                     let collider = app.world().get::<Collider>(support).unwrap().clone();
                     let layers = *app.world().get::<CollisionLayers>(support).unwrap();
-                    let mut replacement = app.world_mut().spawn((RigidBody::Static, collider, original, layers));
-                    if change == "sensor" { replacement.insert(Sensor); }
-                    if change == "ignore" { replacement.insert(CollisionLayers::NONE); }
+                    let mut replacement =
+                        app.world_mut()
+                            .spawn((RigidBody::Static, collider, original, layers));
+                    if change == "sensor" {
+                        replacement.insert(Sensor);
+                    }
+                    if change == "ignore" {
+                        replacement.insert(CollisionLayers::NONE);
+                    }
                 }
                 _ => {}
             }
             if change == "self_query" {
-                let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-                let colliders = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
-                    .colliders.values().copied().collect::<Vec<_>>();
+                let player = app
+                    .world()
+                    .get::<AnimatedSceneInstance>(avatar)
+                    .unwrap()
+                    .player_entity();
+                let colliders = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(player)
+                    .unwrap()
+                    .get_spawned_ragdoll()
+                    .unwrap()
+                    .colliders
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
                 assert_eq!(colliders.len(), 22);
                 for collider in colliders {
-                    app.world_mut().entity_mut(collider).insert((CollisionLayers::ALL,
-                        crate::extensions::RagdollShapeCollisionMode::QueryAndPhysics));
+                    app.world_mut().entity_mut(collider).insert((
+                        CollisionLayers::ALL,
+                        crate::extensions::RagdollShapeCollisionMode::QueryAndPhysics,
+                    ));
                 }
             }
             let saved_velocity = Vec3::new(2.5, -4.0, -1.5);
-            app.world_mut().get_mut::<AlsRagdollGroundFollow>(actor).unwrap().velocity = saved_velocity;
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
-            app.world_mut().run_system_once(avian3d::collider_tree::update_moved_collider_aabbs::<Collider>).unwrap();
-            app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
+            app.world_mut()
+                .get_mut::<AlsRagdollGroundFollow>(actor)
+                .unwrap()
+                .velocity = saved_velocity;
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_exit = true;
+            app.world_mut()
+                .run_system_once(avian3d::collider_tree::update_moved_collider_aabbs::<Collider>)
+                .unwrap();
+            app.world_mut()
+                .run_system_once(ragdoll_exit_route_system)
+                .unwrap();
             let grounded = matches!(change, "unchanged" | "move_in" | "add" | "raise");
-            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0,
-                if grounded { Vec3::ZERO } else { saved_velocity }, "change={change}");
+            assert_eq!(
+                app.world().get::<LinearVelocity>(actor).unwrap().0,
+                if grounded { Vec3::ZERO } else { saved_velocity },
+                "change={change}"
+            );
             app.update();
-            let expected_action = if grounded { AlsNotifyLocomotionAction::GettingUp } else { AlsNotifyLocomotionAction::None };
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&expected_action),
-                "Source loaded exit must branch on current support: {change}");
-            assert_eq!(app.world().get::<crate::get_up::AlsGetUpState>(actor).is_some(), grounded);
-            assert_eq!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), grounded);
-            assert!(app.world().get::<AlsRagdollCharacterPhysics>(actor).is_none());
-            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
-            println!("Source loaded exit support={change} grounded={grounded} action={expected_action:?}");
+            let expected_action = if grounded {
+                AlsNotifyLocomotionAction::GettingUp
+            } else {
+                AlsNotifyLocomotionAction::None
+            };
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&expected_action),
+                "Source loaded exit must branch on current support: {change}"
+            );
+            assert_eq!(
+                app.world()
+                    .get::<crate::get_up::AlsGetUpState>(actor)
+                    .is_some(),
+                grounded
+            );
+            assert_eq!(
+                app.world()
+                    .get::<crate::als::motion::AlsMovementInputBlocked>(actor)
+                    .is_some(),
+                grounded
+            );
+            assert!(
+                app.world()
+                    .get::<AlsRagdollCharacterPhysics>(actor)
+                    .is_none()
+            );
+            assert!(
+                !app.world()
+                    .get::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_exit
+            );
+            println!(
+                "Source loaded exit support={change} grounded={grounded} action={expected_action:?}"
+            );
         }
     }
 
@@ -2010,13 +3002,23 @@ pub(crate) mod tests {
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
         let start = Vec3::Y * 9.9;
-        app.world_mut().entity_mut(actor).insert((Position(start),
-            Transform::from_translation(start).with_scale(Vec3::splat(2.0)), LinearVelocity::ZERO));
+        app.world_mut().entity_mut(actor).insert((
+            Position(start),
+            Transform::from_translation(start).with_scale(Vec3::splat(2.0)),
+            LinearVelocity::ZERO,
+        ));
         for _ in 0..120 {
             app.update();
         }
-        assert!(app.world().get::<AlsRagdollGroundFollow>(actor).is_some_and(|follow| follow.grounded));
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+        assert!(
+            app.world()
+                .get::<AlsRagdollGroundFollow>(actor)
+                .is_some_and(|follow| follow.grounded)
+        );
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+            .unwrap()
+            .ragdoll_exit = true;
         for frame in 0..6 {
             app.update();
             let world = app.world();
@@ -2024,26 +3026,58 @@ pub(crate) mod tests {
             let position = world.get::<Position>(actor).unwrap().0;
             let velocity = world.get::<LinearVelocity>(actor).unwrap().0;
             let action = world.get::<AlsNotifyLocomotionAction>(actor);
-            assert_eq!(action, Some(&AlsNotifyLocomotionAction::GettingUp), "frame={frame}");
-            assert_eq!(mode, LocomotionState::Grounded, "frame={frame} position={position:?} velocity={velocity:?}");
+            assert_eq!(
+                action,
+                Some(&AlsNotifyLocomotionAction::GettingUp),
+                "frame={frame}"
+            );
+            assert_eq!(
+                mode,
+                LocomotionState::Grounded,
+                "frame={frame} position={position:?} velocity={velocity:?}"
+            );
         }
-        let (mesh, mount) = app.world_mut().run_system_once(move |transforms: TransformHelper| {
-            (transforms.compute_global_transform(player).unwrap(), transforms.compute_global_transform(avatar).unwrap())
-        }).unwrap();
+        let (mesh, mount) = app
+            .world_mut()
+            .run_system_once(move |transforms: TransformHelper| {
+                (
+                    transforms.compute_global_transform(player).unwrap(),
+                    transforms.compute_global_transform(avatar).unwrap(),
+                )
+            })
+            .unwrap();
         assert!((mesh.translation().y - mount.translation().y - 0.92).abs() < 1e-5);
         let world = app.world();
         let graph = world.get::<AnimationGraphPlayer>(player).unwrap();
         let (_, _, rig) = crate::extensions::root_graph_boundaries::current_control_rig(
-            graph, world.resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>(),
-        ).unwrap();
-        assert!(rig.to_world.translation.as_vec3().abs_diff_eq(mesh.translation(), 1e-5),
-            "Rig queried from {:?}, while the restored mesh is at {:?}", rig.to_world.translation, mesh.translation());
-        let supports: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
-            .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+            graph,
+            world.resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>(),
+        )
+        .unwrap();
+        assert!(
+            rig.to_world
+                .translation
+                .as_vec3()
+                .abs_diff_eq(mesh.translation(), 1e-5),
+            "Rig queried from {:?}, while the restored mesh is at {:?}",
+            rig.to_world.translation,
+            mesh.translation()
+        );
+        let supports: Vec<_> = app
+            .world_mut()
+            .query::<(Entity, &RigidBody)>()
+            .iter(app.world())
+            .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity))
+            .collect();
         assert_eq!(supports.len(), 1);
         app.world_mut().despawn(supports[0]);
-        for _ in 0..3 { app.update(); }
-        assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Air));
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<LocomotionState>(actor),
+            Some(&LocomotionState::Air)
+        );
     }
 
     #[test]
@@ -2052,33 +3086,70 @@ pub(crate) mod tests {
         for exiting in [false, true] {
             let mut app = App::new();
             app.add_plugins(MinimalPlugins);
-            let parent = app.world_mut().spawn((
-                Transform::from_xyz(10.0, 1.0, -2.0).with_rotation(Quat::from_rotation_y(0.6))
-                    .with_scale(Vec3::splat(1.5)), GlobalTransform::IDENTITY,
-            )).id();
+            let parent = app
+                .world_mut()
+                .spawn((
+                    Transform::from_xyz(10.0, 1.0, -2.0)
+                        .with_rotation(Quat::from_rotation_y(0.6))
+                        .with_scale(Vec3::splat(1.5)),
+                    GlobalTransform::IDENTITY,
+                ))
+                .id();
             let target = Vec3::new(2.0, 3.0, -4.0);
-            let actor = app.world_mut().spawn((
-                AlsCharacter, Transform::from_xyz(0.5, 1.0, 0.2), ChildOf(parent),
-                Position(Vec3::ZERO), LinearVelocity(Vec3::ONE), RigidBody::Kinematic,
-                AlsCollisionLayerOwnership::default(),
-                if exiting { AlsNotifyLocomotionAction::None } else { AlsNotifyLocomotionAction::Ragdolling },
-                AlsRagdollGroundFollow { pelvis: target, target, velocity: Vec3::ZERO, grounded: true },
-            )).id();
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    Transform::from_xyz(0.5, 1.0, 0.2),
+                    ChildOf(parent),
+                    Position(Vec3::ZERO),
+                    LinearVelocity(Vec3::ONE),
+                    RigidBody::Kinematic,
+                    AlsCollisionLayerOwnership::default(),
+                    if exiting {
+                        AlsNotifyLocomotionAction::None
+                    } else {
+                        AlsNotifyLocomotionAction::Ragdolling
+                    },
+                    AlsRagdollGroundFollow {
+                        pelvis: target,
+                        target,
+                        velocity: Vec3::ZERO,
+                        grounded: true,
+                    },
+                ))
+                .id();
             if exiting {
-                app.world_mut().entity_mut(actor).insert(AlsRagdollCharacterPhysics {
-                    rigid_body: RigidBody::Dynamic, tnua_toggle: None,
-                });
-                app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(AlsRagdollCharacterPhysics {
+                        rigid_body: RigidBody::Dynamic,
+                        tnua_toggle: None,
+                    });
+                app.world_mut()
+                    .run_system_once(ragdoll_character_physics_system)
+                    .unwrap();
             } else {
-                app.world_mut().run_system_once(apply_ragdoll_ground_follow).unwrap();
+                app.world_mut()
+                    .run_system_once(apply_ragdoll_ground_follow)
+                    .unwrap();
             }
-            let world = app.world_mut().run_system_once(move |helper: TransformHelper| {
-                helper.compute_global_transform(actor).unwrap()
-            }).unwrap();
-            assert!(world.translation().distance(target) < 1e-5,
-                "Parented ragdoll actor changed the world target: exiting={exiting}, actual={:?}, target={target:?}", world.translation());
+            let world = app
+                .world_mut()
+                .run_system_once(move |helper: TransformHelper| {
+                    helper.compute_global_transform(actor).unwrap()
+                })
+                .unwrap();
+            assert!(
+                world.translation().distance(target) < 1e-5,
+                "Parented ragdoll actor changed the world target: exiting={exiting}, actual={:?}, target={target:?}",
+                world.translation()
+            );
             assert_eq!(app.world().get::<Position>(actor).unwrap().0, target);
-            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, Vec3::ZERO);
+            assert_eq!(
+                app.world().get::<LinearVelocity>(actor).unwrap().0,
+                Vec3::ZERO
+            );
         }
     }
 
@@ -2086,17 +3157,37 @@ pub(crate) mod tests {
     fn loaded_ragdoll_exit_preserves_current_actor_pitch_and_roll() {
         for (pitch, roll) in [(0.0_f32, 0.0_f32), (0.2, -0.1), (-0.15, 0.25)] {
             let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
-            app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::Ragdolling);
-            for _ in 0..90 { app.update(); }
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(AlsNotifyLocomotionAction::Ragdolling);
+            for _ in 0..90 {
+                app.update();
+            }
             let rotation = Quat::from_euler(EulerRot::YXZ, 0.3, pitch, roll);
-            app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .rotation = rotation;
             app.world_mut().get_mut::<Rotation>(actor).unwrap().0 = rotation;
-            app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+            app.world_mut()
+                .get_mut::<AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_exit = true;
             app.update();
-            let (_, actual_pitch, actual_roll) = app.world().get::<Rotation>(actor).unwrap().0.to_euler(EulerRot::YXZ);
-            assert_ne!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-            assert!((actual_pitch - pitch).abs() < 1e-4 && (actual_roll - roll).abs() < 1e-4,
-                "Source StopRagdolling replaces only current actor yaw: pitch={pitch} roll={roll} actual_pitch={actual_pitch} actual_roll={actual_roll}");
+            let (_, actual_pitch, actual_roll) = app
+                .world()
+                .get::<Rotation>(actor)
+                .unwrap()
+                .0
+                .to_euler(EulerRot::YXZ);
+            assert_ne!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Ragdolling)
+            );
+            assert!(
+                (actual_pitch - pitch).abs() < 1e-4 && (actual_roll - roll).abs() < 1e-4,
+                "Source StopRagdolling replaces only current actor yaw: pitch={pitch} roll={roll} actual_pitch={actual_pitch} actual_roll={actual_roll}"
+            );
         }
     }
 
@@ -2104,60 +3195,157 @@ pub(crate) mod tests {
     fn browser_review_parent_ragdoll_recovery_keeps_actor_and_pelvis_world_space() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        let actor_world = app.world_mut().run_system_once(move |helper: TransformHelper| {
-            helper.compute_global_transform(actor).unwrap()
-        }).unwrap();
+        let actor_world = app
+            .world_mut()
+            .run_system_once(move |helper: TransformHelper| {
+                helper.compute_global_transform(actor).unwrap()
+            })
+            .unwrap();
         let parent_transform = Transform::from_xyz(10.0, 2.0, -3.0)
-            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.15, -0.2)).with_scale(Vec3::splat(1.5));
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.15, -0.2))
+            .with_scale(Vec3::splat(1.5));
         let parent = app.world_mut().spawn(parent_transform).id();
-        app.world_mut().entity_mut(actor).insert((ChildOf(parent),
+        app.world_mut().entity_mut(actor).insert((
+            ChildOf(parent),
             actor_world.reparented_to(&GlobalTransform::from(parent_transform)),
-            AlsNotifyLocomotionAction::Ragdolling));
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        app.world_mut().run_system_once(capture_ragdoll_player_world_transform).unwrap();
-        assert!(app.world().get::<AlsRagdollDetachedPlayer>(player_entity).is_some());
+            AlsNotifyLocomotionAction::Ragdolling,
+        ));
+        let player_entity = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        app.world_mut()
+            .run_system_once(capture_ragdoll_player_world_transform)
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<AlsRagdollDetachedPlayer>(player_entity)
+                .is_some()
+        );
         let (pelvis, old_player_world) = {
-            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-            let skeleton = app.world().resource::<Assets<Skeleton>>().get(player.skeleton()).unwrap();
-            let pelvis = skeleton.iter_bones().find_map(|bone| player.bone_entity(bone)
-                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == PELVIS_LABEL)))
+            let player = app
+                .world()
+                .get::<AnimationGraphPlayer>(player_entity)
                 .unwrap();
-            (pelvis, *app.world().get::<GlobalTransform>(player_entity).unwrap())
+            let skeleton = app
+                .world()
+                .resource::<Assets<Skeleton>>()
+                .get(player.skeleton())
+                .unwrap();
+            let pelvis = skeleton
+                .iter_bones()
+                .find_map(|bone| {
+                    player.bone_entity(bone).filter(|entity| {
+                        app.world()
+                            .get::<Name>(*entity)
+                            .is_some_and(|name| name.as_str() == PELVIS_LABEL)
+                    })
+                })
+                .unwrap();
+            (
+                pelvis,
+                *app.world().get::<GlobalTransform>(player_entity).unwrap(),
+            )
         };
         let pelvis_world = *app.world().get::<GlobalTransform>(pelvis).unwrap();
         let bone_parent = app.world().get::<ChildOf>(pelvis).unwrap().parent();
-        let parent_in_player = app.world().get::<GlobalTransform>(bone_parent).unwrap().reparented_to(&old_player_world);
-        let moved_parent = parent_transform.with_translation(Vec3::new(12.0, 2.5, -2.0))
+        let parent_in_player = app
+            .world()
+            .get::<GlobalTransform>(bone_parent)
+            .unwrap()
+            .reparented_to(&old_player_world);
+        let moved_parent = parent_transform
+            .with_translation(Vec3::new(12.0, 2.5, -2.0))
             .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, -0.15, 0.3));
         *app.world_mut().get_mut::<Transform>(parent).unwrap() = moved_parent;
         let target = actor_world.translation() + Vec3::new(1.0, 0.2, -0.5);
-        app.world_mut().get_mut::<Transform>(actor).unwrap().translation =
-            GlobalTransform::from(moved_parent).affine().inverse().transform_point3(target);
-        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = moved_parent.rotation.inverse()
-            * Quat::from_euler(EulerRot::YXZ, 0.3, 0.2, -0.1);
-        app.world_mut().entity_mut(actor).insert((Position(target), AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
-        let expected_yaw = ragdoll_recovery_rotation(pelvis_world.rotation()).0.to_euler(EulerRot::YXZ).0;
+        app.world_mut()
+            .get_mut::<Transform>(actor)
+            .unwrap()
+            .translation = GlobalTransform::from(moved_parent)
+            .affine()
+            .inverse()
+            .transform_point3(target);
+        app.world_mut()
+            .get_mut::<Transform>(actor)
+            .unwrap()
+            .rotation =
+            moved_parent.rotation.inverse() * Quat::from_euler(EulerRot::YXZ, 0.3, 0.2, -0.1);
+        app.world_mut().entity_mut(actor).insert((
+            Position(target),
+            AlsNotifyLocomotionAction::None,
+            LocomotionState::Grounded,
+        ));
+        let expected_yaw = ragdoll_recovery_rotation(pelvis_world.rotation())
+            .0
+            .to_euler(EulerRot::YXZ)
+            .0;
         let expected_rotation = Quat::from_euler(EulerRot::YXZ, expected_yaw, 0.2, -0.1);
-        app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
-        let actor_after = app.world_mut().run_system_once(move |helper: TransformHelper| {
-            helper.compute_global_transform(actor).unwrap()
-        }).unwrap();
-        assert!(actor_after.translation().distance(target) < 1e-5,
-            "Recovery treated a local actor transform as world: {:?} != {target:?}", actor_after.translation());
+        app.world_mut()
+            .run_system_once(restore_ragdoll_player_parent)
+            .unwrap();
+        let actor_after = app
+            .world_mut()
+            .run_system_once(move |helper: TransformHelper| {
+                helper.compute_global_transform(actor).unwrap()
+            })
+            .unwrap();
+        assert!(
+            actor_after.translation().distance(target) < 1e-5,
+            "Recovery treated a local actor transform as world: {:?} != {target:?}",
+            actor_after.translation()
+        );
         assert!(actor_after.rotation().dot(expected_rotation).abs() > 1.0 - 1e-5);
-        assert!(app.world().get::<Rotation>(actor).unwrap().0.dot(expected_rotation).abs() > 1.0 - 1e-5);
-        let player_world = app.world_mut().run_system_once(move |helper: TransformHelper| {
-            helper.compute_global_transform(player_entity).unwrap()
-        }).unwrap();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        let skeleton = app.world().resource::<Assets<Skeleton>>().get(player.skeleton()).unwrap();
-        let bone = skeleton.iter_bones().find(|bone| player.bone_entity(*bone) == Some(pelvis)).unwrap();
-        let pose = player.get_global_input_data(crate::ragdolling_layer::RAGDOLLING_FINAL_POSE_KEY).unwrap().as_pose().unwrap();
+        assert!(
+            app.world()
+                .get::<Rotation>(actor)
+                .unwrap()
+                .0
+                .dot(expected_rotation)
+                .abs()
+                > 1.0 - 1e-5
+        );
+        let player_world = app
+            .world_mut()
+            .run_system_once(move |helper: TransformHelper| {
+                helper.compute_global_transform(player_entity).unwrap()
+            })
+            .unwrap();
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
+        let skeleton = app
+            .world()
+            .resource::<Assets<Skeleton>>()
+            .get(player.skeleton())
+            .unwrap();
+        let bone = skeleton
+            .iter_bones()
+            .find(|bone| player.bone_entity(*bone) == Some(pelvis))
+            .unwrap();
+        let pose = player
+            .get_global_input_data(crate::ragdolling_layer::RAGDOLLING_FINAL_POSE_KEY)
+            .unwrap()
+            .as_pose()
+            .unwrap();
         let local = pose.get_bone(bone).unwrap().to_transform();
         let restored_pelvis = player_world * parent_in_player * local;
-        assert!(restored_pelvis.translation().distance(pelvis_world.translation()) < 1e-4);
-        assert!(restored_pelvis.rotation().dot(pelvis_world.rotation()).abs() > 1.0 - 1e-5,
-            "Source recovery snapshot must preserve the last simulated pelvis world rotation");
+        assert!(
+            restored_pelvis
+                .translation()
+                .distance(pelvis_world.translation())
+                < 1e-4
+        );
+        assert!(
+            restored_pelvis
+                .rotation()
+                .dot(pelvis_world.rotation())
+                .abs()
+                > 1.0 - 1e-5,
+            "Source recovery snapshot must preserve the last simulated pelvis world rotation"
+        );
     }
 
     #[test]
@@ -2171,35 +3359,70 @@ pub(crate) mod tests {
         ] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             if parented {
-                let parent = app.world_mut().spawn(Transform::from_xyz(3.0, 2.0, 1.0)
-                    .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.6, 0.1, -0.2))
-                    .with_scale(Vec3::splat(1.5))).id();
+                let parent = app
+                    .world_mut()
+                    .spawn(
+                        Transform::from_xyz(3.0, 2.0, 1.0)
+                            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.6, 0.1, -0.2))
+                            .with_scale(Vec3::splat(1.5)),
+                    )
+                    .id();
                 app.world_mut().entity_mut(actor).insert(ChildOf(parent));
             }
             app.world_mut().get_mut::<Transform>(actor).unwrap().scale = scale;
-            app.world_mut().entity_mut(actor).insert((stance, AlsNotifyLocomotionAction::Ragdolling));
-            app.world_mut().run_system_once(crate::character_assembly::sync_avatar_stance_offset).unwrap();
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            app.world_mut().run_system_once(capture_ragdoll_player_world_transform).unwrap();
-            assert!(app.world().get::<AlsRagdollDetachedPlayer>(player).is_some());
+            app.world_mut()
+                .entity_mut(actor)
+                .insert((stance, AlsNotifyLocomotionAction::Ragdolling));
+            app.world_mut()
+                .run_system_once(crate::character_assembly::sync_avatar_stance_offset)
+                .unwrap();
+            let player = app
+                .world()
+                .get::<AnimatedSceneInstance>(avatar)
+                .unwrap()
+                .player_entity();
+            app.world_mut()
+                .run_system_once(capture_ragdoll_player_world_transform)
+                .unwrap();
+            assert!(
+                app.world()
+                    .get::<AlsRagdollDetachedPlayer>(player)
+                    .is_some()
+            );
             app.world_mut().get_mut::<Transform>(actor).unwrap().scale *= 1.25;
             let detached_scale = {
                 let mut mesh = app.world_mut().get_mut::<Transform>(player).unwrap();
-                if stance == Stance::Crouching { mesh.scale *= Vec3::new(1.1, 0.9, 1.2); }
+                if stance == Stance::Crouching {
+                    mesh.scale *= Vec3::new(1.1, 0.9, 1.2);
+                }
                 mesh.scale
             };
-            app.world_mut().entity_mut(actor).insert((AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
-            app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
-            let (actor_world, mesh_world) = app.world_mut().run_system_once(move |helper: TransformHelper| {
-                (helper.compute_global_transform(actor).unwrap(), helper.compute_global_transform(player).unwrap())
-            }).unwrap();
+            app.world_mut()
+                .entity_mut(actor)
+                .insert((AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
+            app.world_mut()
+                .run_system_once(restore_ragdoll_player_parent)
+                .unwrap();
+            let (actor_world, mesh_world) = app
+                .world_mut()
+                .run_system_once(move |helper: TransformHelper| {
+                    (
+                        helper.compute_global_transform(actor).unwrap(),
+                        helper.compute_global_transform(player).unwrap(),
+                    )
+                })
+                .unwrap();
             let expected = actor_world.translation() + actor_world.rotation() * (Vec3::Y * offset);
-            assert!(mesh_world.translation().distance(expected) < 1e-5,
+            assert!(
+                mesh_world.translation().distance(expected) < 1e-5,
                 "Restored mesh offset: scale={scale:?} parented={parented} stance={stance:?} expected={expected:?} actual={:?}",
-                mesh_world.translation());
-            assert!(mesh_world.scale().abs_diff_eq(detached_scale, 1e-5),
+                mesh_world.translation()
+            );
+            assert!(
+                mesh_world.scale().abs_diff_eq(detached_scale, 1e-5),
                 "Restored mesh scale: parented={parented} stance={stance:?} expected={detached_scale:?} actual={:?}",
-                mesh_world.scale());
+                mesh_world.scale()
+            );
         }
     }
 
@@ -2208,9 +3431,9 @@ pub(crate) mod tests {
 
     #[test]
     fn ragdoll_entry_stops_current_turn_and_transition_montages() {
-        use bevy::ecs::system::RunSystemOnce;
         use crate::stop_link::{AlsTransitionMontageStack, AlsTransitionPlayback};
         use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest};
+        use bevy::ecs::system::RunSystemOnce;
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -2220,86 +3443,176 @@ pub(crate) mod tests {
         let mut second_transition = AlsTransitionPlayback::crouching_dynamic(1.0);
         second_transition.weight = 0.5;
         second_transition.blend_out = 0.6;
-        let character = app.world_mut().spawn((
-            AlsCharacter,
-            Transform::IDENTITY,
-            RigidBody::Kinematic,
-            AlsCollisionLayerOwnership::default(),
-            AlsNotifyLocomotionAction::Ragdolling,
-            AlsTransitionMontageStack { entries: vec![transition, second_transition], ..default() },
-        )).id();
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::IDENTITY,
+                RigidBody::Kinematic,
+                AlsCollisionLayerOwnership::default(),
+                AlsNotifyLocomotionAction::Ragdolling,
+                AlsTransitionMontageStack {
+                    entries: vec![transition, second_transition],
+                    ..default()
+                },
+            ))
+            .id();
         let mut turn = AlsTurnMontageStack::default();
         SourceTurnRequest {
             variant: crate::als::turn_in_place::TurnVariant::Left90,
             yaw: 90.0,
             crouching: false,
-        }.play(&mut turn);
+        }
+        .play(&mut turn);
         let mut old_turn = AlsTurnMontageStack::default();
         SourceTurnRequest {
             variant: crate::als::turn_in_place::TurnVariant::Right90,
             yaw: 90.0,
             crouching: false,
-        }.play(&mut old_turn);
-        let old_avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character }, ChildOf(character), old_turn,
-        )).id();
-        let avatar = app.world_mut().spawn((
-            AlsCharacterAvatar { character },
-            ChildOf(character),
-            AlsTurnDrive::default(),
-            turn,
-        )).id();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        }
+        .play(&mut old_turn);
+        let old_avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                old_turn,
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                AlsTurnDrive::default(),
+                turn,
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
 
-        app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+        app.world_mut()
+            .run_system_once(ragdoll_character_physics_system)
+            .unwrap();
         app.world_mut().flush();
-        let turn_stopped = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty();
-        let transition_stopped = app.world().get::<AlsTransitionMontageStack>(character).unwrap()
-            .entries.iter().all(|entry| entry.stop_elapsed == Some(0.0)
-                && (entry.stop_duration - 0.2).abs() < 1e-6);
-        assert!(turn_stopped && transition_stopped,
-            "turn_stopped={turn_stopped} transition_stopped={transition_stopped}");
-        assert_eq!(app.world().get::<AlsTurnMontageStack>(old_avatar).unwrap().entries.len(), 1);
-        app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
-        assert!(app.world().get::<AlsTransitionMontageStack>(character).unwrap()
-            .entries.iter().all(|entry| entry.stop_elapsed == Some(0.0)));
+        let turn_stopped = app
+            .world()
+            .get::<AlsTurnMontageStack>(avatar)
+            .unwrap()
+            .entries
+            .is_empty();
+        let transition_stopped = app
+            .world()
+            .get::<AlsTransitionMontageStack>(character)
+            .unwrap()
+            .entries
+            .iter()
+            .all(|entry| {
+                entry.stop_elapsed == Some(0.0) && (entry.stop_duration - 0.2).abs() < 1e-6
+            });
+        assert!(
+            turn_stopped && transition_stopped,
+            "turn_stopped={turn_stopped} transition_stopped={transition_stopped}"
+        );
+        assert_eq!(
+            app.world()
+                .get::<AlsTurnMontageStack>(old_avatar)
+                .unwrap()
+                .entries
+                .len(),
+            1
+        );
+        app.world_mut()
+            .run_system_once(ragdoll_character_physics_system)
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<AlsTransitionMontageStack>(character)
+                .unwrap()
+                .entries
+                .iter()
+                .all(|entry| entry.stop_elapsed == Some(0.0))
+        );
     }
 
     #[test]
     fn native_ragdoll_spawner_reports_completion_once_after_all_joints() {
         use bevy::ecs::system::RunSystemOnce;
-        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+        use bevy_animation_graph::core::ragdoll::{
+            definition::Ragdoll, spawning::spawn_ragdoll_avian,
+        };
         #[derive(Resource, Default)]
         struct Completions(Vec<(Entity, usize)>);
-        let source: Ragdoll = ron::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/ALS/Character/PA_Als.rag.ron"))).unwrap();
+        let source: Ragdoll = ron::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/ALS/Character/PA_Als.rag.ron"
+        )))
+        .unwrap();
         for joint_count in [0, 1, source.joints.len()] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, avian3d::prelude::PhysicsPlugins::default()));
-            app.init_resource::<Completions>().add_observer(|event: On<RagdollSpawned>,
-                joints: Query<&bevy_animation_graph::core::ragdoll::definition::JointLabel>,
-                mut completed: ResMut<Completions>| {
-                completed.0.push((event.ragdoll, joints.iter().count()));
-            });
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::default(),
+            ));
+            app.init_resource::<Completions>().add_observer(
+                |event: On<RagdollSpawned>,
+                 joints: Query<&bevy_animation_graph::core::ragdoll::definition::JointLabel>,
+                 mut completed: ResMut<Completions>| {
+                    completed.0.push((event.ragdoll, joints.iter().count()));
+                },
+            );
             app.finish();
             app.cleanup();
             let player = app.world_mut().spawn_empty().id();
             let mut asset = source.clone();
-            let selected = asset.joints.keys().copied().take(joint_count).collect::<std::collections::HashSet<_>>();
+            let selected = asset
+                .joints
+                .keys()
+                .copied()
+                .take(joint_count)
+                .collect::<std::collections::HashSet<_>>();
             asset.joints.retain(|id, _| selected.contains(id));
             if joint_count == 0 {
                 asset.bodies.retain(|_, body| body.label == PELVIS_LABEL);
-                let colliders = asset.bodies.values().flat_map(|body| body.colliders.iter().copied()).collect::<std::collections::HashSet<_>>();
+                let colliders = asset
+                    .bodies
+                    .values()
+                    .flat_map(|body| body.colliders.iter().copied())
+                    .collect::<std::collections::HashSet<_>>();
                 asset.colliders.retain(|id, _| colliders.contains(id));
                 assert_eq!(asset.bodies.len(), 1);
                 assert!(!asset.colliders.is_empty());
             }
-            let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
-                spawn_ragdoll_avian(player, &asset, bevy::math::Isometry3d::IDENTITY, None, &mut commands)
-            }).unwrap();
+            let spawned = app
+                .world_mut()
+                .run_system_once(move |mut commands: Commands| {
+                    spawn_ragdoll_avian(
+                        player,
+                        &asset,
+                        bevy::math::Isometry3d::IDENTITY,
+                        None,
+                        &mut commands,
+                    )
+                })
+                .unwrap();
             app.world_mut().flush();
             let completed = &app.world().resource::<Completions>().0;
-            assert_eq!(completed.len(), 1, "Each accepted ragdoll needs one completion, joints={joint_count}");
-            assert_eq!(completed[0], (spawned.root, joint_count), "Completion must follow all joint creation");
+            assert_eq!(
+                completed.len(),
+                1,
+                "Each accepted ragdoll needs one completion, joints={joint_count}"
+            );
+            assert_eq!(
+                completed[0],
+                (spawned.root, joint_count),
+                "Completion must follow all joint creation"
+            );
         }
     }
 
@@ -2309,19 +3622,29 @@ pub(crate) mod tests {
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::AnimationGraphPlugin;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            AnimationGraphPlugin::default(),
+        ));
         app.add_observer(register_ragdoll_camera_trace_owner);
         let character = app.world_mut().spawn(AlsCharacter).id();
         let spawn_avatar = |app: &mut App| {
-            let avatar = app.world_mut().spawn((
-                AlsCharacterAvatar { character },
-                AnimatedSceneHandle::default(),
-                ChildOf(character),
-            )).id();
-            let player = app.world_mut().spawn((
-                AnimationGraphPlayer::new(Handle::default()),
-                ChildOf(avatar),
-            )).id();
+            let avatar = app
+                .world_mut()
+                .spawn((
+                    AlsCharacterAvatar { character },
+                    AnimatedSceneHandle::default(),
+                    ChildOf(character),
+                ))
+                .id();
+            let player = app
+                .world_mut()
+                .spawn((
+                    AnimationGraphPlayer::new(Handle::default()),
+                    ChildOf(avatar),
+                ))
+                .id();
             app.world_mut().trigger(WorldInstanceReady {
                 entity: avatar,
                 instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
@@ -2331,13 +3654,25 @@ pub(crate) mod tests {
         };
         let (old_avatar, old_player) = spawn_avatar(&mut app);
         let (new_avatar, new_player) = spawn_avatar(&mut app);
-        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
-            avatar: new_avatar,
-            camera: None,
-        });
-        let selected = app.world_mut().run_system_once(move |avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>, assemblies: Query<&AlsCharacterAssembly>| {
-            animated_player_for_character(character, assemblies.get(character).ok(), &avatars)
-        }).unwrap();
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar: new_avatar,
+                camera: None,
+            },
+        );
+        let selected = app
+            .world_mut()
+            .run_system_once(
+                move |avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+                      assemblies: Query<&AlsCharacterAssembly>| {
+                    animated_player_for_character(
+                        character,
+                        assemblies.get(character).ok(),
+                        &avatars,
+                    )
+                },
+            )
+            .unwrap();
         assert!(app.world().entities().contains(old_avatar));
         assert!(app.world().entities().contains(old_player));
         assert_eq!(selected, Some(new_player));
@@ -2352,9 +3687,16 @@ pub(crate) mod tests {
             animation_player: new_player,
         });
         app.world_mut().flush();
-        assert!(app.world().get::<crate::als_camera::AlsCameraTraceOwner>(old_ragdoll).is_none());
+        assert!(
+            app.world()
+                .get::<crate::als_camera::AlsCameraTraceOwner>(old_ragdoll)
+                .is_none()
+        );
         assert_eq!(
-            app.world().get::<crate::als_camera::AlsCameraTraceOwner>(new_ragdoll).unwrap().0,
+            app.world()
+                .get::<crate::als_camera::AlsCameraTraceOwner>(new_ragdoll)
+                .unwrap()
+                .0,
             character
         );
     }
@@ -2366,34 +3708,84 @@ pub(crate) mod tests {
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::AnimationGraphPlugin;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
-        let character = app.world_mut().spawn((AlsCharacter, AlsRagdollLink::default(),
-            AlsNotifyLocomotionAction::Ragdolling)).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
-            AnimatedSceneHandle::default(), ChildOf(character))).id();
-        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
-            ChildOf(avatar))).id();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            AnimationGraphPlugin::default(),
+        ));
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsRagdollLink::default(),
+                AlsNotifyLocomotionAction::Ragdolling,
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+            ))
+            .id();
+        let player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
         let root = app.world_mut().spawn_empty().id();
-        let collider = app.world_mut().spawn((CollisionLayers::NONE,
-            AlsRagdollColliderLayers(CollisionLayers::from_bits(1, 1)),
-            RagdollCollisionMember { group: root, body_index: 18,
-                source_layers: CollisionLayers::NONE, disabled_pairs: std::sync::Arc::from([]) },
-        )).id();
+        let collider = app
+            .world_mut()
+            .spawn((
+                CollisionLayers::NONE,
+                AlsRagdollColliderLayers(CollisionLayers::from_bits(1, 1)),
+                RagdollCollisionMember {
+                    group: root,
+                    body_index: 18,
+                    source_layers: CollisionLayers::NONE,
+                    disabled_pairs: std::sync::Arc::from([]),
+                },
+            ))
+            .id();
         let mut spawned = SpawnedRagdoll::new(root);
-        spawned.colliders.insert(ron::from_str("(uuid: \"30000000-0000-4000-8000-000000000001\")").unwrap(), collider);
-        let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
-        let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("player must reflect as a struct") };
-        *fields.field_mut("spawned_ragdoll").unwrap()
-            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        spawned.colliders.insert(
+            ron::from_str("(uuid: \"30000000-0000-4000-8000-000000000001\")").unwrap(),
+            collider,
+        );
+        let mut component = app
+            .world_mut()
+            .get_mut::<AnimationGraphPlayer>(player)
+            .unwrap();
+        let ReflectMut::Struct(fields) = component.reflect_mut() else {
+            panic!("player must reflect as a struct")
+        };
+        *fields
+            .field_mut("spawned_ragdoll")
+            .unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>()
+            .unwrap() = Some(spawned);
         drop(component);
-        app.world_mut().run_system_once(ragdoll_link_system).unwrap();
-        assert_eq!(app.world().get::<CollisionLayers>(collider), Some(&CollisionLayers::NONE));
+        app.world_mut()
+            .run_system_once(ragdoll_link_system)
+            .unwrap();
+        assert_eq!(
+            app.world().get::<CollisionLayers>(collider),
+            Some(&CollisionLayers::NONE)
+        );
     }
 
     #[test]
@@ -2425,7 +3817,10 @@ pub(crate) mod tests {
             .spawn((
                 RigidBody::Static,
                 Collider::cuboid(2.0, 0.1, 2.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                    LayerMask::ALL,
+                ),
                 Transform::from_xyz(0.0, 1.2, 0.0),
             ))
             .id();
@@ -2434,7 +3829,10 @@ pub(crate) mod tests {
             .spawn((
                 RigidBody::Static,
                 Collider::cuboid(2.0, 0.1, 2.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                ),
                 Transform::from_xyz(0.0, 0.8, 0.0),
             ))
             .id();
@@ -2443,7 +3841,10 @@ pub(crate) mod tests {
             .spawn((
                 RigidBody::Static,
                 Collider::cuboid(2.0, 0.1, 2.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    LayerMask::ALL,
+                ),
                 Sensor,
                 Transform::from_xyz(0.0, 0.4, 0.0),
             ))
@@ -2453,7 +3854,10 @@ pub(crate) mod tests {
             .spawn((
                 RigidBody::Static,
                 Collider::cuboid(2.0, 0.2, 2.0),
-                CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    LayerMask::ALL,
+                ),
                 Transform::IDENTITY,
             ))
             .id();
@@ -2488,41 +3892,65 @@ pub(crate) mod tests {
         .init_asset::<AlsMovementParams>();
         app.finish();
         app.cleanup();
-        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
-        let character = app.world_mut().spawn((
-            AlsCharacter,
-            AlsRagdollAirExit,
-            Position(Vec3::Y),
-            Stance::Standing,
-            AlsMovementParamsHandle(params),
-            CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Default),
-            Transform::from_xyz(0.0, 1.0, 0.0),
-        )).id();
-        let reverse_reject = app.world_mut().spawn((
-            RigidBody::Static,
-            Collider::cuboid(2.0, 0.1, 2.0),
-            CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility),
-            Transform::from_xyz(0.0, 0.4, 0.0),
-        )).id();
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsRagdollAirExit,
+                Position(Vec3::Y),
+                Stance::Standing,
+                AlsMovementParamsHandle(params),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Default,
+                ),
+                Transform::from_xyz(0.0, 1.0, 0.0),
+            ))
+            .id();
+        let reverse_reject = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.0, 0.1, 2.0),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility,
+                ),
+                Transform::from_xyz(0.0, 0.4, 0.0),
+            ))
+            .id();
         app.world_mut().spawn((
             RigidBody::Static,
             Collider::cuboid(2.0, 0.1, 2.0),
-            CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL),
+            CollisionLayers::new(
+                crate::als::character::AlsCollisionLayer::Default,
+                LayerMask::ALL,
+            ),
             Sensor,
             Transform::from_xyz(0.0, 0.8, 0.0),
         ));
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
-        app.world_mut().run_system_once(release_ragdoll_air_exit_on_ground).unwrap();
+        app.world_mut()
+            .run_system_once(release_ragdoll_air_exit_on_ground)
+            .unwrap();
         app.world_mut().flush();
         assert!(app.world().get::<AlsRagdollAirExit>(character).is_some());
-        app.world_mut().entity_mut(reverse_reject).insert(CollisionLayers::new(
-            crate::als::character::AlsCollisionLayer::Default,
-            crate::als::character::AlsCollisionLayer::Default,
-        ));
+        app.world_mut()
+            .entity_mut(reverse_reject)
+            .insert(CollisionLayers::new(
+                crate::als::character::AlsCollisionLayer::Default,
+                crate::als::character::AlsCollisionLayer::Default,
+            ));
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
-        app.world_mut().run_system_once(release_ragdoll_air_exit_on_ground).unwrap();
+        app.world_mut()
+            .run_system_once(release_ragdoll_air_exit_on_ground)
+            .unwrap();
         app.world_mut().flush();
         assert!(app.world().get::<AlsRagdollAirExit>(character).is_none());
     }
@@ -2597,8 +4025,8 @@ pub(crate) mod tests {
             })
             .unwrap()
             .unwrap();
-        let target_y = trace_start.y - hit.distance + half_height - radius
-            + ALS_CHARACTER_FLOOR_CLEARANCE;
+        let target_y =
+            trace_start.y - hit.distance + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE;
         let source_y = 0.1 + standing_half * 2.0 + ALS_CHARACTER_FLOOR_CLEARANCE;
         assert!((target_y - source_y).abs() < 1e-4);
     }
@@ -2610,39 +4038,95 @@ pub(crate) mod tests {
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::AnimationGraphPlugin;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
-        let character = app.world_mut().spawn((AlsCharacter, AlsRagdollInitialSpeedLimit::new(0.5),
-            AlsNotifyLocomotionAction::Ragdolling)).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
-            AnimatedSceneHandle::default(), ChildOf(character))).id();
-        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar))).id();
-        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            AnimationGraphPlugin::default(),
+        ));
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsRagdollInitialSpeedLimit::new(0.5),
+                AlsNotifyLocomotionAction::Ragdolling,
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+            ))
+            .id();
+        let player = app
+            .world_mut()
+            .spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            ))
+            .id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
         app.world_mut().flush();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
         let root = app.world_mut().spawn_empty().id();
         let body = app.world_mut().spawn(LinearVelocity(Vec3::X * 10.0)).id();
         let mut spawned = SpawnedRagdoll::new(root);
         spawned.bodies.insert(Body::new().id, body);
-        let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
-        let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("Player must reflect as a struct") };
-        *fields.field_mut("spawned_ragdoll").unwrap()
-            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        let mut component = app
+            .world_mut()
+            .get_mut::<AnimationGraphPlayer>(player)
+            .unwrap();
+        let ReflectMut::Struct(fields) = component.reflect_mut() else {
+            panic!("Player must reflect as a struct")
+        };
+        *fields
+            .field_mut("spawned_ragdoll")
+            .unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>()
+            .unwrap() = Some(spawned);
         drop(component);
-        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
-        assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 2.0);
+        app.world_mut()
+            .run_system_once(limit_initial_ragdoll_speed)
+            .unwrap();
+        assert_eq!(
+            app.world().get::<LinearVelocity>(body).unwrap().0,
+            Vec3::X * 2.0
+        );
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
-        for _ in 0..12 { app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap(); }
+        for _ in 0..12 {
+            app.world_mut()
+                .run_system_once(limit_initial_ragdoll_speed)
+                .unwrap();
+        }
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         for _ in 0..7 {
             app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
-            app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
-            assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 2.0,
-                "Source pause must preserve the seven refreshes remaining after entry");
+            app.world_mut()
+                .run_system_once(limit_initial_ragdoll_speed)
+                .unwrap();
+            assert_eq!(
+                app.world().get::<LinearVelocity>(body).unwrap().0,
+                Vec3::X * 2.0,
+                "Source pause must preserve the seven refreshes remaining after entry"
+            );
         }
         app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
-        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
-        assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 10.0);
+        app.world_mut()
+            .run_system_once(limit_initial_ragdoll_speed)
+            .unwrap();
+        assert_eq!(
+            app.world().get::<LinearVelocity>(body).unwrap().0,
+            Vec3::X * 10.0
+        );
     }
 
     #[test]
@@ -2651,69 +4135,164 @@ pub(crate) mod tests {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let position = Vec3::new(0.0, 9.824, 0.0);
         let transform = Transform::from_translation(position);
-        app.world_mut().entity_mut(character).insert((Position(position), transform,
-            GlobalTransform::from(transform), LinearVelocity::ZERO));
+        app.world_mut().entity_mut(character).insert((
+            Position(position),
+            transform,
+            GlobalTransform::from(transform),
+            LinearVelocity::ZERO,
+        ));
         let mut saved_entry_speed = 0.0;
         let mut entered = false;
         for _ in 0..150 {
-            let saved = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity.length();
+            let saved = app
+                .world()
+                .get::<crate::actual_motion::AlsActualMotion>(character)
+                .unwrap()
+                .world_velocity
+                .length();
             app.update();
-            if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+            if app.world().get::<AlsNotifyLocomotionAction>(character)
+                == Some(&AlsNotifyLocomotionAction::Ragdolling)
+            {
                 saved_entry_speed = saved;
                 entered = true;
                 break;
             }
         }
-        assert!(entered && saved_entry_speed >= 10.0,
-            "Actual high landing must enter ragdoll with source saved velocity: {saved_entry_speed}");
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
-        let body = *spawned.bodies.values().find(|entity| app.world().get::<RigidBody>(**entity) == Some(&RigidBody::Dynamic)).unwrap();
+        assert!(
+            entered && saved_entry_speed >= 10.0,
+            "Actual high landing must enter ragdoll with source saved velocity: {saved_entry_speed}"
+        );
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let spawned = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap();
+        let body = *spawned
+            .bodies
+            .values()
+            .find(|entity| app.world().get::<RigidBody>(**entity) == Some(&RigidBody::Dynamic))
+            .unwrap();
         for speed in [5.0_f32, 20.0] {
-        let expected_velocity = Vec3::X * speed.min(saved_entry_speed.max(2.0));
-        app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * speed;
-        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
-        assert!(app.world().get::<LinearVelocity>(body).unwrap().0.abs_diff_eq(expected_velocity, 1e-5),
-            "Source initial ragdoll limit must preserve a body speed below saved entry speed: saved={saved_entry_speed} actual={:?}",
-            app.world().get::<LinearVelocity>(body).unwrap().0);
+            let expected_velocity = Vec3::X * speed.min(saved_entry_speed.max(2.0));
+            app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * speed;
+            app.world_mut()
+                .run_system_once(limit_initial_ragdoll_speed)
+                .unwrap();
+            assert!(
+                app.world()
+                    .get::<LinearVelocity>(body)
+                    .unwrap()
+                    .0
+                    .abs_diff_eq(expected_velocity, 1e-5),
+                "Source initial ragdoll limit must preserve a body speed below saved entry speed: saved={saved_entry_speed} actual={:?}",
+                app.world().get::<LinearVelocity>(body).unwrap().0
+            );
         }
     }
 
     #[test]
     fn loaded_active_ragdoll_pause_preserves_follow_body_and_joint_drive_outputs() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
-        for _ in 0..4 { app.update(); }
-        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
-        let mut bodies = spawned.bodies.values().map(|entity| (*entity,
-            app.world().get::<Position>(*entity).unwrap().0,
-            app.world().get::<Rotation>(*entity).unwrap().0,
-            app.world().get::<LinearVelocity>(*entity).unwrap().0,
-            app.world().get::<AngularVelocity>(*entity).unwrap().0)).collect::<Vec<_>>();
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(character)
+            .unwrap()
+            .ragdoll_start = true;
+        for _ in 0..4 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<AlsNotifyLocomotionAction>(character),
+            Some(&AlsNotifyLocomotionAction::Ragdolling)
+        );
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let spawned = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap();
+        let mut bodies = spawned
+            .bodies
+            .values()
+            .map(|entity| {
+                (
+                    *entity,
+                    app.world().get::<Position>(*entity).unwrap().0,
+                    app.world().get::<Rotation>(*entity).unwrap().0,
+                    app.world().get::<LinearVelocity>(*entity).unwrap().0,
+                    app.world().get::<AngularVelocity>(*entity).unwrap().0,
+                )
+            })
+            .collect::<Vec<_>>();
         assert_eq!(bodies.len(), 21);
         let actor = *app.world().get::<Transform>(character).unwrap();
-        let follow = *app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+        let follow = *app
+            .world()
+            .get::<AlsRagdollGroundFollow>(character)
+            .unwrap();
         let drive = *app.world().get::<RagdollAngularDrive>(player).unwrap();
-        let pelvis = *spawned.bodies.values().find(|entity| {
-            app.world().get::<BodyLabel>(**entity).is_some_and(|label| label.0 == PELVIS_LABEL)
-        }).unwrap();
+        let pelvis = *spawned
+            .bodies
+            .values()
+            .find(|entity| {
+                app.world()
+                    .get::<BodyLabel>(**entity)
+                    .is_some_and(|label| label.0 == PELVIS_LABEL)
+            })
+            .unwrap();
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         for _ in 0..4 {
             app.update();
-            assert_eq!(*app.world().get::<Transform>(character).unwrap(), actor,
-                "Source paused ragdoll owner preserves its actor transform");
-            let current = app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
-            assert_eq!((current.pelvis, current.target, current.velocity, current.grounded),
-                (follow.pelvis, follow.target, follow.velocity, follow.grounded));
-            assert_eq!(*app.world().get::<RagdollAngularDrive>(player).unwrap(), drive,
-                "Source paused ragdoll owner preserves its actual joint drive parameters");
+            assert_eq!(
+                *app.world().get::<Transform>(character).unwrap(),
+                actor,
+                "Source paused ragdoll owner preserves its actor transform"
+            );
+            let current = app
+                .world()
+                .get::<AlsRagdollGroundFollow>(character)
+                .unwrap();
+            assert_eq!(
+                (
+                    current.pelvis,
+                    current.target,
+                    current.velocity,
+                    current.grounded
+                ),
+                (
+                    follow.pelvis,
+                    follow.target,
+                    follow.velocity,
+                    follow.grounded
+                )
+            );
+            assert_eq!(
+                *app.world().get::<RagdollAngularDrive>(player).unwrap(),
+                drive,
+                "Source paused ragdoll owner preserves its actual joint drive parameters"
+            );
             for (entity, position, rotation, velocity, angular) in &bodies {
                 assert_eq!(app.world().get::<Position>(*entity).unwrap().0, *position);
                 assert_eq!(app.world().get::<Rotation>(*entity).unwrap().0, *rotation);
-                assert_eq!(app.world().get::<LinearVelocity>(*entity).unwrap().0, *velocity);
-                assert_eq!(app.world().get::<AngularVelocity>(*entity).unwrap().0, *angular);
+                assert_eq!(
+                    app.world().get::<LinearVelocity>(*entity).unwrap().0,
+                    *velocity
+                );
+                assert_eq!(
+                    app.world().get::<AngularVelocity>(*entity).unwrap().0,
+                    *angular
+                );
             }
         }
         let moved = app.world().get::<Position>(pelvis).unwrap().0 + Vec3::X * 0.1;
@@ -2721,40 +4300,94 @@ pub(crate) mod tests {
         app.update();
         assert_eq!(app.world().get::<Position>(pelvis).unwrap().0, moved);
         assert_eq!(*app.world().get::<Transform>(character).unwrap(), actor);
-        let current = app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
-        assert_eq!((current.pelvis, current.target), (follow.pelvis, follow.target));
-        bodies.iter_mut().find(|(entity, _, _, _, _)| *entity == pelvis).unwrap().1 = moved;
+        let current = app
+            .world()
+            .get::<AlsRagdollGroundFollow>(character)
+            .unwrap();
+        assert_eq!(
+            (current.pelvis, current.target),
+            (follow.pelvis, follow.target)
+        );
+        bodies
+            .iter_mut()
+            .find(|(entity, _, _, _, _)| *entity == pelvis)
+            .unwrap()
+            .1 = moved;
 
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         app.update();
-        assert_eq!(app.world().get::<AlsRagdollGroundFollow>(character).unwrap().pelvis, moved);
-        assert!(bodies.iter().any(|(entity, position, _, _, _)|
-            app.world().get::<Position>(*entity).unwrap().0.distance(*position) > 1e-6),
-            "Source resumed ragdoll physics continues moving its active bodies");
+        assert_eq!(
+            app.world()
+                .get::<AlsRagdollGroundFollow>(character)
+                .unwrap()
+                .pelvis,
+            moved
+        );
+        assert!(
+            bodies.iter().any(|(entity, position, _, _, _)| app
+                .world()
+                .get::<Position>(*entity)
+                .unwrap()
+                .0
+                .distance(*position)
+                > 1e-6),
+            "Source resumed ragdoll physics continues moving its active bodies"
+        );
     }
 
     #[test]
     fn ragdoll_follow_samples_the_completed_physics_step() {
-        use avian3d::prelude::{ColliderDisabled, GravityScale, JointDisabled, LinearDamping, SleepingDisabled};
+        use avian3d::prelude::{
+            ColliderDisabled, GravityScale, JointDisabled, LinearDamping, SleepingDisabled,
+        };
         use bevy::time::TimeUpdateStrategy;
 
         for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-            for _ in 0..12 { app.update(); }
-            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
-            let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            let pelvis = bodies
+                .iter()
+                .find(|(name, _)| name == PELVIS_LABEL)
+                .unwrap()
+                .1;
+            app.world_mut()
+                .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            for _ in 0..12 {
+                app.update();
+            }
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Ragdolling)
+            );
+            let spawned = app
+                .world()
+                .get::<AnimationGraphPlayer>(player)
+                .unwrap()
+                .get_spawned_ragdoll()
+                .unwrap();
             let colliders: Vec<_> = spawned.colliders.values().copied().collect();
             let joints: Vec<_> = spawned.joints.values().copied().collect();
-            for collider in colliders { app.world_mut().entity_mut(collider).insert(ColliderDisabled); }
-            for joint in joints { app.world_mut().entity_mut(joint).insert(JointDisabled); }
+            for collider in colliders {
+                app.world_mut()
+                    .entity_mut(collider)
+                    .insert(ColliderDisabled);
+            }
+            for joint in joints {
+                app.world_mut().entity_mut(joint).insert(JointDisabled);
+            }
             app.world_mut().entity_mut(pelvis).insert((
-                Position(Vec3::Y * 10.0), LinearVelocity(Vec3::X), AngularVelocity::ZERO,
-                GravityScale(0.0), LinearDamping(0.0), SleepingDisabled,
+                Position(Vec3::Y * 10.0),
+                LinearVelocity(Vec3::X),
+                AngularVelocity::ZERO,
+                GravityScale(0.0),
+                LinearDamping(0.0),
+                SleepingDisabled,
             ));
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
 
             for _ in 0..2 {
                 let before = app.world().get::<Position>(pelvis).unwrap().0;
@@ -2772,24 +4405,71 @@ pub(crate) mod tests {
     fn ragdoll_zero_target_uses_actor_location_for_the_ground_trace() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
-        for _ in 0..4 { app.update(); }
-        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
-        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let bodies = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().bodies.values().copied().collect::<Vec<_>>();
-        let pelvis = bodies.into_iter().find(|entity| app.world().get::<BodyLabel>(*entity).is_some_and(|label| label.0 == PELVIS_LABEL)).unwrap();
+        app.world_mut()
+            .get_mut::<crate::als::transition::AlsStateRequest>(character)
+            .unwrap()
+            .ragdoll_start = true;
+        for _ in 0..4 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<AlsNotifyLocomotionAction>(character),
+            Some(&AlsNotifyLocomotionAction::Ragdolling)
+        );
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        let bodies = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap()
+            .bodies
+            .values()
+            .copied()
+            .collect::<Vec<_>>();
+        let pelvis = bodies
+            .into_iter()
+            .find(|entity| {
+                app.world()
+                    .get::<BodyLabel>(*entity)
+                    .is_some_and(|label| label.0 == PELVIS_LABEL)
+            })
+            .unwrap();
         let actor = Vec3::new(4.0, 3.0, 6.0);
-        app.world_mut().entity_mut(character).insert((Position(actor), Transform::from_translation(actor), GlobalTransform::from_translation(actor)));
-        app.world_mut().entity_mut(pelvis).insert((Position(Vec3::ZERO), LinearVelocity::ZERO));
-        app.world_mut().run_system_once(ragdoll_ground_follow).unwrap();
+        app.world_mut().entity_mut(character).insert((
+            Position(actor),
+            Transform::from_translation(actor),
+            GlobalTransform::from_translation(actor),
+        ));
+        app.world_mut()
+            .entity_mut(pelvis)
+            .insert((Position(Vec3::ZERO), LinearVelocity::ZERO));
+        app.world_mut()
+            .run_system_once(ragdoll_ground_follow)
+            .unwrap();
         app.world_mut().flush();
-        let follow = *app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+        let follow = *app
+            .world()
+            .get::<AlsRagdollGroundFollow>(character)
+            .unwrap();
         assert_eq!(follow.pelvis, Vec3::ZERO);
-        assert_eq!(follow.target.xz(), actor.xz(),
-            "Source zero RagdollTargetLocation uses the actual actor location for ground tracing: {follow:?}");
-        app.world_mut().run_system_once(apply_ragdoll_ground_follow).unwrap();
-        assert_eq!(app.world().get::<Position>(character).unwrap().0.xz(), actor.xz(),
-            "Source zero target must not teleport the actual character horizontally to the world origin");
+        assert_eq!(
+            follow.target.xz(),
+            actor.xz(),
+            "Source zero RagdollTargetLocation uses the actual actor location for ground tracing: {follow:?}"
+        );
+        app.world_mut()
+            .run_system_once(apply_ragdoll_ground_follow)
+            .unwrap();
+        assert_eq!(
+            app.world().get::<Position>(character).unwrap().0.xz(),
+            actor.xz(),
+            "Source zero target must not teleport the actual character horizontally to the world origin"
+        );
     }
 
     #[test]
@@ -2820,24 +4500,47 @@ pub(crate) mod tests {
         for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (_, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
-            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            let pelvis = bodies
+                .iter()
+                .find(|(name, _)| name == PELVIS_LABEL)
+                .unwrap()
+                .1;
             app.init_resource::<Speeds>();
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
-            app.add_systems(PostUpdate, (
-                (move |mut velocities: Query<&mut LinearVelocity>| {
-                    velocities.get_mut(pelvis).unwrap().0 = Vec3::X * 3.0;
-                }).after(ragdoll_joint_drive_adapter_system).before(limit_initial_ragdoll_speed),
-                (move |velocities: Query<&LinearVelocity>, mut speeds: ResMut<Speeds>| {
-                    speeds.0.push(velocities.get(pelvis).unwrap().0.x);
-                }).after(limit_initial_ragdoll_speed).before(RagdollAngularDriveSet),
-            ).in_set(RagdollPhysicsHandoffSet));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(delta),
+            ));
+            app.add_systems(
+                PostUpdate,
+                (
+                    (move |mut velocities: Query<&mut LinearVelocity>| {
+                        velocities.get_mut(pelvis).unwrap().0 = Vec3::X * 3.0;
+                    })
+                    .after(ragdoll_joint_drive_adapter_system)
+                    .before(limit_initial_ragdoll_speed),
+                    (move |velocities: Query<&LinearVelocity>, mut speeds: ResMut<Speeds>| {
+                        speeds.0.push(velocities.get(pelvis).unwrap().0.x);
+                    })
+                    .after(limit_initial_ragdoll_speed)
+                    .before(RagdollAngularDriveSet),
+                )
+                    .in_set(RagdollPhysicsHandoffSet),
+            );
 
             for frame in 0..9 {
-                app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().ragdoll_pressed = frame == 0;
+                app.world_mut()
+                    .get_mut::<AlsInputCommand>(actor)
+                    .unwrap()
+                    .ragdoll_pressed = frame == 0;
                 app.update();
-                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::Ragdolling)
+                );
             }
-            assert_eq!(app.world().resource::<Speeds>().0, [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0]);
+            assert_eq!(
+                app.world().resource::<Speeds>().0,
+                [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0]
+            );
         }
     }
     use crate::als::state::{Gait, OverlayState, RotationMode};
@@ -3205,35 +4908,64 @@ pub(crate) mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, crate::debug_target::AlsDebugTargetPlugin))
             .init_resource::<ButtonInput<KeyCode>>()
-            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f64(0.05)))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f64(0.05),
+            ))
             .insert_resource(crate::show_debug_hud::AlsShowDebugHudState {
                 visible: true,
                 ..default()
             });
-        let master = app.world_mut().spawn((
-            AlsCharacter,
-            crate::character_assembly::AlsPlayerCharacter,
-            crate::debug_target::AlsLastDebugRender(0.0),
-        )).id();
+        let master = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                crate::character_assembly::AlsPlayerCharacter,
+                crate::debug_target::AlsLastDebugRender(0.0),
+            ))
+            .id();
         let actor = app.world_mut().spawn(AlsCharacter).id();
-        let avatar = app.world_mut().spawn(AlsCharacterAvatar { character: actor }).id();
+        let avatar = app
+            .world_mut()
+            .spawn(AlsCharacterAvatar { character: actor })
+            .id();
         let original_parent = app.world_mut().spawn(ChildOf(avatar)).id();
-        let detached = app.world_mut().spawn((
-            AlsRagdollDetachedPlayer { character: actor, parent: original_parent, local_transform: Transform::IDENTITY },
-            Transform::IDENTITY,
-        )).id();
+        let detached = app
+            .world_mut()
+            .spawn((
+                AlsRagdollDetachedPlayer {
+                    character: actor,
+                    parent: original_parent,
+                    local_transform: Transform::IDENTITY,
+                },
+                Transform::IDENTITY,
+            ))
+            .id();
         app.world_mut().spawn((
-            bevy::mesh::skinning::SkinnedMesh { inverse_bindposes: default(), joints: Vec::new() },
+            bevy::mesh::skinning::SkinnedMesh {
+                inverse_bindposes: default(),
+                joints: Vec::new(),
+            },
             ViewVisibility::VISIBLE,
             ChildOf(detached),
         ));
 
         app.update();
-        let stamped = app.world().get::<crate::debug_target::AlsLastDebugRender>(actor).is_some();
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        let stamped = app
+            .world()
+            .get::<crate::debug_target::AlsLastDebugRender>(actor)
+            .is_some();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::PageUp);
         app.update();
-        let selected = app.world().get::<crate::debug_target::AlsDebugTarget>(actor).is_some();
-        assert!(stamped && selected, "stamped={stamped} selected={selected} master={master:?}");
+        let selected = app
+            .world()
+            .get::<crate::debug_target::AlsDebugTarget>(actor)
+            .is_some();
+        assert!(
+            stamped && selected,
+            "stamped={stamped} selected={selected} master={master:?}"
+        );
     }
 
     #[test]
@@ -3241,31 +4973,80 @@ pub(crate) mod tests {
         use bevy::reflect::{PartialReflect, ReflectMut};
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
-            bevy_animation_graph::AnimationGraphPlugin::default()));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            bevy_animation_graph::AnimationGraphPlugin::default(),
+        ));
         let spawn = |app: &mut App| {
-            let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
-                AlsNotifyLocomotionAction::Ragdolling)).id();
-            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
-                AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
-            let parent = app.world_mut().spawn((Transform::IDENTITY, ChildOf(avatar))).id();
-            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()),
-                Transform::IDENTITY, ChildOf(parent))).id();
-            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    Transform::IDENTITY,
+                    AlsNotifyLocomotionAction::Ragdolling,
+                ))
+                .id();
+            let avatar = app
+                .world_mut()
+                .spawn((
+                    AlsCharacterAvatar { character: actor },
+                    AnimatedSceneHandle::default(),
+                    Transform::IDENTITY,
+                    ChildOf(actor),
+                ))
+                .id();
+            let parent = app
+                .world_mut()
+                .spawn((Transform::IDENTITY, ChildOf(avatar)))
+                .id();
+            let player = app
+                .world_mut()
+                .spawn((
+                    AnimationGraphPlayer::new(default()),
+                    Transform::IDENTITY,
+                    ChildOf(parent),
+                ))
+                .id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
             app.world_mut().flush();
-            app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar, camera: None });
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(AlsCharacterAssembly {
+                    avatar,
+                    camera: None,
+                });
             let root = app.world_mut().spawn_empty().id();
-            let body = app.world_mut().spawn((RigidBody::Dynamic, ChildOf(root))).id();
-            let collider = app.world_mut().spawn((Collider::sphere(0.1), ChildOf(body))).id();
+            let body = app
+                .world_mut()
+                .spawn((RigidBody::Dynamic, ChildOf(root)))
+                .id();
+            let collider = app
+                .world_mut()
+                .spawn((Collider::sphere(0.1), ChildOf(body)))
+                .id();
             let joint = app.world_mut().spawn(ChildOf(root)).id();
             let spawned = SpawnedRagdoll::new(root);
-            let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
-            let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("player must reflect as a struct") };
-            *fields.field_mut("spawned_ragdoll").unwrap()
-                .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            let mut component = app
+                .world_mut()
+                .get_mut::<AnimationGraphPlayer>(player)
+                .unwrap();
+            let ReflectMut::Struct(fields) = component.reflect_mut() else {
+                panic!("player must reflect as a struct")
+            };
+            *fields
+                .field_mut("spawned_ragdoll")
+                .unwrap()
+                .try_downcast_mut::<Option<SpawnedRagdoll>>()
+                .unwrap() = Some(spawned);
             drop(component);
-            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            app.world_mut()
+                .run_system_cached(capture_ragdoll_player_world_transform)
+                .unwrap();
             assert!(app.world().get::<ChildOf>(player).is_none());
             (actor, avatar, parent, player, [root, body, collider, joint])
         };
@@ -3273,38 +5054,93 @@ pub(crate) mod tests {
             let (other_actor, other_avatar, _, other_player, other_members) = spawn(&mut app);
             let (actor, avatar, parent, player, members) = spawn(&mut app);
             match order {
-                0 => { app.world_mut().despawn(actor); }
-                1 => { app.world_mut().despawn(avatar); }
-                2 => { app.world_mut().despawn(parent); }
-                3 => { app.world_mut().despawn(avatar); app.world_mut().despawn(actor); }
-                4 => { app.world_mut().despawn(player); app.world_mut().despawn(avatar); }
-                5 => { app.world_mut().despawn(avatar); app.world_mut().despawn(player); }
+                0 => {
+                    app.world_mut().despawn(actor);
+                }
+                1 => {
+                    app.world_mut().despawn(avatar);
+                }
+                2 => {
+                    app.world_mut().despawn(parent);
+                }
+                3 => {
+                    app.world_mut().despawn(avatar);
+                    app.world_mut().despawn(actor);
+                }
+                4 => {
+                    app.world_mut().despawn(player);
+                    app.world_mut().despawn(avatar);
+                }
+                5 => {
+                    app.world_mut().despawn(avatar);
+                    app.world_mut().despawn(player);
+                }
                 6 | 7 => {
-                    let replacement = if order == 7 { avatar } else {
-                        app.world_mut().spawn((AlsCharacterAvatar { character: actor },
-                            AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id()
+                    let replacement = if order == 7 {
+                        avatar
+                    } else {
+                        app.world_mut()
+                            .spawn((
+                                AlsCharacterAvatar { character: actor },
+                                AnimatedSceneHandle::default(),
+                                Transform::IDENTITY,
+                                ChildOf(actor),
+                            ))
+                            .id()
                     };
-                    let replacement_player = app.world_mut().spawn((AnimationGraphPlayer::new(default()),
-                        Transform::IDENTITY, ChildOf(replacement))).id();
-                    app.world_mut().trigger(WorldInstanceReady { entity: replacement,
-                        instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+                    let replacement_player = app
+                        .world_mut()
+                        .spawn((
+                            AnimationGraphPlayer::new(default()),
+                            Transform::IDENTITY,
+                            ChildOf(replacement),
+                        ))
+                        .id();
+                    app.world_mut().trigger(WorldInstanceReady {
+                        entity: replacement,
+                        instance_id: WorldInstanceSpawner::default()
+                            .spawn(Handle::<WorldAsset>::default()),
+                    });
                     app.world_mut().flush();
-                    app.world_mut().get_mut::<AlsCharacterAssembly>(actor).unwrap().avatar = replacement;
+                    app.world_mut()
+                        .get_mut::<AlsCharacterAssembly>(actor)
+                        .unwrap()
+                        .avatar = replacement;
                     assert!(app.world().entities().contains(replacement_player));
                 }
                 _ => unreachable!(),
             }
-            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            app.world_mut()
+                .run_system_cached(capture_ragdoll_player_world_transform)
+                .unwrap();
             app.world_mut().flush();
-            assert!(!app.world().entities().contains(player), "Detached player survives owner removal, order {order}");
-            assert!(members.iter().all(|entity| !app.world().entities().contains(*entity)),
-                "The player discard hook must clean its ragdoll hierarchy, order {order}");
-            assert!(app.world().entities().contains(other_actor) && app.world().entities().contains(other_avatar));
+            assert!(
+                !app.world().entities().contains(player),
+                "Detached player survives owner removal, order {order}"
+            );
+            assert!(
+                members
+                    .iter()
+                    .all(|entity| !app.world().entities().contains(*entity)),
+                "The player discard hook must clean its ragdoll hierarchy, order {order}"
+            );
+            assert!(
+                app.world().entities().contains(other_actor)
+                    && app.world().entities().contains(other_avatar)
+            );
             assert!(app.world().entities().contains(other_player));
-            assert!(other_members.iter().all(|entity| app.world().entities().contains(*entity)));
+            assert!(
+                other_members
+                    .iter()
+                    .all(|entity| app.world().entities().contains(*entity))
+            );
             app.world_mut().despawn(other_actor);
-            if app.world().entities().contains(actor) { app.world_mut().despawn(actor); }
-            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            if app.world().entities().contains(actor) {
+                app.world_mut().despawn(actor);
+            }
+            app.world_mut()
+                .run_system_cached(capture_ragdoll_player_world_transform)
+                .unwrap();
             app.world_mut().flush();
         }
     }
@@ -3340,10 +5176,12 @@ pub(crate) mod tests {
                 ChildOf(actor),
             ))
             .id();
-        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly {
-            avatar,
-            camera: None,
-        });
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
         let player = app
             .world_mut()
             .spawn((
@@ -3379,7 +5217,10 @@ pub(crate) mod tests {
                 .is_none()
         );
 
-        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling));
+        app.world_mut().entity_mut(actor).insert((
+            LocomotionState::Grounded,
+            AlsNotifyLocomotionAction::Ragdolling,
+        ));
         app.world_mut()
             .run_system_cached(capture_ragdoll_player_world_transform)
             .unwrap();
@@ -3398,7 +5239,10 @@ pub(crate) mod tests {
                 .translation
                 .abs_diff_eq(Vec3::new(4.0, 1.0, -3.0), 1e-5)
         );
-        assert_eq!(app.world().get::<Transform>(player).unwrap().scale, Vec3::splat(2.0));
+        assert_eq!(
+            app.world().get::<Transform>(player).unwrap().scale,
+            Vec3::splat(2.0)
+        );
     }
 
     #[test]
@@ -3422,28 +5266,49 @@ pub(crate) mod tests {
         #[reflect(NodeLike)]
         struct GraphRigModifier;
         impl NodeLike for GraphRigModifier {
-            fn display_name(&self) -> String { "Graph rig modifier".into() }
+            fn display_name(&self) -> String {
+                "Graph rig modifier".into()
+            }
             fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-                ctx.add_input_data("pose", DataSpec::Pose).add_output_data("Pose", DataSpec::Pose).add_output_time();
+                ctx.add_input_data("pose", DataSpec::Pose)
+                    .add_output_data("Pose", DataSpec::Pose)
+                    .add_output_time();
                 Ok(())
             }
             fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
                 let mut pose = ctx.data_back("pose")?.into_pose()?;
-                for (name, offset) in [("scene/root/pelvis", Vec3::X * 0.013), ("scene/root/marker", Vec3::Y * 0.07)] {
+                for (name, offset) in [
+                    ("scene/root/pelvis", Vec3::X * 0.013),
+                    ("scene/root/marker", Vec3::Y * 0.07),
+                ] {
                     let index = pose.paths[&EntityPath::from_slashed_string(name.into()).id()];
                     let bone = &mut pose.bones[index];
                     bone.translation = bone.translation.map(|value| value + offset);
-                    if name.ends_with("pelvis") { bone.rotation = bone.rotation.map(|value| value * Quat::from_rotation_z(0.18)); }
+                    if name.ends_with("pelvis") {
+                        bone.rotation = bone
+                            .rotation
+                            .map(|value| value * Quat::from_rotation_z(0.18));
+                    }
                 }
                 ctx.set_time(pose.timestamp);
                 ctx.set_data_fwd("Pose", pose);
                 Ok(())
             }
         }
-        fn corrupt_unmapped_ecs_pose(characters: Query<&AlsNotifyLocomotionAction>, mut bones: Query<(&Name, &mut Transform)>) {
-            if !characters.iter().any(|state| *state == AlsNotifyLocomotionAction::Ragdolling) { return; }
+        fn corrupt_unmapped_ecs_pose(
+            characters: Query<&AlsNotifyLocomotionAction>,
+            mut bones: Query<(&Name, &mut Transform)>,
+        ) {
+            if !characters
+                .iter()
+                .any(|state| *state == AlsNotifyLocomotionAction::Ragdolling)
+            {
+                return;
+            }
             for (name, mut transform) in &mut bones {
-                if name.as_str() == "marker" { transform.translation.y = 42.0; }
+                if name.as_str() == "marker" {
+                    transform.translation.y = 42.0;
+                }
             }
         }
 
@@ -3480,10 +5345,20 @@ pub(crate) mod tests {
             PostUpdate,
             crate::ragdolling_layer::AlsRagdollingLayerSet.before(AnimationGraphSet::PrePhysics),
         )
-        .configure_sets(PostUpdate, crate::ab_als_root::AlsRootGraphSet
-            .in_set(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs))
-        .add_systems(PostUpdate, corrupt_unmapped_ecs_pose.after(TransformSystems::Propagate))
-        .configure_sets(PostUpdate, crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Readback.after(corrupt_unmapped_ecs_pose))
+        .configure_sets(
+            PostUpdate,
+            crate::ab_als_root::AlsRootGraphSet
+                .in_set(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs),
+        )
+        .add_systems(
+            PostUpdate,
+            corrupt_unmapped_ecs_pose.after(TransformSystems::Propagate),
+        )
+        .configure_sets(
+            PostUpdate,
+            crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Readback
+                .after(corrupt_unmapped_ecs_pose),
+        )
         .add_systems(
             PostUpdate,
             (
@@ -3517,7 +5392,11 @@ pub(crate) mod tests {
             joint_local,
             armature_local * joint_local,
         );
-        skeleton.add_bone(marker_path.clone(), marker_local, armature_local * marker_local);
+        skeleton.add_bone(
+            marker_path.clone(),
+            marker_local,
+            armature_local * marker_local,
+        );
         let skeleton_handle = app
             .world_mut()
             .resource_mut::<Assets<Skeleton>>()
@@ -3533,11 +5412,21 @@ pub(crate) mod tests {
         let mut graph = AnimationGraph::new();
         for (output, key, tag) in [
             ("grounded", "locomotion_mode", "Als.LocomotionMode.Grounded"),
-            ("ragdolling", "locomotion_action", "Als.LocomotionAction.Ragdolling"),
+            (
+                "ragdolling",
+                "locomotion_action",
+                "Als.LocomotionAction.Ragdolling",
+            ),
         ] {
-            let node = bevy_animation_graph::core::animation_node::AnimationNode::new(output,
-                crate::extensions::SourceGameplayTagInputNode { key: key.into(), output: "value".into(),
-                    expected_tag: tag.into(), ..default() });
+            let node = bevy_animation_graph::core::animation_node::AnimationNode::new(
+                output,
+                crate::extensions::SourceGameplayTagInputNode {
+                    key: key.into(),
+                    output: "value".into(),
+                    expected_tag: tag.into(),
+                    ..default()
+                },
+            );
             graph.add_node(node.clone());
             graph.add_output_data(output.into(), DataSpec::Bool);
             graph.add_output_data_edge(node.id, "value", output);
@@ -3553,9 +5442,13 @@ pub(crate) mod tests {
                 TargetPin::OutputData(name.to_owned()),
             );
         }
-        let rig = bevy_animation_graph::core::animation_node::AnimationNode::new("rig", GraphRigModifier);
+        let rig =
+            bevy_animation_graph::core::animation_node::AnimationNode::new("rig", GraphRigModifier);
         graph.add_node(rig.clone());
-        graph.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("pose".into())), TargetPin::NodeData(rig.id, "pose".into()));
+        graph.add_edge(
+            SourcePin::InputData(GraphInputPin::Passthrough("pose".into())),
+            TargetPin::NodeData(rig.id, "pose".into()),
+        );
         graph.add_output_data_edge(rig.id, "Pose", "pose");
         graph.set_default_data(
             GraphInputPin::Passthrough("pose".to_owned()),
@@ -3669,8 +5562,13 @@ pub(crate) mod tests {
             AnimationTargetId(joint_path.id().id()),
             AnimatedBy(scene_player),
         ));
-        scene_world.spawn((Name::new("marker"), marker_local, ChildOf(armature),
-            AnimationTargetId(marker_path.id().id()), AnimatedBy(scene_player)));
+        scene_world.spawn((
+            Name::new("marker"),
+            marker_local,
+            ChildOf(armature),
+            AnimationTargetId(marker_path.id().id()),
+            AnimatedBy(scene_player),
+        ));
         let source = app
             .world_mut()
             .resource_mut::<Assets<WorldAsset>>()
@@ -3697,10 +5595,12 @@ pub(crate) mod tests {
                 ChildOf(actor),
             ))
             .id();
-        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly {
-            avatar,
-            camera: None,
-        });
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(AlsCharacterAssembly {
+                avatar,
+                camera: None,
+            });
         for _ in 0..5 {
             app.update();
         }
@@ -3724,7 +5624,8 @@ pub(crate) mod tests {
                 joints: vec![],
                 collision_disabled_pairs: std::sync::Arc::from([]),
                 solver_settings: crate::pa_als::parse_pa_als_profile().solver_settings,
-                inertia_conditioning_settings: crate::pa_als::parse_pa_als_profile().inertia_conditioning_settings,
+                inertia_conditioning_settings: crate::pa_als::parse_pa_als_profile()
+                    .inertia_conditioning_settings,
             },
             RagdollPhysicsProfileApplied {
                 body_count: 1,
@@ -3761,10 +5662,15 @@ pub(crate) mod tests {
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
         assert!(transforms_match(actual, expected));
 
-        app.world_mut().entity_mut(actor).insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
+        app.world_mut()
+            .entity_mut(actor)
+            .insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
         let index = pose.paths[&joint_path.id()];
         pose.bones[index].translation = Some(joint_local.translation + Vec3::X * 0.09);
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data("pose", DataValue::Pose(pose));
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .set_input_data("pose", DataValue::Pose(pose));
         app.world_mut()
             .get_mut::<AnimationGraphPlayer>(player_entity)
             .unwrap()
@@ -3778,10 +5684,19 @@ pub(crate) mod tests {
             );
         app.update();
         assert!(app.world().get::<ChildOf>(player_entity).is_none());
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
         assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), false);
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
-        assert_eq!(app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::Ragdolling.tag()));
+        assert_eq!(
+            app.world()
+                .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                .unwrap()
+                .gameplay_tag_input("locomotion_action"),
+            Some(AlsNotifyLocomotionAction::Ragdolling.tag())
+        );
         let handoff = app
             .world()
             .get::<RagdollPhysicsProfileApplied>(player_entity)
@@ -3793,18 +5708,48 @@ pub(crate) mod tests {
             *app.world().get::<RigidBody>(body_entity).unwrap(),
             RigidBody::Dynamic
         );
-        let joint_entity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().bone_entity(joint_path.id()).unwrap();
-        let physical_bone = app.world().get::<GlobalTransform>(joint_entity).unwrap().compute_transform();
-        assert!(transforms_match(physical_bone, expected), "physics readback must follow the rig pose writes");
-        let marker_entity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().bone_entity(marker_path.id()).unwrap();
-        assert!(app.world().get::<Transform>(marker_entity).unwrap().translation.abs_diff_eq(
-            marker_local.translation + Vec3::Y * 0.07, 1e-6), "unmapped bones must keep the rig result");
+        let joint_entity = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .bone_entity(joint_path.id())
+            .unwrap();
+        let physical_bone = app
+            .world()
+            .get::<GlobalTransform>(joint_entity)
+            .unwrap()
+            .compute_transform();
+        assert!(
+            transforms_match(physical_bone, expected),
+            "physics readback must follow the rig pose writes"
+        );
+        let marker_entity = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .bone_entity(marker_path.id())
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<Transform>(marker_entity)
+                .unwrap()
+                .translation
+                .abs_diff_eq(marker_local.translation + Vec3::Y * 0.07, 1e-6),
+            "unmapped bones must keep the rig result"
+        );
         let followed_actor =
             Transform::from_xyz(8.0, 1.7, -1.0).with_rotation(Quat::from_rotation_y(-0.4));
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data(
-            "ragdoll_config", DataValue::from(RagdollConfig {
-                default_readback: Some(false), readback_overrides: [(joint_path.id(), true)].into(), ..default()
-            }));
+        app.world_mut()
+            .get_mut::<AnimationGraphPlayer>(player_entity)
+            .unwrap()
+            .set_input_data(
+                "ragdoll_config",
+                DataValue::from(RagdollConfig {
+                    default_readback: Some(false),
+                    readback_overrides: [(joint_path.id(), true)].into(),
+                    ..default()
+                }),
+            );
         app.world_mut().entity_mut(actor).insert((
             followed_actor,
             LocomotionState::None,
@@ -3812,7 +5757,10 @@ pub(crate) mod tests {
             Rotation(followed_actor.rotation),
         ));
         app.update();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let player = app
+            .world()
+            .get::<AnimationGraphPlayer>(player_entity)
+            .unwrap();
         assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), false);
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
         let actual =
@@ -3822,10 +5770,24 @@ pub(crate) mod tests {
             transforms_match(actual, expected),
             "actor follow must not move the simulated body"
         );
-        assert!(transforms_match(app.world().get::<GlobalTransform>(joint_entity).unwrap().compute_transform(), expected));
-        assert!(app.world().get::<Transform>(marker_entity).unwrap().translation.abs_diff_eq(marker_local.translation + Vec3::Y * 0.07, 1e-6));
+        assert!(transforms_match(
+            app.world()
+                .get::<GlobalTransform>(joint_entity)
+                .unwrap()
+                .compute_transform(),
+            expected
+        ));
+        assert!(
+            app.world()
+                .get::<Transform>(marker_entity)
+                .unwrap()
+                .translation
+                .abs_diff_eq(marker_local.translation + Vec3::Y * 0.07, 1e-6)
+        );
 
-        app.world_mut().entity_mut(actor).insert((LocomotionState::Air, AlsNotifyLocomotionAction::None));
+        app.world_mut()
+            .entity_mut(actor)
+            .insert((LocomotionState::Air, AlsNotifyLocomotionAction::None));
         app.world_mut()
             .get_mut::<AnimationGraphPlayer>(player_entity)
             .unwrap()
@@ -3852,7 +5814,13 @@ pub(crate) mod tests {
             .as_pose()
             .unwrap();
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), false);
-        assert_eq!(app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::None.tag()));
+        assert_eq!(
+            app.world()
+                .get::<crate::extensions::SourceAnimationInputs>(player_entity)
+                .unwrap()
+                .gameplay_tag_input("locomotion_action"),
+            Some(AlsNotifyLocomotionAction::None.tag())
+        );
         let pelvis = snapshot.bones[snapshot.paths[&joint_path.id()]].to_transform();
         let restored_world = app
             .world()
@@ -3922,50 +5890,111 @@ pub(crate) mod tests {
 
         let cases: Vec<RecoveryCase> = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d111/recovery-cases.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(cases.len(), 7);
         for case in cases {
             let pelvis = Quat::from_array(case.target_pelvis_xyzw);
             let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis);
             let expected = DQuat::from_rotation_y(case.actor_yaw_degrees.to_radians()).as_quat();
-            let aligned = if rotation.dot(expected) < 0.0 { -rotation } else { rotation };
+            let aligned = if rotation.dot(expected) < 0.0 {
+                -rotation
+            } else {
+                rotation
+            };
             assert_eq!(facing_up, case.facing_up, "{}", case.name);
-            assert!(aligned.abs_diff_eq(expected, 1e-6), "{}: {aligned:?} {expected:?}", case.name);
+            assert!(
+                aligned.abs_diff_eq(expected, 1e-6),
+                "{}: {aligned:?} {expected:?}",
+                case.name
+            );
         }
     }
 
     #[test]
     fn ragdoll_exit_routes_airborne_velocity_and_grounded_recovery() {
         use bevy::ecs::system::RunSystemOnce;
-        for initial_mode in [LocomotionState::None, LocomotionState::Grounded, LocomotionState::Custom] {
+        for initial_mode in [
+            LocomotionState::None,
+            LocomotionState::Grounded,
+            LocomotionState::Custom,
+        ] {
             for grounded in [false, true] {
                 let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
                 loaded_ragdoll_bodies(&mut app, avatar);
-                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
-                for _ in 0..8 { app.update(); }
-                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_start = true;
+                for _ in 0..8 {
+                    app.update();
+                }
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::Ragdolling)
+                );
                 let saved_velocity = Vec3::new(2.5, -4.0, -1.5);
                 {
-                    let mut follow = app.world_mut().get_mut::<AlsRagdollGroundFollow>(actor).unwrap();
-                    follow.pelvis = if grounded { Vec3::Y * 0.2 } else { Vec3::Y * 10.0 };
+                    let mut follow = app
+                        .world_mut()
+                        .get_mut::<AlsRagdollGroundFollow>(actor)
+                        .unwrap();
+                    follow.pelvis = if grounded {
+                        Vec3::Y * 0.2
+                    } else {
+                        Vec3::Y * 10.0
+                    };
                     follow.velocity = saved_velocity;
                 }
-                app.world_mut().entity_mut(actor).insert((initial_mode, LinearVelocity(Vec3::ONE)));
-                app.world_mut().get_mut::<crate::als::transition::AlsDesiredStance>(actor).unwrap().0 = Stance::Crouching;
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert((initial_mode, LinearVelocity(Vec3::ONE)));
+                app.world_mut()
+                    .get_mut::<crate::als::transition::AlsDesiredStance>(actor)
+                    .unwrap()
+                    .0 = Stance::Crouching;
                 {
-                    let mut request = app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap();
+                    let mut request = app
+                        .world_mut()
+                        .get_mut::<crate::als::transition::AlsStateRequest>(actor)
+                        .unwrap();
                     request.ragdoll_exit = true;
                     request.locomotion_state = Some(LocomotionState::Grounded);
                 }
-                app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
-                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(),
-                    if grounded { LocomotionState::Grounded } else { LocomotionState::Air });
-                assert_eq!(*app.world().get::<LinearVelocity>(actor).unwrap(),
-                    LinearVelocity(if grounded { Vec3::ZERO } else { saved_velocity }));
-                assert_eq!(app.world().get::<AlsRagdollAirExit>(actor).is_some(), !grounded);
-                assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap().pending_action_stance,
-                    Some(if grounded { Stance::Crouching } else { Stance::Standing }));
-                let request = app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap();
+                app.world_mut()
+                    .run_system_once(ragdoll_exit_route_system)
+                    .unwrap();
+                assert_eq!(
+                    *app.world().get::<LocomotionState>(actor).unwrap(),
+                    if grounded {
+                        LocomotionState::Grounded
+                    } else {
+                        LocomotionState::Air
+                    }
+                );
+                assert_eq!(
+                    *app.world().get::<LinearVelocity>(actor).unwrap(),
+                    LinearVelocity(if grounded { Vec3::ZERO } else { saved_velocity })
+                );
+                assert_eq!(
+                    app.world().get::<AlsRagdollAirExit>(actor).is_some(),
+                    !grounded
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<crate::als::motion::AlsCrouchTransaction>(actor)
+                        .unwrap()
+                        .pending_action_stance,
+                    Some(if grounded {
+                        Stance::Crouching
+                    } else {
+                        Stance::Standing
+                    })
+                );
+                let request = app
+                    .world()
+                    .get::<crate::als::transition::AlsStateRequest>(actor)
+                    .unwrap();
                 assert!(!request.ragdoll_exit && request.locomotion_state.is_none());
             }
         }

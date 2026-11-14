@@ -51,10 +51,15 @@ pub fn apply_view_input_system(
             &AlsInputCommand,
             Option<&AlsInputOverride>,
         ),
-        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
+        (
+            With<AlsCharacter>,
+            Without<crate::als::character::AlsBirthAnimationPending>,
+        ),
     >,
 ) {
-    if virtual_time.is_paused() { return; }
+    if virtual_time.is_paused() {
+        return;
+    }
     let dilation = virtual_time.relative_speed();
     let delta_seconds = if dilation == 0.0 {
         time.delta_secs()
@@ -108,14 +113,8 @@ mod tests {
 
     #[test]
     fn pitch_clamps_to_limit() {
-        assert_eq!(
-            clamp_pitch(200.0_f32.to_radians()),
-            -89.9_f32.to_radians()
-        );
-        assert_eq!(
-            clamp_pitch(-200.0_f32.to_radians()),
-            89.9_f32.to_radians()
-        );
+        assert_eq!(clamp_pitch(200.0_f32.to_radians()), -89.9_f32.to_radians());
+        assert_eq!(clamp_pitch(-200.0_f32.to_radians()), 89.9_f32.to_radians());
         assert!((clamp_pitch(0.5) - 0.5).abs() < 1e-6);
     }
 

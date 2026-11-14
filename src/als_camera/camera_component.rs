@@ -1,15 +1,15 @@
-#[cfg(test)]
-use crate::als::character::AlsCollisionLayer;
 use crate::ab_als_root::{
     gait_tag, locomotion_action_tag, locomotion_mode_tag, rotation_mode_tag, stance_tag,
+};
+#[cfg(test)]
+use crate::als::character::AlsCollisionLayer;
+use crate::als::{
+    aim::AlsLastFreeRotationMode,
+    state::{Gait, LocomotionState, RotationMode, Stance},
 };
 use crate::als_camera::{
     AlsCameraAnimationFrame, AlsCameraCurveValues, AlsCameraDefinition, AlsCameraDefinitionHandle,
     AlsCharacterCamera, CAMERA_CURVE_NAMES,
-};
-use crate::als::{
-    aim::AlsLastFreeRotationMode,
-    state::{Gait, LocomotionState, RotationMode, Stance},
 };
 use crate::extensions::post_physics_animation::ManualAnimationPlayer;
 use bevy::{
@@ -23,7 +23,11 @@ use bevy_animation_graph::core::{
 };
 
 #[derive(Component)]
-#[require(crate::als_camera::AlsCameraRig, AlsCameraCurveValues, AlsCameraAnimationFrame)]
+#[require(
+    crate::als_camera::AlsCameraRig,
+    AlsCameraCurveValues,
+    AlsCameraAnimationFrame
+)]
 pub struct AlsSourceCameraComponent {
     bound_player: Option<Entity>,
     active: bool,
@@ -72,12 +76,19 @@ impl Plugin for AlsSourceCameraPlugin {
         .add_systems(
             PostUpdate,
             update_camera_animation
-                .run_if(bevy::ecs::schedule::common_conditions::not(bevy::time::common_conditions::paused))
+                .run_if(bevy::ecs::schedule::common_conditions::not(
+                    bevy::time::common_conditions::paused,
+                ))
                 .in_set(AlsCameraAnimationSet)
                 .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                 .before(AnimationGraphSet::PostPhysics),
         )
-        .add_systems(Update, (remove_orphaned_views, publish_player_view_yaw).chain().before(crate::als::view::AlsViewInputSet));
+        .add_systems(
+            Update,
+            (remove_orphaned_views, publish_player_view_yaw)
+                .chain()
+                .before(crate::als::view::AlsViewInputSet),
+        );
     }
 }
 
@@ -215,8 +226,11 @@ fn update_camera_animation(
             frame.active = false;
             continue;
         }
-        let rotation =
-            crate::als_camera::camera_animation_rotation_mode(*rotation, first_person, desired.copied());
+        let rotation = crate::als_camera::camera_animation_rotation_mode(
+            *rotation,
+            first_person,
+            desired.copied(),
+        );
         for (key, tag) in [
             ("gait", gait_tag(*gait)),
             ("stance", stance_tag(*stance)),
@@ -235,7 +249,10 @@ fn update_camera_animation(
                 }),
             ),
         ] {
-            source_inputs.get_mut(scene.player_entity()).unwrap().set_gameplay_tag_input(key, tag);
+            source_inputs
+                .get_mut(scene.player_entity())
+                .unwrap()
+                .set_gameplay_tag_input(key, tag);
         }
         player.set_global_input_data("b_right_shoulder", !left_shoulder);
         let delta = crate::als_camera::camera_delta_seconds_from_times(
@@ -250,7 +267,12 @@ fn update_camera_animation(
         player.set_global_input_data("animation.delta_seconds", delta);
         let mut time = Time::default();
         time.advance_by(std::time::Duration::from_secs_f32(delta));
-        source_inputs.get(scene.player_entity()).unwrap().evaluate(scene.player_entity(), || run_animation_player(scene.player_entity(), player, &time, &resources));
+        source_inputs
+            .get(scene.player_entity())
+            .unwrap()
+            .evaluate(scene.player_entity(), || {
+                run_animation_player(scene.player_entity(), player, &time, &resources)
+            });
         let player = players.get(scene.player_entity()).unwrap();
         frame.active = player.get_error().is_none() && player.get_default_output_pose().is_some();
         if frame.active {
@@ -274,7 +296,11 @@ fn update_camera_animation(
             )
         }) {
             for (index, name) in CAMERA_CURVE_NAMES.iter().enumerate() {
-                curves.values[index] = context.curves.get(&crate::extensions::SourceCurveName::from(*name)).copied().unwrap_or(0.0);
+                curves.values[index] = context
+                    .curves
+                    .get(&crate::extensions::SourceCurveName::from(*name))
+                    .copied()
+                    .unwrap_or(0.0);
             }
         }
     }
@@ -288,21 +314,58 @@ pub(crate) mod tests {
 
     #[test]
     fn movement_view_uses_the_completed_render_transform_and_clears_invalid_views() {
-        use crate::als::{character::AlsCharacter, input::AlsInputCommand, motion::AlsViewYaw, view::{AlsPlayerViewYaw, AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch}};
+        use crate::als::{
+            character::AlsCharacter,
+            input::AlsInputCommand,
+            motion::AlsViewYaw,
+            view::{AlsPlayerViewYaw, AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch},
+        };
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, TransformPlugin, AlsViewInputPlugin))
-            .add_systems(Update, (remove_orphaned_views, publish_player_view_yaw).chain().before(AlsViewInputSet));
-        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(1.2), AlsViewPitch::default(),
-            AlsInputCommand { look_delta: Vec2::new(20.0, 0.0), ..default() })).id();
-        let source = app.world_mut().spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-        let view = app.world_mut().spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(source),
-            AlsCharacterCamera { character }, Transform::from_rotation(Quat::from_rotation_y(0.4)))).id();
+            .add_systems(
+                Update,
+                (remove_orphaned_views, publish_player_view_yaw)
+                    .chain()
+                    .before(AlsViewInputSet),
+            );
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                AlsViewYaw(1.2),
+                AlsViewPitch::default(),
+                AlsInputCommand {
+                    look_delta: Vec2::new(20.0, 0.0),
+                    ..default()
+                },
+            ))
+            .id();
+        let source = app
+            .world_mut()
+            .spawn((
+                AlsSourceCameraComponent::default(),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(source),
+                AlsCharacterCamera { character },
+                Transform::from_rotation(Quat::from_rotation_y(0.4)),
+            ))
+            .id();
         app.update();
         assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
         app.update();
         assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
-        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0
-            - (1.2 - 2.0 * 20.0_f32.to_radians())).abs() < 1e-6);
+        assert!(
+            (app.world().get::<AlsViewYaw>(character).unwrap().0
+                - (1.2 - 2.0 * 20.0_f32.to_radians()))
+            .abs()
+                < 1e-6
+        );
         app.world_mut().get_mut::<Transform>(view).unwrap().rotation = Quat::from_rotation_y(0.8);
         app.update();
         assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
@@ -327,68 +390,191 @@ pub(crate) mod tests {
         use crate::character_assembly::{AlsCharacterAssembly, AlsPlayerCharacter};
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, TransformPlugin))
-            .add_systems(Update, (remove_orphaned_views, publish_player_view_yaw).chain());
-        let character = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, Transform::IDENTITY)).id();
-        let source = app.world_mut().spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-        let view = app.world_mut().spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(source),
-            AlsCharacterCamera { character }, Transform::from_rotation(Quat::from_rotation_y(0.4)))).id();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar: Entity::PLACEHOLDER, camera: Some(view) });
+            .add_systems(
+                Update,
+                (remove_orphaned_views, publish_player_view_yaw).chain(),
+            );
+        let character = app
+            .world_mut()
+            .spawn((AlsCharacter, AlsPlayerCharacter, Transform::IDENTITY))
+            .id();
+        let source = app
+            .world_mut()
+            .spawn((
+                AlsSourceCameraComponent::default(),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(source),
+                AlsCharacterCamera { character },
+                Transform::from_rotation(Quat::from_rotation_y(0.4)),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCharacterAssembly {
+                avatar: Entity::PLACEHOLDER,
+                camera: Some(view),
+            });
         app.update();
-        let readiness = app.world().get::<AlsPlayerViewReadiness>(character).unwrap();
+        let readiness = app
+            .world()
+            .get::<AlsPlayerViewReadiness>(character)
+            .unwrap();
         assert_eq!(readiness.source, source);
         assert!(!readiness.has_published);
         assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
         app.update();
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).unwrap().has_published);
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .unwrap()
+                .has_published
+        );
         assert!(app.world().get::<AlsPlayerViewYaw>(character).is_some());
         app.world_mut().get_mut::<Camera>(view).unwrap().is_active = false;
         app.update();
         assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).unwrap().has_published);
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .unwrap()
+                .has_published
+        );
         app.world_mut().despawn(source);
         app.update();
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).is_none());
-        assert_eq!(app.world().get::<AlsCharacterAssembly>(character).unwrap().camera, None);
-        let replacement = app.world_mut().spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-        let view = app.world_mut().spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(replacement),
-            AlsCharacterCamera { character }, Transform::IDENTITY)).id();
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(view);
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .is_none()
+        );
+        assert_eq!(
+            app.world()
+                .get::<AlsCharacterAssembly>(character)
+                .unwrap()
+                .camera,
+            None
+        );
+        let replacement = app
+            .world_mut()
+            .spawn((
+                AlsSourceCameraComponent::default(),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(replacement),
+                AlsCharacterCamera { character },
+                Transform::IDENTITY,
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .camera = Some(view);
         app.update();
-        let readiness = app.world().get::<AlsPlayerViewReadiness>(character).unwrap();
+        let readiness = app
+            .world()
+            .get::<AlsPlayerViewReadiness>(character)
+            .unwrap();
         assert_eq!(readiness.source, replacement);
         assert!(!readiness.has_published);
         app.world_mut().get_mut::<Camera>(view).unwrap().is_active = false;
         app.update();
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).is_none());
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .is_none()
+        );
         app.world_mut().get_mut::<Camera>(view).unwrap().is_active = true;
         app.update();
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).unwrap().has_published);
-        app.world_mut().entity_mut(character).remove::<AlsPlayerCharacter>();
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .unwrap()
+                .has_published
+        );
+        app.world_mut()
+            .entity_mut(character)
+            .remove::<AlsPlayerCharacter>();
         app.update();
-        assert!(app.world().get::<AlsPlayerViewReadiness>(character).is_none());
+        assert!(
+            app.world()
+                .get::<AlsPlayerViewReadiness>(character)
+                .is_none()
+        );
     }
 
     #[test]
     fn cold_camera_drives_the_player_from_actor_rotation() {
+        use crate::als::{
+            control_scheme::AlsControlScheme,
+            input::AlsInputCommand,
+            motion::{AlsViewYaw, locomotion_drive_system},
+            view::AlsPlayerViewYaw,
+        };
+        use crate::character_assembly::{AlsCharacterAssembly, AlsPlayerCharacter};
         use bevy::ecs::system::RunSystemOnce;
         use bevy_tnua::TnuaController;
-        use crate::als::{control_scheme::AlsControlScheme, input::AlsInputCommand,
-            motion::{AlsViewYaw, locomotion_drive_system}, view::AlsPlayerViewYaw};
-        use crate::character_assembly::{AlsCharacterAssembly, AlsPlayerCharacter};
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         let mut transform = *app.world().get::<Transform>(character).unwrap();
         transform.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2);
-        app.world_mut().entity_mut(character).insert((AlsPlayerCharacter, transform, GlobalTransform::from(transform),
-            AlsViewYaw(-150.0_f32.to_radians()))).remove::<AlsPlayerViewYaw>();
-        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
-        let source = app.world_mut().spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-        let view = app.world_mut().spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(source),
-            AlsCharacterCamera { character }, Transform::IDENTITY)).id();
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(view);
-        app.world_mut().run_system_once(publish_player_view_yaw).unwrap();
-        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
-        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
-        assert!(desired.abs_diff_eq(Vec3::X, 1e-6), "Cold player view selected the control target: {desired:?}");
+        app.world_mut()
+            .entity_mut(character)
+            .insert((
+                AlsPlayerCharacter,
+                transform,
+                GlobalTransform::from(transform),
+                AlsViewYaw(-150.0_f32.to_radians()),
+            ))
+            .remove::<AlsPlayerViewYaw>();
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(character)
+            .unwrap()
+            .move_dir = Vec2::Y;
+        let source = app
+            .world_mut()
+            .spawn((
+                AlsSourceCameraComponent::default(),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(source),
+                AlsCharacterCamera { character },
+                Transform::IDENTITY,
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .camera = Some(view);
+        app.world_mut()
+            .run_system_once(publish_player_view_yaw)
+            .unwrap();
+        app.world_mut()
+            .run_system_once(locomotion_drive_system)
+            .unwrap();
+        let desired = app
+            .world()
+            .get::<TnuaController<AlsControlScheme>>(character)
+            .unwrap()
+            .basis
+            .desired_motion;
+        assert!(
+            desired.abs_diff_eq(Vec3::X, 1e-6),
+            "Cold player view selected the control target: {desired:?}"
+        );
     }
 
     fn camera_scene() -> (App, Entity, Entity, Handle<AnimatedScene>) {
@@ -535,7 +721,9 @@ pub(crate) mod tests {
                 let AnimationSource::Graph(graph) = player.get_animation_source() else {
                     panic!("Expected the source camera graph");
                 };
-                if world.resource::<AssetServer>().is_loaded_with_dependencies(graph)
+                if world
+                    .resource::<AssetServer>()
+                    .is_loaded_with_dependencies(graph)
                     && world
                         .resource::<Assets<AlsCameraDefinition>>()
                         .get(&definition)
@@ -599,26 +787,68 @@ pub(crate) mod tests {
         for case in ["live", "deleted", "removed", "foreign", "rebound"] {
             let mut world = World::new();
             let character = world.spawn_empty().id();
-            let source = world.spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-            let view = world.spawn((Camera3d::default(), crate::als_camera::AlsCameraViewSource(source), AlsCharacterCamera { character })).id();
-            world.entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly { avatar: source, camera: Some(view) });
+            let source = world
+                .spawn((
+                    AlsSourceCameraComponent::default(),
+                    AlsCharacterCamera { character },
+                ))
+                .id();
+            let view = world
+                .spawn((
+                    Camera3d::default(),
+                    crate::als_camera::AlsCameraViewSource(source),
+                    AlsCharacterCamera { character },
+                ))
+                .id();
+            world
+                .entity_mut(character)
+                .insert(crate::character_assembly::AlsCharacterAssembly {
+                    avatar: source,
+                    camera: Some(view),
+                });
             match case {
-                "deleted" => { world.entity_mut(source).despawn(); }
-                "removed" => { world.entity_mut(source).remove::<AlsSourceCameraComponent>(); }
+                "deleted" => {
+                    world.entity_mut(source).despawn();
+                }
+                "removed" => {
+                    world
+                        .entity_mut(source)
+                        .remove::<AlsSourceCameraComponent>();
+                }
                 "foreign" => {
                     let other = world.spawn_empty().id();
-                    world.entity_mut(source).insert(AlsCharacterCamera { character: other });
+                    world
+                        .entity_mut(source)
+                        .insert(AlsCharacterCamera { character: other });
                 }
                 "rebound" => {
-                    let replacement = world.spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
-                    world.entity_mut(view).insert(crate::als_camera::AlsCameraViewSource(replacement));
+                    let replacement = world
+                        .spawn((
+                            AlsSourceCameraComponent::default(),
+                            AlsCharacterCamera { character },
+                        ))
+                        .id();
+                    world
+                        .entity_mut(view)
+                        .insert(crate::als_camera::AlsCameraViewSource(replacement));
                     world.entity_mut(source).despawn();
                 }
                 _ => {}
             }
             world.run_system_once(remove_orphaned_views).unwrap();
-            assert_eq!(world.get_entity(view).is_ok(), matches!(case, "live" | "rebound"), "{case}");
-            assert_eq!(world.get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap().camera.is_some(), matches!(case, "live" | "rebound"));
+            assert_eq!(
+                world.get_entity(view).is_ok(),
+                matches!(case, "live" | "rebound"),
+                "{case}"
+            );
+            assert_eq!(
+                world
+                    .get::<crate::character_assembly::AlsCharacterAssembly>(character)
+                    .unwrap()
+                    .camera
+                    .is_some(),
+                matches!(case, "live" | "rebound")
+            );
             assert!(world.get_entity(character).is_ok());
         }
     }
@@ -627,30 +857,66 @@ pub(crate) mod tests {
     fn camera_view_history_resets_on_cuts_and_preserves_stable_frames() {
         use bevy::anti_alias::taa::TemporalAntiAliasing;
         let (mut app, character, component, _) = loaded_camera_scene();
-        let view = app.world_mut().spawn((
-            Camera3d::default(),
-            crate::als_camera::AlsCameraViewSource(component),
-            AlsCharacterCamera { character },
-            TemporalAntiAliasing { reset: false },
-        )).id();
-        for event in ["bind", "steady", "teleport", "steady", "deactivate", "steady", "activate", "steady", "reset", "steady"] {
-            app.world_mut().get_mut::<TemporalAntiAliasing>(view).unwrap().reset = false;
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                crate::als_camera::AlsCameraViewSource(component),
+                AlsCharacterCamera { character },
+                TemporalAntiAliasing { reset: false },
+            ))
+            .id();
+        for event in [
+            "bind",
+            "steady",
+            "teleport",
+            "steady",
+            "deactivate",
+            "steady",
+            "activate",
+            "steady",
+            "reset",
+            "steady",
+        ] {
+            app.world_mut()
+                .get_mut::<TemporalAntiAliasing>(view)
+                .unwrap()
+                .reset = false;
             match event {
                 "teleport" => {
-                    let mut sockets = app.world_mut().get_mut::<crate::als_camera::AlsCameraSocketLocations>(character).unwrap();
+                    let mut sockets = app
+                        .world_mut()
+                        .get_mut::<crate::als_camera::AlsCameraSocketLocations>(character)
+                        .unwrap();
                     sockets.root += Vec3::X * 3.0;
                     sockets.head += Vec3::X * 3.0;
                     sockets.first_person += Vec3::X * 3.0;
                     sockets.trace_shoulder_left += Vec3::X * 3.0;
                     sockets.trace_shoulder_right += Vec3::X * 3.0;
                 }
-                "deactivate" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().deactivate(),
-                "activate" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(false),
-                "reset" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(true),
+                "deactivate" => app
+                    .world_mut()
+                    .get_mut::<AlsSourceCameraComponent>(component)
+                    .unwrap()
+                    .deactivate(),
+                "activate" => app
+                    .world_mut()
+                    .get_mut::<AlsSourceCameraComponent>(component)
+                    .unwrap()
+                    .activate(false),
+                "reset" => app
+                    .world_mut()
+                    .get_mut::<AlsSourceCameraComponent>(component)
+                    .unwrap()
+                    .activate(true),
                 _ => {}
             }
             app.update();
-            assert_eq!(app.world().get::<TemporalAntiAliasing>(view).unwrap().reset, event != "steady", "{event}");
+            assert_eq!(
+                app.world().get::<TemporalAntiAliasing>(view).unwrap().reset,
+                event != "steady",
+                "{event}"
+            );
         }
     }
 
@@ -658,67 +924,174 @@ pub(crate) mod tests {
     fn inactive_source_camera_uses_character_eye_view_without_resetting_owner() {
         use crate::als::{motion::AlsViewYaw, view::AlsViewPitch};
         let (mut app, character, component, _) = loaded_camera_scene();
-        let view = app.world_mut().spawn((Camera3d::default(), Transform::IDENTITY,
-            crate::als_camera::AlsCameraViewSource(component), AlsCharacterCamera { character })).id();
-        app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().deactivate();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                Transform::IDENTITY,
+                crate::als_camera::AlsCameraViewSource(component),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<AlsSourceCameraComponent>(component)
+            .unwrap()
+            .deactivate();
         for stance in [Stance::Standing, Stance::Crouching] {
-            app.world_mut().entity_mut(character).insert((stance, AlsViewYaw(0.7), AlsViewPitch(0.2)));
+            app.world_mut().entity_mut(character).insert((
+                stance,
+                AlsViewYaw(0.7),
+                AlsViewPitch(0.2),
+            ));
             app.update();
             let transform = app.world().get::<Transform>(view).unwrap();
             let owner = app.world().get::<Transform>(character).unwrap();
-            let height = if stance == Stance::Standing { 0.64 } else { 0.44799999 };
-            assert!(transform.translation.abs_diff_eq(owner.translation + Vec3::Y * height, 1e-5));
-            assert!(transform.rotation.abs_diff_eq(Quat::from_euler(EulerRot::YXZ, 0.7, 0.2, 0.0), 1e-5));
-            assert!((app.world().get::<crate::als_camera::AlsCameraFieldOfView>(view).unwrap().0 - 90.0).abs() < 1e-5);
-            assert!(!app.world().get::<AlsSourceCameraComponent>(component).unwrap().is_active());
+            let height = if stance == Stance::Standing {
+                0.64
+            } else {
+                0.44799999
+            };
+            assert!(
+                transform
+                    .translation
+                    .abs_diff_eq(owner.translation + Vec3::Y * height, 1e-5)
+            );
+            assert!(
+                transform
+                    .rotation
+                    .abs_diff_eq(Quat::from_euler(EulerRot::YXZ, 0.7, 0.2, 0.0), 1e-5)
+            );
+            assert!(
+                (app.world()
+                    .get::<crate::als_camera::AlsCameraFieldOfView>(view)
+                    .unwrap()
+                    .0
+                    - 90.0)
+                    .abs()
+                    < 1e-5
+            );
+            assert!(
+                !app.world()
+                    .get::<AlsSourceCameraComponent>(component)
+                    .unwrap()
+                    .is_active()
+            );
         }
-        app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(false);
+        app.world_mut()
+            .get_mut::<AlsSourceCameraComponent>(component)
+            .unwrap()
+            .activate(false);
         app.update();
-        assert!(app.world().get::<crate::als_camera::AlsCameraViewInfo>(component).unwrap().valid);
+        assert!(
+            app.world()
+                .get::<crate::als_camera::AlsCameraViewInfo>(component)
+                .unwrap()
+                .valid
+        );
     }
 
     #[test]
     fn actual_ragdoll_root_retains_camera_actor_ownership_after_detachment() {
+        use crate::character_assembly::{
+            AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character,
+        };
         use bevy::ecs::system::RunSystemOnce;
-        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
         let (mut app, _, _, _) = loaded_camera_scene();
-        let character = app.world_mut().run_system_once(|
-            mut commands: Commands, assets: Res<AssetServer>,
-            mut params: ResMut<Assets<crate::als::params::AlsMovementParams>>,
-            mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>,
-        | spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
-            AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) }))
+        let character = app
+            .world_mut()
+            .run_system_once(
+                |mut commands: Commands,
+                 assets: Res<AssetServer>,
+                 mut params: ResMut<Assets<crate::als::params::AlsMovementParams>>,
+                 mut configs: ResMut<
+                    Assets<crate::als::control_scheme::AlsControlSchemeConfig>,
+                >| {
+                    spawn_als_character(
+                        &mut commands,
+                        &assets,
+                        &mut params,
+                        &mut configs,
+                        AlsCharacterBlueprint {
+                            spawn_input: false,
+                            ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0))
+                        },
+                    )
+                },
+            )
             .unwrap();
-        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
-        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::RigidBody::Kinematic,
+            bevy_tnua::TnuaToggle::Disabled,
+        ));
+        let avatar = app
+            .world()
+            .get::<AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
         let player = loop {
             app.update();
             if let Some(scene) = app.world().get::<AnimatedSceneInstance>(avatar) {
-                let player = app.world().get::<AnimationGraphPlayer>(scene.player_entity()).unwrap();
+                let player = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(scene.player_entity())
+                    .unwrap();
                 let ready = match player.get_animation_source() {
-                    bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) =>
-                        app.world().resource::<AssetServer>().is_loaded_with_dependencies(graph),
+                    bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(
+                        graph,
+                    ) => app
+                        .world()
+                        .resource::<AssetServer>()
+                        .is_loaded_with_dependencies(graph),
                     _ => false,
                 };
                 if ready {
                     assert!(player.get_error().is_none(), "{:?}", player.get_error());
-                    if player.get_default_output_pose().is_some() { break scene.player_entity() }
+                    if player.get_default_output_pose().is_some() {
+                        break scene.player_entity();
+                    }
                 }
             }
-            assert!(std::time::Instant::now() < deadline, "Character scene did not become ready");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Character scene did not become ready"
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         };
-        app.world_mut().entity_mut(character).insert(crate::als::motion::AlsInputOverride(
-            crate::als::input::AlsInputCommand { ragdoll_pressed: true, ..default() }));
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::als::motion::AlsInputOverride(
+                crate::als::input::AlsInputCommand {
+                    ragdoll_pressed: true,
+                    ..default()
+                },
+            ));
         app.update();
-        app.world_mut().get_mut::<crate::als::motion::AlsInputOverride>(character).unwrap().0.ragdoll_pressed = false;
-        for _ in 0..4 { app.update(); }
-        assert!(app.world().get::<ChildOf>(player).is_none(), "Ragdoll player must use its source world-space handoff");
-        let root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll()
-            .expect("Actual character must spawn its ragdoll").root;
+        app.world_mut()
+            .get_mut::<crate::als::motion::AlsInputOverride>(character)
+            .unwrap()
+            .0
+            .ragdoll_pressed = false;
+        for _ in 0..4 {
+            app.update();
+        }
+        assert!(
+            app.world().get::<ChildOf>(player).is_none(),
+            "Ragdoll player must use its source world-space handoff"
+        );
+        let root = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .expect("Actual character must spawn its ragdoll")
+            .root;
         assert!(app.world().get::<ChildOf>(root).is_none());
-        assert_eq!(app.world().get::<crate::als_camera::AlsCameraTraceOwner>(root), Some(&crate::als_camera::AlsCameraTraceOwner(character)));
+        assert_eq!(
+            app.world()
+                .get::<crate::als_camera::AlsCameraTraceOwner>(root),
+            Some(&crate::als_camera::AlsCameraTraceOwner(character))
+        );
     }
 
     #[test]
@@ -729,36 +1102,76 @@ pub(crate) mod tests {
             crate::animation_events::AlsNotifyLocomotionAction::Ragdolling,
             LocomotionState::None,
         ));
-        for _ in 0..12 { app.update(); }
-        let before = *app.world().get::<crate::als_camera::AlsCameraDebugInfo>(component).unwrap();
+        for _ in 0..12 {
+            app.update();
+        }
+        let before = *app
+            .world()
+            .get::<crate::als_camera::AlsCameraDebugInfo>(component)
+            .unwrap();
         assert!(before.valid && !before.trace_blocking_hit);
         assert_eq!(before.first_person_override, 0.0);
-        let root = app.world_mut().spawn((Transform::IDENTITY, crate::als_camera::AlsCameraTraceOwner(character))).id();
-        let collider = app.world_mut().spawn((
-            ChildOf(root), RigidBody::Static, Collider::sphere(0.35),
-            Transform::from_translation(before.trace_start.lerp(before.trace_end, 0.25)), CollisionLayers::NONE,
-        )).id();
+        let root = app
+            .world_mut()
+            .spawn((
+                Transform::IDENTITY,
+                crate::als_camera::AlsCameraTraceOwner(character),
+            ))
+            .id();
+        let collider = app
+            .world_mut()
+            .spawn((
+                ChildOf(root),
+                RigidBody::Static,
+                Collider::sphere(0.35),
+                Transform::from_translation(before.trace_start.lerp(before.trace_end, 0.25)),
+                CollisionLayers::NONE,
+            ))
+            .id();
         app.update();
-        app.world_mut().entity_mut(collider).insert(CollisionLayers::new(
-            [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
-            avian3d::prelude::LayerMask::ALL,
-        ));
+        app.world_mut()
+            .entity_mut(collider)
+            .insert(CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                avian3d::prelude::LayerMask::ALL,
+            ));
         for along_boom in [0.25, 0.0] {
-            app.world_mut().get_mut::<Transform>(collider).unwrap().translation = before.trace_start.lerp(before.trace_end, along_boom);
+            app.world_mut()
+                .get_mut::<Transform>(collider)
+                .unwrap()
+                .translation = before.trace_start.lerp(before.trace_end, along_boom);
             for _ in 0..4 {
                 app.update();
-                let debug = app.world().get::<crate::als_camera::AlsCameraDebugInfo>(component).unwrap();
+                let debug = app
+                    .world()
+                    .get::<crate::als_camera::AlsCameraDebugInfo>(component)
+                    .unwrap();
                 assert_eq!(debug.first_person_override, 0.0);
-                assert!(!debug.trace_blocking_hit && !debug.trace_adjusted_start && debug.trace_distance_ratio > 0.99,
-                    "Owned ragdoll collider changed third-person camera: {debug:?}");
+                assert!(
+                    !debug.trace_blocking_hit
+                        && !debug.trace_adjusted_start
+                        && debug.trace_distance_ratio > 0.99,
+                    "Owned ragdoll collider changed third-person camera: {debug:?}"
+                );
             }
         }
         let other_actor = app.world_mut().spawn_empty().id();
-        app.world_mut().get_mut::<Transform>(collider).unwrap().translation = before.trace_start.lerp(before.trace_end, 0.25);
-        app.world_mut().entity_mut(root).insert(crate::als_camera::AlsCameraTraceOwner(other_actor));
+        app.world_mut()
+            .get_mut::<Transform>(collider)
+            .unwrap()
+            .translation = before.trace_start.lerp(before.trace_end, 0.25);
+        app.world_mut()
+            .entity_mut(root)
+            .insert(crate::als_camera::AlsCameraTraceOwner(other_actor));
         app.update();
-        let debug = app.world().get::<crate::als_camera::AlsCameraDebugInfo>(component).unwrap();
-        assert!(debug.trace_blocking_hit, "Other actor colliders must still block the camera");
+        let debug = app
+            .world()
+            .get::<crate::als_camera::AlsCameraDebugInfo>(component)
+            .unwrap();
+        assert!(
+            debug.trace_blocking_hit,
+            "Other actor colliders must still block the camera"
+        );
     }
 
     #[test]
@@ -767,34 +1180,89 @@ pub(crate) mod tests {
         for ignore in [true, false] {
             for owner_dilation in [0.0_f32, 0.5, 1.0] {
                 let (mut app, character, component, _) = loaded_camera_scene();
-                let handle = app.world().get::<AlsCameraDefinitionHandle>(character).unwrap().0.clone();
-                app.world_mut().resource_mut::<Assets<AlsCameraDefinition>>().get_mut(&handle).unwrap()
-                    .settings.ignore_time_dilation = ignore;
-                app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation));
+                let handle = app
+                    .world()
+                    .get::<AlsCameraDefinitionHandle>(character)
+                    .unwrap()
+                    .0
+                    .clone();
+                app.world_mut()
+                    .resource_mut::<Assets<AlsCameraDefinition>>()
+                    .get_mut(&handle)
+                    .unwrap()
+                    .settings
+                    .ignore_time_dilation = ignore;
+                app.world_mut().entity_mut(character).insert(
+                    crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation),
+                );
                 app.update();
-                let entity = app.world().get::<AnimatedSceneInstance>(component).unwrap().player_entity();
-                let before_running = app.world().get::<AnimationGraphPlayer>(entity).unwrap().elapsed();
-                let running_frame = app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_context_arena().unwrap().frame_index();
-                app.world_mut().entity_mut(character).insert(crate::als::input_request::AlsFirstPersonView);
+                let entity = app
+                    .world()
+                    .get::<AnimatedSceneInstance>(component)
+                    .unwrap()
+                    .player_entity();
+                let before_running = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(entity)
+                    .unwrap()
+                    .elapsed();
+                let running_frame = app
+                    .world()
+                    .get::<AnimationGraphPlayer>(entity)
+                    .unwrap()
+                    .get_context_arena()
+                    .unwrap()
+                    .frame_index();
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(crate::als::input_request::AlsFirstPersonView);
                 app.update();
-                let delta = if ignore { app.world().resource::<Time<Real>>().delta_secs() }
-                    else { app.world().resource::<Time<Virtual>>().delta_secs() * owner_dilation };
+                let delta = if ignore {
+                    app.world().resource::<Time<Real>>().delta_secs()
+                } else {
+                    app.world().resource::<Time<Virtual>>().delta_secs() * owner_dilation
+                };
                 let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
-                assert!((player.elapsed() - before_running - delta).abs() < 1e-6,
-                    "Running source camera clock: ignore={ignore} owner={owner_dilation}");
-                assert_eq!(player.get_context_arena().unwrap().frame_index(), running_frame + 1);
+                assert!(
+                    (player.elapsed() - before_running - delta).abs() < 1e-6,
+                    "Running source camera clock: ignore={ignore} owner={owner_dilation}"
+                );
+                assert_eq!(
+                    player.get_context_arena().unwrap().frame_index(),
+                    running_frame + 1
+                );
                 let elapsed = player.elapsed();
                 let frame = player.get_context_arena().unwrap().frame_index();
-                let pose = player.get_default_output_pose().unwrap().bones.iter().map(|bone| bone.to_transform()).collect::<Vec<_>>();
-                let curves = app.world().get::<AlsCameraCurveValues>(component).unwrap().values;
+                let pose = player
+                    .get_default_output_pose()
+                    .unwrap()
+                    .bones
+                    .iter()
+                    .map(|bone| bone.to_transform())
+                    .collect::<Vec<_>>();
+                let curves = app
+                    .world()
+                    .get::<AlsCameraCurveValues>(component)
+                    .unwrap()
+                    .values;
                 let view = *app.world().get::<AlsCameraViewInfo>(component).unwrap();
                 let runtime = *app.world().get::<AlsCameraRuntime>(component).unwrap();
-                let previous_dilation = app.world().get::<AlsSourceCameraComponent>(component).unwrap().previous_global_time_dilation;
+                let previous_dilation = app
+                    .world()
+                    .get::<AlsSourceCameraComponent>(component)
+                    .unwrap()
+                    .previous_global_time_dilation;
                 assert!(view.valid);
                 app.world_mut().resource_mut::<Time<Virtual>>().pause();
-                app.world_mut().get_mut::<crate::als::motion::AlsViewYaw>(character).unwrap().0 += 0.8;
+                app.world_mut()
+                    .get_mut::<crate::als::motion::AlsViewYaw>(character)
+                    .unwrap()
+                    .0 += 0.8;
                 {
-                    let mut sockets = app.world_mut().get_mut::<crate::als_camera::AlsCameraSocketLocations>(character).unwrap();
+                    let mut sockets = app
+                        .world_mut()
+                        .get_mut::<crate::als_camera::AlsCameraSocketLocations>(character)
+                        .unwrap();
                     sockets.root += Vec3::X * 0.3;
                     sockets.head += Vec3::X * 0.3;
                     sockets.first_person += Vec3::X * 0.3;
@@ -802,31 +1270,90 @@ pub(crate) mod tests {
                 for _ in 0..3 {
                     app.update();
                     let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
-                    assert_eq!(player.get_context_arena().unwrap().frame_index(), frame,
-                        "Paused source camera graph tick: ignore={ignore} owner={owner_dilation}");
+                    assert_eq!(
+                        player.get_context_arena().unwrap().frame_index(),
+                        frame,
+                        "Paused source camera graph tick: ignore={ignore} owner={owner_dilation}"
+                    );
                     assert_eq!(player.elapsed(), elapsed);
-                    assert_eq!(player.get_default_output_pose().unwrap().bones.iter().map(|bone| bone.to_transform()).collect::<Vec<_>>(), pose);
-                    assert_eq!(app.world().get::<AlsCameraCurveValues>(component).unwrap().values, curves);
+                    assert_eq!(
+                        player
+                            .get_default_output_pose()
+                            .unwrap()
+                            .bones
+                            .iter()
+                            .map(|bone| bone.to_transform())
+                            .collect::<Vec<_>>(),
+                        pose
+                    );
+                    assert_eq!(
+                        app.world()
+                            .get::<AlsCameraCurveValues>(component)
+                            .unwrap()
+                            .values,
+                        curves
+                    );
                     let current = app.world().get::<AlsCameraViewInfo>(component).unwrap();
-                    assert!(current.valid && current.location == view.location && current.rotation == view.rotation
-                        && current.field_of_view_deg == view.field_of_view_deg,
-                        "Paused source camera view tick: ignore={ignore} owner={owner_dilation} before={view:?} after={current:?}");
+                    assert!(
+                        current.valid
+                            && current.location == view.location
+                            && current.rotation == view.rotation
+                            && current.field_of_view_deg == view.field_of_view_deg,
+                        "Paused source camera view tick: ignore={ignore} owner={owner_dilation} before={view:?} after={current:?}"
+                    );
                     let current = app.world().get::<AlsCameraRuntime>(component).unwrap();
-                    assert_eq!((current.previous_pivot_target, current.pivot_lag_location, current.camera_rotation, current.trace_distance_ratio),
-                        (runtime.previous_pivot_target, runtime.pivot_lag_location, runtime.camera_rotation, runtime.trace_distance_ratio));
-                    assert_eq!(app.world().get::<AlsSourceCameraComponent>(component).unwrap().previous_global_time_dilation, previous_dilation);
+                    assert_eq!(
+                        (
+                            current.previous_pivot_target,
+                            current.pivot_lag_location,
+                            current.camera_rotation,
+                            current.trace_distance_ratio
+                        ),
+                        (
+                            runtime.previous_pivot_target,
+                            runtime.pivot_lag_location,
+                            runtime.camera_rotation,
+                            runtime.trace_distance_ratio
+                        )
+                    );
+                    assert_eq!(
+                        app.world()
+                            .get::<AlsSourceCameraComponent>(component)
+                            .unwrap()
+                            .previous_global_time_dilation,
+                        previous_dilation
+                    );
                 }
                 app.world_mut().resource_mut::<Time<Virtual>>().unpause();
                 app.update();
                 let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
                 assert_eq!(player.get_context_arena().unwrap().frame_index(), frame + 1);
-                assert!((player.elapsed() - elapsed - delta).abs() < 1e-6,
-                    "Resumed source camera clock: ignore={ignore} owner={owner_dilation}");
-                assert!(app.world().get::<AlsCameraViewInfo>(component).unwrap().valid);
+                assert!(
+                    (player.elapsed() - elapsed - delta).abs() < 1e-6,
+                    "Resumed source camera clock: ignore={ignore} owner={owner_dilation}"
+                );
+                assert!(
+                    app.world()
+                        .get::<AlsCameraViewInfo>(component)
+                        .unwrap()
+                        .valid
+                );
                 if delta > 0.0 {
-                    assert!(app.world().get::<AlsCameraViewInfo>(component).unwrap().location.distance(view.location) > 1e-5);
-                    assert!(app.world().get::<AlsCameraCurveValues>(component).unwrap().get(AlsCameraCurve::FirstPersonOverride)
-                        >= curves[AlsCameraCurve::FirstPersonOverride.index()]);
+                    assert!(
+                        app.world()
+                            .get::<AlsCameraViewInfo>(component)
+                            .unwrap()
+                            .location
+                            .distance(view.location)
+                            > 1e-5
+                    );
+                    assert!(
+                        app.world()
+                            .get::<AlsCameraCurveValues>(component)
+                            .unwrap()
+                            .get(AlsCameraCurve::FirstPersonOverride)
+                            >= curves[AlsCameraCurve::FirstPersonOverride.index()]
+                    );
                 }
             }
         }
@@ -946,8 +1473,17 @@ pub(crate) mod tests {
             app.update();
         }
         let values = app.world().get::<AlsCameraCurveValues>(component).unwrap();
-        assert!((values.get(crate::als_camera::AlsCameraCurve::FirstPersonOverride) - 1.0).abs() < 1e-6);
-        assert!(values.get(crate::als_camera::AlsCameraCurve::CameraOffsetX).abs() < 1e-5, "first-person curves: {:?}", values.values);
+        assert!(
+            (values.get(crate::als_camera::AlsCameraCurve::FirstPersonOverride) - 1.0).abs() < 1e-6
+        );
+        assert!(
+            values
+                .get(crate::als_camera::AlsCameraCurve::CameraOffsetX)
+                .abs()
+                < 1e-5,
+            "first-person curves: {:?}",
+            values.values
+        );
         assert!((values.get(crate::als_camera::AlsCameraCurve::CameraOffsetZ) - 3.25).abs() < 1e-5);
         assert_eq!(
             *app.world().get::<RotationMode>(character).unwrap(),
@@ -1149,11 +1685,20 @@ fn remove_orphaned_views(
     characters: Query<()>,
     sources: Query<&AlsCharacterCamera, With<AlsSourceCameraComponent>>,
     mut assemblies: Query<&mut crate::character_assembly::AlsCharacterAssembly>,
-    views: Query<(Entity, &AlsCharacterCamera, &crate::als_camera::AlsCameraViewSource), With<Camera3d>>,
+    views: Query<
+        (
+            Entity,
+            &AlsCharacterCamera,
+            &crate::als_camera::AlsCameraViewSource,
+        ),
+        With<Camera3d>,
+    >,
 ) {
     for (entity, owner, source) in &views {
         if characters.get(owner.character).is_err()
-            || !sources.get(source.0).is_ok_and(|source_owner| source_owner.character == owner.character)
+            || !sources
+                .get(source.0)
+                .is_ok_and(|source_owner| source_owner.character == owner.character)
         {
             if let Ok(mut assembly) = assemblies.get_mut(owner.character)
                 && assembly.camera == Some(entity)
@@ -1167,51 +1712,95 @@ fn remove_orphaned_views(
 
 fn publish_player_view_yaw(
     mut commands: Commands,
-    mut characters: Query<(Entity, Option<&mut crate::als::view::AlsPlayerViewYaw>,
-        Option<&crate::character_assembly::AlsCharacterAssembly>, Has<crate::character_assembly::AlsPlayerCharacter>,
-        Option<&mut crate::als::view::AlsPlayerViewReadiness>), With<crate::als::character::AlsCharacter>>,
-    views: Query<(&Camera, Ref<GlobalTransform>, &AlsCharacterCamera, &crate::als_camera::AlsCameraViewSource), With<Camera3d>>,
+    mut characters: Query<
+        (
+            Entity,
+            Option<&mut crate::als::view::AlsPlayerViewYaw>,
+            Option<&crate::character_assembly::AlsCharacterAssembly>,
+            Has<crate::character_assembly::AlsPlayerCharacter>,
+            Option<&mut crate::als::view::AlsPlayerViewReadiness>,
+        ),
+        With<crate::als::character::AlsCharacter>,
+    >,
+    views: Query<
+        (
+            &Camera,
+            Ref<GlobalTransform>,
+            &AlsCharacterCamera,
+            &crate::als_camera::AlsCameraViewSource,
+        ),
+        With<Camera3d>,
+    >,
     sources: Query<&AlsCharacterCamera, With<AlsSourceCameraComponent>>,
 ) {
     for (character, current, assembly, player, readiness) in &mut characters {
         let view = views.iter().find_map(|(camera, transform, owner, source)| {
             (owner.character == character && camera.is_active && !transform.is_added())
-                .then(|| transform.rotation().to_euler(EulerRot::YXZ).0).filter(|yaw| yaw.is_finite())
+                .then(|| transform.rotation().to_euler(EulerRot::YXZ).0)
+                .filter(|yaw| yaw.is_finite())
                 .map(|yaw| (yaw, source.0))
         });
-        let manager = assembly.filter(|_| player).and_then(|assembly| assembly.camera)
-            .and_then(|camera| views.get(camera).ok()).and_then(|(camera, _, owner, source)| {
-                (owner.character == character && sources.get(source.0).is_ok_and(|owner| owner.character == character))
-                    .then_some((source.0, camera.is_active))
+        let manager = assembly
+            .filter(|_| player)
+            .and_then(|assembly| assembly.camera)
+            .and_then(|camera| views.get(camera).ok())
+            .and_then(|(camera, _, owner, source)| {
+                (owner.character == character
+                    && sources
+                        .get(source.0)
+                        .is_ok_and(|owner| owner.character == character))
+                .then_some((source.0, camera.is_active))
             });
         match (readiness, manager) {
             (Some(mut readiness), Some((source, active))) => {
                 let published = view.is_some_and(|(_, view_source)| view_source == source);
                 if readiness.source != source {
                     if active {
-                        *readiness = crate::als::view::AlsPlayerViewReadiness { source, has_published: published };
+                        *readiness = crate::als::view::AlsPlayerViewReadiness {
+                            source,
+                            has_published: published,
+                        };
                     } else {
-                        commands.entity(character).remove::<crate::als::view::AlsPlayerViewReadiness>();
+                        commands
+                            .entity(character)
+                            .remove::<crate::als::view::AlsPlayerViewReadiness>();
                     }
                 } else if !active && !readiness.has_published {
-                    commands.entity(character).remove::<crate::als::view::AlsPlayerViewReadiness>();
+                    commands
+                        .entity(character)
+                        .remove::<crate::als::view::AlsPlayerViewReadiness>();
                 } else if published && !readiness.has_published {
                     readiness.has_published = true;
                 }
             }
             (None, Some((source, true))) => {
-                commands.entity(character).insert(crate::als::view::AlsPlayerViewReadiness {
-                    source, has_published: view.is_some_and(|(_, view_source)| view_source == source),
-                });
+                commands
+                    .entity(character)
+                    .insert(crate::als::view::AlsPlayerViewReadiness {
+                        source,
+                        has_published: view.is_some_and(|(_, view_source)| view_source == source),
+                    });
             }
             (None, Some((_, false))) => {}
-            (Some(_), None) => { commands.entity(character).remove::<crate::als::view::AlsPlayerViewReadiness>(); }
+            (Some(_), None) => {
+                commands
+                    .entity(character)
+                    .remove::<crate::als::view::AlsPlayerViewReadiness>();
+            }
             (None, None) => {}
         }
         match (current, view.map(|(yaw, _)| yaw)) {
             (Some(mut current), Some(yaw)) => current.0 = yaw,
-            (None, Some(yaw)) => { commands.entity(character).insert(crate::als::view::AlsPlayerViewYaw(yaw)); }
-            (Some(_), None) => { commands.entity(character).remove::<crate::als::view::AlsPlayerViewYaw>(); }
+            (None, Some(yaw)) => {
+                commands
+                    .entity(character)
+                    .insert(crate::als::view::AlsPlayerViewYaw(yaw));
+            }
+            (Some(_), None) => {
+                commands
+                    .entity(character)
+                    .remove::<crate::als::view::AlsPlayerViewYaw>();
+            }
             (None, None) => {}
         }
     }

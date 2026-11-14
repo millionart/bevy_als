@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use bevy::{prelude::*, time::{Real, TimeSystems, Virtual, time_system, update_virtual_time}};
+use bevy::{
+    prelude::*,
+    time::{Real, TimeSystems, Virtual, time_system, update_virtual_time},
+};
 
 pub struct SourceWorldTimePlugin {
     pub minimum: Duration,
@@ -18,13 +21,26 @@ struct PreviousVirtualTime(Option<Time<Virtual>>);
 
 impl Plugin for SourceWorldTimePlugin {
     fn build(&self, app: &mut App) {
-        assert!(!self.minimum.is_zero() && self.minimum <= self.maximum, "world time bounds are invalid");
+        assert!(
+            !self.minimum.is_zero() && self.minimum <= self.maximum,
+            "world time bounds are invalid"
+        );
         app.init_resource::<Time<Virtual>>()
-            .insert_resource(WorldTimeBounds { minimum: self.minimum, maximum: self.maximum })
+            .insert_resource(WorldTimeBounds {
+                minimum: self.minimum,
+                maximum: self.maximum,
+            })
             .init_resource::<PreviousVirtualTime>();
-        app.world_mut().resource_mut::<Time<Virtual>>().set_max_delta(self.maximum);
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_max_delta(self.maximum);
         app.add_systems(First, capture_virtual_time.before(TimeSystems))
-            .add_systems(First, apply_world_time_bounds.in_set(TimeSystems).after(time_system));
+            .add_systems(
+                First,
+                apply_world_time_bounds
+                    .in_set(TimeSystems)
+                    .after(time_system),
+            );
     }
 }
 
@@ -39,16 +55,27 @@ fn apply_world_time_bounds(
     mut current: ResMut<Time>,
     mut previous: ResMut<PreviousVirtualTime>,
 ) {
-    let mut clock = previous.0.take().expect("virtual time must be captured before the time system");
+    let mut clock = previous
+        .0
+        .take()
+        .expect("virtual time must be captured before the time system");
     let speed = virtual_time.relative_speed_f64();
     clock.set_relative_speed_f64(speed);
-    if virtual_time.is_paused() { clock.pause(); } else { clock.unpause(); }
+    if virtual_time.is_paused() {
+        clock.pause();
+    } else {
+        clock.unpause();
+    }
     clock.set_max_delta(Duration::MAX);
     let mut bounded_real = (*real).clone();
     bounded_real.advance_by(real.delta().clamp(bounds.minimum, bounds.maximum));
     update_virtual_time(&mut current, &mut clock, &bounded_real);
     let maximum = bounds.maximum.mul_f64(speed);
-    clock.set_max_delta(if maximum.is_zero() { bounds.maximum } else { maximum });
+    clock.set_max_delta(if maximum.is_zero() {
+        bounds.maximum
+    } else {
+        maximum
+    });
     *virtual_time = clock;
 }
 
@@ -60,10 +87,14 @@ mod tests {
     #[test]
     fn world_bounds_clamp_raw_time_before_dilation_and_preserve_pause() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).add_plugins(SourceWorldTimePlugin {
-            minimum: Duration::from_micros(500), maximum: Duration::from_millis(400),
-        });
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(16)));
+        app.add_plugins(MinimalPlugins)
+            .add_plugins(SourceWorldTimePlugin {
+                minimum: Duration::from_micros(500),
+                maximum: Duration::from_millis(400),
+            });
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            16,
+        )));
         app.update();
         for (raw, speed, expected) in [
             (Duration::from_micros(100), 1.0, Duration::from_micros(500)),
@@ -74,7 +105,9 @@ mod tests {
             (Duration::from_millis(300), 2.0, Duration::from_millis(600)),
         ] {
             app.insert_resource(TimeUpdateStrategy::ManualDuration(raw));
-            app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(speed);
+            app.world_mut()
+                .resource_mut::<Time<Virtual>>()
+                .set_relative_speed(speed);
             let before = app.world().resource::<Time<Virtual>>().elapsed();
             app.update();
             let virtual_time = app.world().resource::<Time<Virtual>>();
@@ -82,17 +115,26 @@ mod tests {
             assert_eq!(virtual_time.delta(), expected, "raw={raw:?} speed={speed}");
             assert_eq!(virtual_time.elapsed(), before + expected);
             assert_eq!(virtual_time.effective_speed(), speed);
-            assert_eq!(virtual_time.max_delta(), Duration::from_millis(400).mul_f32(speed));
+            assert_eq!(
+                virtual_time.max_delta(),
+                Duration::from_millis(400).mul_f32(speed)
+            );
             assert_eq!(app.world().resource::<Time>().delta(), expected);
         }
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         let before = app.world().resource::<Time<Virtual>>().elapsed();
         app.update();
-        assert_eq!(app.world().resource::<Time<Virtual>>().delta(), Duration::ZERO);
+        assert_eq!(
+            app.world().resource::<Time<Virtual>>().delta(),
+            Duration::ZERO
+        );
         assert_eq!(app.world().resource::<Time<Virtual>>().elapsed(), before);
         assert!(app.world().resource::<Time<Virtual>>().was_paused());
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         app.update();
-        assert_eq!(app.world().resource::<Time<Virtual>>().delta(), Duration::from_millis(600));
+        assert_eq!(
+            app.world().resource::<Time<Virtual>>().delta(),
+            Duration::from_millis(600)
+        );
     }
 }

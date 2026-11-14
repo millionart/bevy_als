@@ -1,9 +1,9 @@
+use crate::als::dynamics::{AlsComponentVelocity, component_velocity};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use avian3d::prelude::{
     Collider, ColliderOf, LinearVelocity, RigidBody, ShapeCastConfig, SpatialQueryFilter,
 };
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
-use crate::als::dynamics::{AlsComponentVelocity, component_velocity};
 use std::{collections::HashMap, sync::LazyLock};
 
 use crate::als::character::{
@@ -84,7 +84,11 @@ impl Default for AlsMantleControlSettings {
 
 impl AlsMantleControlSettings {
     pub fn draw_failed_traces(self, locomotion: LocomotionState) -> bool {
-        if locomotion == LocomotionState::Air { self.draw_failed_in_air_traces } else { self.draw_failed_grounded_traces }
+        if locomotion == LocomotionState::Air {
+            self.draw_failed_in_air_traces
+        } else {
+            self.draw_failed_grounded_traces
+        }
     }
 }
 
@@ -304,7 +308,7 @@ pub fn wrap_angle(angle: f32) -> f32 {
 pub fn mantle_trace_settings(locomotion: LocomotionState) -> MantleTraceSettings {
     match locomotion {
         LocomotionState::Air => MANTLE_IN_AIR_TRACE,
-        _ => MANTLE_GROUNDED_TRACE
+        _ => MANTLE_GROUNDED_TRACE,
     }
 }
 
@@ -468,8 +472,11 @@ pub fn mantle_blend_in_amount(kind: MantleKind, time: f32) -> f32 {
 
 pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
     let desired_yaw = match (input.velocity_yaw, input.input_yaw) {
-        (Some(velocity), Some(input)) => velocity + wrap_angle(input - velocity)
-            .clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE),
+        (Some(velocity), Some(input)) => {
+            velocity
+                + wrap_angle(input - velocity)
+                    .clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE)
+        }
         (Some(velocity), None) => velocity,
         (None, Some(input)) => input,
         (None, None) => input.actor_yaw,
@@ -487,7 +494,14 @@ pub fn detect_mantle(
     spatial: &SpatialQuery,
     excluded: Entity,
     input: MantleDetectionInput,
-    velocities: &Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
+    velocities: &Query<
+        (
+            Option<&RigidBody>,
+            Option<&LinearVelocity>,
+            Option<&AlsComponentVelocity>,
+        ),
+        Without<crate::als::character::AlsCharacter>,
+    >,
     target_permissions: &Query<Option<&AlsMantleTargetPermission>>,
     colliders: &Query<&ColliderOf>,
 ) -> MantleDetection {
@@ -514,7 +528,8 @@ pub fn detect_mantle(
         };
     };
     let settings = mantle_trace_settings(input.locomotion);
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]).with_mask(MANTLE_SETTINGS.trace_layer);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded])
+        .with_mask(MANTLE_SETTINGS.trace_layer);
     let capsule_scale = input.capsule_scale.abs().max(1e-4);
     let capsule_bottom = input.origin - Vec3::Y * input.capsule_half_height;
     let trace_radius = (input.capsule_radius - MANTLE_TRACE_CAPSULE_SHRINK).max(0.001);
@@ -524,7 +539,8 @@ pub fn detect_mantle(
     trace.forward_half_height = ledge_height_delta * 0.5;
     trace.target_half_height = input.capsule_half_height;
     trace.target_radius = input.capsule_radius;
-    trace.draw_failed_traces = AlsMantleControlSettings::default().draw_failed_traces(input.locomotion);
+    trace.draw_failed_traces =
+        AlsMantleControlSettings::default().draw_failed_traces(input.locomotion);
     let forward_start = capsule_bottom - forward * input.capsule_radius
         + Vec3::Y
             * ((settings.minimum_ledge_height + settings.maximum_ledge_height)
@@ -553,9 +569,17 @@ pub fn detect_mantle(
     };
     trace.forward_hit = Some(forward_hit.point1);
     trace.forward_hit_center = Some(forward_start + forward * forward_hit.distance);
-    let impact_normal = crate::als::motion::source_sweep_impact_normal(spatial, &forward_hit,
-        forward_end - forward_start, forward_start, Quat::IDENTITY, &forward_shape);
-    let body = colliders.get(forward_hit.entity).map_or(forward_hit.entity, |collider| collider.body);
+    let impact_normal = crate::als::motion::source_sweep_impact_normal(
+        spatial,
+        &forward_hit,
+        forward_end - forward_start,
+        forward_start,
+        Quat::IDENTITY,
+        &forward_shape,
+    );
+    let body = colliders
+        .get(forward_hit.entity)
+        .map_or(forward_hit.entity, |collider| collider.body);
     let target_allows_step_up = target_permissions
         .get(forward_hit.entity)
         .ok()
@@ -563,7 +587,8 @@ pub fn detect_mantle(
         .or_else(|| target_permissions.get(body).ok().flatten())
         .map(|permission| permission.allows_step_up)
         .unwrap_or(true);
-    if (forward_hit.distance == 0.0 && (forward_hit.point2 - forward_hit.point1).dot(forward_hit.normal1) < 0.0)
+    if (forward_hit.distance == 0.0
+        && (forward_hit.point2 - forward_hit.point1).dot(forward_hit.normal1) < 0.0)
         || impact_normal.y >= MANTLE_WALKABLE_FLOOR_COS
         || !target_allows_step_up
         || velocities
@@ -574,7 +599,8 @@ pub fn detect_mantle(
                     (Some(kind), Some(physical)) => component_velocity(kind, physical, component),
                     _ => component.map_or(Vec3::ZERO, |velocity| velocity.0),
                 };
-                velocity.length_squared() > MANTLE_TARGET_SPEED_THRESHOLD * MANTLE_TARGET_SPEED_THRESHOLD
+                velocity.length_squared()
+                    > MANTLE_TARGET_SPEED_THRESHOLD * MANTLE_TARGET_SPEED_THRESHOLD
             })
     {
         return MantleDetection {
@@ -582,8 +608,7 @@ pub fn detect_mantle(
             trace,
         };
     }
-    let target_direction =
-        Vec3::new(-impact_normal.x, 0.0, -impact_normal.z).normalize_or_zero();
+    let target_direction = Vec3::new(-impact_normal.x, 0.0, -impact_normal.z).normalize_or_zero();
     if target_direction.length_squared() <= 1e-6 {
         return MantleDetection {
             intent: None,
@@ -624,7 +649,8 @@ pub fn detect_mantle(
     let downward_location = downward_start - Vec3::Y * downward_hit.distance;
     trace.downward_hit_center = Some(downward_location);
     let approximate_slope_normal = (downward_location - downward_hit.point1).normalize_or_zero();
-    if (downward_hit.distance == 0.0 && (downward_hit.point2 - downward_hit.point1).dot(downward_hit.normal1) < 0.0)
+    if (downward_hit.distance == 0.0
+        && (downward_hit.point2 - downward_hit.point1).dot(downward_hit.normal1) < 0.0)
         || downward_hit.normal1.y < MANTLE_SLOPE_ANGLE_COS
         || approximate_slope_normal.y < MANTLE_SLOPE_ANGLE_COS
     {
@@ -848,8 +874,14 @@ impl AlsMantleState {
         yaw_target: f32,
         target_base: AlsMantleTargetBase,
     ) {
-        self.begin_with_start_time(kind, start.translation, target, start_time,
-            yaw_from_direction(start.rotation * Vec3::NEG_Z), yaw_target);
+        self.begin_with_start_time(
+            kind,
+            start.translation,
+            target,
+            start_time,
+            yaw_from_direction(start.rotation * Vec3::NEG_Z),
+            yaw_target,
+        );
         self.warp_start = start;
         self.capture_target_base(target_base);
     }
@@ -869,7 +901,9 @@ impl AlsMantleState {
             let world = self.target_base.map_or(*warp, |base| base.to_world(*warp));
             let rotation = (world.rotation * root.rotation.conjugate()).normalize();
             let world = Transform {
-                translation: world.translation - world.rotation * (world.scale * (root.rotation.conjugate() * root.translation)),
+                translation: world.translation
+                    - world.rotation
+                        * (world.scale * (root.rotation.conjugate() * root.translation)),
                 rotation,
                 ..default()
             };
@@ -998,19 +1032,39 @@ impl AlsMantleState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use avian3d::prelude::{CollisionLayers, LayerMask};
     use crate::als::character::AlsCollisionLayer;
+    use avian3d::prelude::{CollisionLayers, LayerMask};
 
     fn debug_probe_app(rotation: Quat) -> (App, Entity, Entity) {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
-            avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+        ));
         app.finish();
         app.cleanup();
-        let actor = app.world_mut().spawn((crate::als::character::AlsCharacter, Transform::from_xyz(0.0, 0.95, 0.0))).id();
-        let ledge = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
-            Transform::from_xyz(0.0, 0.4, -1.4).with_rotation(rotation))).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                crate::als::character::AlsCharacter,
+                Transform::from_xyz(0.0, 0.95, 0.0),
+            ))
+            .id();
+        let ledge = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.4, 0.8, 1.2),
+                CollisionLayers::new(
+                    [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                    LayerMask::ALL,
+                ),
+                Transform::from_xyz(0.0, 0.4, -1.4).with_rotation(rotation),
+            ))
+            .id();
         app.update();
         (app, actor, ledge)
     }
@@ -1028,36 +1082,72 @@ mod tests {
 
     #[test]
     fn mantle_uses_the_hit_components_own_velocity() {
-        for (body_speed, component_speed, allowed) in [(0.0, Some(0.2), false),
-            (0.2, Some(0.0), true), (0.2, None, true), (0.2, Some(0.2), false),
-            (0.0, Some(0.0), true), (0.2, Some(0.1), true)] {
+        for (body_speed, component_speed, allowed) in [
+            (0.0, Some(0.2), false),
+            (0.2, Some(0.0), true),
+            (0.2, None, true),
+            (0.2, Some(0.2), false),
+            (0.0, Some(0.0), true),
+            (0.2, Some(0.1), true),
+        ] {
             let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
-            let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_xyz(0.0, 0.4, -1.4),
-                AlsComponentVelocity(Vec3::X * body_speed))).id();
-            app.world_mut().entity_mut(ledge).remove::<RigidBody>().insert((ChildOf(body), Transform::IDENTITY));
+            let body = app
+                .world_mut()
+                .spawn((
+                    RigidBody::Kinematic,
+                    Transform::from_xyz(0.0, 0.4, -1.4),
+                    AlsComponentVelocity(Vec3::X * body_speed),
+                ))
+                .id();
+            app.world_mut()
+                .entity_mut(ledge)
+                .remove::<RigidBody>()
+                .insert((ChildOf(body), Transform::IDENTITY));
             if let Some(speed) = component_speed {
-                app.world_mut().entity_mut(ledge).insert(AlsComponentVelocity(Vec3::X * speed));
+                app.world_mut()
+                    .entity_mut(ledge)
+                    .insert(AlsComponentVelocity(Vec3::X * speed));
             }
             app.update();
             app.update();
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
-            assert_eq!(detection.intent.is_some(), allowed,
-                "body_speed={body_speed} component_speed={component_speed:?} trace={:?}", detection.trace);
-            if allowed { assert_eq!(detection.intent.unwrap().target_entity, ledge); }
+            assert_eq!(
+                detection.intent.is_some(),
+                allowed,
+                "body_speed={body_speed} component_speed={component_speed:?} trace={:?}",
+                detection.trace
+            );
+            if allowed {
+                assert_eq!(detection.intent.unwrap().target_entity, ledge);
+            }
         }
         for (speed, allowed) in [(0.0, true), (0.1, true), (0.2, false)] {
             let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
-            app.world_mut().entity_mut(ledge).insert(AlsComponentVelocity(Vec3::X * speed));
+            app.world_mut()
+                .entity_mut(ledge)
+                .insert(AlsComponentVelocity(Vec3::X * speed));
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
-            assert_eq!(detection.intent.is_some(), allowed, "speed={speed} trace={:?}", detection.trace);
+            assert_eq!(
+                detection.intent.is_some(),
+                allowed,
+                "speed={speed} trace={:?}",
+                detection.trace
+            );
         }
         for (physical, component, allowed) in [(0.0, 0.2, true), (0.2, 0.0, false)] {
             let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
-            app.world_mut().entity_mut(ledge).insert((RigidBody::Dynamic, LinearVelocity(Vec3::X * physical),
-                AlsComponentVelocity(Vec3::X * component)));
+            app.world_mut().entity_mut(ledge).insert((
+                RigidBody::Dynamic,
+                LinearVelocity(Vec3::X * physical),
+                AlsComponentVelocity(Vec3::X * component),
+            ));
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
-            assert_eq!(detection.intent.is_some(), allowed,
-                "physical={physical} component={component} trace={:?}", detection.trace);
+            assert_eq!(
+                detection.intent.is_some(),
+                allowed,
+                "physical={physical} component={component} trace={:?}",
+                detection.trace
+            );
         }
     }
 
@@ -1065,14 +1155,27 @@ mod tests {
     fn mantle_corner_targets_follow_the_geometric_face() {
         let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
         for lateral in [-1.3, -1.1, 0.0, 1.1, 1.3] {
-            app.world_mut().get_mut::<Transform>(actor).unwrap().translation.x = lateral;
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .translation
+                .x = lateral;
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
-            let intent = detection.intent.unwrap_or_else(|| panic!("lateral={lateral} trace={:?}", detection.trace));
+            let intent = detection
+                .intent
+                .unwrap_or_else(|| panic!("lateral={lateral} trace={:?}", detection.trace));
             assert_eq!(intent.target_entity, ledge);
             let impact = detection.trace.forward_hit.unwrap();
-            assert!((intent.target.x - impact.x).abs() < 0.0001,
-                "lateral={lateral} impact={impact:?} target={:?}", intent.target);
-            assert!(intent.yaw_target.abs() < 0.0001, "lateral={lateral} yaw={}", intent.yaw_target);
+            assert!(
+                (intent.target.x - impact.x).abs() < 0.0001,
+                "lateral={lateral} impact={impact:?} target={:?}",
+                intent.target
+            );
+            assert!(
+                intent.yaw_target.abs() < 0.0001,
+                "lateral={lateral} yaw={}",
+                intent.yaw_target
+            );
         }
     }
 
@@ -1080,22 +1183,51 @@ mod tests {
     fn mantle_reads_character_step_permission_from_root_and_child_colliders() {
         for child in [false, true] {
             let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
-            assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some());
+            assert!(
+                debug_probe(&mut app, actor, LocomotionState::Grounded)
+                    .intent
+                    .is_some()
+            );
             let character = if child {
-                let parent = app.world_mut().spawn((crate::als::character::AlsCharacter, RigidBody::Static,
-                    Transform::from_xyz(0.0, 0.4, -1.4))).id();
-                app.world_mut().entity_mut(ledge).remove::<RigidBody>().insert((ChildOf(parent), Transform::IDENTITY));
+                let parent = app
+                    .world_mut()
+                    .spawn((
+                        crate::als::character::AlsCharacter,
+                        RigidBody::Static,
+                        Transform::from_xyz(0.0, 0.4, -1.4),
+                    ))
+                    .id();
+                app.world_mut()
+                    .entity_mut(ledge)
+                    .remove::<RigidBody>()
+                    .insert((ChildOf(parent), Transform::IDENTITY));
                 parent
             } else {
-                app.world_mut().entity_mut(ledge).insert(crate::als::character::AlsCharacter);
+                app.world_mut()
+                    .entity_mut(ledge)
+                    .insert(crate::als::character::AlsCharacter);
                 ledge
             };
             app.update();
             app.update();
             let denied = debug_probe(&mut app, actor, LocomotionState::Grounded);
-            assert_eq!(denied.trace.result, MantleProbeResult::ForwardRejected, "child={child} trace={:?}", denied.trace);
-            app.world_mut().entity_mut(character).insert(AlsMantleTargetPermission { allows_step_up: true });
-            assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some(), "child={child}");
+            assert_eq!(
+                denied.trace.result,
+                MantleProbeResult::ForwardRejected,
+                "child={child} trace={:?}",
+                denied.trace
+            );
+            app.world_mut()
+                .entity_mut(character)
+                .insert(AlsMantleTargetPermission {
+                    allows_step_up: true,
+                });
+            assert!(
+                debug_probe(&mut app, actor, LocomotionState::Grounded)
+                    .intent
+                    .is_some(),
+                "child={child}"
+            );
         }
     }
 
@@ -1103,11 +1235,21 @@ mod tests {
     fn mantle_rejects_an_initially_penetrating_forward_sweep() {
         let (mut app, actor, _) = debug_probe_app(Quat::IDENTITY);
         for height in [0.4, 0.6, 0.95] {
-            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = Vec3::new(0.0, height, -1.3);
+            app.world_mut()
+                .get_mut::<Transform>(actor)
+                .unwrap()
+                .translation = Vec3::new(0.0, height, -1.3);
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
             assert!(detection.trace.forward_hit.is_some());
-            assert_eq!(detection.trace.forward_hit_center, detection.trace.forward_start);
-            assert_eq!(detection.trace.result, MantleProbeResult::ForwardRejected, "height={height}");
+            assert_eq!(
+                detection.trace.forward_hit_center,
+                detection.trace.forward_start
+            );
+            assert_eq!(
+                detection.trace.result,
+                MantleProbeResult::ForwardRejected,
+                "height={height}"
+            );
             assert!(detection.intent.is_none());
         }
     }
@@ -1118,16 +1260,30 @@ mod tests {
         let source = debug_probe(&mut app, actor, LocomotionState::Grounded);
         assert!(source.intent.is_some());
         let center = source.trace.downward_start.unwrap();
-        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.16, 0.12, 0.16),
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
-            Transform::from_translation(center + Vec3::new(0.0, -0.26, -0.12))));
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(0.16, 0.12, 0.16),
+            CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                LayerMask::ALL,
+            ),
+            Transform::from_translation(center + Vec3::new(0.0, -0.26, -0.12)),
+        ));
         app.update();
         let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
-        assert_eq!(detection.trace.forward_hit, source.trace.forward_hit, "The added upper surface must not alter the source forward wall hit: {detection:?}");
-        assert_eq!(detection.trace.downward_hit_center, detection.trace.downward_start,
-            "The downward source counterexample must start penetrating the upper surface: {detection:?}");
-        assert_eq!(detection.trace.result, MantleProbeResult::DownwardRejected,
-            "Source IsWalkable rejects initial penetration before target and start overlaps: {detection:?}");
+        assert_eq!(
+            detection.trace.forward_hit, source.trace.forward_hit,
+            "The added upper surface must not alter the source forward wall hit: {detection:?}"
+        );
+        assert_eq!(
+            detection.trace.downward_hit_center, detection.trace.downward_start,
+            "The downward source counterexample must start penetrating the upper surface: {detection:?}"
+        );
+        assert_eq!(
+            detection.trace.result,
+            MantleProbeResult::DownwardRejected,
+            "Source IsWalkable rejects initial penetration before target and start overlaps: {detection:?}"
+        );
         assert!(detection.intent.is_none());
     }
 
@@ -1139,36 +1295,87 @@ mod tests {
         assert_eq!(success.trace.result, MantleProbeResult::Success);
         assert!((success.trace.trace_radius - 0.29).abs() < 1e-6);
         assert!((success.trace.forward_half_height - 0.875).abs() < 1e-6);
-        assert_eq!((success.trace.target_half_height, success.trace.target_radius), (0.9, 0.3));
-        assert!(success.trace.forward_hit_center.is_some() && success.trace.downward_hit_center.is_some() && success.trace.start_capsule_center.is_some());
+        assert_eq!(
+            (
+                success.trace.target_half_height,
+                success.trace.target_radius
+            ),
+            (0.9, 0.3)
+        );
+        assert!(
+            success.trace.forward_hit_center.is_some()
+                && success.trace.downward_hit_center.is_some()
+                && success.trace.start_capsule_center.is_some()
+        );
         assert!(success.trace.draw_failed_traces);
-        assert!(!debug_probe(&mut app, actor, LocomotionState::Air).trace.draw_failed_traces);
-        app.world_mut().entity_mut(ledge).insert(AlsMantleTargetPermission { allows_step_up: false });
+        assert!(
+            !debug_probe(&mut app, actor, LocomotionState::Air)
+                .trace
+                .draw_failed_traces
+        );
+        app.world_mut()
+            .entity_mut(ledge)
+            .insert(AlsMantleTargetPermission {
+                allows_step_up: false,
+            });
         let rejected = debug_probe(&mut app, actor, LocomotionState::Grounded);
         assert_eq!(rejected.trace.result, MantleProbeResult::ForwardRejected);
         assert!(rejected.trace.forward_hit.is_some() && rejected.trace.downward_start.is_none());
-        app.world_mut().entity_mut(ledge).remove::<AlsMantleTargetPermission>();
-        let blocker = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.01, 0.1, 0.2),
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
-            Transform::from_xyz(0.296, 1.7, -0.95))).id();
+        app.world_mut()
+            .entity_mut(ledge)
+            .remove::<AlsMantleTargetPermission>();
+        let blocker = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(0.01, 0.1, 0.2),
+                CollisionLayers::new(
+                    [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                    LayerMask::ALL,
+                ),
+                Transform::from_xyz(0.296, 1.7, -0.95),
+            ))
+            .id();
         app.update();
         let blocked = debug_probe(&mut app, actor, LocomotionState::Grounded);
-        assert_eq!(blocked.trace.result, MantleProbeResult::TargetBlocked, "{blocked:?}");
+        assert_eq!(
+            blocked.trace.result,
+            MantleProbeResult::TargetBlocked,
+            "{blocked:?}"
+        );
         assert!(blocked.intent.is_none());
         app.world_mut().despawn(blocker);
-        app.world_mut().entity_mut(ledge).insert((Collider::cuboid(2.4, 3.5, 1.2), Transform::from_xyz(0.0, 1.75, -1.4)));
+        app.world_mut().entity_mut(ledge).insert((
+            Collider::cuboid(2.4, 3.5, 1.2),
+            Transform::from_xyz(0.0, 1.75, -1.4),
+        ));
         app.update();
-        assert_eq!(debug_probe(&mut app, actor, LocomotionState::Grounded).trace.result, MantleProbeResult::DownwardRejected);
+        assert_eq!(
+            debug_probe(&mut app, actor, LocomotionState::Grounded)
+                .trace
+                .result,
+            MantleProbeResult::DownwardRejected
+        );
         let (mut app, actor, _) = debug_probe_app(Quat::from_rotation_y(0.7));
         let success = debug_probe(&mut app, actor, LocomotionState::Grounded);
         assert!(success.intent.is_some(), "{success:?}");
         let center = success.trace.start_capsule_center.unwrap();
-        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 0.1, 0.04),
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
-            Transform::from_translation(center + Vec3::X * center.x.signum() * 0.2)));
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(0.04, 0.1, 0.04),
+            CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                LayerMask::ALL,
+            ),
+            Transform::from_translation(center + Vec3::X * center.x.signum() * 0.2),
+        ));
         app.update();
         let blocked = debug_probe(&mut app, actor, LocomotionState::Grounded);
-        assert_eq!(blocked.trace.result, MantleProbeResult::StartBlocked, "{blocked:?}");
+        assert_eq!(
+            blocked.trace.result,
+            MantleProbeResult::StartBlocked,
+            "{blocked:?}"
+        );
         assert!(blocked.intent.is_none());
     }
 
@@ -1176,18 +1383,48 @@ mod tests {
     fn mantle_visibility_filter_applies_to_sweeps_and_overlaps() {
         use avian3d::prelude::{CollisionLayers, LayerMask};
         let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
-        app.world_mut().entity_mut(ledge).insert(CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL));
+        app.world_mut()
+            .entity_mut(ledge)
+            .insert(CollisionLayers::new(
+                crate::als::character::AlsCollisionLayer::Default,
+                LayerMask::ALL,
+            ));
         app.update();
         let ignored = debug_probe(&mut app, actor, LocomotionState::Grounded);
-        assert!(ignored.intent.is_none() && ignored.trace.forward_hit.is_none(), "Physics contact must not imply a Visibility query hit");
-        app.world_mut().entity_mut(ledge).insert(CollisionLayers::ALL);
-        let blocker = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.01, 0.1, 0.2),
-            Transform::from_xyz(0.296, 1.7, -0.95), CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default, LayerMask::ALL))).id();
+        assert!(
+            ignored.intent.is_none() && ignored.trace.forward_hit.is_none(),
+            "Physics contact must not imply a Visibility query hit"
+        );
+        app.world_mut()
+            .entity_mut(ledge)
+            .insert(CollisionLayers::ALL);
+        let blocker = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(0.01, 0.1, 0.2),
+                Transform::from_xyz(0.296, 1.7, -0.95),
+                CollisionLayers::new(
+                    crate::als::character::AlsCollisionLayer::Default,
+                    LayerMask::ALL,
+                ),
+            ))
+            .id();
         app.update();
-        assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some());
-        app.world_mut().entity_mut(blocker).insert(CollisionLayers::ALL);
+        assert!(
+            debug_probe(&mut app, actor, LocomotionState::Grounded)
+                .intent
+                .is_some()
+        );
+        app.world_mut()
+            .entity_mut(blocker)
+            .insert(CollisionLayers::ALL);
         app.update();
-        assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_none());
+        assert!(
+            debug_probe(&mut app, actor, LocomotionState::Grounded)
+                .intent
+                .is_none()
+        );
     }
 
     #[test]
@@ -1352,7 +1589,8 @@ mod tests {
             (0.01, -MANTLE_MAX_REACH_ANGLE),
         ] {
             let input = MantleDetectionInput {
-                velocity_yaw: crate::als::motion::locomotion_movement_flags(false, speed).0
+                velocity_yaw: crate::als::motion::locomotion_movement_flags(false, speed)
+                    .0
                     .then_some(-std::f32::consts::FRAC_PI_2),
                 ..default()
             };
@@ -1444,28 +1682,55 @@ mod tests {
 
     #[test]
     fn mantle_initial_root_inverse_uses_the_full_actor_transform() {
-        let root = Transform::from_xyz(0.4, 0.8, -0.3)
-            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.25, -0.1, 0.2));
+        let root = Transform::from_xyz(0.4, 0.8, -0.3).with_rotation(Quat::from_euler(
+            EulerRot::YXZ,
+            0.25,
+            -0.1,
+            0.2,
+        ));
         let target = Vec3::new(1.0, 2.0, -3.0);
         for relative_location in [false, true] {
-            let base = AlsMantleTargetBase { entity: Entity::from_raw_u32(2).unwrap(),
-                translation: Vec3::new(0.5, -0.2, 0.3), rotation: Quat::from_rotation_y(0.4),
-                scale: Vec3::new(2.0, 0.5, 1.5), relative_location };
-            for scale in [Vec3::splat(0.75), Vec3::ONE, Vec3::splat(1.5), Vec3::new(0.8, 1.2, 1.6)] {
+            let base = AlsMantleTargetBase {
+                entity: Entity::from_raw_u32(2).unwrap(),
+                translation: Vec3::new(0.5, -0.2, 0.3),
+                rotation: Quat::from_rotation_y(0.4),
+                scale: Vec3::new(2.0, 0.5, 1.5),
+                relative_location,
+            };
+            for scale in [
+                Vec3::splat(0.75),
+                Vec3::ONE,
+                Vec3::splat(1.5),
+                Vec3::new(0.8, 1.2, 1.6),
+            ] {
                 for (pitch, roll) in [(0.0, 0.0), (0.2, 0.0), (0.0, 0.2), (0.2, -0.2)] {
                     let start = Transform::from_xyz(0.2, 1.3, 0.7)
-                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.3, pitch, roll)).with_scale(scale);
+                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.3, pitch, roll))
+                        .with_scale(scale);
                     let mut state = AlsMantleState::default();
-                    state.begin_with_target_base_and_start_time(MantleKind::LowRight, start, target, 0.0, 0.1, base);
+                    state.begin_with_target_base_and_start_time(
+                        MantleKind::LowRight,
+                        start,
+                        target,
+                        0.0,
+                        0.1,
+                        base,
+                    );
                     state.prepare_root_motion(root, Transform::IDENTITY);
                     let warp = base.to_world(state.warp_start);
-                    let expected_rotation = (start.rotation * root.rotation.conjugate()).normalize();
+                    let expected_rotation =
+                        (start.rotation * root.rotation.conjugate()).normalize();
                     let expected_position = start.translation
-                        - start.rotation * (start.scale * (root.rotation.conjugate() * root.translation));
-                    assert!(warp.translation.abs_diff_eq(expected_position, 1e-5),
-                        "relative={relative_location} scale={scale:?} pitch={pitch} roll={roll} actual={:?} expected={expected_position:?}", warp.translation);
+                        - start.rotation
+                            * (start.scale * (root.rotation.conjugate() * root.translation));
+                    assert!(
+                        warp.translation.abs_diff_eq(expected_position, 1e-5),
+                        "relative={relative_location} scale={scale:?} pitch={pitch} roll={roll} actual={:?} expected={expected_position:?}",
+                        warp.translation
+                    );
                     assert!(warp.rotation.angle_between(expected_rotation) < 1e-4);
-                    let twist = Quat::from_xyzw(0.0, expected_rotation.y, 0.0, expected_rotation.w).normalize();
+                    let twist = Quat::from_xyzw(0.0, expected_rotation.y, 0.0, expected_rotation.w)
+                        .normalize();
                     let expected_actor = expected_position + twist * root.translation;
                     let actor = state.target_actor_transform_at(0.0, root);
                     assert!(actor.translation.abs_diff_eq(expected_actor, 1e-5));

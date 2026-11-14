@@ -1,5 +1,6 @@
 use crate::als::character::AlsCharacter;
 use crate::extensions::{InterruptibleFsmNode, InterruptibleFsmState};
+use crate::{character_assembly::AlsCharacterAvatar, crouching_layer::AlsCrouchingLayerSet};
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
@@ -9,9 +10,9 @@ use bevy_animation_graph::core::{
     plugin::AnimationGraphSet,
     state_machine::{high_level::StateMachine, low_level::LowLevelStateId},
 };
-use crate::{character_assembly::AlsCharacterAvatar, crouching_layer::AlsCrouchingLayerSet};
 
-const GROUNDED_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
+const GROUNDED_GRAPH: &str =
+    "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
 const GROUNDED_STATES_NODE_NAME: &str = "Grounded States\nState Machine";
 
 pub use crate::als::state::AlsGroundedEntryMode;
@@ -33,10 +34,17 @@ pub struct GroundedLayerPlugin;
 
 impl Plugin for GroundedLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(PostUpdate, AlsGroundedLayerSet
-            .after(AlsCrouchingLayerSet).before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
-            .add_systems(Startup, load_grounded_graph)
-            .add_systems(PostUpdate, capture_grounded_graph_telemetry.after(AnimationGraphSet::Final));
+        app.configure_sets(
+            PostUpdate,
+            AlsGroundedLayerSet.after(AlsCrouchingLayerSet).before(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
+        )
+        .add_systems(Startup, load_grounded_graph)
+        .add_systems(
+            PostUpdate,
+            capture_grounded_graph_telemetry.after(AnimationGraphSet::Final),
+        );
     }
 }
 
@@ -72,7 +80,9 @@ fn actual_grounded_fsm_telemetry(
     let arena = player.get_context_arena()?;
     arena.iter_context_ids().find_map(|context_id| {
         let context = arena.get_context(context_id)?;
-        if context.get_graph_id() != fsm_graph || !context.node_caches.is_updated(fsm_node, StateKey::Default) {
+        if context.get_graph_id() != fsm_graph
+            || !context.node_caches.is_updated(fsm_node, StateKey::Default)
+        {
             return None;
         }
         let state = context
@@ -108,12 +118,7 @@ fn capture_grounded_graph_telemetry(
             continue;
         };
         let actual = graph_assets.get(&handle.0).and_then(|graph| {
-            actual_grounded_fsm_telemetry(
-                player,
-                graph,
-                &handle.0,
-                &state_machines,
-            )
+            actual_grounded_fsm_telemetry(player, graph, &handle.0, &state_machines)
         });
         let telemetry = AlsGroundedGraphTelemetry {
             actual_state: actual.and_then(|value| value.0),
@@ -138,13 +143,25 @@ mod tests {
     #[test]
     fn grounded_fsm_telemetry_uses_the_authored_node_title() {
         assert_eq!(GROUNDED_STATES_NODE_NAME, "Grounded States\nState Machine");
-        assert!(include_str!("../../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron")
-            .contains(&format!("graph: \"{GROUNDED_GRAPH}\"")));
+        assert!(
+            include_str!("../../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron")
+                .contains(&format!("graph: \"{GROUNDED_GRAPH}\""))
+        );
     }
 
     #[test]
     fn grounded_graph_telemetry_labels_match_the_loaded_fsm() {
-        for (index, label) in ["Entry Conduit", "Standing", "Crouching", "Standing To Crouching", "Crouching To Standing", "Roll"].into_iter().enumerate() {
+        for (index, label) in [
+            "Entry Conduit",
+            "Standing",
+            "Crouching",
+            "Standing To Crouching",
+            "Crouching To Standing",
+            "Roll",
+        ]
+        .into_iter()
+        .enumerate()
+        {
             assert_eq!(grounded_state_index(label), Some(index as u8));
         }
         assert_eq!(grounded_state_index("Unknown"), None);

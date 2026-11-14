@@ -3,10 +3,9 @@ use std::{collections::hash_map::RandomState, hash::BuildHasher};
 use bevy::prelude::*;
 
 use super::{
-    AlsCameraDebugInfo, AlsCameraDefinition, AlsCameraDefinitionHandle, AlsCameraFieldOfView,
-    AlsCameraShakeRequest, AlsCameraViewSource, AlsCharacterCamera, CameraShakeDefinition,
-    AlsCameraAnimationFrame, AlsCameraViewInfo,
-    set_field_of_view,
+    AlsCameraAnimationFrame, AlsCameraDebugInfo, AlsCameraDefinition, AlsCameraDefinitionHandle,
+    AlsCameraFieldOfView, AlsCameraShakeRequest, AlsCameraViewInfo, AlsCameraViewSource,
+    AlsCharacterCamera, CameraShakeDefinition, set_field_of_view,
 };
 
 #[derive(Component, Debug)]
@@ -130,7 +129,14 @@ pub(super) fn apply_camera_shakes(
     time: Res<Time<Virtual>>,
     definitions: Res<Assets<AlsCameraDefinition>>,
     owners: Query<&AlsCameraDefinitionHandle>,
-    valid_view_owners: Query<(), (With<GlobalTransform>, With<crate::als::motion::AlsViewYaw>, With<crate::als::state::Stance>)>,
+    valid_view_owners: Query<
+        (),
+        (
+            With<GlobalTransform>,
+            With<crate::als::motion::AlsViewYaw>,
+            With<crate::als::state::Stance>,
+        ),
+    >,
     frames: Query<&AlsCameraAnimationFrame>,
     component_views: Query<&AlsCameraViewInfo>,
     mut views: Query<
@@ -149,7 +155,16 @@ pub(super) fn apply_camera_shakes(
     mut diagnostics: Query<&mut AlsCameraDebugInfo>,
 ) {
     let requests: Vec<_> = requests.read().copied().collect();
-    for (entity, owner, mut shakes, current_transform, mut projection, mut field_of_view, source, parent) in &mut views
+    for (
+        entity,
+        owner,
+        mut shakes,
+        current_transform,
+        mut projection,
+        mut field_of_view,
+        source,
+        parent,
+    ) in &mut views
     {
         let Ok(handle) = owners.get(owner.character) else {
             continue;
@@ -200,11 +215,15 @@ pub(super) fn apply_camera_shakes(
         }
         if let Some(parent) = parent
             && valid_view_owners.contains(owner.character)
-            && source.is_some_and(|source| frames.get(source.0).is_ok_and(|frame| {
-                !frame.active || component_views.get(source.0).is_ok_and(|view| view.valid)
-            }))
+            && source.is_some_and(|source| {
+                frames.get(source.0).is_ok_and(|frame| {
+                    !frame.active || component_views.get(source.0).is_ok_and(|view| view.valid)
+                })
+            })
         {
-            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else {
+                continue;
+            };
             transform = GlobalTransform::from(transform).reparented_to(&world);
         }
         commands.entity(entity).insert(transform);

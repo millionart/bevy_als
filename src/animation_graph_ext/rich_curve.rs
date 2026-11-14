@@ -222,7 +222,12 @@ pub fn sample_rich_curve(keys: &[RichCurveKey], time: f32) -> f32 {
             weighted_cubic(left, right, time)
         }
         RichCurveInterpolation::Cubic => unweighted_cubic(
-            left.v, right.v, left.leave_tangent, right.arrive_tangent, span, alpha,
+            left.v,
+            right.v,
+            left.leave_tangent,
+            right.arrive_tangent,
+            span,
+            alpha,
         ),
     }
 }

@@ -56,7 +56,10 @@ pub struct SourceAssetSample {
     pub clip: Handle<bevy_animation_graph::core::animation_clip::GraphClip>,
     pub clock: SourceRelevantAsset,
     pub sync_group: String,
-    pub sync_identity: Option<(bevy_animation_graph::core::context::graph_context_arena::GraphContextId, NodeId)>,
+    pub sync_identity: Option<(
+        bevy_animation_graph::core::context::graph_context_arena::GraphContextId,
+        NodeId,
+    )>,
     pub montage: bool,
     pub interrupted: bool,
     pub slot_key: String,
@@ -101,7 +104,10 @@ pub struct AnimationContextState {
     #[reflect(ignore)]
     pub(crate) source_pose: Option<std::sync::Arc<crate::extensions::source_pose::SourcePose>>,
     #[reflect(ignore)]
-    pub(crate) source_slot_poses: Vec<(std::sync::Arc<crate::extensions::source_pose::SourcePose>, f32)>,
+    pub(crate) source_slot_poses: Vec<(
+        std::sync::Arc<crate::extensions::source_pose::SourcePose>,
+        f32,
+    )>,
 }
 
 impl AnimationContextState {
@@ -109,14 +115,20 @@ impl AnimationContextState {
         &self,
         pose: &Pose,
     ) -> Option<&std::sync::Arc<crate::extensions::source_pose::SourcePose>> {
-        self.source_pose.as_ref().filter(|source| source.matches_projection(pose))
+        self.source_pose
+            .as_ref()
+            .filter(|source| source.matches_projection(pose))
     }
 }
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SourceCachedPoseRequestRoute {
     pub frame: u64,
-    pub caller: (bevy_animation_graph::core::context::graph_context_arena::GraphContextId, NodeId, StateKey),
+    pub caller: (
+        bevy_animation_graph::core::context::graph_context_arena::GraphContextId,
+        NodeId,
+        StateKey,
+    ),
     pub forward: bool,
 }
 
@@ -287,60 +299,62 @@ pub fn pose_input_context_state(
         .edges_inverted
         .get(&TargetPin::NodeData(ctx.node_id, pose_input.to_owned()))?
     {
-        SourcePin::NodeData(node, _) => node_context_state(ctx.graph_context.node_states(), ctx.graph_context.state_key, *node).cloned(),
+        SourcePin::NodeData(node, _) => node_context_state(
+            ctx.graph_context.node_states(),
+            ctx.graph_context.state_key,
+            *node,
+        )
+        .cloned(),
         SourcePin::InputData(pin) => Some(linked_input_context(&ctx.graph_context, pin)),
         _ => None,
     }
 }
 
-pub fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {
-    if let Ok(state) = states.get::<crate::extensions::layered_graph::LayeredGraphState>(node, key) {
-        return Some(&state.context);
-    }
-    if let Ok(state) = states.get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(node, key) {
-        return Some(&state.context);
-    }
-    if let Ok(state) = states
-        .get::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>(node, key)
+pub fn node_context_state(
+    states: &NodeStates,
+    key: StateKey,
+    node: NodeId,
+) -> Option<&AnimationContextState> {
+    if let Ok(state) = states.get::<crate::extensions::layered_graph::LayeredGraphState>(node, key)
     {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<AnimationContextState>(node.clone(), key)
+    if let Ok(state) =
+        states.get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(node, key)
     {
+        return Some(&state.context);
+    }
+    if let Ok(state) =
+        states.get::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>(node, key)
+    {
+        return Some(&state.context);
+    }
+    if let Ok(state) = states.get::<AnimationContextState>(node.clone(), key) {
         return Some(state);
     }
-    if let Ok(state) = states
-        .get::<SourceInertializationState>(node.clone(), key)
+    if let Ok(state) = states.get::<SourceInertializationState>(node.clone(), key) {
+        return Some(&state.context);
+    }
+    if let Ok(state) =
+        states.get::<crate::extensions::inertialization::InertializationState>(node, key)
     {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<crate::extensions::inertialization::InertializationState>(node, key)
-    {
+    if let Ok(state) = states.get::<SourceSequencePlayerState>(node.clone(), key) {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<SourceSequencePlayerState>(node.clone(), key)
-    {
+    if let Ok(state) = states.get::<SourceTwoWayBlendState>(node.clone(), key) {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<SourceTwoWayBlendState>(node.clone(), key)
-    {
+    if let Ok(state) = states.get::<SourceGameplayTagBlendState>(node.clone(), key) {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<SourceGameplayTagBlendState>(node.clone(), key)
-    {
+    if let Ok(state) = states.get::<SourceBlendState>(node.clone(), key) {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<SourceBlendState>(node.clone(), key)
+    if let Ok(state) =
+        states.get::<crate::extensions::source_stop_nodes::SourceLayeredBoneBlendState>(node, key)
     {
-        return Some(&state.context);
-    }
-    if let Ok(state) = states.get::<crate::extensions::source_stop_nodes::SourceLayeredBoneBlendState>(node, key) {
         return Some(&state.context);
     }
     states
@@ -358,7 +372,9 @@ pub fn graph_output_context_state(
         .edges_inverted
         .get(&TargetPin::OutputData(output.to_owned()))?;
     match source {
-        SourcePin::NodeData(node, _) => node_context_state(ctx.node_states(), ctx.state_key, *node).cloned(),
+        SourcePin::NodeData(node, _) => {
+            node_context_state(ctx.node_states(), ctx.state_key, *node).cloned()
+        }
         SourcePin::InputData(pin) => Some(linked_input_context(ctx, pin)),
         _ => None,
     }
@@ -377,15 +393,23 @@ pub fn merge_missing_context_curves(
     target.curves_are_authoritative |= source.curves_are_authoritative;
     merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
     merge_asset_samples(&mut target.asset_samples, &source.asset_samples, 1.0);
-    merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
-    merge_inertialization_request(&mut target.skipped_cached_pose_request, source.skipped_cached_pose_request.as_ref());
+    merge_inertialization_request(
+        &mut target.inertialization_request,
+        source.inertialization_request.as_ref(),
+    );
+    merge_inertialization_request(
+        &mut target.skipped_cached_pose_request,
+        source.skipped_cached_pose_request.as_ref(),
+    );
 }
 
 pub(crate) fn merge_inertialization_request(
     target: &mut Option<SourceInertializationRequest>,
     source: Option<&SourceInertializationRequest>,
 ) {
-    let Some(source) = source else { return; };
+    let Some(source) = source else {
+        return;
+    };
     match target {
         Some(current) if current.frame == source.frame => {
             for origin in &source.cached_pose_origins {
@@ -394,10 +418,16 @@ pub(crate) fn merge_inertialization_request(
                 }
             }
             if current.parts.is_empty() {
-                current.parts.push(SourceInertializationPart { duration: current.duration, ..default() });
+                current.parts.push(SourceInertializationPart {
+                    duration: current.duration,
+                    ..default()
+                });
             }
             if source.parts.is_empty() {
-                current.parts.push(SourceInertializationPart { duration: source.duration, ..default() });
+                current.parts.push(SourceInertializationPart {
+                    duration: source.duration,
+                    ..default()
+                });
             } else {
                 current.parts.extend(source.parts.iter().cloned());
             }
@@ -414,7 +444,11 @@ pub fn merge_sync_players(
     weight: f32,
 ) {
     for player in source {
-        let weight = if player.weight_is_absolute { player.weight } else { player.weight * weight.max(0.0) };
+        let weight = if player.weight_is_absolute {
+            player.weight
+        } else {
+            player.weight * weight.max(0.0)
+        };
         if let Some(existing) = target
             .iter_mut()
             .find(|existing| existing.identity == player.identity)
@@ -438,8 +472,14 @@ pub fn merge_linked_input_context(
     target: &mut AnimationContextState,
     source: &AnimationContextState,
 ) {
-    merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
-    merge_inertialization_request(&mut target.skipped_cached_pose_request, source.skipped_cached_pose_request.as_ref());
+    merge_inertialization_request(
+        &mut target.inertialization_request,
+        source.inertialization_request.as_ref(),
+    );
+    merge_inertialization_request(
+        &mut target.skipped_cached_pose_request,
+        source.skipped_cached_pose_request.as_ref(),
+    );
     if !target.curves_are_authoritative {
         for (name, value) in &source.curves {
             target.curves.entry(name.clone()).or_insert(*value);
@@ -452,12 +492,23 @@ pub fn merge_linked_input_context(
     }
 }
 
-pub fn merge_asset_samples(target: &mut Vec<SourceAssetSample>, source: &[SourceAssetSample], weight: f32) {
+pub fn merge_asset_samples(
+    target: &mut Vec<SourceAssetSample>,
+    source: &[SourceAssetSample],
+    weight: f32,
+) {
     for sample in source {
-        if weight <= 1e-5 { continue; }
+        if weight <= 1e-5 {
+            continue;
+        }
         let weight = sample.clock.weight * if sample.montage { 1.0 } else { weight.max(0.0) };
-        if weight <= 1e-5 { continue; }
-        if let Some(existing) = target.iter_mut().find(|existing| existing.identity == sample.identity) {
+        if weight <= 1e-5 {
+            continue;
+        }
+        if let Some(existing) = target
+            .iter_mut()
+            .find(|existing| existing.identity == sample.identity)
+        {
             existing.clock.weight = existing.clock.weight.max(weight);
         } else {
             let mut sample = sample.clone();
@@ -503,11 +554,10 @@ fn source_curve_value(
     default: Option<f32>,
 ) -> Result<f32, GraphError> {
     let state_key = ctx.graph_context.state_key;
-    if let Some(state) = node_context_state(
-        ctx.graph_context.node_states(),
-        state_key,
-        source_node,
-    ) && let Some(value) = state.curves.get(&crate::extensions::SourceCurveName::from(curve_name))
+    if let Some(state) = node_context_state(ctx.graph_context.node_states(), state_key, source_node)
+        && let Some(value) = state
+            .curves
+            .get(&crate::extensions::SourceCurveName::from(curve_name))
     {
         return Ok(*value);
     }
@@ -590,12 +640,16 @@ mod tests {
 
     #[test]
     fn sync_merge_retains_updated_zero_weight_and_uses_the_largest_cache_request() {
-        use bevy_animation_graph::core::context::graph_context_arena::GraphContextId;
         use crate::extensions::sync_group_phase::SourceSyncPlayerTick;
+        use bevy_animation_graph::core::context::graph_context_arena::GraphContextId;
 
         let tick = |index| SourceSyncPlayerTick {
-            identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(index).into()),
-            weight: 1.0, ..default()
+            identity: (
+                GraphContextId::default(),
+                bevy::asset::uuid::Uuid::from_u128(index).into(),
+            ),
+            weight: 1.0,
+            ..default()
         };
         let zero = tick(1);
         let small = tick(2);
@@ -604,30 +658,47 @@ mod tests {
         merge_sync_players(&mut merged, std::slice::from_ref(&small), 1e-6);
         merge_sync_players(&mut merged, std::slice::from_ref(&small), 0.0);
         merge_sync_players(&mut merged, std::slice::from_ref(&small), 8e-6);
-        assert_eq!(merged.iter().map(|tick| (tick.identity, tick.weight)).collect::<Vec<_>>(),
-            [(zero.identity, 0.0), (small.identity, 8e-6)]);
+        assert_eq!(
+            merged
+                .iter()
+                .map(|tick| (tick.identity, tick.weight))
+                .collect::<Vec<_>>(),
+            [(zero.identity, 0.0), (small.identity, 8e-6)]
+        );
     }
 
     #[test]
     fn source_asset_samples_preserve_notify_weights_and_cache_scope() {
         let sample = |identity: &str, montage| AnimationContextState {
             asset_samples: vec![SourceAssetSample {
-                identity: identity.to_owned(), montage,
-                clock: SourceRelevantAsset { weight: 0.8, ..default() }, ..default()
-            }], ..default()
+                identity: identity.to_owned(),
+                montage,
+                clock: SourceRelevantAsset {
+                    weight: 0.8,
+                    ..default()
+                },
+                ..default()
+            }],
+            ..default()
         };
         let blended = crate::extensions::source_pose_nodes::blend_animation_contexts([
-            (sample("cached", false), 0.25), (sample("cached", false), 0.75),
-            (sample("montage", true), 0.1), (sample("unrelated", false), 0.0),
+            (sample("cached", false), 0.25),
+            (sample("cached", false), 0.75),
+            (sample("montage", true), 0.1),
+            (sample("unrelated", false), 0.0),
         ]);
         assert_eq!(blended.asset_samples.len(), 2);
         assert!((blended.asset_samples[0].clock.weight - 0.6).abs() < 1e-6);
         assert_eq!(blended.asset_samples[1].clock.weight, 0.8);
         let independent = crate::extensions::source_pose_nodes::blend_animation_contexts([
-            (sample("first instance", true), 1.0), (sample("second instance", true), 1.0),
+            (sample("first instance", true), 1.0),
+            (sample("second instance", true), 1.0),
         ]);
         assert_eq!(independent.asset_samples.len(), 2);
-        let mut authoritative = AnimationContextState { curves_are_authoritative: true, ..default() };
+        let mut authoritative = AnimationContextState {
+            curves_are_authoritative: true,
+            ..default()
+        };
         merge_linked_input_context(&mut authoritative, &blended);
         assert!(authoritative.asset_samples.is_empty());
         assert!(authoritative.curves.is_empty());
@@ -644,23 +715,40 @@ mod tests {
                 ..default()
             };
             if rig {
-                states.get_mut_or_insert_with(node, key, || {
-                    let mut state = crate::extensions::root_graph_boundaries::ControlRigNodeState::default();
-                    state.context = context;
-                    state
-                }).unwrap();
+                states
+                    .get_mut_or_insert_with(node, key, || {
+                        let mut state =
+                            crate::extensions::root_graph_boundaries::ControlRigNodeState::default(
+                            );
+                        state.context = context;
+                        state
+                    })
+                    .unwrap();
             } else {
-                states.get_mut_or_insert_with(node, key, || context).unwrap();
+                states
+                    .get_mut_or_insert_with(node, key, || context)
+                    .unwrap();
             }
             for _ in 0..2 {
                 let read = node_context_state(&states, key, node).unwrap();
                 let stored = if rig {
-                    &states.get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(node, key).unwrap().context
+                    &states
+                        .get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(
+                            node, key,
+                        )
+                        .unwrap()
+                        .context
                 } else {
                     states.get::<AnimationContextState>(node, key).unwrap()
                 };
-                assert!(std::ptr::eq(&read.curves, &stored.curves), "curve lookup copied node state");
-                assert_eq!(read.curves[&crate::extensions::SourceCurveName::from("PoseMoving")], 0.75);
+                assert!(
+                    std::ptr::eq(&read.curves, &stored.curves),
+                    "curve lookup copied node state"
+                );
+                assert_eq!(
+                    read.curves[&crate::extensions::SourceCurveName::from("PoseMoving")],
+                    0.75
+                );
                 states.next_frame();
             }
         }
@@ -670,29 +758,73 @@ mod tests {
     fn inertial_requests_merge_by_frame_and_shortest_duration() {
         let mut request = None;
         for (frame, duration) in [(2, 0.4), (2, 0.2), (1, 0.1), (2, 0.3)] {
-            merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame, duration, ..default() }));
+            merge_inertialization_request(
+                &mut request,
+                Some(&SourceInertializationRequest {
+                    frame,
+                    duration,
+                    ..default()
+                }),
+            );
         }
-        assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((2, 0.2)));
-        assert_eq!(request.as_ref().unwrap().parts.iter().map(|part| part.duration).collect::<Vec<_>>(), [0.4, 0.2, 0.3]);
-        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame: 3, duration: 0.5, ..default() }));
-        assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((3, 0.5)));
+        assert_eq!(
+            request.as_ref().map(|value| (value.frame, value.duration)),
+            Some((2, 0.2))
+        );
+        assert_eq!(
+            request
+                .as_ref()
+                .unwrap()
+                .parts
+                .iter()
+                .map(|part| part.duration)
+                .collect::<Vec<_>>(),
+            [0.4, 0.2, 0.3]
+        );
+        merge_inertialization_request(
+            &mut request,
+            Some(&SourceInertializationRequest {
+                frame: 3,
+                duration: 0.5,
+                ..default()
+            }),
+        );
+        assert_eq!(
+            request.as_ref().map(|value| (value.frame, value.duration)),
+            Some((3, 0.5))
+        );
     }
 
     #[test]
     fn inertial_requests_keep_explicit_profile_and_unprofiled_duration() {
         let profile = crate::extensions::SourceBlendProfile {
             profile_mode: crate::extensions::BlendProfileMode::TimeFactor,
-            bone_scales: vec![crate::extensions::BoneBlendScale { bone: "foot_l".into(), scale: 2.0 }],
+            bone_scales: vec![crate::extensions::BoneBlendScale {
+                bone: "foot_l".into(),
+                scale: 2.0,
+            }],
         };
         let mut request = None;
-        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
-            frame: 2, duration: 0.2,
-            parts: vec![SourceInertializationPart { duration: 0.2, profile: Some(profile.clone()) }],
-            ..default()
-        }));
-        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
-            frame: 2, duration: 0.3, ..default()
-        }));
+        merge_inertialization_request(
+            &mut request,
+            Some(&SourceInertializationRequest {
+                frame: 2,
+                duration: 0.2,
+                parts: vec![SourceInertializationPart {
+                    duration: 0.2,
+                    profile: Some(profile.clone()),
+                }],
+                ..default()
+            }),
+        );
+        merge_inertialization_request(
+            &mut request,
+            Some(&SourceInertializationRequest {
+                frame: 2,
+                duration: 0.3,
+                ..default()
+            }),
+        );
         let request = request.unwrap();
         assert_eq!(request.duration, 0.2);
         assert_eq!(request.parts.len(), 2);
@@ -705,13 +837,17 @@ mod tests {
     fn skipped_cached_pose_requests_do_not_become_direct_inertial_requests_when_merged() {
         let mut context = AnimationContextState {
             skipped_cached_pose_request: Some(SourceInertializationRequest {
-                frame: 2, duration: 0.3, ..default()
+                frame: 2,
+                duration: 0.3,
+                ..default()
             }),
             ..default()
         };
         let source = AnimationContextState {
             inertialization_request: Some(SourceInertializationRequest {
-                frame: 2, duration: 0.2, ..default()
+                frame: 2,
+                duration: 0.2,
+                ..default()
             }),
             ..default()
         };
@@ -748,7 +884,12 @@ mod tests {
         let mut state = AnimationContextState::default();
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.25)).unwrap();
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.75)).unwrap();
-        assert_eq!(state.curves.get(&crate::extensions::SourceCurveName::from("PoseMoving")), Some(&0.75));
+        assert_eq!(
+            state
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("PoseMoving")),
+            Some(&0.75)
+        );
     }
 
     #[test]
@@ -758,15 +899,22 @@ mod tests {
             ..default()
         };
         let source = AnimationContextState {
-            curves: HashMap::from([
-                ("PoseGrounded".into(), 0.0),
-                ("PoseMoving".into(), 1.0),
-            ]),
+            curves: HashMap::from([("PoseGrounded".into(), 0.0), ("PoseMoving".into(), 1.0)]),
             ..default()
         };
         merge_missing_context_curves(&mut target, &source);
-        assert_eq!(target.curves.get(&crate::extensions::SourceCurveName::from("PoseGrounded")), Some(&1.0));
-        assert_eq!(target.curves.get(&crate::extensions::SourceCurveName::from("PoseMoving")), Some(&1.0));
+        assert_eq!(
+            target
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("PoseGrounded")),
+            Some(&1.0)
+        );
+        assert_eq!(
+            target
+                .curves
+                .get(&crate::extensions::SourceCurveName::from("PoseMoving")),
+            Some(&1.0)
+        );
     }
 
     #[test]
@@ -780,7 +928,11 @@ mod tests {
             ..default()
         };
         merge_linked_input_context(&mut child, &input);
-        assert!(!child.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")));
+        assert!(
+            !child
+                .curves
+                .contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk"))
+        );
     }
 
     #[test]

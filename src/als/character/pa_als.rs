@@ -43,7 +43,13 @@ pub fn parse_pa_als_profile() -> RagdollPhysicsProfile {
 fn attach_pa_als_physics_profile(
     mut commands: Commands,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
-    players: Query<(), (With<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>, Without<RagdollPhysicsProfile>)>,
+    players: Query<
+        (),
+        (
+            With<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+            Without<RagdollPhysicsProfile>,
+        ),
+    >,
     template: Res<PaAlsPhysicsProfileTemplate>,
 ) {
     for instance in &avatars {
@@ -64,14 +70,35 @@ mod tests {
         let mut world = World::new();
         let template = PaAlsPhysicsProfileTemplate::from_world(&mut world);
         let settings = template.0.solver_settings;
-        assert_eq!((settings.position_iterations, settings.velocity_iterations, settings.projection_iterations), (8, 2, 1));
-        let joints = template.0.joints.iter().filter(|joint| joint.enabled).collect::<Vec<_>>();
+        assert_eq!(
+            (
+                settings.position_iterations,
+                settings.velocity_iterations,
+                settings.projection_iterations
+            ),
+            (8, 2, 1)
+        );
+        let joints = template
+            .0
+            .joints
+            .iter()
+            .filter(|joint| joint.enabled)
+            .collect::<Vec<_>>();
         assert_eq!(joints.len(), 19);
-        assert!(joints.iter().all(|joint| (joint.definition.settings.position_iterations,
-            joint.definition.settings.velocity_iterations, joint.definition.settings.projection_iterations) == (8, 2, 1)));
+        assert!(joints.iter().all(|joint| (
+            joint.definition.settings.position_iterations,
+            joint.definition.settings.velocity_iterations,
+            joint.definition.settings.projection_iterations
+        ) == (8, 2, 1)));
         let asset = parse_pa_als_profile();
-        assert_eq!((asset.solver_settings.position_iterations, asset.solver_settings.velocity_iterations,
-            asset.solver_settings.projection_iterations), (6, 1, 1));
+        assert_eq!(
+            (
+                asset.solver_settings.position_iterations,
+                asset.solver_settings.velocity_iterations,
+                asset.solver_settings.projection_iterations
+            ),
+            (6, 1, 1)
+        );
     }
 
     #[test]
@@ -80,19 +107,45 @@ mod tests {
         let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let (player, _) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
         for _ in 0..120 {
-            if app.world().get::<crate::extensions::RagdollPhysicsProfileApplied>(player)
-                .is_some_and(|applied| applied.source_joint_count == 19) { break; }
+            if app
+                .world()
+                .get::<crate::extensions::RagdollPhysicsProfileApplied>(player)
+                .is_some_and(|applied| applied.source_joint_count == 19)
+            {
+                break;
+            }
             app.update();
         }
-        let joints = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
-            .joints.values().copied().collect::<Vec<_>>();
-        let active = joints.into_iter().filter_map(|entity| {
-            if app.world().get::<avian3d::prelude::JointDisabled>(entity).is_some() { return None; }
-            app.world().get::<crate::extensions::source_physics_joint::SourcePhysicsJoint>(entity)
-        }).collect::<Vec<_>>();
+        let joints = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap()
+            .joints
+            .values()
+            .copied()
+            .collect::<Vec<_>>();
+        let active = joints
+            .into_iter()
+            .filter_map(|entity| {
+                if app
+                    .world()
+                    .get::<avian3d::prelude::JointDisabled>(entity)
+                    .is_some()
+                {
+                    return None;
+                }
+                app.world()
+                    .get::<crate::extensions::source_physics_joint::SourcePhysicsJoint>(entity)
+            })
+            .collect::<Vec<_>>();
         assert_eq!(active.len(), 19);
-        assert!(active.iter().all(|joint| (joint.settings.position_iterations,
-            joint.settings.velocity_iterations, joint.settings.projection_iterations) == (8, 2, 1)));
+        assert!(active.iter().all(|joint| (
+            joint.settings.position_iterations,
+            joint.settings.velocity_iterations,
+            joint.settings.projection_iterations
+        ) == (8, 2, 1)));
     }
 
     #[test]
@@ -100,8 +153,21 @@ mod tests {
         let profile = parse_pa_als_profile();
         assert_eq!(profile.bodies.len(), 21);
         assert_eq!(profile.colliders.len(), 22);
-        assert!(profile.colliders.iter().filter(|shape| shape.label.starts_with("root_")).all(|shape| !shape.consider_for_bounds));
-        assert_eq!(profile.colliders.iter().filter(|shape| shape.consider_for_bounds).count(), 21);
+        assert!(
+            profile
+                .colliders
+                .iter()
+                .filter(|shape| shape.label.starts_with("root_"))
+                .all(|shape| !shape.consider_for_bounds)
+        );
+        assert_eq!(
+            profile
+                .colliders
+                .iter()
+                .filter(|shape| shape.consider_for_bounds)
+                .count(),
+            21
+        );
         assert_eq!(profile.joints.len(), 20);
         assert_eq!(profile.collision_disabled_pairs.len(), 49);
         assert!(profile.bodies.iter().any(|body| body.label == "root"

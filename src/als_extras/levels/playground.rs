@@ -1,14 +1,16 @@
 use crate::als::character::AlsCollisionLayer;
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::extensions::source_gaussian_bloom::{SourceGaussianBloom, SourceGaussianBloomPlugin};
 use bevy::asset::AssetId;
 use bevy::camera::Exposure;
 use bevy::color::LinearRgba;
 use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::post_process::auto_exposure::{AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin};
-use crate::extensions::source_gaussian_bloom::{SourceGaussianBloom, SourceGaussianBloomPlugin};
 use bevy::core_pipeline::tonemapping::TonemappingLuts;
 use bevy::light::{CascadeShadowConfigBuilder, NotShadowCaster};
+use bevy::post_process::auto_exposure::{
+    AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin,
+};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingSection};
 use bevy::sprite::Anchor;
@@ -22,10 +24,12 @@ use crate::als::player_start::{AlsPlayerStart, AlsPlayerStartPlugin};
 use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
 
 use crate::extensions::playground_materials::PlaygroundMaterialsPlugin;
-use crate::extensions::playground_sky::{PlaygroundSkyMaterial, PlaygroundSkyPlugin, spawn_playground_sky};
 use crate::extensions::playground_materials::{
     PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
     PlaygroundTilesSettings,
+};
+use crate::extensions::playground_sky::{
+    PlaygroundSkyMaterial, PlaygroundSkyPlugin, spawn_playground_sky,
 };
 use crate::extensions::{RichCurveKey, sample_rich_curve};
 
@@ -39,35 +43,48 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         let manifest = self.manifest.clone();
-        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin, AutoExposurePlugin, SourceGaussianBloomPlugin))
-            .init_resource::<PlaygroundMovingCurve>()
-            .add_systems(
-                Startup,
-                (
-                    move |world: &mut World| {
-                        world.insert_resource(PlaygroundManifestPath(manifest.clone()));
-                    },
-                    playground_setup_system,
-                )
-                    .chain(),
+        app.add_plugins((
+            PlaygroundMaterialsPlugin,
+            PlaygroundSkyPlugin,
+            AlsPlayerStartPlugin,
+            AutoExposurePlugin,
+            SourceGaussianBloomPlugin,
+        ))
+        .init_resource::<PlaygroundMovingCurve>()
+        .add_systems(
+            Startup,
+            (
+                move |world: &mut World| {
+                    world.insert_resource(PlaygroundManifestPath(manifest.clone()));
+                },
+                playground_setup_system,
             )
-            .add_systems(Update, playground_moving_object_system)
-            .add_systems(
-                Update,
-                (
-                    playground_box_physics_bridge,
-                    world_text_mesh_system,
-                    playground_material_tint_system.before(crate::extensions::projected_decal::PackedDecalPrepareSet),
-                    playground_camera_exposure_system,
-                ),
-            );
+                .chain(),
+        )
+        .add_systems(Update, playground_moving_object_system)
+        .add_systems(
+            Update,
+            (
+                playground_box_physics_bridge,
+                world_text_mesh_system,
+                playground_material_tint_system
+                    .before(crate::extensions::projected_decal::PackedDecalPrepareSet),
+                playground_camera_exposure_system,
+            ),
+        );
     }
 }
 
 fn playground_box_physics_bridge(
     mut commands: Commands,
     bodies: Query<
-        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>, Option<&CollisionLayers>),
+        (
+            Entity,
+            &Name,
+            &PlaygroundBoxCollider,
+            Option<&ChildOf>,
+            Option<&CollisionLayers>,
+        ),
         Added<PlaygroundBoxCollider>,
     >,
     moving_roots: Query<(), With<PlaygroundMovingObject>>,
@@ -91,9 +108,16 @@ fn playground_box_physics_bridge(
             });
             let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
             let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((RigidBody::Static, shape, layers.copied().unwrap_or_else(|| CollisionLayers::new(
-                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL,
-            ))));
+            entity_commands.insert((
+                RigidBody::Static,
+                shape,
+                layers.copied().unwrap_or_else(|| {
+                    CollisionLayers::new(
+                        [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
+                        LayerMask::ALL,
+                    )
+                }),
+            ));
             if is_floor {
                 entity_commands.insert(AlsCrushRecoveryFloor {
                     half_extents: collider.half_extents,
@@ -340,8 +364,14 @@ struct MovingActorDefinition {
 #[derive(Deserialize, Clone, Copy)]
 #[serde(untagged)]
 enum MovingMotionDefinition {
-    Spline { start: [f32; 3], end: [f32; 3], duration: f32 },
-    Rotation { rotation_rate_yzx_radians: [f64; 3] },
+    Spline {
+        start: [f32; 3],
+        end: [f32; 3],
+        duration: f32,
+    },
+    Rotation {
+        rotation_rate_yzx_radians: [f64; 3],
+    },
 }
 
 #[derive(Deserialize)]
@@ -349,18 +379,19 @@ struct MovingActorDefinitions {
     actors: Vec<MovingActorDefinition>,
 }
 
-const MOVING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/ALSExtras/Levels/L_Als_Playground/moving_actors.runtime.json");
-const ROTATING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/ALSExtras/Levels/L_Als_Playground/rotating_actors.runtime.json");
+const MOVING_ACTOR_DEFINITIONS: &str =
+    include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/moving_actors.runtime.json");
+const ROTATING_ACTOR_DEFINITIONS: &str =
+    include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/rotating_actors.runtime.json");
 
 pub fn rotating_object_rotation(rate_yzx_radians: bevy::math::DVec3, elapsed_seconds: f32) -> Quat {
     let angles = rate_yzx_radians * f64::from(elapsed_seconds);
-    bevy::math::DQuat::from_euler(EulerRot::YZX, angles.x, angles.y, angles.z).as_quat().normalize()
+    bevy::math::DQuat::from_euler(EulerRot::YZX, angles.x, angles.y, angles.z)
+        .as_quat()
+        .normalize()
 }
 
-const MOVING_OBJECT_CURVE_PATH: &str =
-    "assets/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
+const MOVING_OBJECT_CURVE_PATH: &str = "assets/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
 const MOVING_OBJECT_CURVE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/assets/ALSExtras/Environment/CF_Als_MovingObject.rich.json"
@@ -446,8 +477,9 @@ struct PlaygroundCameraExposure {
 
 fn imported_lighting() -> PlaygroundLighting {
     serde_json::from_str(include_str!(
-        "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_lighting.runtime.json"))
-        .expect("Source lighting data must parse")
+        "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_lighting.runtime.json"
+    ))
+    .expect("Source lighting data must parse")
 }
 
 #[derive(Component, Debug)]
@@ -803,11 +835,15 @@ pub fn playground_setup_system(
             return;
         }
     };
-    let mut moving_definitions: MovingActorDefinitions = serde_json::from_str(MOVING_ACTOR_DEFINITIONS)
-        .expect("Generated moving actor definitions must be valid");
-    let rotating_definitions: MovingActorDefinitions = serde_json::from_str(ROTATING_ACTOR_DEFINITIONS)
-        .expect("Generated rotating actor definitions must be valid");
-    moving_definitions.actors.extend(rotating_definitions.actors);
+    let mut moving_definitions: MovingActorDefinitions =
+        serde_json::from_str(MOVING_ACTOR_DEFINITIONS)
+            .expect("Generated moving actor definitions must be valid");
+    let rotating_definitions: MovingActorDefinitions =
+        serde_json::from_str(ROTATING_ACTOR_DEFINITIONS)
+            .expect("Generated rotating actor definitions must be valid");
+    moving_definitions
+        .actors
+        .extend(rotating_definitions.actors);
 
     let main_material = materials.add(StandardMaterial {
         base_color: Color::linear_rgb(1.0, 1.0, 1.0),
@@ -828,7 +864,8 @@ pub fn playground_setup_system(
 
     let visibility: HashMap<String, bool> = serde_json::from_str(include_str!(
         "../../../assets/ALSExtras/Levels/L_Als_Playground/visibility.runtime.json"
-    )).expect("Generated Playground visibility must be valid");
+    ))
+    .expect("Generated Playground visibility must be valid");
 
     let mut spawned_static = 0usize;
     let mut spawned_moving = 0usize;
@@ -887,40 +924,83 @@ pub fn playground_setup_system(
                 continue;
             }
             "B_Als_MovingObject_C" | "B_Als_RotatingObject_C" => {
-                let Some(definition) = moving_definitions.actors.iter().find(|value| value.name == actor.name) else {
+                let Some(definition) = moving_definitions
+                    .actors
+                    .iter()
+                    .find(|value| value.name == actor.name)
+                else {
                     error!("PLAYGROUND moving actor definition missing: {}", actor.name);
                     continue;
                 };
                 let anchor_transform = definition.actor.transform();
-                let anchor = commands.spawn((Name::new(format!("Actor:{}", actor.name)),
-                    anchor_transform, GlobalTransform::from(anchor_transform), Visibility::Inherited)).id();
+                let anchor = commands
+                    .spawn((
+                        Name::new(format!("Actor:{}", actor.name)),
+                        anchor_transform,
+                        GlobalTransform::from(anchor_transform),
+                        Visibility::Inherited,
+                    ))
+                    .id();
                 let transform = definition.primitive.transform();
                 let global = GlobalTransform::from(anchor_transform).mul_transform(transform);
                 let (prefix, kind) = match definition.motion {
-                    MovingMotionDefinition::Spline { duration, start, end } => ("Moving", PlaygroundKinematicKind::MoveSpline {
-                        duration, start: Vec3::from_array(start), end: Vec3::from_array(end),
-                    }),
-                    MovingMotionDefinition::Rotation { rotation_rate_yzx_radians } => ("Rotating", PlaygroundKinematicKind::RotateWorldTime {
-                        rate_yzx_radians: bevy::math::DVec3::from_array(rotation_rate_yzx_radians),
-                    }),
+                    MovingMotionDefinition::Spline {
+                        duration,
+                        start,
+                        end,
+                    } => (
+                        "Moving",
+                        PlaygroundKinematicKind::MoveSpline {
+                            duration,
+                            start: Vec3::from_array(start),
+                            end: Vec3::from_array(end),
+                        },
+                    ),
+                    MovingMotionDefinition::Rotation {
+                        rotation_rate_yzx_radians,
+                    } => (
+                        "Rotating",
+                        PlaygroundKinematicKind::RotateWorldTime {
+                            rate_yzx_radians: bevy::math::DVec3::from_array(
+                                rotation_rate_yzx_radians,
+                            ),
+                        },
+                    ),
                 };
                 let visual_material = tiles_material_for_actor(
-                    actor, &material_library, &mut tiles_materials, &main_material,
+                    actor,
+                    &material_library,
+                    &mut tiles_materials,
+                    &main_material,
                 );
-                let entity = commands.spawn((
-                    Name::new(format!("{prefix}:{}", actor.name)), ChildOf(anchor), transform, global,
-                    PlaygroundStatic, PlaygroundMovingObject,
-                    WorldAssetRoot(assets.load(definition.mesh_scene.clone())), visual_material,
-                    PlaygroundCollisionSource::new(&definition.mesh_base),
-                    PlaygroundKinematic {
-                        base_transform: Transform { rotation:anchor_transform.rotation, ..global.compute_transform() }, kind,
-                    },
-                )).id();
+                let entity = commands
+                    .spawn((
+                        Name::new(format!("{prefix}:{}", actor.name)),
+                        ChildOf(anchor),
+                        transform,
+                        global,
+                        PlaygroundStatic,
+                        PlaygroundMovingObject,
+                        WorldAssetRoot(assets.load(definition.mesh_scene.clone())),
+                        visual_material,
+                        PlaygroundCollisionSource::new(&definition.mesh_base),
+                        PlaygroundKinematic {
+                            base_transform: Transform {
+                                rotation: anchor_transform.rotation,
+                                ..global.compute_transform()
+                            },
+                            kind,
+                        },
+                    ))
+                    .id();
                 commands.entity(entity).with_children(|children| {
-                    children.spawn((Name::new(format!("{prefix}:collider")),
+                    children.spawn((
+                        Name::new(format!("{prefix}:collider")),
                         Transform::from_translation(Vec3::from_array(definition.collider_center))
                             .with_rotation(Quat::from_array(definition.collider_rotation)),
-                        PlaygroundBoxCollider { half_extents: Vec3::from_array(definition.half_extents) },
+                        PlaygroundBoxCollider {
+                            half_extents: Vec3::from_array(definition.half_extents),
+                        },
                     ));
                 });
                 spawned_moving += 1;
@@ -980,7 +1060,8 @@ pub fn playground_setup_system(
             };
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
-                    let scene = assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
+                    let scene =
+                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -1013,7 +1094,8 @@ pub fn playground_setup_system(
                     spawned_static += 1;
                 }
                 (Some(base), false) => {
-                    let scene = assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
+                    let scene =
+                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -1182,11 +1264,25 @@ pub struct PlaygroundLandscape;
 pub struct PlaygroundSky;
 
 fn environment_image(width: u32, mip_count: u32, bytes: &[u8]) -> Image {
-    use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension, TextureDataOrder};
-    let mut image = Image::new_uninit(Extent3d { width, height: width, depth_or_array_layers: 6 },
-        TextureDimension::D2, TextureFormat::Rgba16Float, bevy::asset::RenderAssetUsages::all());
+    use bevy::render::render_resource::{
+        Extent3d, TextureDataOrder, TextureDimension, TextureFormat, TextureViewDescriptor,
+        TextureViewDimension,
+    };
+    let mut image = Image::new_uninit(
+        Extent3d {
+            width,
+            height: width,
+            depth_or_array_layers: 6,
+        },
+        TextureDimension::D2,
+        TextureFormat::Rgba16Float,
+        bevy::asset::RenderAssetUsages::all(),
+    );
     image.texture_descriptor.mip_level_count = mip_count;
-    image.texture_view_descriptor = Some(TextureViewDescriptor { dimension: Some(TextureViewDimension::Cube), ..default() });
+    image.texture_view_descriptor = Some(TextureViewDescriptor {
+        dimension: Some(TextureViewDimension::Cube),
+        ..default()
+    });
     image.data_order = TextureDataOrder::MipMajor;
     image.data = Some(bytes.to_vec());
     image
@@ -1200,32 +1296,60 @@ fn playground_camera_exposure_system(
     mut tone_luts: ResMut<TonemappingLuts>,
     cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
-    let Some(lighting) = lighting else { return; };
+    let Some(lighting) = lighting else {
+        return;
+    };
     let exposure = &lighting.exposure;
     for entity in &cameras {
         let display: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/Sky/playground_display.runtime.json")).expect("Source display data must parse");
-        let bloom: SourceGaussianBloom = serde_json::from_value(display["bloom"].clone()).expect("Source Gaussian settings must parse");
+            "../../../assets/ALSExtras/Environment/Sky/playground_display.runtime.json"
+        ))
+        .expect("Source display data must parse");
+        let bloom: SourceGaussianBloom = serde_json::from_value(display["bloom"].clone())
+            .expect("Source Gaussian settings must parse");
         let dimension = display["lut_dimension"].as_u64().unwrap() as u32;
-        let mut lut = Image::new(bevy::render::render_resource::Extent3d { width: dimension, height: dimension, depth_or_array_layers: dimension },
+        let mut lut = Image::new(
+            bevy::render::render_resource::Extent3d {
+                width: dimension,
+                height: dimension,
+                depth_or_array_layers: dimension,
+            },
             bevy::render::render_resource::TextureDimension::D3,
-            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f").to_vec(),
-            bevy::render::render_resource::TextureFormat::Rgba16Float, bevy::asset::RenderAssetUsages::all());
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f")
+                .to_vec(),
+            bevy::render::render_resource::TextureFormat::Rgba16Float,
+            bevy::asset::RenderAssetUsages::all(),
+        );
         lut.sampler = bevy::image::ImageSampler::linear();
         tone_luts.tony_mc_mapface = images.add(lut);
         let [minimum, maximum] = exposure.histogram_log_luminance_range;
-        let compensation_curve = curves.add(AutoExposureCompensationCurve::from_curve(
-            bevy::curve::cubic_splines::LinearSpline::new([
-                Vec2::new(minimum, exposure.compensation_ev),
-                Vec2::new(maximum, exposure.compensation_ev),
-            ])).expect("Source exposure compensation must be continuous"));
+        let compensation_curve = curves.add(
+            AutoExposureCompensationCurve::from_curve(
+                bevy::curve::cubic_splines::LinearSpline::new([
+                    Vec2::new(minimum, exposure.compensation_ev),
+                    Vec2::new(maximum, exposure.compensation_ev),
+                ]),
+            )
+            .expect("Source exposure compensation must be continuous"),
+        );
         let definition: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/Sky/playground_environment.runtime.json")).expect("Source environment metadata must parse");
-        let diffuse = environment_image(definition["diffuse_resolution"].as_u64().unwrap() as u32, 1,
-            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"));
-        let radiance = environment_image(definition["radiance_resolution"].as_u64().unwrap() as u32,
+            "../../../assets/ALSExtras/Environment/Sky/playground_environment.runtime.json"
+        ))
+        .expect("Source environment metadata must parse");
+        let diffuse = environment_image(
+            definition["diffuse_resolution"].as_u64().unwrap() as u32,
+            1,
+            include_bytes!(
+                "../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"
+            ),
+        );
+        let radiance = environment_image(
+            definition["radiance_resolution"].as_u64().unwrap() as u32,
             definition["radiance_mip_count"].as_u64().unwrap() as u32,
-            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"));
+            include_bytes!(
+                "../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"
+            ),
+        );
         commands.entity(entity).insert((
             bevy::light::EnvironmentMapLight {
                 diffuse_map: images.add(diffuse),
@@ -1265,7 +1389,10 @@ pub fn playground_moving_object_system(
     parents: Query<&GlobalTransform>,
     mut objects: Query<
         (&mut Transform, &PlaygroundKinematic, Option<&ChildOf>),
-        (With<PlaygroundMovingObject>, Without<PlaygroundPhysicsDriven>),
+        (
+            With<PlaygroundMovingObject>,
+            Without<PlaygroundPhysicsDriven>,
+        ),
     >,
 ) {
     let t = time.elapsed_secs();
@@ -1274,12 +1401,21 @@ pub fn playground_moving_object_system(
         match kinematic.kind {
             PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
                 let rotation = rotating_object_rotation(rate_yzx_radians, t);
-                transform.rotation = if parent.is_some() { rotation } else { kinematic.base_transform.rotation * rotation };
+                transform.rotation = if parent.is_some() {
+                    rotation
+                } else {
+                    kinematic.base_transform.rotation * rotation
+                };
             }
-            PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
+            PlaygroundKinematicKind::MoveSpline {
+                duration,
+                start,
+                end,
+            } => {
                 let position = moving_object_position(&moving_curve, start, end, t, duration);
-                transform.translation = parent.map_or(position,
-                    |parent| parent.affine().inverse().transform_point3(position));
+                transform.translation = parent.map_or(position, |parent| {
+                    parent.affine().inverse().transform_point3(position)
+                });
             }
         }
     }
@@ -2009,39 +2145,65 @@ fn spawn_sun_light(
     });
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn actual_playground_boxes_preserve_source_visibility_responses() {
-        use avian3d::prelude::{PhysicsPlugins, SpatialQueryFilter, ShapeCastConfig};
+        use avian3d::prelude::{PhysicsPlugins, ShapeCastConfig, SpatialQueryFilter};
         use bevy::ecs::system::RunSystemOnce;
-        let mut app=App::new();
-        app.add_plugins((MinimalPlugins,TransformPlugin,PhysicsPlugins::new(PostUpdate)))
-            .init_resource::<Assets<Mesh>>()
-            .add_message::<bevy::asset::AssetEvent<Mesh>>()
-            .add_systems(Update,playground_box_physics_bridge);
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            TransformPlugin,
+            PhysicsPlugins::new(PostUpdate),
+        ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .add_systems(Update, playground_box_physics_bridge);
         app.finish();
-        let ids=[
+        let ids = [
             "StaticMeshActor_UAID_94B86D58D760231001_1996299222",
             "StaticMeshActor_UAID_94B86D58D760231001_1287870219",
             "StaticMeshActor_UAID_94B86D58D760231001_1363458220",
         ];
-        let visibility:HashMap<String,bool>=serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Levels/L_Als_Playground/visibility.runtime.json")).unwrap();
-        let bodies=app.world_mut().run_system_once(move |mut commands:Commands,mut meshes:ResMut<Assets<Mesh>>| {
-            ids.into_iter().chain(["S_Arch_01"]).enumerate().map(|(index,name)| {
-                let layers=CollisionLayers::new(
-                    if visibility[name] {LayerMask::from(AlsCollisionLayer::Default) | AlsCollisionLayer::Visibility}
-                    else {LayerMask::from(AlsCollisionLayer::Default)},
-                    LayerMask::ALL);
-                spawn_box_visual(&mut commands,&mut meshes,PlaygroundMaterialTint::Main(Handle::default()),
-                    Transform::from_xyz(index as f32*3.0,0.0,0.0),Vec3::splat(0.5),format!("{name}:aabb"),false,layers)
-            }).collect::<Vec<_>>()
-        }).unwrap();
+        let visibility: HashMap<String, bool> = serde_json::from_str(include_str!(
+            "../../../assets/ALSExtras/Levels/L_Als_Playground/visibility.runtime.json"
+        ))
+        .unwrap();
+        let bodies = app
+            .world_mut()
+            .run_system_once(
+                move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>| {
+                    ids.into_iter()
+                        .chain(["S_Arch_01"])
+                        .enumerate()
+                        .map(|(index, name)| {
+                            let layers = CollisionLayers::new(
+                                if visibility[name] {
+                                    LayerMask::from(AlsCollisionLayer::Default)
+                                        | AlsCollisionLayer::Visibility
+                                } else {
+                                    LayerMask::from(AlsCollisionLayer::Default)
+                                },
+                                LayerMask::ALL,
+                            );
+                            spawn_box_visual(
+                                &mut commands,
+                                &mut meshes,
+                                PlaygroundMaterialTint::Main(Handle::default()),
+                                Transform::from_xyz(index as f32 * 3.0, 0.0, 0.0),
+                                Vec3::splat(0.5),
+                                format!("{name}:aabb"),
+                                false,
+                                layers,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                },
+            )
+            .unwrap();
         app.update();
         app.update();
         app.world_mut().run_system_once(move |spatial:crate::extensions::RagdollSpatialQuery| {
@@ -2066,29 +2228,76 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<Assets<AutoExposureCompensationCurve>>()
             .init_resource::<Assets<Image>>()
-            .insert_resource(TonemappingLuts { blender_filmic: default(), agx: default(), tony_mc_mapface: default() })
+            .insert_resource(TonemappingLuts {
+                blender_filmic: default(),
+                agx: default(),
+                tony_mc_mapface: default(),
+            })
             .insert_resource(imported_lighting());
         let camera = app.world_mut().spawn(Camera3d::default()).id();
-        app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
-        assert!(app.world().get::<bevy::camera::Hdr>(camera).is_some(), "Source sky and lit geometry require one HDR display chain");
-        let exposure = app.world().get::<AutoExposure>(camera).expect("Source camera requires histogram exposure");
+        app.world_mut()
+            .run_system_once(playground_camera_exposure_system)
+            .unwrap();
+        assert!(
+            app.world().get::<bevy::camera::Hdr>(camera).is_some(),
+            "Source sky and lit geometry require one HDR display chain"
+        );
+        let exposure = app
+            .world()
+            .get::<AutoExposure>(camera)
+            .expect("Source camera requires histogram exposure");
         assert_eq!(exposure.range, -10.0..=20.0);
         assert_eq!(exposure.filter, 0.1..=0.9);
         assert_eq!(exposure.speed_brighten, 3.0);
         assert_eq!(exposure.speed_darken, 1.0);
-        let curves = app.world().resource::<Assets<AutoExposureCompensationCurve>>();
-        let curve = curves.get(&exposure.compensation_curve).expect("Source compensation must reach its native asset");
-        let bevy::reflect::ReflectRef::Struct(fields) = curve.reflect_ref() else { panic!("Native compensation must be reflected") };
+        let curves = app
+            .world()
+            .resource::<Assets<AutoExposureCompensationCurve>>();
+        let curve = curves
+            .get(&exposure.compensation_curve)
+            .expect("Source compensation must reach its native asset");
+        let bevy::reflect::ReflectRef::Struct(fields) = curve.reflect_ref() else {
+            panic!("Native compensation must be reflected")
+        };
         for name in ["min_compensation", "max_compensation"] {
-            let value = *fields.field(name).unwrap().try_downcast_ref::<f32>().unwrap();
-            assert!((value - (1.0 + 0.18_f32.log2())).abs() < 1e-6, "Source gray and bias were dropped: {name}={value}");
+            let value = *fields
+                .field(name)
+                .unwrap()
+                .try_downcast_ref::<f32>()
+                .unwrap();
+            assert!(
+                (value - (1.0 + 0.18_f32.log2())).abs() < 1e-6,
+                "Source gray and bias were dropped: {name}={value}"
+            );
         }
-        assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
-            "Source histogram receives scene luminance without the old fixed exposure scale");
-        assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
-        assert!(matches!(app.world().get::<Tonemapping>(camera), Some(Tonemapping::TonyMcMapface)), "Source Filmic must use the imported LUT response");
-        let environment = app.world().get::<bevy::light::EnvironmentMapLight>(camera).expect("Source SH environment must be loaded directly without random generation");
-        assert!(app.world().get::<bevy::light::GeneratedEnvironmentMapLight>(camera).is_none(), "Random native filtering would replace the source SH response");
+        assert!(
+            (app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
+            "Source histogram receives scene luminance without the old fixed exposure scale"
+        );
+        assert!(
+            app.world()
+                .get::<ColorGrading>(camera)
+                .unwrap()
+                .all_sections()
+                .all(|section| section.contrast == 1.0)
+        );
+        assert!(
+            matches!(
+                app.world().get::<Tonemapping>(camera),
+                Some(Tonemapping::TonyMcMapface)
+            ),
+            "Source Filmic must use the imported LUT response"
+        );
+        let environment = app
+            .world()
+            .get::<bevy::light::EnvironmentMapLight>(camera)
+            .expect("Source SH environment must be loaded directly without random generation");
+        assert!(
+            app.world()
+                .get::<bevy::light::GeneratedEnvironmentMapLight>(camera)
+                .is_none(),
+            "Random native filtering would replace the source SH response"
+        );
         assert_eq!(environment.intensity, 2.0);
         assert_eq!(environment.rotation, Quat::IDENTITY);
         let images = app.world().resource::<Assets<Image>>();
@@ -2096,51 +2305,122 @@ mod tests {
         let specular = images.get(&environment.specular_map).unwrap();
         assert_eq!(diffuse.texture_descriptor.size.width, 32);
         assert_eq!(diffuse.texture_descriptor.size.depth_or_array_layers, 6);
-        assert_eq!(diffuse.texture_descriptor.format, bevy::render::render_resource::TextureFormat::Rgba16Float);
-        assert_eq!(diffuse.texture_view_descriptor.as_ref().unwrap().dimension, Some(bevy::render::render_resource::TextureViewDimension::Cube));
-        assert_eq!(diffuse.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"));
+        assert_eq!(
+            diffuse.texture_descriptor.format,
+            bevy::render::render_resource::TextureFormat::Rgba16Float
+        );
+        assert_eq!(
+            diffuse.texture_view_descriptor.as_ref().unwrap().dimension,
+            Some(bevy::render::render_resource::TextureViewDimension::Cube)
+        );
+        assert_eq!(
+            diffuse.data.as_deref().unwrap(),
+            include_bytes!(
+                "../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"
+            )
+        );
         assert_eq!(specular.texture_descriptor.size.width, 128);
         assert_eq!(specular.texture_descriptor.mip_level_count, 6);
-        assert_eq!(specular.data_order, bevy::render::render_resource::TextureDataOrder::MipMajor);
-        assert_eq!(specular.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"));
+        assert_eq!(
+            specular.data_order,
+            bevy::render::render_resource::TextureDataOrder::MipMajor
+        );
+        assert_eq!(
+            specular.data.as_deref().unwrap(),
+            include_bytes!(
+                "../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"
+            )
+        );
         let image_count = app.world().resource::<Assets<Image>>().len();
-        assert!(app.world().get::<bevy::post_process::bloom::Bloom>(camera).is_none(), "Native HDR compression must not replace source linear Gaussian bloom");
-        let bloom = app.world().get::<SourceGaussianBloom>(camera).expect("Source Gaussian bloom is missing");
-        let gain: f32 = bloom.tints.iter().map(|color| color.x * bloom.intensity / 6.0).sum();
+        assert!(
+            app.world()
+                .get::<bevy::post_process::bloom::Bloom>(camera)
+                .is_none(),
+            "Native HDR compression must not replace source linear Gaussian bloom"
+        );
+        let bloom = app
+            .world()
+            .get::<SourceGaussianBloom>(camera)
+            .expect("Source Gaussian bloom is missing");
+        let gain: f32 = bloom
+            .tints
+            .iter()
+            .map(|color| color.x * bloom.intensity / 6.0)
+            .sum();
         assert!((gain - 0.08944875).abs() < 1e-6);
         let luts = app.world().resource::<TonemappingLuts>();
         let lut = images.get(&luts.tony_mc_mapface).unwrap();
-        assert_eq!(lut.texture_descriptor.dimension, bevy::render::render_resource::TextureDimension::D3);
+        assert_eq!(
+            lut.texture_descriptor.dimension,
+            bevy::render::render_resource::TextureDimension::D3
+        );
         assert_eq!(lut.texture_descriptor.size.width, 48);
-        assert_eq!(lut.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f"));
-        app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
-        assert_eq!(app.world().resource::<Assets<Image>>().len(), image_count, "Source non-realtime capture must not rebuild every frame");
+        assert_eq!(
+            lut.data.as_deref().unwrap(),
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f")
+        );
+        app.world_mut()
+            .run_system_once(playground_camera_exposure_system)
+            .unwrap();
+        assert_eq!(
+            app.world().resource::<Assets<Image>>().len(),
+            image_count,
+            "Source non-realtime capture must not rebuild every frame"
+        );
     }
 
     #[test]
     fn actual_playground_sun_preserves_current_source_lux() {
         use bevy::ecs::system::RunSystemOnce;
-        let manifest:PlaygroundManifest=ron::from_str(include_str!(
-            "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
-        let source:serde_json::Value=serde_json::from_str(include_str!(
-            "../../../tools/fixtures/playground_light_source.json")).unwrap();
-        let mut app=App::new();
-        app.world_mut().run_system_once(move |mut commands:Commands| {
-            spawn_sun_light(&mut commands,manifest.lighting.as_ref().unwrap(),manifest.sun_rotator.as_ref());
-        }).unwrap();
-        let mut query=app.world_mut().query::<&DirectionalLight>();
-        let light=query.single(app.world()).unwrap();
-        assert_eq!(app.world().resource::<GlobalAmbientLight>().brightness, 0.0, "Source captured sky replaces the legacy constant ambient light");
-        assert!((light.illuminance-source["intensity_lux"].as_f64().unwrap() as f32).abs()<1e-6,
-            "Actual Playground light differs from current source lux: {}",light.illuminance);
+        let manifest: PlaygroundManifest = ron::from_str(include_str!(
+            "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron"
+        ))
+        .unwrap();
+        let source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tools/fixtures/playground_light_source.json"
+        ))
+        .unwrap();
+        let mut app = App::new();
+        app.world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                spawn_sun_light(
+                    &mut commands,
+                    manifest.lighting.as_ref().unwrap(),
+                    manifest.sun_rotator.as_ref(),
+                );
+            })
+            .unwrap();
+        let mut query = app.world_mut().query::<&DirectionalLight>();
+        let light = query.single(app.world()).unwrap();
+        assert_eq!(
+            app.world().resource::<GlobalAmbientLight>().brightness,
+            0.0,
+            "Source captured sky replaces the legacy constant ambient light"
+        );
+        assert!(
+            (light.illuminance - source["intensity_lux"].as_f64().unwrap() as f32).abs() < 1e-6,
+            "Actual Playground light differs from current source lux: {}",
+            light.illuminance
+        );
     }
 
     #[test]
     fn tiles_texture_uvs_follow_the_source_shared_tiling_input() {
-        let library = PlaygroundMaterialLibrary { tiles_grid: Some(Handle::default()), ..default() };
+        let library = PlaygroundMaterialLibrary {
+            tiles_grid: Some(Handle::default()),
+            ..default()
+        };
         for tiling in [0.5, 2.0, 5.0] {
-            let material = make_tiles_material(&library, [1.0; 3], [0.5; 3], [0.25; 3], [0.75; 3], tiling).unwrap();
-            assert_eq!(material.base.uv_transform.transform_point2(Vec2::new(0.2, 0.4)), Vec2::new(0.2, 0.4) * tiling);
+            let material =
+                make_tiles_material(&library, [1.0; 3], [0.5; 3], [0.25; 3], [0.75; 3], tiling)
+                    .unwrap();
+            assert_eq!(
+                material
+                    .base
+                    .uv_transform
+                    .transform_point2(Vec2::new(0.2, 0.4)),
+                Vec2::new(0.2, 0.4) * tiling
+            );
             assert_eq!(material.extension.settings.tiling_and_mode.x, tiling);
         }
     }
@@ -2286,26 +2566,51 @@ mod tests {
             .init_resource::<Assets<PlaygroundSkyMaterial>>()
             .init_resource::<Assets<Image>>()
             .init_resource::<PlaygroundMaterialLibrary>()
-            .insert_resource(PlaygroundManifestPath(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")));
+            .insert_resource(PlaygroundManifestPath(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron"),
+            ));
         app.finish();
-        app.world_mut().run_system_once(playground_setup_system).unwrap();
-        let actors: Vec<_> = app.world_mut().query_filtered::<(Entity, &Name, Option<&ChildOf>), With<PlaygroundMovingObject>>()
+        app.world_mut()
+            .run_system_once(playground_setup_system)
+            .unwrap();
+        let actors: Vec<_> = app
+            .world_mut()
+            .query_filtered::<(Entity, &Name, Option<&ChildOf>), With<PlaygroundMovingObject>>()
             .iter(app.world())
-            .map(|(entity, name, parent)| (entity, name.to_string(), parent.map(ChildOf::parent))).collect();
+            .map(|(entity, name, parent)| (entity, name.to_string(), parent.map(ChildOf::parent)))
+            .collect();
         assert_eq!(actors.len(), 3);
         for (mesh, name, parent) in &actors {
             let root = parent.expect("The moving mesh has no independent actor anchor");
-            assert_eq!(app.world().get::<Name>(root).unwrap().as_str(), name.replace("Moving:", "Actor:").replace("Rotating:", "Actor:"));
+            assert_eq!(
+                app.world().get::<Name>(root).unwrap().as_str(),
+                name.replace("Moving:", "Actor:")
+                    .replace("Rotating:", "Actor:")
+            );
             assert!(app.world().get::<PlaygroundKinematic>(root).is_none());
-            assert!(app.world().get::<InheritedVisibility>(root).is_some(), "The actor anchor breaks inherited visibility");
+            assert!(
+                app.world().get::<InheritedVisibility>(root).is_some(),
+                "The actor anchor breaks inherited visibility"
+            );
             assert!(app.world().get::<WorldAssetRoot>(*mesh).is_some());
-            assert_eq!(app.world().get::<Transform>(*mesh).unwrap().translation, Vec3::ZERO);
+            assert_eq!(
+                app.world().get::<Transform>(*mesh).unwrap().translation,
+                Vec3::ZERO
+            );
             let before = *app.world().get::<GlobalTransform>(root).unwrap();
-            let anchor = app.world().get::<Transform>(root).unwrap().clone()
-                .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::new(2.0, 1.5, 0.5));
+            let anchor = app
+                .world()
+                .get::<Transform>(root)
+                .unwrap()
+                .clone()
+                .with_rotation(Quat::from_rotation_y(0.7))
+                .with_scale(Vec3::new(2.0, 1.5, 0.5));
             let after = GlobalTransform::from(anchor);
-            let mut kinematic = app.world_mut().get_mut::<PlaygroundKinematic>(*mesh).unwrap();
+            let mut kinematic = app
+                .world_mut()
+                .get_mut::<PlaygroundKinematic>(*mesh)
+                .unwrap();
             if let PlaygroundKinematicKind::MoveSpline { start, end, .. } = &mut kinematic.kind {
                 *start = after.transform_point(before.affine().inverse().transform_point3(*start));
                 *end = after.transform_point(before.affine().inverse().transform_point3(*end));
@@ -2313,26 +2618,49 @@ mod tests {
             app.world_mut().entity_mut(root).insert((anchor, after));
         }
         for delta in [0.25, 1.3, 0.8] {
-            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
-            app.world_mut().run_system_once(playground_moving_object_system).unwrap();
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut()
+                .run_system_once(playground_moving_object_system)
+                .unwrap();
             for (mesh, _, parent) in &actors {
                 let parent = parent.unwrap();
                 let anchor = app.world().get::<GlobalTransform>(parent).unwrap();
                 let transform = app.world().get::<Transform>(*mesh).unwrap();
                 let time = app.world().resource::<Time>().elapsed_secs();
                 match app.world().get::<PlaygroundKinematic>(*mesh).unwrap().kind {
-                    PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
-                        let expected = moving_object_position(app.world().resource::<PlaygroundMovingCurve>(), start, end, time, duration);
-                        assert!(anchor.transform_point(transform.translation).abs_diff_eq(expected, 1e-5));
+                    PlaygroundKinematicKind::MoveSpline {
+                        duration,
+                        start,
+                        end,
+                    } => {
+                        let expected = moving_object_position(
+                            app.world().resource::<PlaygroundMovingCurve>(),
+                            start,
+                            end,
+                            time,
+                            duration,
+                        );
+                        assert!(
+                            anchor
+                                .transform_point(transform.translation)
+                                .abs_diff_eq(expected, 1e-5)
+                        );
                         assert_eq!(transform.rotation, Quat::IDENTITY);
                     }
                     PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
                         let expected = rotating_object_rotation(rate_yzx_radians, time);
-                        assert!((transform.rotation * Vec3::X).abs_diff_eq(expected * Vec3::X, 1e-5));
+                        assert!(
+                            (transform.rotation * Vec3::X).abs_diff_eq(expected * Vec3::X, 1e-5)
+                        );
                         assert_eq!(transform.translation, Vec3::ZERO);
                     }
                 }
-                assert_eq!(anchor.translation(), app.world().get::<Transform>(parent).unwrap().translation);
+                assert_eq!(
+                    anchor.translation(),
+                    app.world().get::<Transform>(parent).unwrap().translation
+                );
             }
         }
     }
@@ -2340,16 +2668,28 @@ mod tests {
     #[test]
     fn rotating_object_rotation_preserves_source_axes_and_large_world_time() {
         use bevy::math::DVec3;
-        for (pitch, yaw, roll) in [(90.0_f32, 0.0_f32, 0.0_f32), (0.0, 90.0, 0.0), (0.0, 0.0, 90.0), (23.0, 67.0, -41.0)] {
-            let rate = DVec3::new(-f64::from(yaw).to_radians(), f64::from(pitch).to_radians(), f64::from(roll).to_radians());
+        for (pitch, yaw, roll) in [
+            (90.0_f32, 0.0_f32, 0.0_f32),
+            (0.0, 90.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (23.0, 67.0, -41.0),
+        ] {
+            let rate = DVec3::new(
+                -f64::from(yaw).to_radians(),
+                f64::from(pitch).to_radians(),
+                f64::from(roll).to_radians(),
+            );
             for time in [0.0, 0.13, 1.0, 3.27] {
                 let actual = rotating_object_rotation(rate, time);
-                let expected = ue_rotator_to_bevy_quat(pitch*time, yaw*time, roll*time);
-                for axis in [Vec3::X, Vec3::Y, Vec3::Z] { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-5)); }
+                let expected = ue_rotator_to_bevy_quat(pitch * time, yaw * time, roll * time);
+                for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
+                    assert!((actual * axis).abs_diff_eq(expected * axis, 1e-5));
+                }
             }
         }
         for time in [10_000.13_f32, 1_000_000.25_f32] {
-            let actual = rotating_object_rotation(DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0), time);
+            let actual =
+                rotating_object_rotation(DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0), time);
             let angle = (100.0_f64 * f64::from(time)).rem_euclid(360.0);
             let expected = Quat::from_rotation_y(-angle.to_radians() as f32);
             assert!((actual * Vec3::X).abs_diff_eq(expected * Vec3::X, 1e-5));
@@ -2362,11 +2702,16 @@ mod tests {
         assert!(curve.is_source_loaded());
         assert_eq!(curve.key_count(), 4);
         let samples: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/CF_Als_MovingObject.json")).unwrap();
+            "../../../assets/ALSExtras/Environment/CF_Als_MovingObject.json"
+        ))
+        .unwrap();
         for sample in samples["keys"].as_array().unwrap() {
             let time = sample["t"].as_f64().unwrap() as f32;
             let value = sample["v"].as_f64().unwrap() as f32;
-            assert!((curve.sample(time) - value).abs() < 1e-6, "Native curve differs at time={time}");
+            assert!(
+                (curve.sample(time) - value).abs() < 1e-6,
+                "Native curve differs at time={time}"
+            );
         }
     }
 

@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy::window::ExitCondition;
 use bevy_als::extensions::{
     AlsExtPlugin, DirectTransitionEventNode, InterruptibleFsmNode, InterruptibleFsmState,
     LayeredGraphNode, SourceCachedPoseSaveNode,
 };
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
-use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, TimeUpdate},
@@ -25,7 +25,8 @@ const MOVEMENT_RUNTIME_PATH: &str =
     "Validation/Graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron";
 const OUTER_RUNTIME_PATH: &str =
     "Validation/Graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron";
-const MOVEMENT_FSM_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/movement_states.fsm.ron";
+const MOVEMENT_FSM_PATH: &str =
+    "Validation/Graphs/ab_als/stances/crouching/movement_states.fsm.ron";
 const OUTER_FSM_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/crouching_states.fsm.ron";
 const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const SOURCE_MARKER_ROTATION_FLOOR: f32 = 0.05;

@@ -6,7 +6,8 @@ use crate::als::state::{Gait, RotationMode, Stance};
 use crate::extensions::rich_curve::{RichCurveInterpolation, unweighted_cubic};
 
 pub const UE_CM_TO_M: f32 = 0.01;
-static SOURCE_UNCONFIGURED_GAIT_SPEEDS: std::sync::LazyLock<StanceGaitSpeeds> = std::sync::LazyLock::new(StanceGaitSpeeds::default);
+static SOURCE_UNCONFIGURED_GAIT_SPEEDS: std::sync::LazyLock<StanceGaitSpeeds> =
+    std::sync::LazyLock::new(StanceGaitSpeeds::default);
 
 #[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[reflect(Default)]
@@ -29,7 +30,9 @@ pub struct RollingParams {
 
 impl Default for RollingParams {
     fn default() -> Self {
-        Self { interrupt_when_in_air: crate::get_up::RAGDOLL_SETTINGS.interrupt_rolling_when_in_air }
+        Self {
+            interrupt_when_in_air: crate::get_up::RAGDOLL_SETTINGS.interrupt_rolling_when_in_air,
+        }
     }
 }
 
@@ -43,7 +46,9 @@ impl AlsMovementParams {
     }
 
     pub fn gait_speeds(&self, stance: Stance, rotation_mode: RotationMode) -> &StanceGaitSpeeds {
-        if !Self::has_gait_settings(stance, rotation_mode) { return &SOURCE_UNCONFIGURED_GAIT_SPEEDS; }
+        if !Self::has_gait_settings(stance, rotation_mode) {
+            return &SOURCE_UNCONFIGURED_GAIT_SPEEDS;
+        }
         match stance {
             Stance::Crouching => &self.speeds.crouching,
             Stance::Standing if rotation_mode == RotationMode::Aiming => {
@@ -56,7 +61,12 @@ impl AlsMovementParams {
 
     pub fn has_gait_settings(stance: Stance, rotation_mode: RotationMode) -> bool {
         matches!(stance, Stance::Standing | Stance::Crouching)
-            && matches!(rotation_mode, RotationMode::VelocityDirection | RotationMode::ViewDirection | RotationMode::Aiming)
+            && matches!(
+                rotation_mode,
+                RotationMode::VelocityDirection
+                    | RotationMode::ViewDirection
+                    | RotationMode::Aiming
+            )
     }
 
     pub fn gait_speed_thresholds(
@@ -442,8 +452,12 @@ impl HermiteCurve {
             RichCurveInterpolation::Constant => first,
             RichCurveInterpolation::Linear => first + (last - first) * alpha,
             RichCurveInterpolation::Cubic => unweighted_cubic(
-                first, last, (start.leave_tangent * scale) as f32, (end.arrive_tangent * scale) as f32,
-                duration, alpha,
+                first,
+                last,
+                (start.leave_tangent * scale) as f32,
+                (end.arrive_tangent * scale) as f32,
+                duration,
+                alpha,
             ),
         }
     }
@@ -459,8 +473,11 @@ pub struct GroundedDynamicsCurve {
 impl GroundedDynamicsCurve {
     pub fn sample(&self, gait_amount: f32) -> GroundedDynamics {
         GroundedDynamics {
-            acceleration: (self.acceleration.sample_scaled(gait_amount, 100.0) as f64 * 0.01) as f32,
-            braking_deceleration: (self.braking_deceleration.sample_scaled(gait_amount, 100.0) as f64 * 0.01) as f32,
+            acceleration: (self.acceleration.sample_scaled(gait_amount, 100.0) as f64 * 0.01)
+                as f32,
+            braking_deceleration: (self.braking_deceleration.sample_scaled(gait_amount, 100.0)
+                as f64
+                * 0.01) as f32,
             ground_friction: self.ground_friction.sample(gait_amount),
         }
     }
@@ -491,7 +508,8 @@ impl Default for GroundedDynamicsCurves {
     fn default() -> Self {
         serde_json::from_str(include_str!(
             "../../../assets/ALS/Data/Character/Movement/grounded_dynamics.runtime.json"
-        )).expect("generated grounded dynamics configuration is invalid")
+        ))
+        .expect("generated grounded dynamics configuration is invalid")
     }
 }
 
@@ -698,7 +716,9 @@ impl Default for CrouchParams {
 
 impl CrouchParams {
     pub(crate) fn actual_crouched_half_height(&self) -> f32 {
-        self.crouched_capsule_half_height.max(self.standing_capsule_radius).max(0.0)
+        self.crouched_capsule_half_height
+            .max(self.standing_capsule_radius)
+            .max(0.0)
     }
 
     pub fn apply_override(&mut self, ovr: &CrouchParamsOverride) {
@@ -1055,7 +1075,8 @@ mod tests {
         assert_eq!(standing.max_run_speed, None);
         let legacy: JumpParams = ron::from_str(
             "(jump_z_velocity:4.2,gravity_scale:1.0,coyote_time:0.0,jump_buffer_time:0.0)",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(legacy.max_hold_time, 0.0);
     }
 
@@ -1192,31 +1213,65 @@ mod tests {
     #[test]
     fn stance_selects_source_acceleration_independently_of_rotation_curve() {
         let params = AlsMovementParams::default();
-        for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection, RotationMode::Aiming] {
-            assert_eq!(params.grounded_dynamics(Stance::Standing, mode, 0.0), GroundedDynamics {
-                acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0,
-            });
-            assert_eq!(params.grounded_dynamics(Stance::Crouching, mode, 0.0), GroundedDynamics {
-                acceleration: 25.0, braking_deceleration: 20.0, ground_friction: 10.0,
-            });
-            assert_eq!(params.grounded_dynamics(Stance::Standing, mode, 2.5),
-                params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, 2.5));
+        for mode in [
+            RotationMode::VelocityDirection,
+            RotationMode::ViewDirection,
+            RotationMode::Aiming,
+        ] {
+            assert_eq!(
+                params.grounded_dynamics(Stance::Standing, mode, 0.0),
+                GroundedDynamics {
+                    acceleration: 20.0,
+                    braking_deceleration: 15.0,
+                    ground_friction: 5.0,
+                }
+            );
+            assert_eq!(
+                params.grounded_dynamics(Stance::Crouching, mode, 0.0),
+                GroundedDynamics {
+                    acceleration: 25.0,
+                    braking_deceleration: 20.0,
+                    ground_friction: 10.0,
+                }
+            );
+            assert_eq!(
+                params.grounded_dynamics(Stance::Standing, mode, 2.5),
+                params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, 2.5)
+            );
         }
-        assert_eq!(params.rotation.grounded_moving_velocity_direction.interpolation_half_lives, GaitHalfLives::responsive());
+        assert_eq!(
+            params
+                .rotation
+                .grounded_moving_velocity_direction
+                .interpolation_half_lives,
+            GaitHalfLives::responsive()
+        );
     }
 
     #[test]
     fn grounded_dynamics_uses_source_curve_tangents() {
         let curves = GroundedDynamicsCurves::default();
-        assert_eq!(curves.normal.acceleration.keys[2].leave_tangent as f32, -36.42372131347656);
-        assert_eq!(curves.responsive.braking_deceleration.keys[2].leave_tangent as f32, -27.156404495239258);
+        assert_eq!(
+            curves.normal.acceleration.keys[2].leave_tangent as f32,
+            -36.42372131347656
+        );
+        assert_eq!(
+            curves.responsive.braking_deceleration.keys[2].leave_tangent as f32,
+            -27.156404495239258
+        );
         assert_eq!(curves.normal.acceleration.sample(2.125), 15.977027893066406);
-        assert_eq!(curves.normal.braking_deceleration.keys[1].leave_tangent, -2.5);
+        assert_eq!(
+            curves.normal.braking_deceleration.keys[1].leave_tangent,
+            -2.5
+        );
 
-        let legacy: HermiteCurve = serde_json::from_str(r#"{"keys":[
+        let legacy: HermiteCurve = serde_json::from_str(
+            r#"{"keys":[
             {"time":0,"value":0,"arrive_tangent":0,"leave_tangent":0},
             {"time":1,"value":1,"arrive_tangent":0,"leave_tangent":0}
-        ]}"#).unwrap();
+        ]}"#,
+        )
+        .unwrap();
         assert_eq!(legacy.sample(0.25), 0.15625);
     }
 
@@ -1224,9 +1279,18 @@ mod tests {
     fn grounded_dynamics_samples_before_projecting_source_units() {
         let curves = GroundedDynamicsCurves::default();
         let normal = &curves.normal;
-        assert_eq!(normal.braking_deceleration.sample(1.1131258010864258), 14.717185974121094);
-        assert_eq!(normal.sample(1.1131258010864258).braking_deceleration, 14.717185020446777);
-        assert_eq!(normal.sample(1.7916673421859741).braking_deceleration, 13.020831108093262);
+        assert_eq!(
+            normal.braking_deceleration.sample(1.1131258010864258),
+            14.717185974121094
+        );
+        assert_eq!(
+            normal.sample(1.1131258010864258).braking_deceleration,
+            14.717185020446777
+        );
+        assert_eq!(
+            normal.sample(1.7916673421859741).braking_deceleration,
+            13.020831108093262
+        );
         let tangent = curves.sluggish.acceleration.keys[2].leave_tangent;
         assert_eq!((tangent * 100.0) as f32, -843.4028930664062_f32);
         assert_ne!((tangent as f32) * 100.0, -843.4028930664062_f32);

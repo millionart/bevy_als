@@ -5,9 +5,13 @@ use bevy::prelude::*;
 use bevy_als::als::aim::{AlsAimPlugin, AlsLastFreeRotationMode};
 use bevy_als::als::character::AlsCharacter;
 use bevy_als::als::input::AlsInputCommand;
-use bevy_als::als::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView, AlsInputRequestPlugin};
+use bevy_als::als::input_request::{
+    AlsCameraLeftShoulder, AlsFirstPersonView, AlsInputRequestPlugin,
+};
 use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::transition::{
+    AlsStateRequest, AlsStateTransitionPlugin, state_transition_system,
+};
 
 fn main() {
     App::new()

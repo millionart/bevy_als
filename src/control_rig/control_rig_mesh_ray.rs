@@ -163,8 +163,11 @@ impl CookedMeshRay {
                     if !ray.intersects(&self.face_bounds_cm[face], current_length) {
                         continue;
                     }
-                    let triangle = self.triangles[face].map(|index| Vec3::from_array(self.vertices_cm[index]).as_dvec3());
-                    if let Some((time, normal)) = triangle_impact(triangle, start, direction, current_length, cull_back_faces) {
+                    let triangle = self.triangles[face]
+                        .map(|index| Vec3::from_array(self.vertices_cm[index]).as_dvec3());
+                    if let Some((time, normal)) =
+                        triangle_impact(triangle, start, direction, current_length, cull_back_faces)
+                    {
                         current_length = time as f32;
                         hit = Some(MeshRayImpact {
                             time_cm: time,
@@ -199,8 +202,12 @@ impl CookedMeshRay {
             return None;
         }
         let inverse_length_scale = length_scale.recip();
-        let mut hit = self.trace_core(core_start, core_direction * inverse_length_scale,
-            length * length_scale, cull_back_faces)?;
+        let mut hit = self.trace_core(
+            core_start,
+            core_direction * inverse_length_scale,
+            length * length_scale,
+            cull_back_faces,
+        )?;
         hit.time_cm *= inverse_length_scale;
         if hit.time_cm >= length {
             return None;
@@ -256,11 +263,16 @@ mod tests {
     fn cooked_mesh_faces_and_foot_offsets_match_native_queries() {
         let meshes: HashMap<String, CookedMeshRay> = serde_json::from_str(include_str!(
             "../../assets/ALSExtras/Environment/Meshes/playground_mesh_ray_data.runtime.json"
-        )).unwrap();
-        let meshes: HashMap<_, _> = meshes.into_iter().map(|(name, mesh)| (name, Arc::new(mesh))).collect();
+        ))
+        .unwrap();
+        let meshes: HashMap<_, _> = meshes
+            .into_iter()
+            .map(|(name, mesh)| (name, Arc::new(mesh)))
+            .collect();
         let cases: Cases = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d162b/cooked-ray-kernel.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let entity = World::new().spawn_empty().id();
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
@@ -280,38 +292,87 @@ mod tests {
             let position = DVec3::from_array(case.translation_cm);
             let delta = end - start;
             let length = f64::from(mesh_vector_length(delta) as f32);
-            let local = mesh.trace(start - position, delta * length.recip(), length, case.scaled.then_some(scale), true);
-            assert_eq!(local.map(|impact| impact.face), case.hit.as_ref().map(|hit| hit.face),
-                "Wrong cooked face for {}/{}", case.fixture, case.case);
+            let local = mesh.trace(
+                start - position,
+                delta * length.recip(),
+                length,
+                case.scaled.then_some(scale),
+                true,
+            );
+            assert_eq!(
+                local.map(|impact| impact.face),
+                case.hit.as_ref().map(|hit| hit.face),
+                "Wrong cooked face for {}/{}",
+                case.fixture,
+                case.case
+            );
 
             let mut collider = Collider::trimesh(
-                mesh.vertices_cm.iter().map(|vertex| Vec3::from_array(*vertex) * 0.01).collect(),
-                mesh.triangles.iter().map(|face| face.map(|vertex| vertex as u32)).collect(),
+                mesh.vertices_cm
+                    .iter()
+                    .map(|vertex| Vec3::from_array(*vertex) * 0.01)
+                    .collect(),
+                mesh.triangles
+                    .iter()
+                    .map(|face| face.map(|vertex| vertex as u32))
+                    .collect(),
             );
             collider.set_scale(scale, 10);
             let query = RigQueryContext {
                 world: Arc::new(RigQueryWorld {
-                    colliders: [(entity, (Position((position / 100.0).as_vec3()), Rotation::default(), collider,
-                        CollisionLayers::ALL))].into_iter().collect(),
-                    mesh_ray_data: [(entity, RigCookedMeshRay { geometry: mesh, cull_back_faces: true })]
-                        .into_iter().collect(),
+                    colliders: [(
+                        entity,
+                        (
+                            Position((position / 100.0).as_vec3()),
+                            Rotation::default(),
+                            collider,
+                            CollisionLayers::ALL,
+                        ),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    mesh_ray_data: [(
+                        entity,
+                        RigCookedMeshRay {
+                            geometry: mesh,
+                            cull_back_faces: true,
+                        },
+                    )]
+                    .into_iter()
+                    .collect(),
                 }),
                 to_world: RigTransform::default(),
                 channel: "Visibility".to_owned(),
                 filter: default(),
             };
-            let actual = query.trace(start / 100.0, end / 100.0, "Visibility", true).unwrap();
-            assert_eq!(actual.is_some(), case.hit.is_some(), "Wrong mesh hit for {}/{}", case.fixture, case.case);
-            let Some(expected) = case.hit else { continue; };
+            let actual = query
+                .trace(start / 100.0, end / 100.0, "Visibility", true)
+                .unwrap();
+            assert_eq!(
+                actual.is_some(),
+                case.hit.is_some(),
+                "Wrong mesh hit for {}/{}",
+                case.fixture,
+                case.case
+            );
+            let Some(expected) = case.hit else {
+                continue;
+            };
             let point = DVec3::from_array(expected.position_cm) / 100.0;
             let normal = DVec3::from_array(expected.normal);
             let (actual_point, actual_normal) = actual.unwrap();
-            assert!(actual_point.distance(point) < 1e-7 && actual_normal.distance(normal) < 1e-10,
+            assert!(
+                actual_point.distance(point) < 1e-7 && actual_normal.distance(normal) < 1e-10,
                 "Wrong cooked hit for {}/{}: actual=({actual_point:?}, {actual_normal:?}), expected=({point:?}, {normal:?})",
-                case.fixture, case.case);
+                case.fixture,
+                case.case
+            );
 
-            let Some(center) = case.rig_center_m else { continue; };
-            let mut trace = |start, end, channel: &str, complex| query.trace(start, end, channel, complex);
+            let Some(center) = case.rig_center_m else {
+                continue;
+            };
+            let mut trace =
+                |start, end, channel: &str, complex| query.trace(start, end, channel, complex);
             let mut context = RigUnitContext {
                 hierarchy: &mut hierarchy,
                 curves: &curves,
@@ -319,21 +380,42 @@ mod tests {
                 construction: false,
                 delta_seconds: 1.0 / 60.0,
                 geometry: &geometry,
-                to_world: RigTransform { translation: DVec3::Y * center, ..default() },
+                to_world: RigTransform {
+                    translation: DVec3::Y * center,
+                    ..default()
+                },
                 line_trace: Some(&mut trace),
             };
             use RigValue::*;
             let mut inputs = vec![
-                Vector((start / 100.0).with_y(0.0)), Name("Visibility".to_owned()), F32(0.5), F32(0.8),
-                F32(45.0), F32(0.134656), Bool(true), Bool(false), F32(0.0), Vector(DVec3::ZERO),
+                Vector((start / 100.0).with_y(0.0)),
+                Name("Visibility".to_owned()),
+                F32(0.5),
+                F32(0.8),
+                F32(45.0),
+                F32(0.134656),
+                Bool(true),
+                Bool(false),
+                F32(0.0),
+                Vector(DVec3::ZERO),
             ];
-            context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut inputs).unwrap();
-            let F32(offset) = inputs[8] else { panic!("Missing rig mesh foot offset"); };
-            let Vector(rig_normal) = inputs[9] else { panic!("Missing rig mesh foot normal"); };
+            context
+                .call("FAlsRigUnit_FootOffsetTrace::Execute", &mut inputs)
+                .unwrap();
+            let F32(offset) = inputs[8] else {
+                panic!("Missing rig mesh foot offset");
+            };
+            let Vector(rig_normal) = inputs[9] else {
+                panic!("Missing rig mesh foot normal");
+            };
             let slope = normal.y as f32;
-            let expected_offset = (point.y - center + f64::from(0.134656_f32 / slope - 0.134656_f32)) as f32;
-            assert!((offset - expected_offset).abs() < 1e-6 && rig_normal.distance(normal) < 1e-10,
-                "Wrong rig mesh foot input for {}", case.case);
+            let expected_offset =
+                (point.y - center + f64::from(0.134656_f32 / slope - 0.134656_f32)) as f32;
+            assert!(
+                (offset - expected_offset).abs() < 1e-6 && rig_normal.distance(normal) < 1e-10,
+                "Wrong rig mesh foot input for {}",
+                case.case
+            );
         }
     }
 }

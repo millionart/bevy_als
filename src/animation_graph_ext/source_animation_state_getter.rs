@@ -1,11 +1,8 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
-    animation_node::{NodeLike, ReflectNodeLike},
     animation_graph::NodeId,
-    context::{
-        new_context::NodeContext,
-        node_states::StateKey,
-    },
+    animation_node::{NodeLike, ReflectNodeLike},
+    context::{new_context::NodeContext, node_states::StateKey},
     edge_data::DataSpec,
     errors::GraphError,
 };
@@ -39,10 +36,14 @@ impl SourceAnimationStateGetterNode {
                 "source animation getter machine is unavailable",
             ));
         }
-        let owner = linked_instance_context(ctx, ctx.graph_context.context_id)
-            .ok_or_else(|| Self::error(ctx, "source animation getter owning instance is unavailable"))?;
-        ctx
-            .graph_context
+        let owner =
+            linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| {
+                Self::error(
+                    ctx,
+                    "source animation getter owning instance is unavailable",
+                )
+            })?;
+        ctx.graph_context
             .context_arena
             .get_ref()
             .iter_context_ids()
@@ -70,12 +71,17 @@ impl SourceAnimationStateGetterNode {
             .ok_or_else(|| Self::error(ctx, "source animation getter machine is unavailable"))
     }
 
-    fn target_state(&self, ctx: &NodeContext, node_id: NodeId) -> Result<Option<InterruptibleFsmState>, GraphError> {
-        let Some(context_id) = crate::extensions::source_instance::source_machine_context(ctx, node_id)? else {
+    fn target_state(
+        &self,
+        ctx: &NodeContext,
+        node_id: NodeId,
+    ) -> Result<Option<InterruptibleFsmState>, GraphError> {
+        let Some(context_id) =
+            crate::extensions::source_instance::source_machine_context(ctx, node_id)?
+        else {
             return Ok(None);
         };
-        ctx
-            .graph_context
+        ctx.graph_context
             .context_arena
             .get_ref()
             .get_context(context_id)
@@ -97,9 +103,9 @@ impl SourceAnimationStateGetterNode {
             "GetInstanceMachineWeight" if self.state_id.is_empty() => {
                 crate::extensions::source_instance::source_machine_weight(ctx, node)
             }
-            "GetInstanceCurrentStateElapsedTime" if self.state_id.is_empty() => {
-                Ok(self.target_state(ctx, node)?.map_or(0.0, |state| state.current_state_elapsed_time()))
-            }
+            "GetInstanceCurrentStateElapsedTime" if self.state_id.is_empty() => Ok(self
+                .target_state(ctx, node)?
+                .map_or(0.0, |state| state.current_state_elapsed_time())),
             "GetInstanceStateWeight" if !self.state_id.is_empty() => {
                 crate::extensions::source_instance::source_state_weight(ctx, node, &self.state_id)
             }

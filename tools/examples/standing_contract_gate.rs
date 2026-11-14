@@ -3,18 +3,18 @@ use std::{
     time::{Duration, Instant},
 };
 
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy::window::ExitCondition;
 use bevy_als::extensions::{
     AlsExtPlugin, CubicVec2AxisFilterNode, DirectTransitionEventNode, F32ToVec2Node,
     GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
     LayeredGraphNode, MultiWayBlendNode, NormalizedBlendSpaceNode, ProfiledBlendNode,
-    ResetOnActivationNode, SourceCurveModifyNode, SourceEnumPoseBlendNode,
+    ResetOnActivationNode, SourceAnimationInputs, SourceCurveModifyNode, SourceEnumPoseBlendNode,
     SourceLayeredBoneBlendNode, SourceMultiWayBlendNode, SourceScopedCachedPoseUseNode,
     SourceSequenceEvaluatorNode, SourceSequencePlayerNode, SourceSetHipsDirectionNode,
-    SourceAnimationInputs, SyncGroupSampleNode,
+    SyncGroupSampleNode,
 };
-use bevy::ecs::message::MessageWriter;
-use bevy::prelude::*;
-use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::loop_node::LoopNode;
 use bevy_animation_graph::core::{
@@ -34,7 +34,8 @@ use bevy_gameplay_tag::GameplayTag;
 
 const ROOT_PATH: &str = "Validation/Graphs/ab_als/stances/standing_runtime_entry.animgraph.ron";
 const SOURCE_ROOT_PATH: &str = "Validation/Graphs/ab_als/stances/standing.animgraph.ron";
-const CYCLE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
+const CYCLE_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
 const DETAILS_PATH: &str = "Validation/Graphs/ab_als/stances/standing/movement_details.fsm.ron";
 const MOVEMENT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/movement_states.fsm.ron";
 const MOVE_GRAPH_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_move.animgraph.ron";
@@ -53,26 +54,35 @@ const MOVEMENT_WRAPPER_PATHS: [&str; 6] = [
 const OUTER_PATH: &str = "Validation/Graphs/ab_als/stances/standing/standing_states.fsm.ron";
 const OUTER_RUNTIME_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron";
-const OUTER_MOVE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_outer_move.animgraph.ron";
+const OUTER_MOVE_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_outer_move.animgraph.ron";
 const STOP_STATES_PATH: &str = "Validation/Graphs/ab_als/stances/standing/stop_states.fsm.ron";
 const FIRST_PIVOT_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron";
-const RUN_START_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_run_start.animgraph.ron";
+const RUN_START_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_detail_run_start.animgraph.ron";
 const RUN_START_WALK_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/state_detail_run_start_from_walk.animgraph.ron";
 const SECOND_PIVOT_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/state_detail_second_pivot.animgraph.ron";
-const DETAIL_BLEND_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron";
-const HIPS_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron";
-const OUTER_BLEND_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron";
+const DETAIL_BLEND_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron";
+const HIPS_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron";
+const OUTER_BLEND_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron";
 const OUTER_STOP_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/transition_outer_stop_03.animgraph.ron";
 const OUTER_INERTIAL_PATH: &str =
     "Validation/Graphs/ab_als/stances/standing/transition_inertial_02.animgraph.ron";
-const ROTATE_LEFT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
-const ROTATE_RIGHT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
-const STOP_RIGHT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron";
-const STOP_LEFT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron";
+const ROTATE_LEFT_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
+const ROTATE_RIGHT_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
+const STOP_RIGHT_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron";
+const STOP_LEFT_PATH: &str =
+    "Validation/Graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron";
 const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 
 fn main() {
@@ -1318,10 +1328,11 @@ fn verify_static_contract(
                     && node.loop_animation_key == loop_key
                     && node.expose_loop_animation_pin
             })
-        }) && std::fs::read_to_string("src/als/character/animation_instances/standing_layer.rs").is_ok_and(|source| {
-            source.contains("als_standing_rotate_left_loop")
-                && source.contains("als_standing_rotate_right_loop")
-        });
+        }) && std::fs::read_to_string("src/als/character/animation_instances/standing_layer.rs")
+            .is_ok_and(|source| {
+                source.contains("als_standing_rotate_left_loop")
+                    && source.contains("als_standing_rotate_right_loop")
+            });
     let source = std::fs::read_to_string(
         "assets/Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
     )

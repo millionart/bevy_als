@@ -17,7 +17,9 @@ use crate::extensions::animation_context::{
     is_context_curve_input, merge_linked_input_context, merge_missing_context_curves,
     pose_input_context_state, resolve_context_curves, select_context_pose_output,
 };
-use crate::extensions::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
+use crate::extensions::global_f32_input::{
+    global_f32_or_root_default, global_f32_or_root_default_value,
+};
 use crate::extensions::source_cached_pose::resolve_cached_pose;
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -97,8 +99,15 @@ pub(crate) struct LayeredGraphState {
 
 impl LayeredGraphNode {
     fn selected_graph(&self, ctx: &NodeContext) -> Handle<AnimationGraph> {
-        if self.graph_binding.is_empty() { return self.graph.clone(); }
-        crate::extensions::source_gameplay_tag_input::active_linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).map(|input| input.graph).unwrap_or_else(|| self.graph.clone())
+        if self.graph_binding.is_empty() {
+            return self.graph.clone();
+        }
+        crate::extensions::source_gameplay_tag_input::active_linked_graph_input(
+            ctx.graph_context.root_entity,
+            &self.graph_binding,
+        )
+        .map(|input| input.graph)
+        .unwrap_or_else(|| self.graph.clone())
     }
 
     pub fn new(graph: Handle<AnimationGraph>) -> Self {
@@ -462,14 +471,30 @@ impl NodeLike for LayeredGraphNode {
                 *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
                 return Ok(());
             }
-            let binding = crate::extensions::source_gameplay_tag_input::active_linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding);
+            let binding = crate::extensions::source_gameplay_tag_input::active_linked_graph_input(
+                ctx.graph_context.root_entity,
+                &self.graph_binding,
+            );
             let frame = ctx.graph_context.frame_index();
             let state = ctx.state_mut_or_else(LayeredGraphState::default)?;
             if state.graph != Some(graph_handle.id()) {
-                for duration in [state.blend_out, binding.as_ref().map(|input| input.blend_in)].into_iter().flatten().filter(|duration| *duration >= 0.0) {
+                for duration in [
+                    state.blend_out,
+                    binding.as_ref().map(|input| input.blend_in),
+                ]
+                .into_iter()
+                .flatten()
+                .filter(|duration| *duration >= 0.0)
+                {
                     crate::extensions::animation_context::merge_inertialization_request(
                         &mut context_state.inertialization_request,
-                        Some(&crate::extensions::animation_context::SourceInertializationRequest { frame, duration, ..default() }),
+                        Some(
+                            &crate::extensions::animation_context::SourceInertializationRequest {
+                                frame,
+                                duration,
+                                ..default()
+                            },
+                        ),
                     );
                 }
             }
@@ -550,30 +575,70 @@ mod tests {
     fn linked_output_preserves_only_consumed_asset_samples() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
-            animation_clip::GraphClip, animation_graph::{NodeId, SourcePin, TimeUpdate}, animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
-            pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+            animation_clip::GraphClip,
+            animation_graph::{NodeId, SourcePin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                system_resources::SystemResources,
+            },
+            pose::Pose,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
         };
-        fn query(In((handle, parents, authoritative)): In<(Handle<AnimationGraph>, [NodeId; 2], bool)>, resources: SystemResources) -> Vec<(String, f32)> {
+        fn query(
+            In((handle, parents, authoritative)): In<(Handle<AnimationGraph>, [NodeId; 2], bool)>,
+            resources: SystemResources,
+        ) -> Vec<(String, f32)> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
-            let inputs = ["left", "right", "independent"].map(|key| (key.to_owned(), DataValue::Pose(Pose::default()))).into();
+            let inputs = ["left", "right", "independent"]
+                .map(|key| (key.to_owned(), DataValue::Pose(Pose::default())))
+                .into();
             let env = TestIoEnv::default();
-            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
-                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
             for (id, identity, weight) in [(parents[0], "left", 0.8), (parents[1], "right", 0.6)] {
-                *context.create_node_context(id).state_mut_or_else(AnimationContextState::default).unwrap() = AnimationContextState {
+                *context
+                    .create_node_context(id)
+                    .state_mut_or_else(AnimationContextState::default)
+                    .unwrap() = AnimationContextState {
                     curves_are_authoritative: authoritative,
                     asset_samples: vec![crate::extensions::animation_context::SourceAssetSample {
-                        identity: identity.to_owned(), clock: crate::extensions::SourceRelevantAsset { weight, ..default() }, ..default()
-                    }], ..default()
+                        identity: identity.to_owned(),
+                        clock: crate::extensions::SourceRelevantAsset {
+                            weight,
+                            ..default()
+                        },
+                        ..default()
+                    }],
+                    ..default()
                 };
             }
-            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
-            let mut samples = graph_output_context_state(graph, &context, "Pose").unwrap().asset_samples
-                .into_iter().map(|sample| (sample.identity, sample.clock.weight)).collect::<Vec<_>>();
+            graph
+                .query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                    context.clone(),
+                )
+                .unwrap();
+            let mut samples = graph_output_context_state(graph, &context, "Pose")
+                .unwrap()
+                .asset_samples
+                .into_iter()
+                .map(|sample| (sample.identity, sample.clock.weight))
+                .collect::<Vec<_>>();
             samples.sort_by(|a, b| a.0.cmp(&b.0));
             samples
         }
@@ -587,29 +652,66 @@ mod tests {
                 for weight in [0.0_f32, 0.25, 1.0] {
                     let mut graphs = world.resource_mut::<Assets<AnimationGraph>>();
                     let mut inner = AnimationGraph::new();
-                    for input in ["left", "right"] { inner.add_input_data(GraphInputPin::Passthrough(input.into()), DataSpec::Pose); }
+                    for input in ["left", "right"] {
+                        inner.add_input_data(
+                            GraphInputPin::Passthrough(input.into()),
+                            DataSpec::Pose,
+                        );
+                    }
                     inner.add_output_data("Pose".into(), DataSpec::Pose);
                     if mode == "blend" {
-                        let blend = AnimationNode::new("weighted inputs", crate::extensions::SourceMultiWayBlendNode {
-                            pose_count: 2, desired_alpha_keys: vec![String::new(); 2], desired_alpha_defaults: vec![weight, 1.0 - weight], ..default()
-                        });
+                        let blend = AnimationNode::new(
+                            "weighted inputs",
+                            crate::extensions::SourceMultiWayBlendNode {
+                                pose_count: 2,
+                                desired_alpha_keys: vec![String::new(); 2],
+                                desired_alpha_defaults: vec![weight, 1.0 - weight],
+                                ..default()
+                            },
+                        );
                         for (index, input) in ["left", "right"].into_iter().enumerate() {
-                            inner.add_input_data_edge(GraphInputPin::Passthrough(input.into()), blend.id, format!("Poses {index}"));
+                            inner.add_input_data_edge(
+                                GraphInputPin::Passthrough(input.into()),
+                                blend.id,
+                                format!("Poses {index}"),
+                            );
                         }
                         inner.add_output_data_edge(blend.id, "Pose", "Pose");
                         inner.add_node(blend);
                     } else if mode == "direct" {
-                        inner.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("left".into())), TargetPin::OutputData("Pose".into()));
+                        inner.add_edge(
+                            SourcePin::InputData(GraphInputPin::Passthrough("left".into())),
+                            TargetPin::OutputData("Pose".into()),
+                        );
                     } else {
-                        let node = AnimationNode::new("independent output", crate::extensions::GlobalPoseInputNode { key: "independent".into(), output: "Pose".into() });
+                        let node = AnimationNode::new(
+                            "independent output",
+                            crate::extensions::GlobalPoseInputNode {
+                                key: "independent".into(),
+                                output: "Pose".into(),
+                            },
+                        );
                         inner.add_output_data_edge(node.id, "Pose", "Pose");
                         inner.add_node(node);
                     }
                     let inner = graphs.add(inner);
-                    let linked = AnimationNode::new("linked", LayeredGraphNode { capture_context: true, internalize_time: true, ..LayeredGraphNode::new(inner) });
+                    let linked = AnimationNode::new(
+                        "linked",
+                        LayeredGraphNode {
+                            capture_context: true,
+                            internalize_time: true,
+                            ..LayeredGraphNode::new(inner)
+                        },
+                    );
                     let mut root = AnimationGraph::new();
                     let parents = ["left", "right"].map(|input| {
-                        let node = AnimationNode::new(input, crate::extensions::GlobalPoseInputNode { key: input.into(), output: "Pose".into() });
+                        let node = AnimationNode::new(
+                            input,
+                            crate::extensions::GlobalPoseInputNode {
+                                key: input.into(),
+                                output: "Pose".into(),
+                            },
+                        );
                         root.add_node_parameter_edge(node.id, "Pose", linked.id, input);
                         root.add_node(node.clone());
                         node.id
@@ -620,13 +722,21 @@ mod tests {
                     let root = graphs.add(root);
                     drop(graphs);
                     let expected = match mode {
-                        "blend" => [("left", 0.8 * weight), ("right", 0.6 * (1.0 - weight))].into_iter()
-                            .filter(|(_, weight)| *weight > 1e-5).map(|(name, weight)| (name.to_owned(), weight)).collect::<Vec<_>>(),
+                        "blend" => [("left", 0.8 * weight), ("right", 0.6 * (1.0 - weight))]
+                            .into_iter()
+                            .filter(|(_, weight)| *weight > 1e-5)
+                            .map(|(name, weight)| (name.to_owned(), weight))
+                            .collect::<Vec<_>>(),
                         "direct" => vec![("left".to_owned(), 0.8)],
                         _ => vec![],
                     };
-                    let actual = world.run_system_cached_with(query, (root, parents, authoritative)).unwrap();
-                    assert_eq!(actual, expected, "mode={mode}, weight={weight}, authoritative={authoritative}");
+                    let actual = world
+                        .run_system_cached_with(query, (root, parents, authoritative))
+                        .unwrap();
+                    assert_eq!(
+                        actual, expected,
+                        "mode={mode}, weight={weight}, authoritative={authoritative}"
+                    );
                 }
             }
         }
@@ -634,50 +744,127 @@ mod tests {
 
     #[test]
     fn instance_graph_binding_switches_and_resets_only_the_linked_subtree() {
+        use crate::extensions::source_gameplay_tag_input::{
+            LinkedGraphInput, SourceAnimationInputs,
+        };
         use bevy::{ecs::system::RunSystemOnce, platform::collections::HashMap};
         use bevy_animation_graph::core::{
-            animation_clip::GraphClip, animation_graph::TimeUpdate, animation_node::AnimationNode,
-            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
-            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+            animation_clip::GraphClip,
+            animation_graph::TimeUpdate,
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                system_resources::SystemResources,
+            },
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
         };
-        use crate::extensions::source_gameplay_tag_input::{SourceAnimationInputs, LinkedGraphInput};
-        fn query(In((root, implementation, entities)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, [Entity;2])>, resources: SystemResources) {
+        fn query(
+            In((root, implementation, entities)): In<(
+                Handle<AnimationGraph>,
+                Handle<AnimationGraph>,
+                [Entity; 2],
+            )>,
+            resources: SystemResources,
+        ) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
-            let mut arenas = [GraphContextArena::new(root.id()), GraphContextArena::new(root.id())];
-            let mut source_inputs = [SourceAnimationInputs::default(), SourceAnimationInputs::default()];
+            let mut arenas = [
+                GraphContextArena::new(root.id()),
+                GraphContextArena::new(root.id()),
+            ];
+            let mut source_inputs = [
+                SourceAnimationInputs::default(),
+                SourceAnimationInputs::default(),
+            ];
             let mut gizmos = DeferredGizmos::default();
             let entity_map = HashMap::new();
             let inputs = HashMap::new();
             let env = TestIoEnv::default();
-            for (frame, (selected, expected)) in [(false,0.1),(false,0.2),(true,1.1),(true,1.2),(false,0.1),(false,0.2),(true,1.1)].into_iter().enumerate() {
-                let binding = LinkedGraphInput { graph: implementation.clone(), blend_in: 0.35, blend_out: 0.25 };
+            for (frame, (selected, expected)) in [
+                (false, 0.1),
+                (false, 0.2),
+                (true, 1.1),
+                (true, 1.2),
+                (false, 0.1),
+                (false, 0.2),
+                (true, 1.1),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let binding = LinkedGraphInput {
+                    graph: implementation.clone(),
+                    blend_in: 0.35,
+                    blend_out: 0.25,
+                };
                 source_inputs[0].set_linked_graph_input("layer", selected.then(|| binding.clone()));
                 source_inputs[1].set_linked_graph_input("layer", Some(binding));
                 for index in 0..2 {
                     let arena = &mut arenas[index];
-                    let context = GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env, entities[index], &entity_map, &mut gizmos, &inputs);
-                    let output = source_inputs[index].evaluate(entities[index], || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone())).unwrap();
-                    let expected = if index == 0 { expected } else { 1.0 + (frame + 1) as f32 * 0.1 };
-                    assert!((output["selected"].as_pose().unwrap().timestamp - expected).abs() < 1e-5, "actor {index}, frame {frame}");
-                    assert!((output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1).abs() < 1e-5);
+                    let context = GraphContext::new(
+                        arena.get_toplevel_id(),
+                        graph,
+                        arena,
+                        &resources,
+                        &env,
+                        entities[index],
+                        &entity_map,
+                        &mut gizmos,
+                        &inputs,
+                    );
+                    let output = source_inputs[index]
+                        .evaluate(entities[index], || {
+                            graph.query_with_context(
+                                QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                                context.clone(),
+                            )
+                        })
+                        .unwrap();
+                    let expected = if index == 0 {
+                        expected
+                    } else {
+                        1.0 + (frame + 1) as f32 * 0.1
+                    };
+                    assert!(
+                        (output["selected"].as_pose().unwrap().timestamp - expected).abs() < 1e-5,
+                        "actor {index}, frame {frame}"
+                    );
+                    assert!(
+                        (output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1)
+                            .abs()
+                            < 1e-5
+                    );
                     let state = graph_output_context_state(graph, &context, "selected").unwrap();
-                    assert_eq!(state.curves[&crate::extensions::SourceCurveName::from("Layer")], if index == 1 || selected { 0.75 } else { 0.25 });
+                    assert_eq!(
+                        state.curves[&crate::extensions::SourceCurveName::from("Layer")],
+                        if index == 1 || selected { 0.75 } else { 0.25 }
+                    );
                     let expected_blend = match (index, frame) {
                         (1, 0) | (0, 2 | 6) => Some(0.35),
                         (0, 4) => Some(0.25),
                         _ => None,
                     };
-                    assert_eq!(state.inertialization_request.as_ref().map(|request| request.duration), expected_blend, "actor {index}, frame {frame}");
+                    assert_eq!(
+                        state
+                            .inertialization_request
+                            .as_ref()
+                            .map(|request| request.duration),
+                        expected_blend,
+                        "actor {index}, frame {frame}"
+                    );
                 }
             }
             assert_eq!(arenas[0].iter_context_ids().count(), 4);
-
         }
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut clips = Assets::<GraphClip>::default();
-        let clip = clips.add(GraphClip { duration:4.0, ..default() });
+        let clip = clips.add(GraphClip {
+            duration: 4.0,
+            ..default()
+        });
         let mut implementations = Vec::new();
-        for (start, value) in [(0.0,0.25),(1.0,0.75)] {
+        for (start, value) in [(0.0, 0.25), (1.0, 0.75)] {
             let player = AnimationNode::new("player", crate::extensions::SourceSequencePlayerNode {
                 clip:clip.clone(), start_position:start, expose_start_position_pin:false, expose_play_rate_pin:false, expose_loop_animation_pin:false,
                 curves:crate::extensions::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Layer","times":[0.0],"values":[value],"interps":["CONSTANT"]}]})).unwrap(), ..default()
@@ -686,17 +873,41 @@ mod tests {
             inner.add_node(player.clone());
             inner.add_output_data("Pose".to_owned(), DataSpec::Pose);
             inner.add_output_data_edge(player.id, "Pose", "Pose");
-            let linked = AnimationNode::new("nested", LayeredGraphNode { capture_context:true, internalize_time:true, ..LayeredGraphNode::new(graphs.add(inner)) });
+            let linked = AnimationNode::new(
+                "nested",
+                LayeredGraphNode {
+                    capture_context: true,
+                    internalize_time: true,
+                    ..LayeredGraphNode::new(graphs.add(inner))
+                },
+            );
             let mut outer = AnimationGraph::new();
             outer.add_node(linked.clone());
             outer.add_output_data("Pose".to_owned(), DataSpec::Pose);
             outer.add_output_data_edge(linked.id, "Pose", "Pose");
             implementations.push(graphs.add(outer));
         }
-        let selected = AnimationNode::new("layer", LayeredGraphNode { graph_binding:"layer".to_owned(), capture_context:true, internalize_time:true, ..LayeredGraphNode::new(implementations[0].clone()) });
-        let sibling = AnimationNode::new("sibling", crate::extensions::SourceSequencePlayerNode { clip, expose_start_position_pin:false, expose_play_rate_pin:false, expose_loop_animation_pin:false, ..default() });
+        let selected = AnimationNode::new(
+            "layer",
+            LayeredGraphNode {
+                graph_binding: "layer".to_owned(),
+                capture_context: true,
+                internalize_time: true,
+                ..LayeredGraphNode::new(implementations[0].clone())
+            },
+        );
+        let sibling = AnimationNode::new(
+            "sibling",
+            crate::extensions::SourceSequencePlayerNode {
+                clip,
+                expose_start_position_pin: false,
+                expose_play_rate_pin: false,
+                expose_loop_animation_pin: false,
+                ..default()
+            },
+        );
         let mut root = AnimationGraph::new();
-        for (node, output) in [(&selected,"selected"), (&sibling,"sibling")] {
+        for (node, output) in [(&selected, "selected"), (&sibling, "sibling")] {
             root.add_node(node.clone());
             root.add_output_data(output.to_owned(), DataSpec::Pose);
             root.add_output_data_edge(node.id, "Pose", output);
@@ -708,7 +919,9 @@ mod tests {
         world.insert_resource(clips);
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        world.run_system_once_with(query, (root, implementations[1].clone(), entities)).unwrap();
+        world
+            .run_system_once_with(query, (root, implementations[1].clone(), entities))
+            .unwrap();
     }
 
     #[test]

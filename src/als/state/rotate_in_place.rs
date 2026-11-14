@@ -82,7 +82,10 @@ pub fn update_rotate_in_place(
 }
 
 fn damp_exact(current: f32, target: f32, dt: f32) -> f32 {
-    let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.15 + 1e-8) * dt.max(0.0));
+    let alpha = 1.0
+        - crate::als::animation::inv_exp_approx(
+            std::f32::consts::LN_2 / (0.15 + 1e-8) * dt.max(0.0),
+        );
     current + (target - current) * alpha
 }
 

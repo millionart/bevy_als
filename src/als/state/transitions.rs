@@ -1,6 +1,9 @@
 use bevy::math::Vec3;
 
-use crate::als::{foot_ik::is_relevant_animation_weight, state::{RotationMode, Stance}};
+use crate::als::{
+    foot_ik::is_relevant_animation_weight,
+    state::{RotationMode, Stance},
+};
 
 pub const QUICK_STOP_BLEND_IN_SECS: f32 = 0.1;
 pub const QUICK_STOP_BLEND_OUT_SECS: f32 = 0.2;
@@ -107,7 +110,11 @@ impl TransitionCooldown {
 }
 
 pub fn unwind_degrees(angle: f32) -> f32 {
-    let angle = if angle.abs() > 360.0 { angle % 360.0 } else { angle };
+    let angle = if angle.abs() > 360.0 {
+        angle % 360.0
+    } else {
+        angle
+    };
     crate::als::head::unwind_degrees(angle)
 }
 
@@ -135,8 +142,9 @@ pub fn select_quick_stop(
             remaining_yaw_degrees: 0.0,
         };
     }
-    let remaining_yaw_degrees =
-        remap_counterclockwise_degrees(unwind_degrees((f64::from(target_yaw_degrees) - actor_yaw_degrees) as f32));
+    let remaining_yaw_degrees = remap_counterclockwise_degrees(unwind_degrees(
+        (f64::from(target_yaw_degrees) - actor_yaw_degrees) as f32,
+    ));
     let rate_alpha = remaining_yaw_degrees.abs() / 180.0;
     QuickStopSelection {
         right: remaining_yaw_degrees > 0.0,
@@ -170,7 +178,10 @@ pub fn select_stance_transition(
     })
 }
 
-pub(crate) fn foot_lock_distance_squared_cm(target: impl Into<bevy::math::DVec3>, locked: impl Into<bevy::math::DVec3>) -> f64 {
+pub(crate) fn foot_lock_distance_squared_cm(
+    target: impl Into<bevy::math::DVec3>,
+    locked: impl Into<bevy::math::DVec3>,
+) -> f64 {
     let [x, y, z] = (target.into() * 100.0 - locked.into() * 100.0).to_array();
     x * x + z * z + y * y
 }
@@ -182,11 +193,14 @@ pub fn select_dynamic_transition(
     stance: Stance,
     config: &TransitionConfig,
 ) -> Option<TransitionSelection> {
-    let threshold_cm = (f64::from(config.dynamic_foot_lock_distance) * 100.0) as f32 * scale_world_space;
+    let threshold_cm =
+        (f64::from(config.dynamic_foot_lock_distance) * 100.0) as f32 * scale_world_space;
     let threshold_squared = f64::from(threshold_cm * threshold_cm);
     let [left_distance, right_distance] = distances_squared_cm;
-    let left_allowed = is_relevant_animation_weight(lock_amounts[0]) && left_distance > threshold_squared;
-    let right_allowed = is_relevant_animation_weight(lock_amounts[1]) && right_distance > threshold_squared;
+    let left_allowed =
+        is_relevant_animation_weight(lock_amounts[0]) && left_distance > threshold_squared;
+    let right_allowed =
+        is_relevant_animation_weight(lock_amounts[1]) && right_distance > threshold_squared;
     if !left_allowed && !right_allowed {
         return None;
     }
@@ -247,16 +261,12 @@ mod tests {
     fn dynamic_transition_requires_source_threshold_and_uses_opposite_side() {
         let config = TransitionConfig::default();
         assert!(
-            select_dynamic_transition([64.0, 64.0], [1.0, 1.0], 1.0, Stance::Standing, &config).is_none()
+            select_dynamic_transition([64.0, 64.0], [1.0, 1.0], 1.0, Stance::Standing, &config)
+                .is_none()
         );
-        let selected = select_dynamic_transition(
-            [128.0, 192.0],
-            [1.0, 1.0],
-            1.0,
-            Stance::Standing,
-            &config,
-        )
-        .unwrap();
+        let selected =
+            select_dynamic_transition([128.0, 192.0], [1.0, 1.0], 1.0, Stance::Standing, &config)
+                .unwrap();
         assert_eq!(selected.sequence, TransitionSequence::StandingRight);
         assert_eq!(selected.play_rate, 1.5);
         assert_eq!(selected.blend_duration, 0.2);
@@ -285,10 +295,15 @@ mod tests {
 
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../../docs/audit/bf144/d166/distance.replay.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let config = TransitionConfig::default();
         for case in fixture.cases {
-            let stance = if case.stance == "crouching" { Stance::Crouching } else { Stance::Standing };
+            let stance = if case.stance == "crouching" {
+                Stance::Crouching
+            } else {
+                Stance::Standing
+            };
             let expected = match (stance, case.expected.as_deref()) {
                 (_, None) => None,
                 (Stance::Crouching, Some("left")) => Some(TransitionSequence::CrouchingLeft),
@@ -297,17 +312,27 @@ mod tests {
                 (Stance::Standing, Some("right")) => Some(TransitionSequence::StandingRight),
                 _ => panic!("invalid dynamic transition fixture"),
             };
-            let mut state = AlsFootLockState { valid: true, ..Default::default() };
+            let mut state = AlsFootLockState {
+                valid: true,
+                ..Default::default()
+            };
             let mut distances = [0.0; 2];
             for (index, foot) in [&mut state.left, &mut state.right].into_iter().enumerate() {
                 foot.target_location = Vec3::from_array(case.targets[index]).as_dvec3();
                 foot.lock_location = Vec3::from_array(case.locks[index]).as_dvec3();
                 foot.lock_amount = case.amounts[index];
-                distances[index] = foot_lock_distance_squared_cm(foot.target_location, foot.lock_location);
+                distances[index] =
+                    foot_lock_distance_squared_cm(foot.target_location, foot.lock_location);
             }
             assert_eq!(distances, case.source_distances_squared_cm, "{}", case.name);
-            let actual = AlsDynamicTransitionState::default().update(&state, true, case.scale, stance, &config);
-            assert_eq!(actual.map(|selection| selection.sequence), expected, "{}", case.name);
+            let actual = AlsDynamicTransitionState::default()
+                .update(&state, true, case.scale, stance, &config);
+            assert_eq!(
+                actual.map(|selection| selection.sequence),
+                expected,
+                "{}",
+                case.name
+            );
         }
     }
 
