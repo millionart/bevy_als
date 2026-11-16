@@ -1,0 +1,65 @@
+{
+  "id": "bf148.01-runtime-inputs",
+  "pass": true,
+  "failures": [],
+  "graphs": 2,
+  "graph_nodes": 16,
+  "graph_edges": 16,
+  "fsms": 0,
+  "fsm_states": 0,
+  "fsm_transitions": 0,
+  "commands": [
+    {
+      "label": "Installed runtime graph boundary",
+      "scope": "source",
+      "exit_code": 0
+    },
+    {
+      "label": "ALS runtime graph positions",
+      "scope": "layout",
+      "exit_code": 0
+    },
+    {
+      "label": "Camera runtime graph positions",
+      "scope": "layout",
+      "exit_code": 0
+    },
+    {
+      "label": "Installed graph editor records",
+      "scope": "editor",
+      "exit_code": 0
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "docs/audit/bf148/01/native.json",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/01/Camera.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/01/Crouching.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/01/Locomotion.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/01/Root.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/01/Standing.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    }
+  ]
+}

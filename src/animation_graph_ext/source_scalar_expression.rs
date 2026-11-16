@@ -6,6 +6,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::extensions::animation_context::optional_data_back;
+
 #[derive(Reflect, Clone, Debug, Default, PartialEq, Eq)]
 pub enum SourceScalarDataType {
     #[default]
@@ -46,41 +48,38 @@ impl SourceScalarExpressionNode {
             .map(|pin| pin.name.as_str())
     }
 
-    fn bool_input_pair(&self, ctx: &NodeContext) -> Option<(bool, bool)> {
+    fn bool_input_pair(&self, ctx: &NodeContext) -> Result<Option<(bool, bool)>, GraphError> {
         let mut pins = self
             .input_pins
             .iter()
             .filter(|pin| pin.data_type == SourceScalarDataType::Bool);
-        let first = pins.next()?;
-        let second = pins.next()?;
-        Some((
-            self.input_bool(ctx, &first.name),
-            self.input_bool(ctx, &second.name),
-        ))
+        let Some((first, second)) = pins.next().zip(pins.next()) else {
+            return Ok(None);
+        };
+        Ok(Some((
+            self.input_bool(ctx, &first.name)?,
+            self.input_bool(ctx, &second.name)?,
+        )))
     }
 
-    fn input_f32(&self, ctx: &NodeContext, name: &str) -> f32 {
+    fn input_f32(&self, ctx: &NodeContext, name: &str) -> Result<f32, GraphError> {
         let fallback = self
             .input_pins
             .iter()
             .find(|pin| pin.name == name)
             .map(|pin| pin.f32_default)
             .unwrap_or_default();
-        ctx.data_back(name.to_owned())
-            .and_then(|value| value.as_f32())
-            .unwrap_or(fallback)
+        optional_data_back(ctx, name)?.map_or(Ok(fallback), |value| value.as_f32())
     }
 
-    fn input_bool(&self, ctx: &NodeContext, name: &str) -> bool {
+    fn input_bool(&self, ctx: &NodeContext, name: &str) -> Result<bool, GraphError> {
         let fallback = self
             .input_pins
             .iter()
             .find(|pin| pin.name == name)
             .map(|pin| pin.bool_default)
             .unwrap_or_default();
-        ctx.data_back(name.to_owned())
-            .and_then(|value| value.as_bool())
-            .unwrap_or(fallback)
+        optional_data_back(ctx, name)?.map_or(Ok(fallback), |value| value.as_bool())
     }
 
     fn global_f32(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> f32 {
@@ -101,64 +100,64 @@ impl SourceScalarExpressionNode {
             .unwrap_or(pin.bool_default)
     }
 
-    fn result_f32(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> f32 {
+    fn result_f32(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> Result<f32, GraphError> {
         match self.operation.as_str() {
-            "absolute" => self.input_f32(ctx, "A").abs(),
-            "bool_to_f32" => bool_to_f32(
-                self.first_bool_input_name()
-                    .map(|name| self.input_bool(ctx, name))
-                    .unwrap_or(false),
-            ),
+            "absolute" => self.input_f32(ctx, "A").map(f32::abs),
+            "bool_to_f32" => self
+                .first_bool_input_name()
+                .map_or(Ok(0.0), |name| self.input_bool(ctx, name).map(bool_to_f32)),
             "passthrough" => self
                 .input_pins
                 .first()
-                .map(|input| self.input_f32(ctx, &input.name))
-                .unwrap_or_default(),
-            _ => self.global_f32(ctx, pin),
+                .map_or(Ok(0.0), |input| self.input_f32(ctx, &input.name)),
+            _ => Ok(self.global_f32(ctx, pin)),
         }
     }
 
-    fn result_bool(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> bool {
-        let left = self.input_f32(ctx, "A");
-        let right = self.input_f32(ctx, "B");
-        match self.operation.as_str() {
-            "less" => left < right,
-            "less_equal" => left <= right,
-            "greater" => left > right,
-            "greater_equal" => left >= right,
+    fn result_bool(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> Result<bool, GraphError> {
+        let left = || self.input_f32(ctx, "A");
+        let right = || self.input_f32(ctx, "B");
+        Ok(match self.operation.as_str() {
+            "less" => left()? < right()?,
+            "less_equal" => left()? <= right()?,
+            "greater" => left()? > right()?,
+            "greater_equal" => left()? >= right()?,
             "equal" => {
-                if let Some((first, second)) = self.bool_input_pair(ctx) {
+                if let Some((first, second)) = self.bool_input_pair(ctx)? {
                     first == second
                 } else {
-                    (left - right).abs() <= f32::EPSILON
+                    (left()? - right()?).abs() <= f32::EPSILON
                 }
             }
             "not_equal" => {
-                if let Some((first, second)) = self.bool_input_pair(ctx) {
+                if let Some((first, second)) = self.bool_input_pair(ctx)? {
                     first != second
                 } else {
-                    (left - right).abs() > f32::EPSILON
+                    (left()? - right()?).abs() > f32::EPSILON
                 }
             }
             "and" => self
                 .input_pins
                 .iter()
                 .filter(|pin| pin.data_type == SourceScalarDataType::Bool)
-                .fold(true, |value, pin| value & self.input_bool(ctx, &pin.name)),
+                .try_fold(true, |value, pin| {
+                    self.input_bool(ctx, &pin.name).map(|input| value & input)
+                })?,
             "or" => self
                 .input_pins
                 .iter()
                 .filter(|pin| pin.data_type == SourceScalarDataType::Bool)
-                .fold(false, |value, pin| value | self.input_bool(ctx, &pin.name)),
-            "not" => !self.input_bool(ctx, "A"),
-            "gameplay_tag_valid" => self.input_bool(ctx, "GameplayTag"),
+                .try_fold(false, |value, pin| {
+                    self.input_bool(ctx, &pin.name).map(|input| value | input)
+                })?,
+            "not" => !self.input_bool(ctx, "A")?,
+            "gameplay_tag_valid" => self.input_bool(ctx, "GameplayTag")?,
             "passthrough" => self
                 .input_pins
                 .first()
-                .map(|input| self.input_bool(ctx, &input.name))
-                .unwrap_or_default(),
+                .map_or(Ok(false), |input| self.input_bool(ctx, &input.name))?,
             _ => self.global_bool(ctx, pin),
-        }
+        })
     }
 }
 
@@ -167,10 +166,10 @@ impl NodeLike for SourceScalarExpressionNode {
         for pin in &self.output_pins {
             match pin.data_type {
                 SourceScalarDataType::F32 => {
-                    ctx.set_data_fwd(pin.name.clone(), self.result_f32(&ctx, pin));
+                    ctx.set_data_fwd(pin.name.clone(), self.result_f32(&ctx, pin)?);
                 }
                 SourceScalarDataType::Bool => {
-                    ctx.set_data_fwd(pin.name.clone(), self.result_bool(&ctx, pin));
+                    ctx.set_data_fwd(pin.name.clone(), self.result_bool(&ctx, pin)?);
                 }
             }
         }

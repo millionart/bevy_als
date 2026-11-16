@@ -1,0 +1,91 @@
+{
+  "failures": {
+    "Validation/Graphs/actions.animgraph.ron": {
+      "malformed_node_entries": [],
+      "malformed_position_entries": [],
+      "missing_positions": [
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000a",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000b",
+        "d6d6d6d6-e7e7-4f8f-9a9a-000000000001",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000001",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000002",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000003",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000004",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000005",
+        "f2f2f2f2-a7a7-6b8b-acac-000000000006",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000001",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000002",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000003",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000004",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000005",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000009",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000001100",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000001",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000001200",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000002",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000001300",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000003",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000001400",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000004",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000005",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000006",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000007",
+        "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
+        "c8c8c8c8-0e0e-4f4f-c0c0-000000000001",
+        "c8c8c8c8-0e0e-4f4f-c0c0-000000000002",
+        "c8c8c8c8-0e0e-4f4f-c0c0-000000000003",
+        "c8c8c8c8-0e0e-4f4f-c0c0-000000000004",
+        "c7c7c7c7-0d0d-4e4e-bfbf-000000000008",
+        "d6d6d6d6-e7e7-4f8f-9a9a-000000000002",
+        "d6d6d6d6-e7e7-4f8f-9a9a-000000000003",
+        "d6d6d6d6-e7e7-4f8f-9a9a-000000000004"
+      ],
+      "extra_positions": [],
+      "duplicate_position_ids": [],
+      "invalid_positions": [],
+      "overlapping_positions": []
+    },
+    "Validation/Graphs/air.animgraph.ron": {
+      "malformed_node_entries": [],
+      "malformed_position_entries": [],
+      "missing_positions": [
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000a",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000b",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000c",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000d",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000e",
+        "e1e1e1e1-f6f6-5a7a-9b9b-00000000000f",
+        "e2e2e2e2-a1a1-4b2b-9c9c-000000000001",
+        "e2e2e2e2-a1a1-4b2b-9c9c-000000000002",
+        "e1e1e1e1-f6f6-5a7a-9b9b-000000000010"
+      ],
+      "extra_positions": [],
+      "duplicate_position_ids": [],
+      "invalid_positions": [],
+      "overlapping_positions": []
+    },
+    "Validation/Graphs/base_locomotion.animgraph.ron": {
+      "malformed_node_entries": [],
+      "malformed_position_entries": [],
+      "missing_positions": [
+        "d2d2d2d2-0000-4000-8000-000000000007",
+        "d3d3d3d3-0000-4000-8000-000000000007",
+        "d4d4d4d4-0000-4000-8000-000000000007",
+        "e5e5e5e5-0000-4000-8000-00000000e501",
+        "e5e5e5e5-0000-4000-8000-00000000e502",
+        "e5e5e5e5-0000-4000-8000-00000000e503",
+        "e5e5e5e5-0000-4000-8000-00000000e504"
+      ],
+      "extra_positions": [],
+      "duplicate_position_ids": [],
+      "invalid_positions": [],
+      "overlapping_positions": [
+        [
+          "c0c0c0c0-0000-4000-8000-000000000004",
+          "e1e1e1e1-0000-4000-8000-00000000e004"
+        ]
+      ]
+    }
+  }
+}

@@ -10,7 +10,9 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::animation_context::{
+    AnimationContextState, optional_data_back, pose_input_context_state,
+};
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::source_compression::prepared_reference_pose;
 use crate::extensions::source_pose_nodes::{
@@ -73,16 +75,14 @@ impl SourceMultiWayBlendNode {
             .desired_alpha_defaults
             .get(index)
             .ok_or_else(|| node_error(ctx, "desired alpha default is missing".to_owned()))?;
-        let fallback = if key.is_empty() {
-            *default
+        if let Some(value) = optional_data_back(ctx, self.alpha_input(index))? {
+            return value.as_f32();
+        }
+        if key.is_empty() {
+            Ok(*default)
         } else {
-            global_f32_or_root_default(ctx, key)?
-        };
-        let input = ctx
-            .data_back(self.alpha_input(index))
-            .ok()
-            .and_then(|value| value.as_f32().ok());
-        Ok(input.unwrap_or(fallback))
+            global_f32_or_root_default(ctx, key)
+        }
     }
     pub(crate) fn active_weights(
         &self,
@@ -229,23 +229,22 @@ impl NodeLike for SourceSetHipsDirectionNode {
         let became_relevant =
             crate::extensions::source_instance::source_call_became_relevant(&ctx)?;
         if !self.on_become_relevant || became_relevant {
-            let value = ctx
-                .data_back("NewHipsDirection")
-                .and_then(|value| value.as_f32())
-                .or_else(|_| {
-                    [
-                        "Forward",
-                        "Backward",
-                        "LeftForward",
-                        "LeftBackward",
-                        "RightForward",
-                        "RightBackward",
-                    ]
-                    .iter()
-                    .position(|value| *value == self.new_hips_direction)
-                    .map(|value| value as f32)
-                    .ok_or_else(|| node_error(&ctx, "source hips direction is invalid".to_owned()))
-                })?;
+            let value = if let Some(value) = optional_data_back(&ctx, "NewHipsDirection")? {
+                value.as_f32()?
+            } else {
+                [
+                    "Forward",
+                    "Backward",
+                    "LeftForward",
+                    "LeftBackward",
+                    "RightForward",
+                    "RightBackward",
+                ]
+                .iter()
+                .position(|value| *value == self.new_hips_direction)
+                .map(|value| value as f32)
+                .ok_or_else(|| node_error(&ctx, "source hips direction is invalid".to_owned()))?
+            };
             crate::extensions::source_instance::set_source_property(
                 &ctx,
                 "grounded_state.hips_direction",

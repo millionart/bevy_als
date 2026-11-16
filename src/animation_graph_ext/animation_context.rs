@@ -1,6 +1,8 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, NodeId, SourcePin, TargetPin, TimeUpdate},
+    animation_graph::{
+        AnimationGraph, GraphInputPin, NodeId, PinId, SourcePin, TargetPin, TimeUpdate,
+    },
     animation_graph_player::AnimationGraphPlayer,
     context::node_states::{NodeStates, StateKey},
     context::{
@@ -267,6 +269,18 @@ pub fn is_context_curve_input(
         && context_inputs.iter().any(|input| {
             !input.curve_prefix.is_empty() && input_name.starts_with(&input.curve_prefix)
         })
+}
+
+pub(crate) fn optional_data_back(
+    ctx: &NodeContext,
+    pin: impl Into<PinId>,
+) -> Result<Option<DataValue>, GraphError> {
+    let target = TargetPin::NodeData(ctx.node_id, pin.into());
+    let graph = ctx.graph_context.graph;
+    if !graph.edges_inverted.contains_key(&target) {
+        return Ok(None);
+    }
+    graph.get_data(target, ctx.graph_context.clone()).map(Some)
 }
 
 pub fn source_node_for_pose_input(

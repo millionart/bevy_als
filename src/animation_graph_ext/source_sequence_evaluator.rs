@@ -7,6 +7,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::source_compression::{has_prepared_pose, sample_source_curves};
 use crate::extensions::source_instance::source_input_data;
@@ -80,10 +81,10 @@ impl SourceSequenceEvaluatorNode {
                 )),
             };
         }
-        if self.expose_explicit_value_pin {
-            if let Ok(value) = ctx.data_back(self.explicit_value_pin.clone()) {
-                return value.as_f32();
-            }
+        if self.expose_explicit_value_pin
+            && let Some(value) = optional_data_back(ctx, self.explicit_value_pin.as_str())?
+        {
+            return value.as_f32();
         }
         Ok(self.explicit_value)
     }
@@ -150,6 +151,121 @@ impl NodeLike for SourceSequenceEvaluatorNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn connected_sequence_inputs_propagate_errors_before_using_defaults() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                system_resources::SystemResources,
+            },
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+        };
+
+        fn evaluate(
+            In(handle): In<Handle<AnimationGraph>>,
+            resources: SystemResources,
+        ) -> Result<f32, GraphError> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let outputs = graph.query(
+                TimeUpdate::Delta(0.1),
+                &mut GraphContextArena::new(handle.id()),
+                &resources,
+                Entity::PLACEHOLDER,
+                &default(),
+                &mut DeferredGizmos::default(),
+                &default(),
+            )?;
+            Ok(outputs["Pose"].as_pose()?.timestamp)
+        }
+
+        let mut world = World::new();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip {
+            duration: 2.0,
+            ..default()
+        });
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.insert_resource(Assets::<AnimationGraph>::default());
+
+        for (node, pin, default_time, connected_time) in [
+            (
+                AnimationNode::new(
+                    "player",
+                    crate::extensions::SourceSequencePlayerNode {
+                        clip: clip.clone(),
+                        play_rate: 2.0,
+                        play_rate_pin: "PlayRate".to_owned(),
+                        ..default()
+                    },
+                ),
+                "PlayRate",
+                0.2,
+                0.05,
+            ),
+            (
+                AnimationNode::new(
+                    "evaluator",
+                    SourceSequenceEvaluatorNode {
+                        clip,
+                        explicit_value: 0.4,
+                        ..default()
+                    },
+                ),
+                "ExplicitTime",
+                0.4,
+                0.5,
+            ),
+        ] {
+            let mut graph = AnimationGraph::new();
+            graph.add_node(node.clone());
+            graph.add_output_time();
+            graph.add_output_pose_edge(node.id);
+            graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", "Pose");
+            let mut run = |graph| {
+                let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                world.run_system_once_with(evaluate, handle).unwrap()
+            };
+            assert_eq!(run(graph.clone()).unwrap(), default_time);
+
+            let input = GraphInputPin::passthrough("test_input");
+            graph.add_input_data(input.clone(), DataSpec::F32);
+            graph.add_input_data_edge(input.clone(), node.id, pin);
+            let missing = run(graph.clone());
+            assert!(
+                matches!(&missing, Err(GraphError::MissingGraphInputData(name)) if name == &input),
+                "{pin} expected a missing graph input error, got {missing:?}"
+            );
+
+            graph.set_default_data(input.clone(), true.into());
+            assert!(matches!(
+                run(graph.clone()),
+                Err(GraphError::MismatchedDataType(..))
+            ));
+            graph.set_default_data(input, 0.5_f32.into());
+            assert_eq!(run(graph.clone()).unwrap(), connected_time);
+
+            let upstream = AnimationNode::new(
+                "upstream",
+                crate::extensions::GlobalF32InputNode {
+                    key: "test_upstream".to_owned(),
+                },
+            );
+            graph.add_node(upstream.clone());
+            graph.add_node_parameter_edge(upstream.id, "test_upstream", node.id, pin);
+            assert!(matches!(
+                run(graph),
+                Err(GraphError::GlobalInputDataMissing(name)) if name == "test_upstream"
+            ));
+        }
+    }
 
     #[test]
     fn step_sampling_matches_native_acl_frame_selection() {

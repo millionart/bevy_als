@@ -81,6 +81,28 @@
   - 09:03 定向回归：首次执行在持续编译依赖时触及 watchdog 总时限。Cargo 指纹显示当前环境与既有依赖缓存路径有差异，改用锁定依赖离线编译并保持 `target_game` 和 `--jobs 2`。相机作者性检查和资产归属入口通过，定向测试待编译结束。
   - 09:19 完成：最终全仓库格式检查和三项定向 Rust 回归通过。定向编译用时 16 分 56 秒，超过预期的部分主要来自依赖重编。见 [BF147.02 验收记录](docs/audit/bf147/02/gate.json)。
 
+## BF148 — ALS 运行时审查整改
+
+范围为 `src/als_extras` 以外的系统代码与其验收。按 .01 至 .05 顺序修复，逐项记录横向核对、反例、消融和 Gate 并提交。NEON 独立以实际行为决定删留。
+
+- [x] BF148.01 — 连线输入错误传播。Gate：区分未接线默认值与已连线缺值、类型错及上游错误；横向核对同类图节点；静态资产边界、首帧错误报告与公共图功能通过。开始：2026-11-16 10:41 +08:00；预估结束：2026-11-16 11:36 +08:00；第 1 轮，实际结束：2026-11-16 11:28 +08:00；偏差：−8 分钟；结果：功能 Gate 通过，未拆分。依据：已复现 Sequence Player/Evaluator，两类节点以外尚有 Blend、标量及事件输入候选。BF116.01c2a 的同类装配错误与 BF147.02 的同 target 定向重编已有实耗。
+  - 10:49 source/static：本地 UE ExposedValueHandler、Sequence、BlendList、Additive、MultiWay 和 ModifyCurve 核实已编译输入写入后读取属性。原生 reader 完成 Standing/Crouching/Locomotion/Root/Camera 共 588 个图记录，含空接 PlayRate/ExplicitFrame 和已接 Alpha，原始读数和请求见 [native.json](docs/audit/bf148/01/native.json)。横向确认同类边界为显式 `data_back` 的标量、权重、曲线及事件默认值；无连线和显式 global 配置保持原回退。修复前同 target 最小反例正在编译。
+  - 10:59 source/static：共享读取区分接线、合并 Bool Blend 两条消费路径，横向检索未再发现同类宽泛回退。格式、资产归属、编辑器及代表图 16 节点/16 边检查通过。全树位置的三个 Validation 既有重叠已定位，生产 ALS/Camera 位置通过，资产无 diff。等待同 target 串行回归完成，之后预构建公共入口。
+  - 11:00 恢复编译：首次 Watchdog 在持续编译时被 dot-source 默认参数覆盖的 300 秒总时限结束。保留机器记录，使用独立参数复跑，仍以输出进展与固定 300 秒无进展为判据。未启动 Playground。
+  - 11:07 夹具纠正：恢复版定向运行揭示 Sequence Player 默认读取 `Play Rate`，夹具只连了目标 RON 的 `PlayRate`。保留两次夹具失配记录，并显式设定节点 pin 与边同名。下一步用纠正夹具消融接线判别、按字节恢复及同 target 重编。
+  - 11:14 消融：纠正夹具下撤去接线判别，空接控制通过，实际已接的缺值返回 `Ok(0.2)`，定向用例按预期失败。已比较恢复源码字节一致，同 target 重编并执行串行 Rust 回归。见 [BF148.01 证据](docs/audit/bf148/01/README.md)。
+  - 11:26 startup 前：恢复定向及全库 2157 单元、37 集成通过，`target_game/play` 同启动器 prebuild 通过。源闭包和作者性仍通过，先执行无 driver startup，再核对 locomotion 与 camera 动态消费者。
+  - 11:26 startup 后 / locomotion 前：无 driver 功能通过，保留报告中的帧预算结果。沿同一二进制跑 locomotion，核对 Sequence、Blend 和标量输入在实际状态切换中的消费。
+  - 11:27 locomotion 后 / camera 前：实际运动功能 Gate 通过。用同一二进制复验相机图 Bool Blend 与曲线输入。
+  - 11:28 完成：camera 功能通过。三场景均无图错误，性能预算记录随原始报告保留。[BF148.01 原生、测试及运行证据](docs/audit/bf148/01/README.md)。
+- [ ] BF148.02 — 旧急停输入与重复 Slot 发布。依赖 .01。Gate：核对运行时与 Validation 消费边界，去除默认装配中的旧更新和无人读取的 Pose 发布，真实 Stop/Quick Stop 选片、时钟和过渡姿态通过。开始与预估结束待依赖完成后登记。依据：两套发布路径及生成角色根图，参考 BF146.05 多动作入口与 BF144 的 Standing Stop 验收。
+- [ ] BF148.03 — 碰撞层原值归属。依赖 .02。Gate：删除可从原值推出的标记，横向核对同类保存状态，验证双 owner 释放顺序与原组件存在/缺失两端，以及真实动作碰撞交接。开始与预估结束待依赖完成后登记。依据：BF102.21 保留归属语义，现有两项定向用例和 BF146.05 的移动基座、起身交接可复用。
+- [ ] BF148.04 — Mesh Space 骨骼遍历复用。依赖 .03。Gate：核对三类消费者及同类实现，复用父骨先行遍历，保留骨骼和姿态输出、公共视觉 Gate。开始与预估结束待依赖完成后登记。依据：三份遍历已经逐字比较，BF144-D163 的 Mesh Space 测试和真实 Control Rig 窗口可复用。
+- [ ] BF148.05 — 必有结果的包装。依赖 .04。Gate：审查仅返回 `Some` 或 `Ok` 的内部包装，精简动作选片、FSM 及实际命中的同类调用；保持动作映射、回调和图状态时序，定向 lint、图和动作回归通过。开始与预估结束待依赖完成后登记。依据：Clippy 已标记两条主链，另有内部 helper 待核对；参考 BF146.05 的消息回归与 BF147.02 的检查实耗。
+- [ ] BF148.06 — 手写 ARM64 归一化消融。依赖 .05。Gate：同输入对照、消费分支和实际姿态验收；仅在实际行为等价时删对应路径，保留有行为必要性的实现及反例。BF144-D248、.452b 和 U07 提供原生对照和数值差背景。
+  - [ ] BF148.06a — F64 Control Rig 归一化。开始与预估结束待依赖完成后登记。Gate：包含退化阈值、IK/层级及公共 `control_rig` 等实际消费。
+  - [ ] BF148.06b — F32 Mesh Space 归一化。依赖 .06a。开始与预估结束待依赖完成后登记。Gate：包含 additive/layered 姿态、曲线及公开图消费者，核对 F64 已通过的边界。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

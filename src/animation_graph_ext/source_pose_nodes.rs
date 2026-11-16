@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::animation_context::{
     AnimationContextState, merge_asset_samples, merge_inertialization_request, merge_sync_players,
-    pose_input_context_state, select_relevant_asset,
+    optional_data_back, pose_input_context_state, select_relevant_asset,
 };
 use crate::extensions::curve_bundle::blend_curve_value;
 use crate::extensions::global_f32_input::{
@@ -408,7 +408,7 @@ pub(crate) fn cached_update_branch_weights(
             &mut state.blend,
             blend.child_count(),
             active,
-            blend.blend_time(ctx, active),
+            blend.blend_time(ctx, active)?,
             blend.blend_mode,
             delta_seconds(ctx)?,
         );
@@ -417,27 +417,7 @@ pub(crate) fn cached_update_branch_weights(
         ));
     }
     if let Some(blend) = node.try_inner_downcast_ref::<SourceBoolBlendNode>() {
-        let active = ctx
-            .data_back("bActiveValue")
-            .and_then(|value| value.as_bool())
-            .or_else(|_| {
-                if blend.active_key.is_empty() {
-                    Ok(blend.active_value)
-                } else {
-                    crate::extensions::source_instance::source_input_data(ctx, &blend.active_key)
-                        .ok_or_else(|| {
-                            GraphError::GlobalInputDataMissing(blend.active_key.clone())
-                        })?
-                        .as_bool()
-                }
-            })?;
-        let index = usize::from(!active);
-        let duration = ctx
-            .data_back(format!("BlendTime_{index}"))
-            .ok()
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(blend.blend_times[index])
-            .max(0.0);
+        let (index, duration) = blend.active_blend(ctx)?;
         let mut state = ctx
             .state::<SourceGameplayTagBlendState>()
             .cloned()
@@ -518,23 +498,12 @@ impl Default for SourceTwoWayBlendNode {
 
 impl SourceTwoWayBlendNode {
     fn alpha_input(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        Ok(if self.expose_alpha_pin {
-            ctx.data_back(self.alpha_pin.clone())
-                .and_then(|value| value.as_f32())
-                .or_else(|_| {
-                    crate::extensions::global_f32_input::global_f32_or_root_default_value(
-                        &ctx,
-                        &self.alpha_key,
-                        self.pin_default,
-                    )
-                })?
-        } else {
-            crate::extensions::global_f32_input::global_f32_or_root_default_value(
-                &ctx,
-                &self.alpha_key,
-                self.pin_default,
-            )?
-        })
+        if self.expose_alpha_pin
+            && let Some(value) = optional_data_back(ctx, self.alpha_pin.as_str())?
+        {
+            return value.as_f32();
+        }
+        global_f32_or_root_default_value(ctx, &self.alpha_key, self.pin_default)
     }
 }
 
@@ -725,15 +694,15 @@ impl Default for SourceApplyAdditiveNode {
 
 impl SourceApplyAdditiveNode {
     fn alpha_input(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        Ok(if self.use_constant_alpha {
-            self.constant_alpha
-        } else if self.expose_alpha_pin {
-            ctx.data_back(self.alpha_pin.clone())
-                .and_then(|value| value.as_f32())
-                .or_else(|_| global_f32_or_root_default(ctx, &self.alpha_key))?
-        } else {
-            global_f32_or_root_default(ctx, &self.alpha_key)?
-        })
+        if self.use_constant_alpha {
+            return Ok(self.constant_alpha);
+        }
+        if self.expose_alpha_pin
+            && let Some(value) = optional_data_back(ctx, self.alpha_pin.as_str())?
+        {
+            return value.as_f32();
+        }
+        global_f32_or_root_default(ctx, &self.alpha_key)
     }
 }
 
@@ -854,15 +823,15 @@ impl Default for SourceMeshSpaceAdditiveNode {
 
 impl SourceMeshSpaceAdditiveNode {
     fn alpha_input(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        Ok(if self.use_constant_alpha {
-            self.constant_alpha
-        } else if self.expose_alpha_pin {
-            ctx.data_back(self.alpha_pin.clone())
-                .and_then(|value| value.as_f32())
-                .or_else(|_| global_f32_or_root_default(ctx, &self.alpha_key))?
-        } else {
-            global_f32_or_root_default(ctx, &self.alpha_key)?
-        })
+        if self.use_constant_alpha {
+            return Ok(self.constant_alpha);
+        }
+        if self.expose_alpha_pin
+            && let Some(value) = optional_data_back(ctx, self.alpha_pin.as_str())?
+        {
+            return value.as_f32();
+        }
+        global_f32_or_root_default(ctx, &self.alpha_key)
     }
 }
 
@@ -1213,12 +1182,10 @@ impl SourceGameplayTagBlendNode {
         Ok(())
     }
 
-    fn blend_time(&self, ctx: &NodeContext, index: usize) -> f32 {
-        ctx.data_back(self.blend_time_pin_names[index].clone())
-            .ok()
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(self.blend_times[index])
-            .max(0.0)
+    fn blend_time(&self, ctx: &NodeContext, index: usize) -> Result<f32, GraphError> {
+        let time = optional_data_back(ctx, self.blend_time_pin_names[index].as_str())?
+            .map_or(Ok(self.blend_times[index]), |value| value.as_f32())?;
+        Ok(time.max(0.0))
     }
 
     fn active_index(&self, root_entity: Entity) -> Option<usize> {
@@ -1499,7 +1466,7 @@ impl NodeLike for SourceGameplayTagBlendNode {
             .active_index(ctx.graph_context.root_entity)
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let delta = delta_seconds(&ctx)?;
-        let blend_time = self.blend_time(&ctx, active_index);
+        let blend_time = self.blend_time(&ctx, active_index)?;
         let reset = self.reset_child_on_activation
             && ctx
                 .state_mut::<SourceGameplayTagBlendState>()?
@@ -1621,8 +1588,8 @@ impl Default for SourceBoolBlendNode {
     }
 }
 
-impl NodeLike for SourceBoolBlendNode {
-    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+impl SourceBoolBlendNode {
+    fn active_blend(&self, ctx: &NodeContext) -> Result<(usize, f32), GraphError> {
         if self.blend_times.len() != 2 || self.source_blend_times.len() != 2 {
             return Err(GraphError::UnknownErrorNode {
                 graph: ctx.graph_context.context_id,
@@ -1630,22 +1597,25 @@ impl NodeLike for SourceBoolBlendNode {
                 error: "bool blend configuration is invalid".into(),
             });
         }
-        let active = if let Ok(value) = ctx.data_back("bActiveValue") {
+        let active = if let Some(value) = optional_data_back(ctx, "bActiveValue")? {
             value.as_bool()?
         } else if self.active_key.is_empty() {
             self.active_value
         } else {
-            crate::extensions::source_instance::source_input_data(&ctx, &self.active_key)
+            crate::extensions::source_instance::source_input_data(ctx, &self.active_key)
                 .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?
                 .as_bool()?
         };
         let index = usize::from(!active);
-        let blend_time = ctx
-            .data_back(format!("BlendTime_{index}"))
-            .ok()
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(self.blend_times[index])
-            .max(0.0);
+        let blend_time = optional_data_back(ctx, format!("BlendTime_{index}"))?
+            .map_or(Ok(self.blend_times[index]), |value| value.as_f32())?;
+        Ok((index, blend_time.max(0.0)))
+    }
+}
+
+impl NodeLike for SourceBoolBlendNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let (index, blend_time) = self.active_blend(&ctx)?;
         let previous = ctx
             .state_mut::<SourceGameplayTagBlendState>()?
             .blend
@@ -1816,12 +1786,12 @@ impl SourceCurveModifyNode {
         if !self.expose_alpha_pin {
             return Ok(self.alpha);
         }
-        match ctx.data_back(self.alpha_pin.clone()) {
-            Ok(value) => value
+        match optional_data_back(ctx, self.alpha_pin.as_str())? {
+            Some(value) => value
                 .as_f32()
                 .map(|value| resolved_curve_alpha(Some(value), self.alpha)),
-            Err(_) if self.alpha_key.is_empty() => Ok(resolved_curve_alpha(None, self.alpha)),
-            Err(_) => global_f32_or_root_default_value(&ctx, &self.alpha_key, self.alpha),
+            None if self.alpha_key.is_empty() => Ok(resolved_curve_alpha(None, self.alpha)),
+            None => global_f32_or_root_default_value(ctx, &self.alpha_key, self.alpha),
         }
     }
 }
@@ -1874,12 +1844,12 @@ impl NodeLike for SourceCurveModifyNode {
                     .get(index)
                     .copied()
                     .unwrap_or(self.pin_default);
-                let input_value = value_pin_names
-                    .get(index)
-                    .and_then(|pin| ctx.data_back(pin.clone()).ok())
-                    .and_then(|value| value.as_f32().ok());
+                let input_value = match value_pin_names.get(index) {
+                    Some(pin) => optional_data_back(&ctx, pin.as_str())?,
+                    None => None,
+                };
                 let target = if let Some(value) = input_value {
-                    value
+                    value.as_f32()?
                 } else if let Some(key) = value_keys.get(index).filter(|key| !key.is_empty()) {
                     global_f32_or_root_default(&ctx, key)?
                 } else {

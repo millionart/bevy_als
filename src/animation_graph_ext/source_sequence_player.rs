@@ -24,6 +24,7 @@ use bevy_animation_graph::core::{
 };
 use serde::Deserialize;
 
+use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
@@ -557,26 +558,27 @@ impl NodeLike for SourceSequencePlayerNode {
             return Ok(());
         };
         let update = context_time_update(&ctx)?;
-        let play_rate = if self.expose_play_rate_pin {
-            ctx.data_back(self.play_rate_pin.clone())
-                .and_then(|value| value.as_f32())
-                .or_else(|_| global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate))?
+        let play_rate_input = if self.expose_play_rate_pin {
+            optional_data_back(&ctx, self.play_rate_pin.as_str())?
         } else {
-            global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate)?
+            None
         };
-        let loop_animation = if self.expose_loop_animation_pin {
-            ctx.data_back(self.loop_animation_pin.clone())
-                .and_then(|value| value.as_bool())
-                .or_else(|_| {
-                    global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)
-                })?
+        let play_rate = play_rate_input.map_or_else(
+            || global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate),
+            |value| value.as_f32(),
+        )?;
+        let loop_input = if self.expose_loop_animation_pin {
+            optional_data_back(&ctx, self.loop_animation_pin.as_str())?
         } else {
-            global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)?
+            None
         };
+        let loop_animation = loop_input.map_or_else(
+            || global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation),
+            |value| value.as_bool(),
+        )?;
         let start_position = if self.expose_start_position_pin {
-            ctx.data_back(self.start_position_pin.clone())
-                .and_then(|value| value.as_f32())
-                .unwrap_or(self.start_position)
+            optional_data_back(&ctx, self.start_position_pin.as_str())?
+                .map_or(Ok(self.start_position), |value| value.as_f32())?
         } else {
             self.start_position
         };

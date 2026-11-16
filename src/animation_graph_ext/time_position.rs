@@ -5,6 +5,8 @@ use bevy_animation_graph::core::context::{new_context::NodeContext, spec_context
 use bevy_animation_graph::core::edge_data::{DataSpec, DataValue, events::EventQueue};
 use bevy_animation_graph::core::errors::GraphError;
 
+use crate::extensions::animation_context::optional_data_back;
+
 pub const IN_POSE: &str = "pose";
 pub const IN_TIME: &str = "time";
 pub const IN_POSITION: &str = "position";
@@ -49,10 +51,8 @@ impl NodeLike for TimePositionNode {
         ctx.set_time_update_back(IN_TIME, TimeUpdate::Absolute(position));
 
         let mut pose = ctx.data_back(IN_POSE)?.into_pose()?;
-        let events = ctx
-            .data_back(IN_EVENTS)
-            .unwrap_or_else(|_| DataValue::EventQueue(EventQueue::default()))
-            .into_event_queue()?;
+        let events = optional_data_back(&ctx, IN_EVENTS)?
+            .map_or(Ok(EventQueue::default()), DataValue::into_event_queue)?;
         pose.timestamp = position;
         ctx.set_data_fwd(OUT_POSE, pose);
         ctx.set_data_fwd(OUT_EVENTS, events);

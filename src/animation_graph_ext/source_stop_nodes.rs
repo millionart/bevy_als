@@ -18,6 +18,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::{
     build_branch_bone_mask, build_branch_filter_bone_mask_by_name, context_time_update,
 };
@@ -89,7 +90,7 @@ impl Default for SourceEnumPoseBlendNode {
 
 impl SourceEnumPoseBlendNode {
     fn active_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        if let Ok(value) = ctx.data_back(self.active_enum_pin.clone()) {
+        if let Some(value) = optional_data_back(ctx, self.active_enum_pin.as_str())? {
             return value.as_f32();
         }
         if self.active_key.is_empty() {
@@ -112,11 +113,8 @@ impl NodeLike for SourceEnumPoseBlendNode {
         } else {
             (&self.default_blend_time_pin, self.default_blend_time)
         };
-        let blend_time = ctx
-            .data_back(blend_time_pin.clone())
-            .ok()
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(blend_time);
+        let blend_time = optional_data_back(&ctx, blend_time_pin.as_str())?
+            .map_or(Ok(blend_time), |value| value.as_f32())?;
         let delta = evaluator_delta(&ctx)?;
         let previous = ctx
             .state_mut_or_else(SourceEnumPoseBlendState::default)?
