@@ -89,7 +89,6 @@ pub struct AlsCollisionLayerOwnership {
     pub mantle: bool,
     pub ragdoll: bool,
     original: Option<CollisionLayers>,
-    had_original: bool,
 }
 
 impl AlsCollisionLayerOwnership {
@@ -112,7 +111,6 @@ impl AlsCollisionLayerOwnership {
         let was_active = self.active();
         if active && !was_active {
             self.original = current;
-            self.had_original = current.is_some();
         }
         match owner {
             AlsCollisionLayerOwner::Mantle => self.mantle = active,
@@ -121,10 +119,7 @@ impl AlsCollisionLayerOwnership {
         if self.active() {
             (current != Some(CollisionLayers::NONE)).then_some(Some(CollisionLayers::NONE))
         } else if was_active {
-            let restored = self.had_original.then_some(self.original).flatten();
-            self.original = None;
-            self.had_original = false;
-            Some(restored)
+            Some(self.original.take())
         } else {
             None
         }

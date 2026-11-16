@@ -1,0 +1,122 @@
+{
+  "startup": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "startup/decal_render.json",
+        "bytes": 1148,
+        "sha256": "f511ece5ba525ec71c9269972222e4d6813d08b61ff62ab24ade48f035629818"
+      },
+      {
+        "path": "startup/process.report.json",
+        "bytes": 406,
+        "sha256": "7e2e32b2e38fc5e9ac23ec7d123cfe597503866cf4beca96a09175f1a647948b"
+      },
+      {
+        "path": "startup/process.stderr.log.gz",
+        "bytes": 4475,
+        "sha256": "6cbb1ee797568e4e8397ceef5dad7c1aa32bc7ebd9aaf62924c801f0fae4c685"
+      },
+      {
+        "path": "startup/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "startup/render_effects.json",
+        "bytes": 243,
+        "sha256": "87411f1ae731b4d4342851054dad8324d5e72c1da90e4af1824749aa0c0c61d0"
+      },
+      {
+        "path": "startup/report.json.gz",
+        "bytes": 7407659,
+        "sha256": "f63c38a0f84ab380876bac543a85e6004dde39fc7c10cd442daf3199bdfca54d"
+      },
+      {
+        "path": "startup/runner.json",
+        "bytes": 373,
+        "sha256": "8166206bc7a4824f34fed054ebfc91147c52e73c7e93ff7338c5059baed46268"
+      }
+    ]
+  },
+  "moving_base": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "moving_base/decal_render.json",
+        "bytes": 1148,
+        "sha256": "cffe3859ad6a706f5c0aae2662d926664b42e6e0d6643f4ef056823f7e50273d"
+      },
+      {
+        "path": "moving_base/process.report.json",
+        "bytes": 408,
+        "sha256": "ae186a4fa3042be78714071faac840244feaa7cca7a613d9fff125a12c2090dd"
+      },
+      {
+        "path": "moving_base/process.stderr.log.gz",
+        "bytes": 8914,
+        "sha256": "5970f87e0b0c95a312697f478d5327cab8a418e3f39de789cbd69c3b7564ada9"
+      },
+      {
+        "path": "moving_base/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "moving_base/render_effects.json",
+        "bytes": 243,
+        "sha256": "c6c69fe65aba7e12788a94c7f77039872b16e9c7bc670d44f62aaef2a8d05ccd"
+      },
+      {
+        "path": "moving_base/report.json.gz",
+        "bytes": 21502697,
+        "sha256": "f3351d68908f35d63f4b0f9b7b305793c25618d251c228bc7dd9b6470afdbd45"
+      },
+      {
+        "path": "moving_base/runner.json",
+        "bytes": 381,
+        "sha256": "df1b577f2604e1c9eabdaf0b21f11dc7ebe25801a24f5ade0f8dcd310b2312ad"
+      }
+    ]
+  },
+  "get_up": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "get_up/decal_render.json",
+        "bytes": 1148,
+        "sha256": "fe3c2683a6f0e00afd6b644804d4c48555fd10edd94f14bcde168d8970915794"
+      },
+      {
+        "path": "get_up/process.report.json",
+        "bytes": 408,
+        "sha256": "4d2a72b4661ce921650e527fd41d39bc664db8c9b65446df33355a2bb081e306"
+      },
+      {
+        "path": "get_up/process.stderr.log.gz",
+        "bytes": 9157,
+        "sha256": "91e315c611373443480e1a3fb53fa60eeb74dd69781d71888013b2b31b4f249b"
+      },
+      {
+        "path": "get_up/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "get_up/render_effects.json",
+        "bytes": 242,
+        "sha256": "9be1e5496e623034046da09a9bd6a4b1c0168b75b3156806b158821b7d3339e5"
+      },
+      {
+        "path": "get_up/report.json.gz",
+        "bytes": 7157719,
+        "sha256": "b41bf334a69080b444456e7e3a774736ae32d74f6c1c82a5c605e5812ebd8a26"
+      },
+      {
+        "path": "get_up/runner.json",
+        "bytes": 371,
+        "sha256": "7dee721d91fc403ca35f2a43f744edbf2a2a503f80bb2b51ff064f28ccdc38cb"
+      }
+    ]
+  }
+}
