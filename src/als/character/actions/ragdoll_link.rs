@@ -8,7 +8,7 @@ use crate::als::motion::AlsRagdollAirExit;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
 use crate::als::transition::{StateTransitionEvent, commit_state};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::extensions::SourceCollisionIgnorePawn;
 use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
 use crate::extensions::ragdoll_angular_drive::{
@@ -978,7 +978,7 @@ fn ragdoll_capsule_dimensions(
 pub fn ragdoll_exit_route_system(
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -1120,7 +1120,7 @@ pub fn ragdoll_exit_route_system(
 
 fn release_ragdoll_air_exit_on_ground(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -1528,7 +1528,7 @@ pub(crate) fn restore_ragdoll_player_parent(
 }
 
 fn ragdoll_ground_hit(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     candidates: &Query<crate::als::motion::CharacterCollisionCandidates>,
     trace_start: Vec3,
     trace_distance: f32,
@@ -1560,7 +1560,7 @@ fn ragdoll_ground_hit(
 #[allow(clippy::type_complexity)]
 fn ragdoll_ground_follow(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -2373,7 +2373,7 @@ pub(crate) mod tests {
                     .is_some())
         );
         let queried_rig = rig.clone();
-        let (raw_hits, blocking_hits, floor_blocks, ground_hit, ground_is_rig) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (raw_hits, blocking_hits, floor_blocks, ground_hit, ground_is_rig) = app.world_mut().run_system_once(move |spatial: SceneQuery,
             colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             let hits = spatial.shape_intersections(colliders.get(other).unwrap(), origin, Quat::IDENTITY,
                 &SpatialQueryFilter::from_excluded_entities([other]));
@@ -2930,7 +2930,7 @@ pub(crate) mod tests {
                 for collider in colliders {
                     app.world_mut().entity_mut(collider).insert((
                         CollisionLayers::ALL,
-                        crate::extensions::RagdollShapeCollisionMode::QueryAndPhysics,
+                        crate::extensions::ShapeCollisionMode::QueryAndPhysics,
                     ));
                 }
             }
@@ -3863,7 +3863,7 @@ pub(crate) mod tests {
             .id();
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
-        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let hit = app.world_mut().run_system_once(move |spatial: SceneQuery,
             candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             ragdoll_ground_hit(&spatial, &candidates, Vec3::Y * 1.6, 1.5, 0.3,
                 Vec::new(), ownership.original_layers())
@@ -4013,7 +4013,7 @@ pub(crate) mod tests {
         let trace_start = Vec3::Y * (0.8 + 2.0 * radius);
         let hit = app
             .world_mut()
-            .run_system_once(move |spatial: SpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 spatial.cast_shape(
                     &Collider::sphere(radius),
                     trace_start,

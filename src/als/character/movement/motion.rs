@@ -1,4 +1,4 @@
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::dynamics::solver::solver_body::{SolverBodies, SolverBodyIndex};
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderOf, CollisionLayers, CollisionStart, Collisions,
@@ -2313,7 +2313,7 @@ mod rotation_cap_tests {
     }
 
     fn record_standing_capsule_physics_probe(
-        spatial_query: SpatialQuery,
+        spatial_query: SceneQuery,
         cases: Query<
             (
                 Entity,
@@ -3874,7 +3874,7 @@ mod rotation_cap_tests {
                         * (params_value.crouch.standing_capsule_half_height
                             - params_value.crouch.crouched_capsule_half_height);
                 app.world_mut()
-                    .run_system_once(move |spatial: SpatialQuery| {
+                    .run_system_once(move |spatial: SceneQuery| {
                         assert!(
                             spatial
                                 .shape_intersections(
@@ -4334,7 +4334,7 @@ mod rotation_cap_tests {
         let own_hit = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       transforms: bevy::transform::helper::TransformHelper,
                       params_assets: Res<Assets<AlsMovementParams>>,
                       handles: Query<&AlsMovementParamsHandle>,
@@ -4802,7 +4802,7 @@ impl Plugin for AlsMotionPlugin {
                     .after(PhysicsStepSystems::NarrowPhase)
                     .after(crate::als::character::character_contacts_system)
                     .before(PhysicsStepSystems::Solver)
-                    .before(crate::extensions::ragdoll_physics_profile::capture_source_sleep_wakes),
+                    .before(crate::extensions::source_body_dynamics::capture_source_sleep_wakes),
             )
             .add_systems(
                 PostUpdate,
@@ -5168,7 +5168,7 @@ fn shape_impact_normal(
 }
 
 pub(crate) fn source_sweep_impact_normal(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     hit: &ShapeHitData,
     trace: Vec3,
     sweep_start: Vec3,
@@ -5223,7 +5223,7 @@ fn landing_hit_qualification(
 }
 
 fn edge_floor_landing(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     position: Vec3,
     half: f32,
     radius: f32,
@@ -5372,7 +5372,7 @@ fn falling_penetration_vector(
 }
 
 fn falling_penetration_adjustment(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     origin: Vec3,
     rotation: Quat,
@@ -5395,7 +5395,7 @@ fn falling_penetration_adjustment(
 }
 
 fn falling_resolve_penetration(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     origin: Vec3,
     rotation: Quat,
@@ -5463,7 +5463,7 @@ fn falling_resolve_penetration(
 }
 
 fn falling_safe_sweep(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     origin: Vec3,
     rotation: Quat,
@@ -5511,7 +5511,7 @@ fn falling_safe_sweep(
 }
 
 pub(crate) fn falling_movement_sweep(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     start: Vec3,
     rotation: Quat,
@@ -5923,7 +5923,7 @@ fn jump_off_velocity(
 }
 
 fn falling_movement_transaction(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     mut transform: Transform,
     mut velocity: Vec3,
@@ -6285,7 +6285,7 @@ fn follow_movement_base_system(
     >,
     mut space: ParamSet<(
         bevy::transform::helper::TransformHelper,
-        SpatialQuery,
+        SceneQuery,
         Query<(&mut Position, &mut Transform), With<AlsCharacter>>,
     )>,
     candidates: Query<CharacterCollisionCandidates>,
@@ -6441,7 +6441,7 @@ fn bind_walking_base(
 
 pub(crate) fn initialize_spawn_movement_mode(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<CharacterCollisionCandidates>,
     pawns: Query<(), With<AlsCharacter>>,
     permissions: Query<&AlsMantleTargetPermission>,
@@ -6630,7 +6630,7 @@ fn sync_effective_gravity_system(
 }
 
 fn refine_ground_sensor_system(
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     characters: Query<
         (
             Entity,
@@ -6873,7 +6873,7 @@ pub(crate) fn locomotion_drive_system(
     time: Res<Time<Virtual>>,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     velocities: Query<
         (
             Option<&RigidBody>,
@@ -7089,7 +7089,7 @@ pub(crate) fn locomotion_drive_system(
 
 fn auto_mantle_after_movement(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     velocities: Query<
         (
             Option<&RigidBody>,
@@ -7211,7 +7211,7 @@ pub(crate) type ReshapeQueryItem<'a> = (
 
 pub(crate) fn capsule_reshape_system(
     mut commands: Commands,
-    spatial_query: SpatialQuery,
+    spatial_query: SceneQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -7324,7 +7324,7 @@ pub(crate) fn capsule_reshape_system(
 
 fn apply_capsule_for_stance(
     commands: &mut Commands,
-    spatial_query: &SpatialQuery,
+    spatial_query: &SceneQuery,
     candidates: &Query<CharacterCollisionCandidates>,
     params: &AlsMovementParams,
     entity: Entity,
@@ -7664,7 +7664,7 @@ fn ground_ramp_movement(delta: Vec3, contact: Vec3, impact: Vec3, line: bool) ->
 }
 
 fn walking_slide_sweep(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     origin: Vec3,
     delta: Vec3,
@@ -7780,7 +7780,7 @@ fn record_ground_impact(
 }
 
 pub(crate) fn grounded_movement_transaction(
-    spatial_query: &SpatialQuery,
+    spatial_query: &SceneQuery,
     capsule: &Collider,
     center: Vec3,
     rotation: Quat,
@@ -8212,7 +8212,7 @@ fn character_floor_scale(local: &Transform, parented: bool, world: &GlobalTransf
 }
 
 pub(crate) fn adjust_walking_floor_height(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     transform: &mut Transform,
     half: f32,
@@ -8265,7 +8265,7 @@ pub(crate) fn adjust_walking_floor_height(
 }
 
 fn walking_movement_transaction(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     mut transform: Transform,
     half: f32,
@@ -8414,7 +8414,7 @@ pub(crate) fn cmc_movement_transaction_system(
         Option<ResMut<Messages<SourceCharacterImpact>>>,
         crate::ragdoll_link::AlsRagdollStartEligibility,
     ),
-    spatial_query: SpatialQuery,
+    spatial_query: SceneQuery,
     candidates: Query<CharacterCollisionCandidates>,
     step_permissions: Query<&AlsMantleTargetPermission>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -9252,7 +9252,7 @@ pub fn character_blocks_collider(
 }
 
 fn floor_sweep_hit(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     radius: f32,
     origin: Vec3,
@@ -9287,7 +9287,7 @@ fn floor_sweep_hit(
 }
 
 fn walking_floor_penetrates(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     origin: Vec3,
     half: f32,
     radius: f32,
@@ -9588,11 +9588,11 @@ fn apply_character_overlap_impulses(
             &ComputedMass,
             Forces,
             Has<RigidBodyDisabled>,
-            Option<&mut crate::extensions::ragdoll_physics_profile::SourceBodySleep>,
+            Option<&mut crate::extensions::source_body_dynamics::SourceBodySleep>,
         )>,
         Query<(
             Ref<LinearVelocity>,
-            &crate::extensions::ragdoll_physics_profile::SourceBodySleep,
+            &crate::extensions::source_body_dynamics::SourceBodySleep,
         )>,
     )>,
 ) {
@@ -9680,7 +9680,7 @@ fn apply_character_impact_forces(
 
 fn apply_standing_downward_force(
     time: Res<Time<Virtual>>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<CharacterCollisionCandidates>,
     owners: Query<&ColliderOf>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -9758,7 +9758,7 @@ fn resolve_stationary_floor_state(
     time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     impact_bodies: FallingImpactBodies,
     candidates: Query<CharacterCollisionCandidates>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -9911,7 +9911,7 @@ fn resolve_stationary_floor_state(
 }
 
 pub fn find_ground_floor(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     origin: Vec3,
     half: f32,
     radius: f32,
@@ -9928,7 +9928,7 @@ pub fn find_ground_floor(
 }
 
 fn find_ground_floor_with_penetration(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     origin: Vec3,
     half: f32,
     radius: f32,
@@ -10169,7 +10169,7 @@ pub(crate) fn locomotion_state_sync_system(
     time: Res<Time<Virtual>>,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<CharacterCollisionCandidates>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
@@ -10823,8 +10823,7 @@ mod tests {
             let (found, rejected) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
-                          candidates: Query<CharacterCollisionCandidates>| {
+                    move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                         let mut rejected = None;
                         let found = find_ground_floor_with_penetration(
                             &spatial,
@@ -11266,8 +11265,8 @@ mod tests {
 
     #[test]
     fn overlap_impulse_keeps_source_sleep_input_distinct_from_velocity_writes() {
-        use crate::extensions::ragdoll_physics_profile::{
-            RagdollPhysicsProfilePlugin, SourceBodySleep,
+        use crate::extensions::{
+            RagdollPhysicsProfilePlugin, source_body_dynamics::SourceBodySleep,
         };
         use avian3d::prelude::{Gravity, Mass, NoAutoMass, Sleeping, SubstepCount};
         use bevy::time::TimeUpdateStrategy;
@@ -11462,7 +11461,7 @@ mod tests {
             app.update();
             app.update();
             app.world_mut().get_mut::<LinearVelocity>(wall).unwrap().0 = Vec3::X * speed;
-            let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let hit = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 shapes: Query<(&Collider, &Position, &Rotation)>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::ZERO, Quat::IDENTITY,
@@ -11524,7 +11523,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
@@ -11650,7 +11649,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let outcome = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let outcome = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
@@ -11719,7 +11718,7 @@ mod tests {
         app.update();
         app.world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
@@ -11799,7 +11798,7 @@ mod tests {
             app.update();
             let impacts = app
                 .world_mut()
-                .run_system_once(|spatial: SpatialQuery| {
+                .run_system_once(|spatial: SceneQuery| {
                     let mut impacts = Vec::new();
                     walking_slide_sweep(
                         &spatial,
@@ -11859,7 +11858,7 @@ mod tests {
         let (witnessed, outcome) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
@@ -11966,7 +11965,7 @@ mod tests {
         app.update();
         app.world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
@@ -12048,7 +12047,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let (initial, recovered) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let (initial, recovered) = app.world_mut().run_system_once(move |spatial: SceneQuery,
                 impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
@@ -12151,7 +12150,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let hit = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 shapes: Query<(&Collider, &Position, &Rotation)>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 let params = crate::als::params::CmcAdapterParams::default();
@@ -12448,7 +12447,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -12818,7 +12817,7 @@ mod tests {
             let (walking, falling) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           capsules: Query<&Collider>,
                           candidates: Query<CharacterCollisionCandidates>,
@@ -13033,7 +13032,7 @@ mod tests {
             ));
             let (upright_blocked, actor_blocked) = app
                 .world_mut()
-                .run_system_once(move |spatial: SpatialQuery| {
+                .run_system_once(move |spatial: SceneQuery| {
                     let capsule = als_character_capsule(0.9 + STAND_UP_SWEEP_INFLATION, 0.3);
                     let center = start + Vec3::Y * (0.34 + STAND_UP_SWEEP_INFLATION);
                     let filter = SpatialQueryFilter::from_excluded_entities([actor]);
@@ -13411,7 +13410,7 @@ mod tests {
                 app.update();
                 app.update();
                 let center = Vec3::Y * (support / normal.y + 0.0215);
-                let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                let result = app.world_mut().run_system_once(move |spatial: SceneQuery,
                     candidates: Query<CharacterCollisionCandidates>,
                     permissions: Query<&AlsMantleTargetPermission>| {
                     grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
@@ -13533,7 +13532,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -13721,7 +13720,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -13791,7 +13790,7 @@ mod tests {
             let positions = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         let mut center = Vec3::new(0.12, 0.9215, -0.155);
@@ -13899,7 +13898,7 @@ mod tests {
         let (inside, normal, missing, solid, exit) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     let filter = SpatialQueryFilter::from_excluded_entities([actor]);
                     let cmc = crate::als::params::CmcAdapterParams::default();
                     let floor = |origin| {
@@ -13971,7 +13970,7 @@ mod tests {
         let center = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     find_ground_floor(
                         &spatial,
                         start,
@@ -14018,7 +14017,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -14500,7 +14499,7 @@ mod tests {
         let (hit, result) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -14597,7 +14596,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -14640,7 +14639,7 @@ mod tests {
                 );
             }
             if wall_top == 2.16 && deck_x == -12.7 {
-                let frame = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                let frame = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                     candidates: Query<CharacterCollisionCandidates>,
                     permissions: Query<&AlsMantleTargetPermission>,
                     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -14831,8 +14830,7 @@ mod tests {
             let (hit, impact, overlap_impact, floor, line_hit) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
-                          candidates: Query<CharacterCollisionCandidates>| {
+                    move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                         let origin = Vec3::new(0.1, 1.02, 0.0);
                         let filter = SpatialQueryFilter::from_excluded_entities([actor]);
                         let shrink = (0.9 - 0.3) * FLOOR_SWEEP_SHRINK_FRACTION;
@@ -14914,7 +14912,7 @@ mod tests {
             let contact = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -15000,8 +14998,7 @@ mod tests {
             let (floor, wide_hit) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
-                          candidates: Query<CharacterCollisionCandidates>| {
+                    move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                         let shrink = (0.9 - 0.3) * FLOOR_SWEEP_SHRINK_FRACTION;
                         let wide_hit = spatial.cast_shape(
                             &als_character_capsule(0.9 - shrink, 0.3),
@@ -15118,7 +15115,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15250,7 +15247,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15318,7 +15315,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15369,7 +15366,7 @@ mod tests {
             app.update();
             app.world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         let cmc = crate::als::params::CmcAdapterParams::default();
@@ -15466,7 +15463,7 @@ mod tests {
             app.update();
             let progress = app
                 .world_mut()
-                .run_system_once(|spatial: SpatialQuery| {
+                .run_system_once(|spatial: SceneQuery| {
                     walking_slide_sweep(
                         &spatial,
                         &als_character_capsule(0.9, 0.3),
@@ -15533,7 +15530,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15643,7 +15640,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15704,7 +15701,7 @@ mod tests {
         let floor = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     find_ground_floor_with_penetration(
                         &spatial,
                         Vec3::Y * 0.9215,
@@ -15759,7 +15756,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15816,7 +15813,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15873,7 +15870,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>| {
                         grounded_movement_transaction(
@@ -15976,7 +15973,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -16050,7 +16047,7 @@ mod tests {
             ),
             (Vec3::ZERO, Vec3::new(0.3562477, -0.8726250, 0.3562477)),
         ] {
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -16695,7 +16692,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let (result, forced_landing) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let (result, forced_landing) = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -16841,7 +16838,7 @@ mod tests {
             let (result, hit, body_position) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>,
@@ -16981,7 +16978,7 @@ mod tests {
             let (result, adjustment) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -17120,7 +17117,7 @@ mod tests {
             (Vec3::X * 1e-7_f32.sqrt(), true),
             (Vec3::X * 0.0003165, false),
         ] {
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -17236,7 +17233,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -17317,7 +17314,7 @@ mod tests {
         let result = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
@@ -17406,7 +17403,7 @@ mod tests {
         let (first, second, resolved) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>| {
                     let capsule = als_character_capsule(0.9, 0.3);
@@ -17526,7 +17523,7 @@ mod tests {
             let result = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -17642,7 +17639,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -17757,7 +17754,7 @@ mod tests {
                 .get_mut::<LinearVelocity>(platform)
                 .unwrap()
                 .0 = Vec3::Y * speed;
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            let result = app.world_mut().run_system_once(move |spatial: SceneQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -18061,7 +18058,7 @@ mod tests {
         ] {
             app.world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>,
                           bases: Query<
@@ -18117,7 +18114,7 @@ mod tests {
             .insert((RigidBody::Kinematic, LinearVelocity(Vec3::X)));
         app.world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
                       bases: Query<
@@ -18211,7 +18208,7 @@ mod tests {
             app.update();
             app.world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           candidates: Query<CharacterCollisionCandidates>,
                           permissions: Query<&AlsMantleTargetPermission>,
                           bases: Query<
@@ -18523,7 +18520,7 @@ mod tests {
         let penetrating = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     walking_floor_penetrates(&spatial, Vec3::Y * 0.2, 0.9, 0.3, actor, &candidates)
                 },
             )
@@ -18563,7 +18560,7 @@ mod tests {
             let (result, seed) = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
+                    move |spatial: SceneQuery,
                           impact_bodies: FallingImpactBodies,
                           candidates: Query<CharacterCollisionCandidates>,
                           shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -19726,7 +19723,7 @@ mod tests {
                     "Height adjustment must not create locomotion velocity"
                 );
                 app.world_mut()
-                    .run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+                    .run_system_once(move |spatial: SceneQuery, colliders: Query<&Collider>| {
                         let overlaps = spatial.shape_intersections(
                             colliders.get(character).unwrap(),
                             position,
@@ -19789,7 +19786,7 @@ mod tests {
                 ))
                 .id();
             app.update();
-            app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>,
+            app.world_mut().run_system_once(move |spatial: SceneQuery, colliders: Query<&Collider>,
                 params: Res<Assets<AlsMovementParams>>, handles: Query<&AlsMovementParamsHandle>,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>| {
@@ -19919,7 +19916,7 @@ mod tests {
                             endpoint.y <= start.y + 0.0001,
                             "Blocked step kept its upward displacement: {case} {endpoint:?}"
                         );
-                        let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                        let supported = app.world_mut().run_system_once(move |spatial: SceneQuery,
                             colliders: Query<&Collider>, candidates: Query<CharacterCollisionCandidates>| {
                             let capsule = colliders.get(character).unwrap();
                             let mut transform = Transform::from_translation(endpoint);
@@ -19970,20 +19967,18 @@ mod tests {
                         endpoint
                     };
                     app.world_mut()
-                        .run_system_once(
-                            move |spatial: SpatialQuery, colliders: Query<&Collider>| {
-                                let overlaps = spatial.shape_intersections(
-                                    colliders.get(character).unwrap(),
-                                    checked,
-                                    Quat::IDENTITY,
-                                    &SpatialQueryFilter::from_excluded_entities([character]),
-                                );
-                                assert!(
-                                    blockers.iter().all(|entity| !overlaps.contains(entity)),
-                                    "Committed step position overlaps a blocker: {case} {checked:?}"
-                                );
-                            },
-                        )
+                        .run_system_once(move |spatial: SceneQuery, colliders: Query<&Collider>| {
+                            let overlaps = spatial.shape_intersections(
+                                colliders.get(character).unwrap(),
+                                checked,
+                                Quat::IDENTITY,
+                                &SpatialQueryFilter::from_excluded_entities([character]),
+                            );
+                            assert!(
+                                blockers.iter().all(|entity| !overlaps.contains(entity)),
+                                "Committed step position overlaps a blocker: {case} {checked:?}"
+                            );
+                        })
                         .unwrap();
                 }
             }
@@ -20033,7 +20028,7 @@ mod tests {
         let delta = (base.world_velocity + base.motor_boost) * 0.0093024;
         let (forward, floor) = app
             .world_mut()
-            .run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+            .run_system_once(move |spatial: SceneQuery, colliders: Query<&Collider>| {
                 let capsule = colliders.get(character).unwrap();
                 let filter = SpatialQueryFilter::from_excluded_entities([character]);
                 let forward = spatial.cast_shape(
@@ -20138,7 +20133,7 @@ mod tests {
                                 let supported =
                                     app.world_mut()
                                         .run_system_once(
-                                            move |spatial: SpatialQuery,
+                                            move |spatial: SceneQuery,
                                                   collisions: Collisions,
                                                   candidates: Query<
                                                 CharacterCollisionCandidates,
@@ -20192,7 +20187,7 @@ mod tests {
                                     let evidence = app
                                         .world_mut()
                                         .run_system_once(
-                                            move |spatial: SpatialQuery,
+                                            move |spatial: SceneQuery,
                                                   collisions: Collisions,
                                                   candidates: Query<
                                                 CharacterCollisionCandidates,
@@ -20392,7 +20387,7 @@ mod tests {
             .insert(original.unwrap());
         let position = app.world().get::<Position>(character).unwrap().0;
         let query_floor =
-            move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+            move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                 find_ground_floor(
                     &spatial,
                     position,
@@ -20531,7 +20526,7 @@ mod tests {
         let before = app.world().get::<Position>(character).unwrap().0;
         let remaining = app
             .world_mut()
-            .run_system_once(move |spatial: SpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 let capsule = als_character_capsule(0.36, 0.298499);
                 spatial.cast_shape(
                     &capsule,
@@ -20552,7 +20547,7 @@ mod tests {
         );
         let ray = app
             .world_mut()
-            .run_system_once(move |spatial: SpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 spatial.cast_ray(
                     before,
                     Dir3::NEG_Y,
@@ -20570,7 +20565,7 @@ mod tests {
         let found = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     find_ground_floor(
                         &spatial,
                         before,
@@ -20640,7 +20635,7 @@ mod tests {
         let (floor, adjusted) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     let cmc = crate::als::params::CmcAdapterParams::default();
                     let filter = SpatialQueryFilter::from_excluded_entities([character]);
                     let floor = find_ground_floor_with_penetration(
@@ -20722,7 +20717,7 @@ mod tests {
                 for _ in 0..2 {
                     app.update();
                 }
-                app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                app.world_mut().run_system_once(move |spatial: SceneQuery,
                     candidates: Query<CharacterCollisionCandidates>| {
                     let half = 0.9 * scale;
                     let radius = 0.3 * scale;
@@ -20780,7 +20775,7 @@ mod tests {
             for _ in 0..2 {
                 app.update();
             }
-            let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let found = app.world_mut().run_system_once(move |spatial: SceneQuery,
                 candidates: Query<CharacterCollisionCandidates>| {
                 let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: 0.0, ..default() };
                 let origin = Vec3::new(0.0, 0.919, 0.0);
@@ -20847,7 +20842,7 @@ mod tests {
                     for _ in 0..2 {
                         app.update();
                     }
-                    let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                    let found = app.world_mut().run_system_once(move |spatial: SceneQuery,
                         candidates: Query<CharacterCollisionCandidates>| {
                         let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: threshold,
                             perch_additional_height: additional, ..default() };
@@ -20906,8 +20901,7 @@ mod tests {
             let found = app
                 .world_mut()
                 .run_system_once(
-                    move |spatial: SpatialQuery,
-                          candidates: Query<CharacterCollisionCandidates>| {
+                    move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                         find_ground_floor(
                             &spatial,
                             Vec3::new(0.0, 1.2, 0.0),
@@ -20958,7 +20952,7 @@ mod tests {
         let found = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     find_ground_floor(
                         &spatial,
                         Vec3::new(0.2, 0.919, 0.0),
@@ -21057,7 +21051,7 @@ mod tests {
                 app.update();
             }
             let query_floor =
-                move |spatial: SpatialQuery, candidates: Query<CharacterCollisionCandidates>| {
+                move |spatial: SceneQuery, candidates: Query<CharacterCollisionCandidates>| {
                     find_ground_floor(
                         &spatial,
                         Vec3::new(if edge { 0.25 } else { 0.0 }, 1.0, 0.0),
@@ -21452,7 +21446,7 @@ mod tests {
         let source_detection = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       velocities: Query<
                     (
                         Option<&RigidBody>,
@@ -21784,7 +21778,7 @@ mod tests {
                 "physics_only" => {
                     app.world_mut().entity_mut(obstacle).insert((
                         RigidBody::Static,
-                        crate::extensions::RagdollShapeCollisionMode::PhysicsOnly,
+                        crate::extensions::ShapeCollisionMode::PhysicsOnly,
                     ));
                 }
                 "base_child" | "character_child" => {
@@ -23069,7 +23063,7 @@ mod tests {
         let position = app.world().get::<Position>(character).unwrap().0;
         let hit = app
             .world_mut()
-            .run_system_once(move |spatial: SpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 spatial.cast_ray(
                     position,
                     Dir3::NEG_Y,
@@ -23210,7 +23204,7 @@ mod tests {
                     if *app.world().get::<LocomotionState>(character).unwrap()
                         == LocomotionState::Air
                     {
-                        let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                        let floor = app.world_mut().run_system_once(move |spatial: SceneQuery,
                             candidates: Query<CharacterCollisionCandidates>| {
                             find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
                         }).unwrap();
@@ -24628,7 +24622,7 @@ mod tests {
         let (cached, airborne) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,
@@ -24736,7 +24730,7 @@ mod tests {
         let (slow, fast, exhausted) = app
             .world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       impact_bodies: FallingImpactBodies,
                       candidates: Query<CharacterCollisionCandidates>,
                       permissions: Query<&AlsMantleTargetPermission>,

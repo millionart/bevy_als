@@ -839,7 +839,7 @@ mod tests {
                     let origin = app.world().get::<Position>(actor).unwrap().0;
                     let hit = app
                         .world_mut()
-                        .run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery| {
+                        .run_system_once(move |spatial: crate::extensions::SceneQuery| {
                             spatial.cast_shape(
                                 &capsule,
                                 origin,

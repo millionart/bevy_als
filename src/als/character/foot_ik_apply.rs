@@ -2527,9 +2527,9 @@ mod tests {
 
     #[test]
     fn rig_observer_reads_actual_execution_hits_weights_and_pose_delivery() {
+        use crate::control_rig_query::{RigQueryContext, RigQueryWorld};
         use crate::extensions::{
             SourceAnimationInputs,
-            control_rig_query::{RigQueryContext, RigQueryWorld},
             root_graph_boundaries::{RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY, RigInputBinding},
         };
         use avian3d::prelude::*;

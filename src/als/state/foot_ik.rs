@@ -1,4 +1,4 @@
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::SpatialQueryFilter;
 use bevy::math::{DQuat, DVec3};
 use bevy::prelude::*;
@@ -1043,7 +1043,7 @@ pub fn foot_bone_map_system(
 
 pub fn foot_ground_probe_system(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     characters: Query<
         (
             Entity,

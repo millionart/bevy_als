@@ -5,7 +5,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::relative_kinematic_body::RelativeKinematicBodyPositionBased;
 
 use crate::extensions::{
-    ragdoll_physics_profile::RagdollPhysicsProfileSet, source_physics_joint::SourcePhysicsJoint,
+    physics_asset::RagdollPhysicsProfileSet, source_physics_joint::SourcePhysicsJoint,
 };
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]

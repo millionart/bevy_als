@@ -1,0 +1,46 @@
+{
+  "base": "0e5cce6dc7520218fa3c76982c3d85c9219ea078",
+  "relocations": {
+    "src/avian_ext/control_rig_query.rs": {
+      "functions": 7,
+      "tests": 10,
+      "destinations": [
+        "src/als/character/control_rig_query.rs",
+        "src/avian_ext/shape_raycast.rs"
+      ]
+    },
+    "src/avian_ext/control_rig_mesh_ray.rs": {
+      "functions": 10,
+      "tests": 1,
+      "destinations": [
+        "src/avian_ext/cooked_mesh_raycast.rs"
+      ]
+    },
+    "src/avian_ext/ragdoll_physics_profile.rs": {
+      "functions": 51,
+      "tests": 59,
+      "destinations": [
+        "src/animation_graph_ext/physics_asset.rs",
+        "src/avian_ext/scene_query.rs",
+        "src/avian_ext/source_body_dynamics.rs"
+      ]
+    },
+    "src/avian_ext/ragdoll_angular_drive.rs": {
+      "functions": 3,
+      "tests": 0,
+      "destinations": [
+        "src/animation_graph_ext/ragdoll_angular_drive.rs"
+      ]
+    },
+    "src/avian_ext/penetration_recovery.rs": {
+      "functions": 1,
+      "tests": 1,
+      "destinations": [
+        "src/als_camera/penetration_recovery.rs"
+      ]
+    }
+  },
+  "control_rig_unit_sha256": "4f281d0658fd71e6c8d9d926cad5bc2e48dc9dea9c53b71971514499b7746730",
+  "physics_timing_registration_equal": true,
+  "assets_and_dependency_locks_equal": true
+}

@@ -249,7 +249,7 @@ impl ControlRigBoundaryNode {
         game_world: bool,
         delta_seconds: f64,
         to_world: RigTransform,
-        query: Option<&crate::extensions::control_rig_query::RigQueryContext>,
+        query: Option<&crate::control_rig_query::RigQueryContext>,
         capture: bool,
     ) -> Result<(), String> {
         state.executed_steps = 0;
@@ -1487,16 +1487,12 @@ mod tests {
                 }
             }
             let query_root = Entity::from_raw_u32(812907).unwrap();
-            source_inputs.set_rig_query_context(Some(
-                crate::extensions::control_rig_query::RigQueryContext {
-                    world: std::sync::Arc::new(
-                        crate::extensions::control_rig_query::RigQueryWorld::default(),
-                    ),
-                    to_world: default(),
-                    channel: "ECC_Visibility".into(),
-                    filter: default(),
-                },
-            ));
+            source_inputs.set_rig_query_context(Some(crate::control_rig_query::RigQueryContext {
+                world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld::default()),
+                to_world: default(),
+                channel: "ECC_Visibility".into(),
+                filter: default(),
+            }));
             let mut inputs = inputs.clone();
             inputs.insert("rig.foot_valid".into(), DataValue::Bool(true));
             let mut outcomes = Vec::new();

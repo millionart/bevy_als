@@ -1958,7 +1958,7 @@ pub(crate) mod tests {
     #[test]
     fn loaded_mantle_keeps_queries_and_restores_physics_axes() {
         use crate::als::character::AlsCollisionLayer;
-        use crate::extensions::RagdollSpatialQuery;
+        use crate::extensions::SceneQuery;
         use avian3d::prelude::{PhysicsSystems, SpatialQueryFilter};
         use std::sync::{Arc, Mutex};
         let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
@@ -1972,7 +1972,7 @@ pub(crate) mod tests {
         let captured = samples.clone();
         app.add_systems(
             PostUpdate,
-            (move |spatial: RagdollSpatialQuery,
+            (move |spatial: SceneQuery,
                    actors: Query<
                 (&Position, &CollisionLayers, &LockedAxes),
                 With<AlsMantlePhysicsFrame>,

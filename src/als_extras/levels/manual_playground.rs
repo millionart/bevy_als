@@ -12,7 +12,7 @@ use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::time::TimeUpdateStrategy;
 use bevy::window::{PresentMode, WindowPlugin};
-use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
+use bevy_als::extensions::SceneQuery;
 use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
 use bevy_als::als::character::{AlsCharacter, AlsCrushRecovery, AlsCrushRecoveryFloor};
@@ -1430,7 +1430,7 @@ fn collision_parity_probe(
         &GlobalTransform,
         Has<Collider>,
     )>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
 ) {
     if probe.done {
         return;

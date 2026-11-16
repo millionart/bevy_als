@@ -9,7 +9,7 @@ use crate::als::player_start::{
 };
 use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState};
 use crate::als::transition::{Dimension, StateTransitionEvent, StateValue, locomotion_mode_locked};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::SpatialQueryFilter;
 use bevy::prelude::*;
 
@@ -112,7 +112,7 @@ fn fit_reserved_player_start(
     candidate: &AlsPlayerStartCandidate,
     reserved: &[Vec3],
     settings: &AlsPlayerStartSettings,
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
 ) -> Option<AlsPlayerStartCandidate> {
     let center = candidate.fit.transform.translation;
     if reserved.iter().all(|position| {
@@ -181,7 +181,7 @@ fn admit_pending_players(
     mut commands: Commands,
     barrier: Option<Res<AlsScenePhysicsReady>>,
     settings: Res<AlsPlayerStartSettings>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     mut random: ResMut<AlsGameModeRandom>,
     all_starts: Query<
         (
@@ -556,7 +556,7 @@ mod tests {
                     let settings = *app.world().resource::<AlsPlayerStartSettings>();
                     let hits = app
                         .world_mut()
-                        .run_system_once(move |spatial: SpatialQuery| {
+                        .run_system_once(move |spatial: SceneQuery| {
                             let shape = crate::als::character::als_character_capsule(
                                 settings.capsule_half_height,
                                 settings.capsule_radius,

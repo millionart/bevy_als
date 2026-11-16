@@ -2206,7 +2206,7 @@ mod tests {
             .unwrap();
         app.update();
         app.update();
-        app.world_mut().run_system_once(move |spatial:crate::extensions::RagdollSpatialQuery| {
+        app.world_mut().run_system_once(move |spatial:crate::extensions::SceneQuery| {
             let shape=Collider::sphere(0.15);
             let config=ShapeCastConfig::from_max_distance(3.0);
             for (index,body) in bodies.iter().enumerate() {

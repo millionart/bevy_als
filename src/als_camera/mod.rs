@@ -1,5 +1,5 @@
 use crate::als::character::AlsCollisionLayer;
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::{Collider, Position, Rotation, SimpleCollider, SpatialQueryFilter};
 #[path = "notifies/shake.rs"]
 mod shake;
@@ -22,7 +22,10 @@ use crate::als::motion::AlsViewYaw;
 use crate::als::state::RotationMode;
 use crate::als::view::AlsViewPitch;
 use crate::extensions::control_rig_math::rig_damper_alpha as damp_alpha;
-use crate::extensions::{sum_penetration_adjustments, unscaled_delta_seconds};
+use crate::extensions::unscaled_delta_seconds;
+use penetration_recovery::sum_penetration_adjustments;
+
+mod penetration_recovery;
 
 pub const CAMERA_CURVE_NAMES: [&str; 13] = [
     "CameraOffsetX",
@@ -640,7 +643,7 @@ fn collect_descendants(root: Entity, children: &Query<&Children>) -> Vec<Entity>
 }
 
 fn has_blocking_overlap(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     shape: &Collider,
     location: Vec3,
     filter: &SpatialQueryFilter,
@@ -659,7 +662,7 @@ fn has_blocking_overlap(
 }
 
 fn start_penetration_adjustment(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     colliders: &Query<(&Position, &Rotation, &Collider)>,
     shape: &Collider,
     start: Vec3,
@@ -709,7 +712,7 @@ fn start_penetration_adjustment(
 }
 
 fn trace_with_start_adjustment(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     colliders: &Query<(&Position, &Rotation, &Collider)>,
     shape: &Collider,
     adjustment_shape: &Collider,
@@ -793,7 +796,7 @@ fn trace_with_start_adjustment(
 
 fn calculate_camera_trace(
     runtime: &mut AlsCameraRuntime,
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     colliders: &Query<(&Position, &Rotation, &Collider)>,
     start: Vec3,
     end: Vec3,
@@ -967,7 +970,7 @@ fn camera_rig_system(
         ),
         With<AlsCameraTarget>,
     >,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     colliders: Query<(&Position, &Rotation, &Collider)>,
     definitions: Res<Assets<AlsCameraDefinition>>,
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
@@ -1818,7 +1821,7 @@ mod tests {
         app.update();
         app.world_mut()
             .run_system_once(
-                move |spatial: SpatialQuery,
+                move |spatial: SceneQuery,
                       colliders: Query<(&Position, &Rotation, &Collider)>,
                       ignored: Query<(), With<AlsCameraTraceIgnore>>| {
                     let mut runtime = AlsCameraRuntime {

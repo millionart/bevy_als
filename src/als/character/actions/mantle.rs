@@ -1,5 +1,5 @@
 use crate::als::dynamics::{AlsComponentVelocity, component_velocity};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::{
     Collider, ColliderOf, LinearVelocity, RigidBody, ShapeCastConfig, SpatialQueryFilter,
 };
@@ -491,7 +491,7 @@ pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
 }
 
 pub fn detect_mantle(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     excluded: Entity,
     input: MantleDetectionInput,
     velocities: &Query<
@@ -1071,7 +1071,7 @@ mod tests {
 
     fn debug_probe(app: &mut App, actor: Entity, locomotion: LocomotionState) -> MantleDetection {
         use bevy::ecs::system::RunSystemOnce;
-        app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SpatialQuery,
+        app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SceneQuery,
             velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>>, colliders: Query<&ColliderOf>,
             actors: Query<&Transform, With<crate::als::character::AlsCharacter>>| {

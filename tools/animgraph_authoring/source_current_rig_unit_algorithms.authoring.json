@@ -186,7 +186,7 @@
       ]
     },
     {
-      "label": "extensions::control_rig_query::tests",
+      "label": "control_rig_query::",
       "argv": [
         "cargo",
         "test",
@@ -199,7 +199,7 @@
         "--config",
         "profile.play.package.bevy_als.opt-level=0",
         "--lib",
-        "extensions::control_rig_query::tests"
+        "control_rig_query::"
       ]
     },
     {

@@ -2,7 +2,7 @@ use super::*;
 use crate::als::aim::AlsLastFreeRotationMode;
 use crate::als::control_scheme::AlsControlSchemeActionDiscriminant;
 use crate::als::transition::{StateTransitionEvent, StateValue};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 use avian3d::prelude::{Collisions, SpatialQueryFilter};
 use bevy_tnua::TnuaController;
@@ -326,7 +326,7 @@ pub(super) fn observe(
     mut report: ResMut<ManualIntegrationGateReport>,
     mut window: ResMut<ManualAnimationWindowEvidence>,
     motion: MotionProbe,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     collisions: Collisions,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     mut transitions: MessageReader<StateTransitionEvent>,

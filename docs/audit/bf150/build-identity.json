@@ -1,0 +1,13 @@
+{
+  "target": "target_game",
+  "profile": "play",
+  "binary": "target_game/play/examples/manual_playground",
+  "bytes": 307364688,
+  "sha256": "aca590c5096cae3db0e11e3d50745ca7ce180d86e6a411ac34a944c0a475cda5",
+  "lock_sha256": "7ea433b986710c57b38d7e2bfcf1cfaf173783dd8f14b7b6d7f3fb49719feb3e",
+  "built_examples": [
+    "manual_playground",
+    "game_mode_player_start_gate",
+    "mantle_configuration_gate"
+  ]
+}

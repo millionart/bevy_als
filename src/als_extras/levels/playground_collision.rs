@@ -1,11 +1,10 @@
 use crate::als::character::AlsCollisionLayer;
-use crate::extensions::control_rig_mesh_ray::CookedMeshRay;
-use crate::extensions::control_rig_query::RigCookedMeshRay;
+use crate::extensions::cooked_mesh_raycast::{CookedMeshRay, CookedMeshRayData};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 #[cfg(test)]
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::extensions::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundKinematic,
     PlaygroundKinematicKind, PlaygroundMovingCurve, PlaygroundMovingObject,
@@ -230,7 +229,7 @@ fn playground_mesh_physics_bridge(
                 .insert(crate::extensions::ComplexCollider(complex));
         }
         if let Some(data) = SOURCE_MESH_RAY_DATA.get(&source.mesh_base) {
-            commands.entity(root).insert(RigCookedMeshRay {
+            commands.entity(root).insert(CookedMeshRayData {
                 geometry: data.clone(),
                 cull_back_faces: SOURCE_MESH_RAY_CULLING[&source.mesh_base],
             });
@@ -920,7 +919,7 @@ mod tests {
                 use bevy::math::DVec3;
                 let inside = DVec3::new(0.025, 10.8, -0.035);
                 let end = inside.with_y(9.5);
-                let trace = |query: &crate::extensions::control_rig_query::RigQueryContext| {
+                let trace = |query: &crate::control_rig_query::RigQueryContext| {
                     assert!(
                         query
                             .trace(inside, end, "ECC_Visibility", true)
@@ -956,7 +955,7 @@ mod tests {
                 assert_eq!(scaled.world.colliders[&root].2.scale(), Vec3::splat(1.5));
                 trace(&scaled);
                 app.world_mut()
-                    .get_mut::<RigCookedMeshRay>(root)
+                    .get_mut::<CookedMeshRayData>(root)
                     .unwrap()
                     .cull_back_faces = false;
                 assert!(
@@ -966,7 +965,7 @@ mod tests {
                         .is_some()
                 );
                 app.world_mut()
-                    .get_mut::<RigCookedMeshRay>(root)
+                    .get_mut::<CookedMeshRayData>(root)
                     .unwrap()
                     .cull_back_faces = true;
                 trace(&publish(&mut app));
@@ -1242,7 +1241,7 @@ mod tests {
         );
         let capsule = app.world().get::<Collider>(actor).unwrap().clone();
         app.world_mut()
-            .run_system_once(move |spatial: SpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 let filter = SpatialQueryFilter::from_excluded_entities([actor]);
                 let config = ShapeCastConfig::from_max_distance(6.5 * 0.012236);
                 let hit = spatial

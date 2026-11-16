@@ -1626,7 +1626,7 @@ mod tests {
                 .id();
             app.update();
             let before = app.world().get::<Position>(character).unwrap().0;
-            app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+            app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
                 colliders: Query<&Collider>| {
                 let capsule = colliders.get(character).unwrap();
                 let filter = avian3d::prelude::SpatialQueryFilter::from_excluded_entities([character]);
@@ -1697,7 +1697,7 @@ mod tests {
                 .id();
             app.update();
             let before = app.world().get::<Position>(character).unwrap().0;
-            app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+            app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
                 colliders: Query<&Collider>| {
                 let capsule = colliders.get(character).unwrap();
                 let filter = avian3d::prelude::SpatialQueryFilter::from_excluded_entities([character]);
@@ -1892,7 +1892,7 @@ mod tests {
             .id();
         app.update();
         let origin = app.world().get::<Position>(character).unwrap().0;
-        let source_first_velocity = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+        let source_first_velocity = app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
             colliders: Query<&Collider>| {
             let capsule = colliders.get(character).unwrap();
             let filter = SpatialQueryFilter::from_excluded_entities([character]);
@@ -2092,7 +2092,7 @@ mod tests {
                 let source_cmc = cmc.clone();
                 app.world_mut()
                     .run_system_once(
-                        move |spatial: crate::extensions::RagdollSpatialQuery,
+                        move |spatial: crate::extensions::SceneQuery,
                               candidates: Query<
                             crate::als::motion::CharacterCollisionCandidates,
                         >| {
@@ -2164,7 +2164,7 @@ mod tests {
             for frame in 0..8 {
                 let before = app.world().get::<Position>(character).unwrap().0;
                 let cmc = cmc.clone();
-                app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+                app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
                     candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                     let filter = SpatialQueryFilter::from_excluded_entities([character]);
                     let mut source_center = before;
@@ -2399,7 +2399,7 @@ mod tests {
             .cmc
             .clone();
         let source_distance = 6.25 * 0.05;
-        let applied_distance = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+        let applied_distance = app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
             colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             let filter = SpatialQueryFilter::from_excluded_entities([character]);
             assert!(crate::als::motion::find_ground_floor(&spatial, origin, 0.9, 0.3,
@@ -2540,7 +2540,7 @@ mod tests {
                 .after(grounded_dynamics_motor_system)
                 .before(TnuaPipelineSystems::Motors),
             );
-            app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+            app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
                 candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                 let filter = SpatialQueryFilter::from_excluded_entities([character]);
                 assert!(crate::als::motion::find_ground_floor(&spatial, origin, 0.9, 0.3,

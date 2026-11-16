@@ -3,7 +3,7 @@ use std::num::NonZeroU8;
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
+use bevy_als::extensions::SceneQuery;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
@@ -129,7 +129,7 @@ fn drive_gate(
     starts: Query<(Entity, &AlsPlayerStartReady)>,
     admissions: Query<&AlsPlayerAdmissionComplete>,
     characters: Query<(&Transform, &Collider), With<AlsCharacter>>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     mut exit: MessageWriter<AppExit>,
 ) {
     state.frame += 1;

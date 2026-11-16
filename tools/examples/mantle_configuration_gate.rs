@@ -13,7 +13,7 @@ use bevy_als::als::mantle::{
     mantle_start_allowed, scaled_mantle_capsule_dimensions,
 };
 use bevy_als::als::state::{LocomotionState, OverlayState, Stance};
-use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
+use bevy_als::extensions::SceneQuery;
 
 #[derive(Resource, Default)]
 struct GateState {
@@ -115,7 +115,7 @@ fn auto_start_settings() -> AlsMantleStartTimeSettings {
 
 fn verify(
     mut state: ResMut<GateState>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     velocities: Query<
         (
             Option<&RigidBody>,

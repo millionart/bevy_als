@@ -1,4 +1,9 @@
-use bevy::{math::DVec3, prelude::Vec3};
+use std::sync::Arc;
+
+use bevy::{
+    math::DVec3,
+    prelude::{Component, Vec3},
+};
 use serde::Deserialize;
 
 type Bounds = [[f32; 3]; 2];
@@ -218,18 +223,23 @@ impl CookedMeshRay {
     }
 }
 
+#[derive(Clone, Component)]
+pub struct CookedMeshRayData {
+    pub(crate) geometry: Arc<CookedMeshRay>,
+    pub(crate) cull_back_faces: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use avian3d::prelude::{Collider, CollisionLayers, Position, Rotation};
     use bevy::{platform::collections::HashMap, prelude::*};
-    use std::sync::Arc;
 
+    use crate::control_rig_query::{RigQueryContext, RigQueryWorld};
     use crate::extensions::{
         control_rig_hierarchy::{RigHierarchy, RigTransform},
         control_rig_ik::RigGeometry,
         control_rig_math::RigValue,
-        control_rig_query::{RigCookedMeshRay, RigQueryContext, RigQueryWorld},
         control_rig_units::{RigUnitContext, call_unit},
     };
 
@@ -333,7 +343,7 @@ mod tests {
                     .collect(),
                     mesh_ray_data: [(
                         entity,
-                        RigCookedMeshRay {
+                        CookedMeshRayData {
                             geometry: mesh,
                             cull_back_faces: true,
                         },

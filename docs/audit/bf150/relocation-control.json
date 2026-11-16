@@ -1,0 +1,5 @@
+{
+  "schedule_edge": ".after(integrate_source_body_rotation)",
+  "missing_edge_rejected": true,
+  "unaltered_worktree_passed": true
+}

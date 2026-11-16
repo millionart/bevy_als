@@ -1,4 +1,4 @@
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::{Collider, SpatialQueryFilter};
 use bevy::prelude::*;
 
@@ -195,7 +195,7 @@ fn spawn_shape(half_height: f32, radius: f32) -> avian3d::prelude::Collider {
 }
 
 fn shape_intersections(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     shape: &avian3d::prelude::Collider,
     transform: &Transform,
     colliders: &Query<(&Collider, &GlobalTransform)>,
@@ -267,7 +267,7 @@ fn proposed_overlap_adjustment(
 }
 
 pub fn find_teleport_spot(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     transform: Transform,
     capsule_half_height: f32,
     capsule_radius: f32,
@@ -314,7 +314,7 @@ pub fn find_teleport_spot(
 }
 
 pub fn fit_player_start(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     start: Transform,
     ground_y: f32,
     capsule_half_height: f32,
@@ -404,7 +404,7 @@ impl Plugin for AlsPlayerStartPlugin {
 fn prepare_player_starts(
     mut commands: Commands,
     settings: Res<AlsPlayerStartSettings>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     colliders: Query<(&Collider, &GlobalTransform)>,
     characters: Query<Entity, With<crate::als::character::AlsCharacter>>,
     transforms: Query<&Transform>,

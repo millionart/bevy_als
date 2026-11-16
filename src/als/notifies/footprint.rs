@@ -1,5 +1,5 @@
 use crate::als::{character::AlsCharacter, foot_ik::AlsFootBones, state::LocomotionState};
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::extensions::projected_decal::{
     NoDecalReceiver, PackedDecal, PackedDecalMaterial, PhysicalSurface,
 };
@@ -286,7 +286,7 @@ fn spawn_footprints(
     assets: Res<FootprintAssets>,
     libraries: Res<Assets<FootprintLibrary>>,
     time: Res<Time>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     mut characters: Query<
         (
             &AlsFootBones,

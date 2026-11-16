@@ -2,7 +2,7 @@ use super::*;
 use crate::als::aim::AlsLastFreeRotationMode;
 use crate::als::input::AlsInputCommand;
 use crate::als::turn_in_place::wrap_angle_degrees;
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 use avian3d::prelude::{ShapeCastConfig, SpatialQueryFilter};
 
@@ -80,7 +80,7 @@ impl Route {
 }
 
 fn supported_tread_center(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     capsule: &Collider,
     character: Entity,
     stairs: Entity,
@@ -382,7 +382,7 @@ mod tests {
             .init_resource::<ManualRuntimePhaseEvidence>()
             .init_resource::<Assets<AlsMovementParams>>();
         app.world_mut().run_system_once(drive).unwrap();
-        let (route, intersections, floor) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (route, intersections, floor) = app.world_mut().run_system_once(move |spatial: SceneQuery,
             colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
             let route = Route::from_collider(colliders.get(stairs).unwrap(), &GlobalTransform::IDENTITY, 0.9,
@@ -719,7 +719,7 @@ pub(super) fn drive(
         &PlaygroundMeshColliderBuilt,
     )>,
     mut actors: ParamSet<(
-        SpatialQuery,
+        SceneQuery,
         Query<
             (
                 &mut AlsInputOverride,

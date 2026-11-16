@@ -4,10 +4,10 @@
 
 ```text
 src/
-  animation_graph_ext/         bevy_animation_graph 求值、节点、同步、曲线、加载与 Rig 调用
-  avian_ext/                   物理关节、驱动、PhysicsAsset 和 Rig 等查询辅助
+  animation_graph_ext/         bevy_animation_graph 求值、节点、曲线、Rig 调用与 PhysicsAsset 装配
+  avian_ext/                   源物理差异的补足，含 SceneQuery、几何查询、刚体与关节求解
   bevy_ext/                    材质、贴花、文本、后处理和时间辅助
-  control_rig/                 源工程自定义 Control Rig 单位及测试
+  control_rig_ext/             源工程自定义 Control Rig 单位及测试
   tnua_ext/                    控制器辅助与项目物理时钟适配
   als/
     character/
@@ -45,6 +45,6 @@ src/
 
 项目只有一个 Cargo 包 `bevy_als`，不再保留 `crates` 目录。`als/mod.rs`、`als_camera/mod.rs` 和 `extensions.rs` 是内部模块/类型注册入口。专项程序位于 `tools/examples`，集成测试位于 `tools/tests`，源码单元测试仍与被测代码同文件；Cargo.toml 显式声明 example/test 路径，现有命令保持不变。
 
-RigVM、层级、数学、IK 和已有的 UE 原生 Control Rig 单位来自锁定的 `bevy_control_rig` Git 依赖。`control_rig` 按源标识执行 ALS 自定义单位。`animation_graph_ext` 的图节点负责传递当前帧的 Pose、曲线、调用时机和结果。`avian_ext` 中的物理查询通过 Rig 的 trace 回调传入。
+RigVM、层级、数学、IK 和已有的 UE 原生 Control Rig 单位来自锁定的 `bevy_control_rig` Git 依赖。`control_rig_ext` 按源标识执行 ALS 自定义单位。角色层提供 Rig 的查询上下文和单位接线，`animation_graph_ext` 的图节点负责传递当前帧的 Pose、曲线、调用时机和结果。PhysicsAsset 的骨骼刚体装配和动画关节目标也由 `animation_graph_ext` 管理。
 
 Rust 调用使用 `bevy_als::als`、`bevy_als::als_camera`、`bevy_als::extensions`，不再引用旧独立 crate。RON 中已有的 `als_ext::NodeName` 是显式固定的反射类型名，继续用于资产兼容，不代表磁盘上仍有 als-ext crate。`cargo run --example manual_playground` 和 `bevy_als::manual_playground_integration` 保持原入口。

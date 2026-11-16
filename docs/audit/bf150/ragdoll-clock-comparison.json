@@ -1,0 +1,39 @@
+{
+  "prior_realtime_report": "docs/audit/bf144/u07/ragdoll-ccd-filter/ragdoll/report.json.gz",
+  "prior_realtime_report_sha256": "e1fcf54010ec702ae6f208f480c366a5b1509b06b978a020af550b31da382a7c",
+  "prior_realtime_anomaly": {
+    "stage": "final",
+    "kind": "local_translation_spike",
+    "subject": "pelvis",
+    "previous": 0.0,
+    "current": 0.39089498,
+    "threshold": 0.35,
+    "trigger": "jump",
+    "rate": 12.704544,
+    "rate_threshold": 14.0,
+    "elapsed_secs": 4.001648958,
+    "frame_ms": 31.637541999999996,
+    "animation_delta_seconds": 0.030768124,
+    "direction_case": null,
+    "phase": "Ragdoll"
+  },
+  "final_realtime_anomaly": {
+    "stage": "final",
+    "kind": "local_translation_spike",
+    "subject": "pelvis",
+    "previous": 0.0,
+    "current": 0.37453496,
+    "threshold": 0.35,
+    "trigger": "jump",
+    "rate": 12.679052,
+    "rate_threshold": 14.0,
+    "elapsed_secs": 3.486868625,
+    "frame_ms": 31.77175,
+    "animation_delta_seconds": 0.029539665,
+    "direction_case": null,
+    "phase": "Ragdoll"
+  },
+  "prior_fixed_clock_runner": "docs/audit/bf144/u07/scaled-get-up/ragdoll/runner.json",
+  "fixed_clock_seconds": 0.0166666666666667,
+  "final_fixed_clock_pass": true
+}

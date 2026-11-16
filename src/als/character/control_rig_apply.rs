@@ -3,12 +3,11 @@ use crate::als::foot_ik::{AlsFootLockState, AlsFootTargetSelection};
 use crate::als::input_request::AlsFirstPersonView;
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::state::RotationMode;
+use crate::control_rig_query::{RigQueryContext, RigQueryWorld};
 use crate::extensions::source_instance::source_player_property;
 use crate::extensions::{
-    RagdollShapeCollisionMode,
-    control_rig_hierarchy::RigTransform,
-    control_rig_query::{RigCookedMeshRay, RigQueryContext, RigQueryWorld},
-    source_instance::set_source_frame_input,
+    ShapeCollisionMode, control_rig_hierarchy::RigTransform,
+    cooked_mesh_raycast::CookedMeshRayData, source_instance::set_source_frame_input,
 };
 use avian3d::{
     collider_tree::ColliderTrees,
@@ -471,8 +470,8 @@ pub(crate) fn publish_control_rig_inputs(
         &Collider,
         Option<&CollisionLayers>,
         Option<&crate::extensions::ComplexCollider>,
-        Option<&RagdollShapeCollisionMode>,
-        Option<&RigCookedMeshRay>,
+        Option<&ShapeCollisionMode>,
+        Option<&CookedMeshRayData>,
     )>,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {

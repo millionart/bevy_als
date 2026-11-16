@@ -30,6 +30,8 @@ pub mod character_assembly;
 pub mod character_runtime;
 #[path = "als/character/control_rig_apply.rs"]
 pub mod control_rig_apply;
+#[path = "als/character/control_rig_query.rs"]
+pub mod control_rig_query;
 #[path = "als/character/animation_instances/crouching_layer.rs"]
 pub mod crouching_layer;
 #[path = "als/utility/debug_display.rs"]

@@ -1,0 +1,157 @@
+{
+  "binary_sha256": "aca590c5096cae3db0e11e3d50745ca7ce180d86e6a411ac34a944c0a475cda5",
+  "trials": {
+    "startup": {
+      "case": "startup",
+      "functional_pass": true,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 83,
+      "motion_windows": 0,
+      "graph_errors": 0,
+      "manual_verdict": null,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "startup/report.json.gz",
+      "raw_bytes": 7592627,
+      "sha256": "7b657d8c93a16a2449a0ed5dea142fdc12db5199f385587c68a22dcdb776012f"
+    },
+    "control_rig": {
+      "case": "control_rig",
+      "functional_pass": true,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 71,
+      "motion_windows": 0,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "control_rig/report.json.gz",
+      "raw_bytes": 6494760,
+      "sha256": "2181b12f96bb97fcf009a0d829a1a45e02fe2f2e4874107c8d15d0ec3d9a9da8"
+    },
+    "foot_ik": {
+      "case": "foot_ik",
+      "functional_pass": true,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 706,
+      "motion_windows": 12,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "foot_ik/report.json.gz",
+      "raw_bytes": 66743113,
+      "sha256": "907962fc8ad95dc9bd8d39114b93e3ad4606273ef62da8a0f2ed4a5ff2879edd"
+    },
+    "ragdoll": {
+      "case": "ragdoll",
+      "functional_pass": false,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 50,
+      "motion_windows": 1,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [
+        "faults is non-empty",
+        "temporal_anomalies is non-empty"
+      ],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms"
+      ],
+      "temporal_anomalies": [
+        {
+          "stage": "final",
+          "kind": "local_translation_spike",
+          "subject": "pelvis",
+          "previous": 0.0,
+          "current": 0.37453496,
+          "threshold": 0.35,
+          "trigger": "jump",
+          "rate": 12.679052,
+          "rate_threshold": 14.0,
+          "elapsed_secs": 3.486868625,
+          "frame_ms": 31.77175,
+          "animation_delta_seconds": 0.029539665,
+          "direction_case": null,
+          "phase": "Ragdoll"
+        }
+      ],
+      "report": "ragdoll/report.json.gz",
+      "raw_bytes": 4723008,
+      "sha256": "852d30b37f06a2a6b78155d041176e3793a4db85efe5f654cc43d73ac79435fc"
+    },
+    "ragdoll-fixed-60hz": {
+      "case": "ragdoll",
+      "functional_pass": true,
+      "frame_delta_seconds": 0.0166666666666667,
+      "bones": 18,
+      "pose_samples": 66,
+      "motion_windows": 1,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "ragdoll-fixed-60hz/report.json.gz",
+      "raw_bytes": 6275602,
+      "sha256": "6173d9f2ccf1b761d84bf853c09e11517435db36c6ae5fae2146156e761ce8c3"
+    },
+    "get_up": {
+      "case": "get_up",
+      "functional_pass": true,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 75,
+      "motion_windows": 2,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "get_up/report.json.gz",
+      "raw_bytes": 6835945,
+      "sha256": "50d92fb58a830c2cc06babca44ec888cfeae80b6dddfa99c7a9d278c37854133"
+    },
+    "camera": {
+      "case": "camera",
+      "functional_pass": true,
+      "frame_delta_seconds": null,
+      "bones": 18,
+      "pose_samples": 134,
+      "motion_windows": 0,
+      "graph_errors": 0,
+      "manual_verdict": true,
+      "issues": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "temporal_anomalies": [],
+      "report": "camera/report.json.gz",
+      "raw_bytes": 13728086,
+      "sha256": "d6ae0193f133461f47ec64149cad9848b64daa1ae63690fa0be245696b7ca7ce"
+    }
+  }
+}

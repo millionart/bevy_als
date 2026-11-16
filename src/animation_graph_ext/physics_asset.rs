@@ -1,28 +1,20 @@
 use std::sync::Arc;
 
-use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
+use avian3d::collider_tree::{ColliderTreeProxyKey, MovedProxies};
 use avian3d::dynamics::integrator::{
     IntegrationSystems, VelocityIntegrationData, pre_process_velocity_increments,
 };
-use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
-use avian3d::dynamics::solver::solver_body::{
-    SolverBodies, SolverBodyFlags, SolverBodyIndex, SolverBodyInertia,
-};
-use avian3d::parry::shape::Capsule;
+use avian3d::dynamics::solver::islands::PhysicsIslands;
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, AngularVelocity, CenterOfMass,
-    CoefficientCombine, Collider, ColliderDisabled, ColliderOf, CollisionHooks, CollisionLayers,
-    ComputedCenterOfMass, CustomPositionIntegration, CustomVelocityIntegration, Friction,
-    GravityScale, JointCollisionDisabled, JointDamping, JointDisabled, LinearDamping,
-    LinearVelocity, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
-    Physics, PhysicsSchedule, PhysicsSystems, Position, RayHitData, Restitution, RevoluteJoint,
-    RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SimpleCollider, SolverSystems,
-    SpatialQuery, SpatialQueryFilter, SphericalJoint, Substeps,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, CoefficientCombine,
+    Collider, ColliderDisabled, ColliderOf, CollisionHooks, CollisionLayers,
+    CustomPositionIntegration, CustomVelocityIntegration, Friction, GravityScale,
+    JointCollisionDisabled, JointDamping, JointDisabled, LinearDamping, Mass, MaxAngularSpeed,
+    NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule, PhysicsSystems,
+    Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SolverSystems,
+    SphericalJoint, Substeps,
 };
-use avian3d::schedule::LastPhysicsTick;
-use bevy::ecs::change_detection::Tick;
-use bevy::ecs::schedule::ApplyDeferred;
-use bevy::ecs::system::{SystemChangeTick, SystemParam};
+use bevy::ecs::{schedule::ApplyDeferred, system::SystemParam};
 use bevy::math::Isometry3d;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::{
@@ -39,6 +31,16 @@ use serde::Deserialize;
 
 use crate::extensions::{
     ragdoll_angular_drive::RagdollAngularDriveSet,
+    scene_query::ShapeCollisionMode,
+    source_body_dynamics::{
+        SourceBodyDof, SourceBodyFrameRotation, SourceBodySleep, SourceGyroscopicTorqueDisabled,
+        SourceInertiaConditioningSettings, capture_source_sleep_wakes,
+        condition_source_solver_inertia, disable_source_body_rotation,
+        disable_source_gyroscopic_torque, initialize_source_body_dof,
+        integrate_source_body_rotation, prepare_source_sleep_islands,
+        seed_source_sleep_from_forces, solve_source_body_dof, source_angular_inertia,
+        update_source_sleep,
+    },
     source_physics_joint::{
         SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings,
         SourceLinearMotor, SourcePhysicsJoint,
@@ -68,51 +70,6 @@ pub struct RagdollBodyPhysicsProfile {
     pub gyroscopic_torque_enabled: bool,
 }
 
-#[derive(Component, Clone, Copy, Debug, Deserialize)]
-pub struct SourceBodySleep {
-    pub linear_threshold_m_per_second: f32,
-    pub angular_threshold_radians_per_second: f32,
-    pub counter_threshold: i32,
-    #[serde(skip)]
-    counter: i32,
-    #[serde(skip)]
-    smooth_linear: Vec3,
-    #[serde(skip)]
-    smooth_angular: Vec3,
-    #[serde(skip)]
-    explicit_wake: bool,
-    #[serde(skip)]
-    pending_linear_impulse: Vec3,
-    #[serde(skip)]
-    last_impulse_tick: Option<Tick>,
-    #[serde(skip)]
-    linear_write_before_impulse: bool,
-}
-
-impl SourceBodySleep {
-    pub(crate) fn has_external_linear_write(
-        &self,
-        changed: Tick,
-        physics: Tick,
-        current: Tick,
-    ) -> bool {
-        changed.is_newer_than(physics, current) && Some(changed) != self.last_impulse_tick
-    }
-
-    pub(crate) fn record_linear_impulse(
-        &mut self,
-        delta: Vec3,
-        tick: Tick,
-        had_velocity_write: bool,
-    ) {
-        if delta != Vec3::ZERO {
-            self.pending_linear_impulse += delta;
-            self.last_impulse_tick = Some(tick);
-            self.linear_write_before_impulse |= had_velocity_write;
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct RagdollMassProperties {
     pub mass_kg: f32,
@@ -133,23 +90,13 @@ struct RagdollMassPropertiesBaseline {
     no_auto_angular_inertia: bool,
 }
 
-#[derive(Component)]
-struct RagdollGyroscopicTorqueDisabled;
-
-#[derive(Component)]
-struct SourceBodyDof {
-    axes: avian3d::prelude::LockedAxes,
-    anchor: Option<Isometry3d>,
-    settings: SourceJointSolverSettings,
-}
-
 #[derive(Clone, Debug)]
 pub struct RagdollColliderPhysicsProfile {
     pub label: String,
     pub source_body_index: u8,
     pub source_layers: CollisionLayers,
     pub consider_for_bounds: bool,
-    pub collision_mode: RagdollShapeCollisionMode,
+    pub collision_mode: ShapeCollisionMode,
     pub shape: ColliderShape,
     pub local_transform: Transform,
 }
@@ -181,92 +128,12 @@ impl RagdollColliderPhysicsProfile {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RagdollShapeCollisionMode {
-    NoCollision,
-    QueryOnly,
-    PhysicsOnly,
-    QueryAndPhysics,
-    ProbeOnly,
-    QueryAndProbe,
-}
-
-impl RagdollShapeCollisionMode {
-    fn from_source(value: &str) -> Result<Self, String> {
-        match value {
-            "NoCollision" => Ok(Self::NoCollision),
-            "QueryOnly" => Ok(Self::QueryOnly),
-            "PhysicsOnly" => Ok(Self::PhysicsOnly),
-            "QueryAndPhysics" => Ok(Self::QueryAndPhysics),
-            "ProbeOnly" => Ok(Self::ProbeOnly),
-            "QueryAndProbe" => Ok(Self::QueryAndProbe),
-            _ => Err(format!("unsupported shape collision mode: {value}")),
-        }
-    }
-
-    pub fn has_query(self) -> bool {
-        matches!(
-            self,
-            Self::QueryOnly | Self::QueryAndPhysics | Self::QueryAndProbe
-        )
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct RagdollJointPhysicsProfile {
     pub label: String,
     pub definition: SourcePhysicsJoint,
     pub enabled: bool,
     pub collision_disabled: bool,
-}
-
-#[derive(Component, Clone, Copy, Debug, Deserialize)]
-pub struct SourceInertiaConditioningSettings {
-    enabled: bool,
-    distance_m: f32,
-    rotation_ratio: f32,
-    max_inverse_inertia_component_ratio: f32,
-    inverse_mass_tolerance: f32,
-    inverse_inertia_tolerance: f32,
-    extent_tolerance_m: f32,
-    exclude_free_joints: bool,
-}
-
-impl SourceInertiaConditioningSettings {
-    fn inverse_scale(self, inverse_mass: f32, inverse: Vec3, extents: Vec3) -> Vec3 {
-        if !(self.enabled
-            && inverse_mass > self.inverse_mass_tolerance
-            && inverse.min_element() > self.inverse_inertia_tolerance
-            && extents.min_element() > self.extent_tolerance_m)
-        {
-            return Vec3::ONE;
-        }
-        let squared = extents * extents;
-        let ratio = inverse / inverse_mass
-            * Vec3::new(
-                squared.y.max(squared.z),
-                squared.x.max(squared.z),
-                squared.x.max(squared.y),
-            );
-        let maximum = self.rotation_ratio
-            * if self.distance_m > 0.0 {
-                (extents.max_element() / self.distance_m).min(1.0)
-            } else {
-                1.0
-            };
-        let mut scale = (Vec3::splat(maximum) / ratio).min(Vec3::ONE);
-        if self.max_inverse_inertia_component_ratio > 1.0 {
-            let scaled = scale * inverse;
-            let limit = scaled.min_element() * self.max_inverse_inertia_component_ratio;
-            for index in 0..3 {
-                if scaled[index] > limit {
-                    scale[index] = limit / scaled[index];
-                }
-            }
-            scale = scale.min(Vec3::ONE);
-        }
-        scale
-    }
 }
 
 #[derive(Component, Clone, Debug)]
@@ -519,7 +386,7 @@ impl RagdollPhysicsProfile {
                         source_body_index: body.source_index,
                         source_layers: profile.source_layers,
                         consider_for_bounds: body.source_properties.consider_for_bounds == "True",
-                        collision_mode: RagdollShapeCollisionMode::from_source(
+                        collision_mode: ShapeCollisionMode::from_source(
                             &shape.target.collision_enabled,
                         )?,
                         shape: match shape.target.kind.as_str() {
@@ -611,11 +478,6 @@ impl RagdollPhysicsProfile {
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RagdollActiveMode(pub BodyMode);
 
-#[derive(Component, Default)]
-pub(crate) struct SourceRagdollFrameRotation {
-    integrated: bool,
-}
-
 #[derive(Component, Clone, Debug)]
 pub struct RagdollCollisionMember {
     pub group: Entity,
@@ -673,7 +535,7 @@ pub struct RagdollPhysicsProfileApplied {
 #[derive(SystemParam)]
 pub struct RagdollCollisionHooks<'w, 's> {
     members: Query<'w, 's, &'static RagdollCollisionMember>,
-    modes: Query<'w, 's, &'static RagdollShapeCollisionMode>,
+    modes: Query<'w, 's, &'static ShapeCollisionMode>,
     ignored: Query<'w, 's, (), With<SourceCollisionIgnorePawn>>,
     pawns: Query<'w, 's, (), With<SourceCollisionPawn>>,
     owners: Query<'w, 's, &'static ColliderOf>,
@@ -705,7 +567,7 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
             self.modes.get(entity).is_ok_and(|mode| {
                 matches!(
                     mode,
-                    RagdollShapeCollisionMode::NoCollision | RagdollShapeCollisionMode::QueryOnly
+                    ShapeCollisionMode::NoCollision | ShapeCollisionMode::QueryOnly
                 )
             })
         }) {
@@ -715,298 +577,6 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
             return true;
         };
         !member_1.disables(member_2)
-    }
-}
-
-#[derive(SystemParam)]
-pub struct RagdollSpatialQuery<'w, 's> {
-    spatial: SpatialQuery<'w, 's>,
-    modes: Query<'w, 's, &'static RagdollShapeCollisionMode>,
-    colliders: Query<'w, 's, (&'static Position, &'static Rotation, &'static Collider)>,
-    trees: Res<'w, ColliderTrees>,
-}
-
-impl RagdollSpatialQuery<'_, '_> {
-    pub fn collider_geometry(&self, entity: Entity) -> Option<(&Position, &Rotation, &Collider)> {
-        self.colliders.get(entity).ok()
-    }
-
-    fn queryable(&self, entity: Entity) -> bool {
-        self.modes.get(entity).map_or(true, |mode| mode.has_query())
-    }
-
-    pub fn cast_ray(
-        &self,
-        origin: Vec3,
-        direction: Dir3,
-        max_distance: f32,
-        solid: bool,
-        filter: &SpatialQueryFilter,
-    ) -> Option<RayHitData> {
-        self.cast_ray_predicate(origin, direction, max_distance, solid, filter, &|_| true)
-    }
-
-    pub fn cast_ray_predicate(
-        &self,
-        origin: Vec3,
-        direction: Dir3,
-        max_distance: f32,
-        solid: bool,
-        filter: &SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool,
-    ) -> Option<RayHitData> {
-        self.spatial
-            .cast_ray_predicate(origin, direction, max_distance, solid, filter, &|entity| {
-                self.queryable(entity) && predicate(entity)
-            })
-    }
-
-    pub fn cast_shape(
-        &self,
-        shape: &Collider,
-        origin: Vec3,
-        rotation: Quat,
-        direction: Dir3,
-        config: &ShapeCastConfig,
-        filter: &SpatialQueryFilter,
-    ) -> Option<ShapeHitData> {
-        self.cast_shape_predicate(shape, origin, rotation, direction, config, filter, &|_| {
-            true
-        })
-    }
-
-    pub fn cast_shape_predicate(
-        &self,
-        shape: &Collider,
-        origin: Vec3,
-        rotation: Quat,
-        direction: Dir3,
-        config: &ShapeCastConfig,
-        filter: &SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool,
-    ) -> Option<ShapeHitData> {
-        let scaled = shape.shape_scaled();
-        let Some(capsule) = scaled
-            .as_capsule()
-            .filter(|capsule| capsule.segment.a != capsule.segment.b)
-            .filter(|_| config.target_distance == 0.0)
-        else {
-            return self.spatial.cast_shape_predicate(
-                shape,
-                origin,
-                rotation,
-                direction,
-                config,
-                filter,
-                &|entity| self.queryable(entity) && predicate(entity),
-            );
-        };
-        self.cast_shape_with_capsule_core(
-            shape, capsule, origin, rotation, direction, config, filter, predicate,
-        )
-    }
-
-    pub(crate) fn cast_source_sphere_predicate(
-        &self,
-        sphere: &Collider,
-        origin: Vec3,
-        direction: Dir3,
-        distance: f32,
-        filter: &SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool,
-    ) -> Option<ShapeHitData> {
-        let radius = sphere.shape_scaled().as_ball()?.radius;
-        let core = Capsule::new(Vec3::ZERO, Vec3::ZERO, radius);
-        self.cast_shape_with_capsule_core(
-            sphere,
-            &core,
-            origin,
-            Quat::IDENTITY,
-            direction,
-            &ShapeCastConfig::from_max_distance(distance),
-            filter,
-            predicate,
-        )
-    }
-
-    fn cast_shape_with_capsule_core(
-        &self,
-        shape: &Collider,
-        capsule: &Capsule,
-        origin: Vec3,
-        rotation: Quat,
-        direction: Dir3,
-        config: &ShapeCastConfig,
-        filter: &SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool,
-    ) -> Option<ShapeHitData> {
-        use crate::extensions::source_capsule_sweep::{CapsuleSweepResult, capsule_cuboid_sweep};
-        use avian3d::parry::{
-            math::Pose3,
-            query::{ShapeCastOptions, cast_shapes, contact},
-        };
-
-        let scaled = shape.shape_scaled();
-        let swept_pose = Pose3::from_parts(origin, rotation);
-        let bounds = shape.aabb(origin, rotation, 0.0);
-        let mut best_rank = config.max_distance;
-        let mut closest = None;
-        for tree in self.trees.iter_trees() {
-            tree.sweep_traverse_closest(
-                bounds.into(),
-                direction,
-                best_rank.max(0.0),
-                config.target_distance,
-                |proxy_id| {
-                    let Some(proxy) = tree.get_proxy(proxy_id) else {
-                        return f32::MAX;
-                    };
-                    let entity = proxy.collider;
-                    if !filter.test(entity, proxy.layers)
-                        || !self.queryable(entity)
-                        || !predicate(entity)
-                    {
-                        return f32::MAX;
-                    }
-                    let Ok((position, obstacle_rotation, collider)) = self.colliders.get(entity)
-                    else {
-                        return f32::MAX;
-                    };
-                    let fixed_pose = Pose3::from_parts(position.0, obstacle_rotation.0);
-                    let fixed_shape = collider.shape_scaled();
-                    let mut result = fixed_shape.as_cuboid().map(|cuboid| {
-                        capsule_cuboid_sweep(
-                            capsule,
-                            origin,
-                            rotation,
-                            cuboid,
-                            position.0,
-                            obstacle_rotation.0,
-                            *direction,
-                            config.max_distance,
-                        )
-                    });
-                    if matches!(result, Some(CapsuleSweepResult::DeepOverlap))
-                        && let Ok(Some(contact)) = contact(
-                            &fixed_pose,
-                            fixed_shape.as_ref(),
-                            &swept_pose,
-                            scaled.as_ref(),
-                            0.0,
-                        )
-                        && contact.dist < 0.0
-                    {
-                        result = Some(CapsuleSweepResult::InitialOverlap {
-                            depth: -contact.dist,
-                            point: contact.point1,
-                            normal: contact.normal1,
-                        });
-                    }
-                    let fallback = || {
-                        let options = ShapeCastOptions {
-                            max_time_of_impact: config.max_distance,
-                            target_distance: config.target_distance,
-                            stop_at_penetration: !config.ignore_origin_penetration,
-                            compute_impact_geometry_on_penetration: config
-                                .compute_contact_on_penetration,
-                        };
-                        let hit = cast_shapes(
-                            &fixed_pose,
-                            Vec3::ZERO,
-                            fixed_shape.as_ref(),
-                            &swept_pose,
-                            *direction,
-                            scaled.as_ref(),
-                            options,
-                        )
-                        .ok()??;
-                        Some(ShapeHitData {
-                            entity,
-                            distance: hit.time_of_impact,
-                            point1: fixed_pose * hit.witness1,
-                            point2: swept_pose * hit.witness2 + *direction * hit.time_of_impact,
-                            normal1: fixed_pose.rotation * hit.normal1,
-                            normal2: swept_pose.rotation * hit.normal2,
-                        })
-                    };
-                    let hit = match result {
-                        Some(CapsuleSweepResult::Miss) => None,
-                        Some(CapsuleSweepResult::Hit {
-                            distance,
-                            point,
-                            normal,
-                        }) => Some(ShapeHitData {
-                            entity,
-                            distance,
-                            point1: point,
-                            point2: point,
-                            normal1: normal,
-                            normal2: -normal,
-                        }),
-                        Some(CapsuleSweepResult::InitialOverlap {
-                            depth,
-                            point,
-                            normal,
-                        }) => {
-                            if config.ignore_origin_penetration && normal.dot(*direction) >= 0.0 {
-                                None
-                            } else {
-                                Some(ShapeHitData {
-                                    entity,
-                                    distance: 0.0,
-                                    point1: point,
-                                    point2: point - normal * depth,
-                                    normal1: normal,
-                                    normal2: -normal,
-                                })
-                            }
-                        }
-                        Some(CapsuleSweepResult::DeepOverlap) | None => fallback(),
-                    };
-                    let Some(hit) = hit else { return f32::MAX };
-                    let rank = if hit.distance == 0.0 {
-                        -(hit.point1 - hit.point2).dot(hit.normal1).max(0.0)
-                    } else {
-                        hit.distance
-                    };
-                    if rank < best_rank {
-                        best_rank = rank;
-                        closest = Some(hit);
-                    }
-                    hit.distance
-                },
-            );
-        }
-        closest
-    }
-
-    pub fn shape_intersections(
-        &self,
-        shape: &Collider,
-        position: Vec3,
-        rotation: Quat,
-        filter: &SpatialQueryFilter,
-    ) -> Vec<Entity> {
-        let mut hits = Vec::new();
-        self.shape_intersections_callback(shape, position, rotation, filter, |entity| {
-            hits.push(entity);
-            true
-        });
-        hits
-    }
-
-    pub fn shape_intersections_callback(
-        &self,
-        shape: &Collider,
-        position: Vec3,
-        rotation: Quat,
-        filter: &SpatialQueryFilter,
-        mut callback: impl FnMut(Entity) -> bool,
-    ) {
-        self.spatial
-            .shape_intersections_callback(shape, position, rotation, filter, |entity| {
-                !self.queryable(entity) || callback(entity)
-            });
     }
 }
 
@@ -1050,26 +620,26 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         )
         .add_systems(
             PhysicsSchedule,
-            initialize_profile_dof.in_set(SolverSystems::PrepareJoints),
+            initialize_source_body_dof.in_set(SolverSystems::PrepareJoints),
         )
         .add_systems(
             PhysicsSchedule,
-            condition_profile_solver_inertia
+            condition_source_solver_inertia
                 .in_set(SolverSystems::PrepareJoints)
-                .after(initialize_profile_dof)
+                .after(initialize_source_body_dof)
                 .after(avian3d::dynamics::solver::xpbd::prepare_xpbd_joint::<SourcePhysicsJoint>),
         )
         .add_systems(
             avian3d::prelude::SubstepSchedule,
-            condition_profile_solver_inertia
+            condition_source_solver_inertia
                 .after(IntegrationSystems::Position)
-                .after(integrate_source_ragdoll_rotation)
+                .after(integrate_source_body_rotation)
                 .after(crate::source_physics_timing::SourcePhysicsTimingSet::IntegratePosition)
                 .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax),
         )
         .add_systems(
             avian3d::prelude::SubstepSchedule,
-            solve_profile_dof
+            solve_source_body_dof
                 .after(avian3d::dynamics::solver::xpbd::XpbdSolverSystems::VelocityProjection)
                 .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
                 .after(
@@ -1078,7 +648,7 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         )
         .add_systems(
             PhysicsSchedule,
-            disable_ragdoll_gyroscopic_torque
+            disable_source_gyroscopic_torque
                 .in_set(SolverSystems::PreSubstep)
                 .after(avian3d::dynamics::rigid_body::forces::ForceSystems::ApplyConstantForces),
         )
@@ -1103,19 +673,19 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         )
         .add_systems(
             avian3d::prelude::SubstepSchedule,
-            integrate_source_ragdoll_rotation
+            integrate_source_body_rotation
                 .after(IntegrationSystems::Position)
                 .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax),
         )
         .add_systems(
             PhysicsSchedule,
-            (disable_source_ragdoll_rotation, ApplyDeferred)
+            (disable_source_body_rotation, ApplyDeferred)
                 .chain()
                 .in_set(SolverSystems::PostSubstep),
         )
         .add_systems(
             PhysicsSchedule,
-            prepare_profile_sleep_islands
+            prepare_source_sleep_islands
                 .before(SolverSystems::Finalize)
                 .after(SolverSystems::Restitution)
                 .run_if(resource_exists::<PhysicsIslands>),
@@ -1128,94 +698,11 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         )
         .add_systems(
             PhysicsSchedule,
-            update_profile_sleep
+            update_source_sleep
                 .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
                 .before(avian3d::prelude::PhysicsStepSystems::Finalize)
                 .run_if(resource_exists::<PhysicsIslands>),
         );
-    }
-}
-
-pub(crate) fn capture_source_sleep_wakes(
-    last_physics_tick: Res<LastPhysicsTick>,
-    tick: SystemChangeTick,
-    mut bodies: Query<(
-        &RigidBody,
-        &mut LinearVelocity,
-        Ref<AngularVelocity>,
-        &mut SourceBodySleep,
-    )>,
-) {
-    let [linear_tolerance, angular_tolerance]: [f32; 2] = include!("sleep_velocity_tolerance.rs");
-    for (body, mut linear, angular, mut sleep) in &mut bodies {
-        sleep.explicit_wake = false;
-        let external_linear = linear.is_changed()
-            && sleep.has_external_linear_write(
-                linear.last_changed(),
-                last_physics_tick.0,
-                tick.this_run(),
-            );
-        let changed = sleep.linear_write_before_impulse
-            || external_linear
-            || (angular.is_changed()
-                && angular
-                    .last_changed()
-                    .is_newer_than(last_physics_tick.0, tick.this_run()));
-        if body.is_dynamic() && changed {
-            let source_linear = if sleep.last_impulse_tick == Some(linear.last_changed()) {
-                linear.0 - sleep.pending_linear_impulse
-            } else {
-                linear.0
-            };
-            if external_linear && sleep.last_impulse_tick.is_some() {
-                linear.0 += sleep.pending_linear_impulse;
-            }
-            sleep.smooth_linear = source_linear;
-            sleep.smooth_angular = angular.0;
-            sleep.explicit_wake = source_linear.abs().max_element() > linear_tolerance
-                || angular.0.abs().max_element() > angular_tolerance;
-            if sleep.explicit_wake {
-                sleep.counter = 0;
-            }
-        }
-    }
-}
-
-fn seed_source_sleep_from_forces(
-    mut bodies: Query<(
-        &RigidBody,
-        &LinearVelocity,
-        &AngularVelocity,
-        &Rotation,
-        &VelocityIntegrationData,
-        Option<&avian3d::dynamics::rigid_body::forces::AccumulatedLocalAcceleration>,
-        &mut SourceBodySleep,
-    )>,
-) {
-    let [linear_tolerance, angular_tolerance]: [f32; 2] = include!("sleep_velocity_tolerance.rs");
-    let [prediction_time, rate]: [f32; 2] = include!("sleep_force_parameters.rs");
-    for (body, linear, angular, rotation, integration, local, mut sleep) in &mut bodies {
-        if body.is_dynamic() {
-            let linear_acceleration = integration.linear_increment
-                + local.map_or(Vec3::ZERO, |local| rotation.0 * local.linear);
-            let angular_acceleration = integration.angular_increment
-                + local.map_or(Vec3::ZERO, |local| rotation.0 * local.angular);
-            if linear_acceleration.abs().max_element() > linear_tolerance
-                || sleep.pending_linear_impulse.abs().max_element() > linear_tolerance
-            {
-                sleep.smooth_linear = sleep
-                    .smooth_linear
-                    .lerp(linear.0 + linear_acceleration * prediction_time, rate);
-            }
-            if angular_acceleration.abs().max_element() > angular_tolerance {
-                sleep.smooth_angular = sleep
-                    .smooth_angular
-                    .lerp(angular.0 + angular_acceleration * prediction_time, rate);
-            }
-        }
-        sleep.pending_linear_impulse = Vec3::ZERO;
-        sleep.last_impulse_tick = None;
-        sleep.linear_write_before_impulse = false;
     }
 }
 
@@ -1247,401 +734,8 @@ fn enable_source_ragdoll_rotation(
         if body.is_dynamic() {
             commands.entity(entity).insert((
                 CustomPositionIntegration,
-                SourceRagdollFrameRotation::default(),
+                SourceBodyFrameRotation::default(),
             ));
-        }
-    }
-}
-
-pub(crate) fn integrate_source_ragdoll_rotation(
-    frame: Res<Time<Physics>>,
-    step: Res<Time>,
-    mut solver_bodies: ResMut<SolverBodies>,
-    mut bodies: Query<(&SolverBodyIndex, &mut SourceRagdollFrameRotation)>,
-) {
-    for (index, mut state) in &mut bodies {
-        let Some(body) = solver_bodies.get_mut(*index) else {
-            continue;
-        };
-        let velocity = body.linear_velocity;
-        body.delta_position += velocity * step.delta_secs();
-        if !state.integrated {
-            let angular = body.angular_velocity * (0.5 * frame.delta_secs());
-            body.delta_rotation = (Quat::from_xyzw(angular.x, angular.y, angular.z, 1.0)
-                * body.delta_rotation)
-                .normalize();
-            state.integrated = true;
-        }
-    }
-}
-
-fn disable_source_ragdoll_rotation(
-    mut commands: Commands,
-    bodies: Query<Entity, With<SourceRagdollFrameRotation>>,
-) {
-    for entity in &bodies {
-        commands
-            .entity(entity)
-            .remove::<(CustomPositionIntegration, SourceRagdollFrameRotation)>();
-    }
-}
-
-fn prepare_profile_sleep_islands(
-    mut islands: ResMut<PhysicsIslands>,
-    bodies: Query<&BodyIslandNode, With<SourceBodySleep>>,
-) {
-    if let Some(node) = bodies.iter().find(|node| {
-        islands
-            .get(node.island_id())
-            .is_some_and(|island| island.constraints_removed() > 0)
-    }) {
-        islands.split_candidate = Some(node.island_id());
-    }
-}
-
-fn update_profile_sleep(
-    mut commands: Commands,
-    islands: Res<PhysicsIslands>,
-    time: Res<Time>,
-    time_to_sleep: Res<avian3d::prelude::TimeToSleep>,
-    solver_bodies: Res<SolverBodies>,
-    mut bodies: Query<(
-        &BodyIslandNode,
-        &RigidBody,
-        &SolverBodyIndex,
-        &Rotation,
-        &ComputedCenterOfMass,
-        &mut SourceBodySleep,
-        Has<avian3d::prelude::SleepingDisabled>,
-        Has<avian3d::prelude::Sleeping>,
-    )>,
-    other_bodies: Query<
-        (
-            &BodyIslandNode,
-            &avian3d::prelude::SleepTimer,
-            Has<avian3d::prelude::SleepingDisabled>,
-        ),
-        Without<SourceBodySleep>,
-    >,
-    topology: Query<(Entity, &BodyIslandNode)>,
-    mut previous_connected: Local<bevy::platform::collections::HashMap<Entity, bool>>,
-) {
-    let [_, smooth_rate]: [f32; 2] = include!("sleep_force_parameters.rs");
-    let retained_islands = topology
-        .iter()
-        .filter_map(|(entity, node)| {
-            previous_connected
-                .get(&entity)
-                .copied()
-                .unwrap_or(false)
-                .then_some(node.island_id().0)
-        })
-        .collect::<bevy::platform::collections::HashSet<_>>();
-    let mut groups = bevy::platform::collections::HashMap::<u32, (i32, i32, bool, bool)>::default();
-    for (node, mode, index, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
-        let Some(solver) = solver_bodies.get(*index) else {
-            continue;
-        };
-        if !mode.is_dynamic() {
-            sleep.counter = 0;
-            sleep.smooth_linear = solver.linear_velocity;
-            sleep.smooth_angular = solver.angular_velocity;
-            continue;
-        }
-        if sleeping {
-            continue;
-        }
-        let Some(island) = islands.get(node.island_id()) else {
-            continue;
-        };
-        let isolated = island.contact_count() == 0 && island.joint_count() == 0;
-        if time.delta_secs() > 1e-8 {
-            if isolated {
-                sleep.smooth_linear = solver.linear_velocity;
-                sleep.smooth_angular = solver.angular_velocity;
-            } else {
-                let world_center = rotation.0 * center.0;
-                let origin_delta = solver.delta_position
-                    + (solver.delta_rotation.conjugate() * world_center - world_center);
-                sleep.smooth_linear = sleep
-                    .smooth_linear
-                    .lerp(origin_delta / time.delta_secs(), smooth_rate);
-                let delta = solver.delta_rotation;
-                let delta = if delta.w < 0.0 { -delta } else { delta };
-                let angular = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / time.delta_secs());
-                sleep.smooth_angular = sleep.smooth_angular.lerp(angular, smooth_rate);
-            }
-        }
-        let within = !disabled
-            && (sleep.linear_threshold_m_per_second > 0.0
-                || sleep.angular_threshold_radians_per_second > 0.0)
-            && sleep.smooth_linear.length_squared() <= sleep.linear_threshold_m_per_second.powi(2)
-            && sleep.smooth_angular.length_squared()
-                <= sleep.angular_threshold_radians_per_second.powi(2);
-        let group = groups
-            .entry(node.island_id().0)
-            .or_insert((i32::MAX, 0, true, isolated));
-        group.0 = group.0.min(sleep.counter);
-        if !isolated && !retained_islands.contains(&node.island_id().0) {
-            group.0 = 0;
-        }
-        group.1 = group.1.max(if isolated {
-            sleep.counter_threshold.min(127)
-        } else {
-            sleep.counter_threshold
-        });
-        group.2 &= within && (!sleep.explicit_wake || isolated);
-    }
-    for (node, timer, disabled) in &other_bodies {
-        if let Some(group) = groups.get_mut(&node.island_id().0) {
-            group.2 &= !disabled && timer.0 >= time_to_sleep.0;
-        }
-    }
-    let mut to_sleep = Vec::new();
-    for (id, group) in &mut groups {
-        if group.2 {
-            group.0 = group.0.saturating_add(1);
-            if group.3 {
-                group.0 = group.0.min(127);
-            }
-            if group.0 > group.1 {
-                to_sleep.push(IslandId(*id));
-                group.0 = 0;
-            }
-        } else if !group.3 {
-            group.0 = 0;
-        }
-    }
-    for (node, _, _, _, _, mut sleep, _, _) in &mut bodies {
-        if let Some(group) = groups.get(&node.island_id().0) {
-            sleep.counter = group.0;
-        }
-    }
-    previous_connected.clear();
-    for (entity, node) in &topology {
-        if let Some(island) = islands.get(node.island_id()) {
-            previous_connected.insert(
-                entity,
-                island.contact_count() > 0 || island.joint_count() > 0,
-            );
-        }
-    }
-    if !to_sleep.is_empty() {
-        commands.queue(SleepIslands(to_sleep));
-    }
-}
-
-fn initialize_profile_dof(
-    mut bodies: Query<(&RigidBody, &Position, &Rotation, &mut SourceBodyDof)>,
-) {
-    for (mode, position, rotation, mut dof) in &mut bodies {
-        if !mode.is_dynamic() {
-            dof.anchor = None;
-        } else if dof.anchor.is_none() {
-            dof.anchor = Some(Isometry3d::new(position.0, rotation.0));
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-fn condition_profile_solver_inertia(
-    mut solver_bodies: ResMut<SolverBodies>,
-    bodies: Query<(
-        Entity,
-        &RigidBody,
-        &Rotation,
-        &avian3d::prelude::ComputedMass,
-        &avian3d::prelude::ComputedAngularInertia,
-        &avian3d::prelude::ComputedCenterOfMass,
-        &SourceInertiaConditioningSettings,
-        Option<&SourceBodyDof>,
-        &SolverBodyIndex,
-    )>,
-    colliders: Query<(
-        &Collider,
-        &avian3d::prelude::ColliderOf,
-        &avian3d::prelude::ColliderTransform,
-    )>,
-    joints: Query<&SourcePhysicsJoint, Without<JointDisabled>>,
-) {
-    for (entity, mode, rotation, mass, angular, com, settings, dof, index) in &bodies {
-        if !mode.is_dynamic() {
-            continue;
-        }
-        let Some(body) = solver_bodies.get(*index) else {
-            continue;
-        };
-        let delta_rotation = body.delta_rotation;
-        let Some(solver) = solver_bodies.get_inertia_mut(*index) else {
-            continue;
-        };
-        let principal = AngularInertia::from_tensor(angular.inverse());
-        let local_basis = Mat3::from_quat(principal.local_frame.conjugate());
-        let mut min = Vec3::splat(f32::INFINITY);
-        let mut max = Vec3::splat(f32::NEG_INFINITY);
-        for (shape, owner, transform) in &colliders {
-            if owner.body != entity {
-                continue;
-            }
-            let pose =
-                avian3d::parry::math::Pose3::from_parts(transform.translation, transform.rotation);
-            let bounds = shape.shape_scaled().compute_aabb(&pose);
-            min = min.min(bounds.mins);
-            max = max.max(bounds.maxs);
-        }
-        let half = ((max - min) * 0.5).max(Vec3::ZERO);
-        let mut extents = local_basis.x_axis.abs() * half.x
-            + local_basis.y_axis.abs() * half.y
-            + local_basis.z_axis.abs() * half.z;
-        for joint in &joints {
-            if settings.exclude_free_joints
-                && !joint.linear_locked
-                && !joint
-                    .linear_motors
-                    .iter()
-                    .any(|motor| motor.position_enabled)
-            {
-                continue;
-            }
-            let arm = if joint.parent == entity {
-                Some(Vec3::from(joint.parent_frame.translation))
-            } else if joint.child == entity {
-                Some(Vec3::from(joint.child_frame.translation))
-            } else {
-                None
-            };
-            if let Some(arm) = arm {
-                extents = extents.max((local_basis * (arm - com.0)).abs());
-            }
-        }
-        if dof.is_some_and(|dof| {
-            !settings.exclude_free_joints
-                || dof.axes.is_translation_x_locked()
-                || dof.axes.is_translation_y_locked()
-                || dof.axes.is_translation_z_locked()
-        }) {
-            extents = extents.max((local_basis * -com.0).abs());
-        }
-        let scale = settings.inverse_scale(mass.inverse(), principal.principal, extents);
-        let basis = Mat3::from_quat(delta_rotation * rotation.0 * principal.local_frame);
-        let inverse = avian3d::math::SymmetricTensor::from_mat3_unchecked(
-            basis * Mat3::from_diagonal(principal.principal * scale) * basis.transpose(),
-        );
-        *solver = SolverBodyInertia::new(
-            mass.inverse(),
-            inverse,
-            solver.flags().locked_axes(),
-            solver.dominance() as i8,
-            true,
-        );
-    }
-}
-
-fn solve_profile_dof(
-    mut solver_bodies: ResMut<SolverBodies>,
-    bodies: Query<
-        (
-            &RigidBody,
-            &Position,
-            &Rotation,
-            &avian3d::prelude::ComputedCenterOfMass,
-            &SourceBodyDof,
-            &SolverBodyIndex,
-        ),
-        Without<avian3d::prelude::RigidBodyDisabled>,
-    >,
-) {
-    for (mode, position, rotation, com, dof, index) in &bodies {
-        let Some(anchor) = dof.anchor.filter(|_| mode.is_dynamic()) else {
-            continue;
-        };
-        let Some(inertia) = solver_bodies.get_inertia(*index) else {
-            continue;
-        };
-        let translation_locked = [
-            dof.axes.is_translation_x_locked(),
-            dof.axes.is_translation_y_locked(),
-            dof.axes.is_translation_z_locked(),
-        ];
-        let rotation_locked = [
-            dof.axes.is_rotation_x_locked(),
-            dof.axes.is_rotation_y_locked(),
-            dof.axes.is_rotation_z_locked(),
-        ];
-        let inverse_mass = inertia.effective_inv_mass();
-        let inverse_angular = inertia.effective_inv_angular_inertia();
-        let Some(body) = solver_bodies.get_mut(*index) else {
-            continue;
-        };
-        for _ in 0..dof.settings.position_iterations {
-            for index in 0..3 {
-                if !rotation_locked[index] {
-                    continue;
-                }
-                let mut relative =
-                    (body.delta_rotation * rotation.0 * anchor.rotation.conjugate()).normalize();
-                if relative.w < 0.0 {
-                    relative = -relative;
-                }
-                let vector = Vec3::new(relative.x, relative.y, relative.z);
-                let axis = 0.5 * (Vec3::AXES[index] * relative.w + vector.cross(Vec3::AXES[index]));
-                let response = inverse_angular * axis;
-                let denominator = axis.dot(response);
-                if denominator > f32::EPSILON {
-                    body.delta_rotation =
-                        (Quat::from_scaled_axis(-response * vector[index] / denominator)
-                            * body.delta_rotation)
-                            .normalize();
-                }
-            }
-            for index in 0..3 {
-                if !translation_locked[index] {
-                    continue;
-                }
-                let axis = Vec3::AXES[index];
-                let arm = -(body.delta_rotation * rotation.0 * com.0);
-                let angular_axis = arm.cross(axis);
-                let response = inverse_angular * angular_axis;
-                let denominator = inverse_mass[index] + angular_axis.dot(response);
-                let origin = position.0 + body.delta_position + rotation.0 * com.0 + arm;
-                if denominator > f32::EPSILON {
-                    let lambda = (origin[index] - anchor.translation[index]) / denominator;
-                    body.delta_position -= inverse_mass * axis * lambda;
-                    body.delta_rotation = (Quat::from_scaled_axis(-response * lambda)
-                        * body.delta_rotation)
-                        .normalize();
-                }
-            }
-        }
-        for _ in 0..dof.settings.velocity_iterations {
-            for index in 0..3 {
-                if rotation_locked[index] {
-                    let relative = (body.delta_rotation * rotation.0 * anchor.rotation.conjugate())
-                        .normalize();
-                    let vector = Vec3::new(relative.x, relative.y, relative.z);
-                    let axis =
-                        0.5 * (Vec3::AXES[index] * relative.w + vector.cross(Vec3::AXES[index]));
-                    let response = inverse_angular * axis;
-                    let denominator = axis.dot(response);
-                    if denominator > f32::EPSILON {
-                        let lambda = body.angular_velocity.dot(axis) / denominator;
-                        body.angular_velocity -= response * lambda;
-                    }
-                }
-                if translation_locked[index] {
-                    let arm = -(body.delta_rotation * rotation.0 * com.0);
-                    let angular_axis = arm.cross(Vec3::AXES[index]);
-                    let response = inverse_angular * angular_axis;
-                    let denominator = inverse_mass[index] + angular_axis.dot(response);
-                    if denominator > f32::EPSILON {
-                        let lambda = (body.linear_velocity + body.angular_velocity.cross(arm))
-                            [index]
-                            / denominator;
-                        body.linear_velocity -= inverse_mass * Vec3::AXES[index] * lambda;
-                        body.angular_velocity -= response * lambda;
-                    }
-                }
-            }
         }
     }
 }
@@ -1684,17 +778,6 @@ fn set_joint_collision_disabled(
             .collect::<Vec<_>>();
         for key in keys {
             world.resource_mut::<MovedProxies>().insert(key);
-        }
-    }
-}
-
-fn disable_ragdoll_gyroscopic_torque(
-    mut solver_bodies: ResMut<SolverBodies>,
-    bodies: Query<&SolverBodyIndex, With<RagdollGyroscopicTorqueDisabled>>,
-) {
-    for index in &bodies {
-        if let Some(body) = solver_bodies.get_mut(*index) {
-            body.flags.remove(SolverBodyFlags::GYROSCOPIC_MOTION);
         }
     }
 }
@@ -1925,23 +1008,6 @@ fn scaled_ragdoll_mass_properties(
     (value, combined.local_com + nudge, inertia)
 }
 
-fn source_angular_inertia(inertia: Mat3) -> AngularInertia {
-    let diagonal = Vec3::new(inertia.x_axis.x, inertia.y_axis.y, inertia.z_axis.z);
-    let trace = (f64::from(diagonal.x) + f64::from(diagonal.y) + f64::from(diagonal.z)) / 3.0;
-    let off_diagonal = [inertia.x_axis.y, inertia.x_axis.z, inertia.y_axis.z]
-        .into_iter()
-        .map(|value| f64::from(value).powi(2))
-        .sum::<f64>();
-    if trace * 10_000.0 <= f64::from(1e-8_f32)
-        || off_diagonal / (trace * trace) < f64::from(1e-8_f32)
-    {
-        return AngularInertia::new(diagonal);
-    }
-    let mut result = AngularInertia::from_mat3_unchecked(inertia / trace as f32);
-    result.principal *= trace as f32;
-    result
-}
-
 #[allow(clippy::too_many_arguments)]
 fn apply_profile_to_spawned_ragdoll(
     commands: &mut Commands,
@@ -2128,11 +1194,11 @@ fn apply_profile_to_spawned_ragdoll(
         if body.gyroscopic_torque_enabled {
             commands
                 .entity(*body_entity)
-                .remove::<RagdollGyroscopicTorqueDisabled>();
+                .remove::<SourceGyroscopicTorqueDisabled>();
         } else {
             commands
                 .entity(*body_entity)
-                .insert(RagdollGyroscopicTorqueDisabled);
+                .insert(SourceGyroscopicTorqueDisabled);
         }
         applied.body_count += 1;
     }
@@ -2180,7 +1246,7 @@ fn apply_profile_to_spawned_ragdoll(
                 disabled_pairs: profile.collision_disabled_pairs.clone(),
             },
         ));
-        if collider.collision_mode == RagdollShapeCollisionMode::NoCollision {
+        if collider.collision_mode == ShapeCollisionMode::NoCollision {
             commands
                 .entity(*collider_entity)
                 .insert(ColliderDisabled)
@@ -2191,7 +1257,7 @@ fn apply_profile_to_spawned_ragdoll(
                 .remove::<ColliderDisabled>();
             if matches!(
                 collider.collision_mode,
-                RagdollShapeCollisionMode::ProbeOnly | RagdollShapeCollisionMode::QueryAndProbe
+                ShapeCollisionMode::ProbeOnly | ShapeCollisionMode::QueryAndProbe
             ) {
                 commands.entity(*collider_entity).insert(Sensor);
             } else {
@@ -2452,7 +1518,10 @@ fn joint_anchor_distance(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::SceneQuery;
     use crate::extensions::source_physics_joint::solver_body_fixture;
+    use avian3d::dynamics::solver::islands::BodyIslandNode;
+    use avian3d::prelude::{ComputedCenterOfMass, ShapeCastConfig, SimpleCollider};
 
     #[test]
     fn source_ragdoll_shape_restitution_tracks_body_material() {
@@ -4385,7 +3454,7 @@ mod tests {
         solver.delta_position = Vec3::X * 0.01;
         solver.delta_rotation = Quat::from_rotation_y(0.8);
         app.world_mut()
-            .run_system_once(update_profile_sleep)
+            .run_system_once(update_source_sleep)
             .unwrap();
         let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
         assert!(
@@ -4452,7 +3521,7 @@ mod tests {
             .unwrap()
             .linear_velocity = Vec3::X * 0.03;
         app.world_mut()
-            .run_system_once(update_profile_sleep)
+            .run_system_once(update_source_sleep)
             .unwrap();
         assert_eq!(
             app.world().get::<SourceBodySleep>(body).unwrap().counter,
@@ -4464,7 +3533,7 @@ mod tests {
             .linear_velocity = Vec3::ZERO;
         for step in 1..=3 {
             app.world_mut()
-                .run_system_once(update_profile_sleep)
+                .run_system_once(update_source_sleep)
                 .unwrap();
             assert_eq!(
                 app.world().get::<Sleeping>(body).is_some(),
@@ -4620,7 +3689,7 @@ mod tests {
             solver.delta_position = Vec3::ZERO;
             solver.delta_rotation = Quat::from_rotation_y(0.004);
             app.world_mut()
-                .run_system_once(update_profile_sleep)
+                .run_system_once(update_source_sleep)
                 .unwrap();
             let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
             if step >= 3 {
@@ -5502,7 +4571,7 @@ mod tests {
             );
             assert!(
                 world
-                    .get::<RagdollGyroscopicTorqueDisabled>(entity)
+                    .get::<SourceGyroscopicTorqueDisabled>(entity)
                     .is_some()
             );
         }
@@ -5635,7 +4704,7 @@ mod tests {
                 .iter_mut()
                 .find(|collider| collider.label == label)
                 .unwrap()
-                .collision_mode = RagdollShapeCollisionMode::QueryAndPhysics;
+                .collision_mode = ShapeCollisionMode::QueryAndPhysics;
         }
         mass_profile_scaled
             .joints
@@ -5721,12 +4790,12 @@ mod tests {
         );
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(pelvis_body)
+                .get::<SourceGyroscopicTorqueDisabled>(pelvis_body)
                 .is_none()
         );
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(spine_body)
+                .get::<SourceGyroscopicTorqueDisabled>(spine_body)
                 .is_some()
         );
         let pair_filters = world
@@ -5746,13 +4815,13 @@ mod tests {
         assert!(world.get::<ColliderDisabled>(root_collider).is_some());
         assert!(
             !world
-                .get::<RagdollShapeCollisionMode>(probe_collider)
+                .get::<ShapeCollisionMode>(probe_collider)
                 .unwrap()
                 .has_query()
         );
         assert!(
             !world
-                .get::<RagdollShapeCollisionMode>(physics_only_collider)
+                .get::<ShapeCollisionMode>(physics_only_collider)
                 .unwrap()
                 .has_query()
         );
@@ -5798,7 +4867,7 @@ mod tests {
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(pelvis_body)
+                .get::<SourceGyroscopicTorqueDisabled>(pelvis_body)
                 .is_some()
         );
         assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_some());
@@ -5929,7 +4998,7 @@ mod tests {
         let disabled = spawn(app.world_mut(), 0.0, anisotropic);
         app.world_mut()
             .entity_mut(disabled)
-            .insert(RagdollGyroscopicTorqueDisabled);
+            .insert(SourceGyroscopicTorqueDisabled);
         let enabled = spawn(app.world_mut(), 5.0, anisotropic);
         let isotropic = spawn(app.world_mut(), 10.0, Vec3::ONE);
         app.update();
@@ -5959,7 +5028,7 @@ mod tests {
         );
         app.world_mut()
             .entity_mut(disabled)
-            .remove::<RagdollGyroscopicTorqueDisabled>();
+            .remove::<SourceGyroscopicTorqueDisabled>();
         app.world_mut()
             .entity_mut(disabled)
             .insert(AngularVelocity(initial));
@@ -5969,7 +5038,7 @@ mod tests {
         );
         app.world_mut()
             .entity_mut(disabled)
-            .insert((RagdollGyroscopicTorqueDisabled, AngularVelocity(initial)));
+            .insert((SourceGyroscopicTorqueDisabled, AngularVelocity(initial)));
         app.update();
         assert!(
             (app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() < 1e-4
@@ -5993,7 +5062,7 @@ mod tests {
         let rebuilt = spawn(app.world_mut(), 15.0, anisotropic);
         app.world_mut()
             .entity_mut(rebuilt)
-            .insert(RagdollGyroscopicTorqueDisabled);
+            .insert(SourceGyroscopicTorqueDisabled);
         app.update();
         assert!((app.world().get::<AngularVelocity>(rebuilt).unwrap().0 - initial).length() < 1e-4);
         app.world_mut()
@@ -6030,7 +5099,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::ZERO),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::QueryAndPhysics,
+                ShapeCollisionMode::QueryAndPhysics,
             ))
             .id();
         let main_other = world
@@ -6046,7 +5115,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::X * 5.0),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::QueryOnly,
+                ShapeCollisionMode::QueryOnly,
             ))
             .id();
         let auxiliary_other = world
@@ -6062,7 +5131,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::X * 10.0),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::ProbeOnly,
+                ShapeCollisionMode::ProbeOnly,
                 Sensor,
                 Mass(3.0),
                 NoAutoMass,
@@ -6083,7 +5152,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::X * 20.0),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::NoCollision,
+                ShapeCollisionMode::NoCollision,
                 ColliderDisabled,
             ))
             .id();
@@ -6100,7 +5169,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::X * 25.0),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::PhysicsOnly,
+                ShapeCollisionMode::PhysicsOnly,
             ))
             .id();
         let physics_other = world
@@ -6116,7 +5185,7 @@ mod tests {
                 Collider::sphere(0.5),
                 Position(Vec3::X * 30.0),
                 ActiveCollisionHooks::FILTER_PAIRS,
-                RagdollShapeCollisionMode::QueryAndProbe,
+                ShapeCollisionMode::QueryAndProbe,
                 Sensor,
             ))
             .id();
@@ -6209,7 +5278,7 @@ mod tests {
         assert_eq!(raw_hit.entity, physics_only);
         let filtered = app
             .world_mut()
-            .run_system_once(move |spatial: RagdollSpatialQuery| {
+            .run_system_once(move |spatial: SceneQuery| {
                 let filter = SpatialQueryFilter::default();
                 let shape = Collider::sphere(0.1);
                 let config = ShapeCastConfig {
@@ -6831,44 +5900,6 @@ mod tests {
             if enabled {
                 assert_eq!(ccd.mode, SweepMode::Linear);
             }
-        }
-    }
-
-    #[test]
-    fn source_body_inertia_algorithm_matches_native_ue_samples() {
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tools/tests/fixtures/body_inertia_conditioning.native.json"
-        ))
-        .unwrap();
-        let settings: SourceInertiaConditioningSettings =
-            serde_json::from_value(fixture["settings"].clone()).unwrap();
-        let vector = |value: &serde_json::Value| {
-            Vec3::new(
-                value[0].as_f64().unwrap() as f32,
-                value[1].as_f64().unwrap() as f32,
-                value[2].as_f64().unwrap() as f32,
-            )
-        };
-        for (index, sample) in fixture["samples"].as_array().unwrap().iter().enumerate() {
-            let settings = SourceInertiaConditioningSettings {
-                enabled: true,
-                distance_m: sample["maximum_distance_m"].as_f64().unwrap() as f32,
-                rotation_ratio: sample["maximum_rotation_ratio"].as_f64().unwrap() as f32,
-                max_inverse_inertia_component_ratio: sample["maximum_component_ratio"]
-                    .as_f64()
-                    .unwrap() as f32,
-                ..settings
-            };
-            let actual = settings.inverse_scale(
-                sample["inverse_mass"].as_f64().unwrap() as f32,
-                vector(&sample["inverse_inertia"]),
-                vector(&sample["extents_m"]),
-            );
-            assert!(
-                actual.abs_diff_eq(vector(&sample["inverse_scale"]), 1e-6),
-                "native inertia sample {index}: {actual:?} != {:?}",
-                vector(&sample["inverse_scale"])
-            );
         }
     }
 
@@ -8468,7 +7499,7 @@ mod tests {
         assert!(world.get::<JointCollisionDisabled>(fresh_joint).is_none());
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(fresh_body)
+                .get::<SourceGyroscopicTorqueDisabled>(fresh_body)
                 .is_some()
         );
         world
@@ -8484,7 +7515,7 @@ mod tests {
             .unwrap();
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(fresh_body)
+                .get::<SourceGyroscopicTorqueDisabled>(fresh_body)
                 .is_none()
         );
         world
@@ -8500,7 +7531,7 @@ mod tests {
             .unwrap();
         assert!(
             world
-                .get::<RagdollGyroscopicTorqueDisabled>(fresh_body)
+                .get::<SourceGyroscopicTorqueDisabled>(fresh_body)
                 .is_some()
         );
         assert!(world.get_entity(old_root).is_err());
@@ -8550,249 +7581,5 @@ mod tests {
             ),
             Some((7, 0.4))
         );
-    }
-
-    #[test]
-    fn capsule_scene_sweep_matches_native_large_floor() {
-        use avian3d::prelude::PhysicsPlugins;
-        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
-        use std::time::Duration;
-        let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            bevy::mesh::MeshPlugin,
-            TransformPlugin,
-            PhysicsPlugins::new(PostUpdate),
-        ));
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
-            1.0 / 60.0,
-        )));
-        app.finish();
-        app.cleanup();
-        let floor = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::cuboid(20.0, 0.5, 20.0),
-                Position(Vec3::new(0.0, -0.25, -20.0)),
-                Rotation::IDENTITY,
-                CollisionLayers::new(
-                    [
-                        crate::als::character::AlsCollisionLayer::Default,
-                        crate::als::character::AlsCollisionLayer::Visibility,
-                    ],
-                    avian3d::prelude::LayerMask::ALL,
-                ),
-            ))
-            .id();
-        app.update();
-        app.update();
-        let (hit, prediction, prediction_distance) = app
-            .world_mut()
-            .run_system_once(move |spatial: RagdollSpatialQuery| {
-                let capsule = Collider::capsule(0.3, 1.2);
-                let origin = Vec3::new(-7.9832387, 1.0044739, -15.300977);
-                let direction =
-                    Dir3::new(Vec3::new(0.76588976, -0.64297193, -0.00017596605)).unwrap();
-                let hit = spatial.cast_shape(
-                    &capsule,
-                    origin,
-                    Quat::IDENTITY,
-                    direction,
-                    &ShapeCastConfig::from_max_distance(0.3182573),
-                    &SpatialQueryFilter::default(),
-                );
-                let velocity = *direction * 4.0;
-                let prediction = crate::als::air::ground_prediction_sweep(
-                    &spatial,
-                    Entity::PLACEHOLDER,
-                    origin,
-                    velocity,
-                    0.9,
-                    0.3,
-                );
-                let prediction_distance = 1.5 + (velocity.y + 2.0) / -38.0 * 18.5;
-                (hit, prediction, prediction_distance)
-            })
-            .unwrap();
-        let hit = hit.unwrap();
-        assert_eq!(hit.entity, floor);
-        assert!(
-            (hit.distance - 0.162486).abs() <= 1e-6,
-            "Native large floor distance differs: {}",
-            hit.distance
-        );
-        assert!(hit.normal1.abs_diff_eq(Vec3::Y, 1e-6));
-        assert!(prediction.ground_valid);
-        assert!((prediction.hit_fraction.unwrap() * prediction_distance - 0.162486).abs() <= 1e-6);
-    }
-
-    #[test]
-    fn capsule_scene_sweep_preserves_filters_and_nearest_hit() {
-        use avian3d::prelude::PhysicsPlugins;
-        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
-        use std::time::Duration;
-        let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            bevy::mesh::MeshPlugin,
-            TransformPlugin,
-            PhysicsPlugins::new(PostUpdate),
-        ));
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
-            1.0 / 60.0,
-        )));
-        app.finish();
-        app.cleanup();
-        let hidden = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::cuboid(0.2, 4.0, 4.0),
-                Position(Vec3::X),
-                RagdollShapeCollisionMode::PhysicsOnly,
-            ))
-            .id();
-        let sphere = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::sphere(0.2),
-                Position(Vec3::X * 2.0),
-            ))
-            .id();
-        let wall = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::cuboid(0.2, 4.0, 4.0),
-                Position(Vec3::X * 2.5),
-            ))
-            .id();
-        app.update();
-        app.update();
-        let (first, filtered, only_hidden) = app
-            .world_mut()
-            .run_system_once(move |spatial: RagdollSpatialQuery| {
-                let capsule = Collider::capsule(0.3, 1.2);
-                let config = ShapeCastConfig::from_max_distance(4.0);
-                let first = spatial.cast_shape(
-                    &capsule,
-                    Vec3::ZERO,
-                    Quat::IDENTITY,
-                    Dir3::X,
-                    &config,
-                    &SpatialQueryFilter::default(),
-                );
-                let filtered = spatial.cast_shape(
-                    &capsule,
-                    Vec3::ZERO,
-                    Quat::IDENTITY,
-                    Dir3::X,
-                    &config,
-                    &SpatialQueryFilter::from_excluded_entities([sphere]),
-                );
-                let only_hidden = spatial.cast_shape_predicate(
-                    &capsule,
-                    Vec3::ZERO,
-                    Quat::IDENTITY,
-                    Dir3::X,
-                    &config,
-                    &SpatialQueryFilter::default(),
-                    &|entity| entity == hidden,
-                );
-                (first, filtered, only_hidden)
-            })
-            .unwrap();
-        assert_eq!(first.unwrap().entity, sphere);
-        let filtered = filtered.unwrap();
-        assert_eq!(filtered.entity, wall);
-        assert!((filtered.distance - 2.1).abs() <= 1e-5);
-        assert!(only_hidden.is_none());
-    }
-
-    #[test]
-    fn capsule_scene_sweep_keeps_initial_penetration_and_outward_filter() {
-        use avian3d::prelude::PhysicsPlugins;
-        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
-        use std::time::Duration;
-        let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            bevy::mesh::MeshPlugin,
-            TransformPlugin,
-            PhysicsPlugins::new(PostUpdate),
-        ));
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
-            1.0 / 60.0,
-        )));
-        app.finish();
-        app.cleanup();
-        let floor = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::cuboid(100.0, 0.2, 100.0),
-                Position(Vec3::new(0.0, -0.1, 0.0)),
-            ))
-            .id();
-        let deep_floor = app
-            .world_mut()
-            .spawn((
-                RigidBody::Static,
-                Collider::cuboid(100.0, 1.0, 100.0),
-                Position(Vec3::new(200.0, -0.5, 0.0)),
-            ))
-            .id();
-        app.update();
-        app.update();
-        let (hit, outward, deep) = app
-            .world_mut()
-            .run_system_once(move |spatial: RagdollSpatialQuery| {
-                let capsule = Collider::capsule(0.3, 1.2);
-                let origin = Vec3::Y * 0.89;
-                let config = ShapeCastConfig::from_max_distance(0.5);
-                let hit = spatial.cast_shape(
-                    &capsule,
-                    origin,
-                    Quat::IDENTITY,
-                    Dir3::NEG_Y,
-                    &config,
-                    &SpatialQueryFilter::default(),
-                );
-                let outward = spatial.cast_shape(
-                    &capsule,
-                    origin,
-                    Quat::IDENTITY,
-                    Dir3::Y,
-                    &ShapeCastConfig {
-                        ignore_origin_penetration: true,
-                        ..config
-                    },
-                    &SpatialQueryFilter::default(),
-                );
-                let deep = spatial.cast_shape(
-                    &Collider::capsule(0.3, 1.08),
-                    Vec3::new(200.0, -0.2, 0.0),
-                    Quat::IDENTITY,
-                    Dir3::NEG_Y,
-                    &ShapeCastConfig::from_max_distance(0.534001),
-                    &SpatialQueryFilter::default(),
-                );
-                (hit, outward, deep)
-            })
-            .unwrap();
-        let hit = hit.unwrap();
-        assert_eq!(hit.entity, floor);
-        assert_eq!(hit.distance, 0.0);
-        assert!(((hit.point1 - hit.point2).dot(hit.normal1) - 0.01).abs() <= 1e-6);
-        assert!(outward.is_none());
-        let deep = deep.unwrap();
-        assert_eq!(deep.entity, deep_floor);
-        assert_eq!(deep.distance, 0.0);
-        assert!(((deep.point1 - deep.point2).dot(deep.normal1) - 1.04).abs() <= 1e-6);
     }
 }

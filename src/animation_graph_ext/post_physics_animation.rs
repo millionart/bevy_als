@@ -2134,16 +2134,14 @@ mod tests {
                 app.world_mut()
                     .get_mut::<crate::extensions::SourceAnimationInputs>(entity)
                     .unwrap()
-                    .set_rig_query_context(Some(
-                        crate::extensions::control_rig_query::RigQueryContext {
-                            world: std::sync::Arc::new(
-                                crate::extensions::control_rig_query::RigQueryWorld::default(),
-                            ),
-                            to_world: default(),
-                            channel: "Visibility".into(),
-                            filter: default(),
-                        },
-                    ));
+                    .set_rig_query_context(Some(crate::control_rig_query::RigQueryContext {
+                        world: std::sync::Arc::new(
+                            crate::control_rig_query::RigQueryWorld::default(),
+                        ),
+                        to_world: default(),
+                        channel: "Visibility".into(),
+                        filter: default(),
+                    }));
             }
             app.world_mut().run_schedule(PostUpdate);
             for (entity, expected) in [(sampler, (frame - 1) as f32), (character, frame as f32)] {

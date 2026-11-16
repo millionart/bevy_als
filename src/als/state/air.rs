@@ -1,4 +1,4 @@
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::prelude::{LinearVelocity, PhysicsSystems, ShapeCastConfig, SpatialQueryFilter};
 use bevy::prelude::*;
 use bevy_tnua::TnuaPipelineSystems;
@@ -197,7 +197,7 @@ type AirQueryItem<'w, 's> = (
 #[allow(clippy::type_complexity)]
 fn air_state_system(
     time: Res<Time<Virtual>>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     transforms: bevy::transform::helper::TransformHelper,
     mut q: Query<AirQueryItem, With<AlsCharacter>>,
     params_assets: Res<Assets<crate::als::params::AlsMovementParams>>,
@@ -259,7 +259,7 @@ pub fn ground_prediction_amount(hit_fraction: f32) -> f32 {
 }
 
 pub fn ground_prediction_sweep(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     excluded: Entity,
     origin: Vec3,
     velocity: Vec3,
@@ -401,7 +401,7 @@ mod tests {
     }
 
     fn record_capsule_sweep_probe(
-        spatial: SpatialQuery,
+        spatial: SceneQuery,
         origins: Query<(Entity, &GlobalTransform), With<CapsuleSweepProbeOrigin>>,
         mut probe: ResMut<CapsuleSweepProbe>,
     ) {

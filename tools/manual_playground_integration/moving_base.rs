@@ -4,7 +4,7 @@ use crate::als::mantle::{
     AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle,
 };
 use crate::als::motion::AlsActualVelocity;
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::extensions::{PlaygroundKinematic, PlaygroundKinematicKind};
 use avian3d::prelude::{Collider, ColliderOf, SpatialQueryFilter};
 
@@ -298,7 +298,7 @@ pub(super) fn drive(
         With<AlsCharacter>,
     >,
     params: Res<Assets<AlsMovementParams>>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     velocities: Query<
         (
@@ -853,7 +853,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         fn candidate(
             In((character, origin, target, half, radius)): In<(Entity, Vec3, Entity, f32, f32)>,
-            spatial: SpatialQuery,
+            spatial: SceneQuery,
             velocities: Query<
                 (
                     Option<&RigidBody>,

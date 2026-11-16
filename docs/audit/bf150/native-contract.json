@@ -1,0 +1,28 @@
+{
+  "requests": {
+    "rig": {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "native_file": "rig.native.json.gz",
+      "native_bytes": 20438237,
+      "sha256": "44315b363b88939b48a89486e867296e225484291b2f048ae206e9d2169cc636",
+      "watchdog": "rig.native.json.reader.report.json"
+    },
+    "physics_asset": {
+      "asset": "/ALS/ALS/Character/PA_Als.PA_Als",
+      "native_file": "physics_asset.native.json.gz",
+      "native_bytes": 4752236,
+      "sha256": "e5325bcb2e7d09d32607d6b2cad7f9e594b38bfa9eb77c542daac6ff66d566bf",
+      "watchdog": "physics_asset.native.json.reader.report.json"
+    }
+  },
+  "rig_entries": {
+    "Forwards Solve": 0,
+    "Construction": 150
+  },
+  "rig_matched_calls": 45,
+  "physics_asset_counts": {
+    "bodies": 21,
+    "constraints": 20,
+    "collision_disabled_pairs": 49
+  }
+}

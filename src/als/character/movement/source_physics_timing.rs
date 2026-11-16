@@ -4,7 +4,7 @@ use crate::als::{
     character::AlsCharacter,
     state::{AlsNotifyLocomotionAction, LocomotionState},
 };
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use avian3d::dynamics::solver::{PhysicsLengthUnit, SolverConfig};
 use avian3d::dynamics::{
     integrator::{IntegrationSystems, VelocityIntegrationData},
@@ -78,7 +78,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                 integrate_character_velocity
                     .in_set(IntegrationSystems::UpdateVelocityIncrements)
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments)
-                    .after(crate::extensions::ragdoll_physics_profile::apply_source_linear_damping),
+                    .after(crate::extensions::physics_asset::apply_source_linear_damping),
             )
             .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement
                 .in_set(SolverSystems::PostSubstep)
@@ -94,7 +94,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                 integrate_character_position
                     .in_set(SourcePhysicsTimingSet::IntegratePosition)
                     .after(IntegrationSystems::Position)
-                    .after(crate::extensions::ragdoll_physics_profile::integrate_source_ragdoll_rotation)
+                    .after(crate::extensions::source_body_dynamics::integrate_source_body_rotation)
                     .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax),
             );
     }
@@ -310,7 +310,7 @@ fn integrate_character_position(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
     substeps: Res<SubstepCount>,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     impact_bodies: crate::als::motion::FallingImpactBodies,
     params_assets: Option<Res<Assets<crate::als::params::AlsMovementParams>>>,
     step_permissions: Query<&crate::als::mantle::AlsMantleTargetPermission>,
@@ -2237,7 +2237,7 @@ mod tests {
                     let (floor, contact) = app
                         .world_mut()
                         .run_system_once(
-                            move |spatial: SpatialQuery,
+                            move |spatial: SceneQuery,
                                   collisions: avian3d::prelude::Collisions,
                                   candidates: Query<
                                 crate::als::motion::CharacterCollisionCandidates,

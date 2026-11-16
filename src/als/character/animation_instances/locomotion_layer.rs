@@ -8,7 +8,7 @@ use crate::als::{
         AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig,
     },
 };
-use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::SceneQuery;
 use crate::extensions::source_instance::{set_source_frame_input, source_player_property};
 use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQueryFilter};
 use bevy::prelude::*;
@@ -113,7 +113,7 @@ fn in_air_lean_target(velocity: Vec3, rotation: Quat) -> Vec2 {
 }
 
 fn ground_prediction_amount(
-    spatial: &SpatialQuery,
+    spatial: &SceneQuery,
     origin: Vec3,
     velocity: Vec3,
     capsule: &Collider,
@@ -172,7 +172,7 @@ fn ground_prediction_amount(
 #[allow(clippy::type_complexity)]
 fn locomotion_input_writer(
     mut commands: Commands,
-    spatial: SpatialQuery,
+    spatial: SceneQuery,
     configs: Res<Assets<AlsControlSchemeConfig>>,
     movement_params: Res<Assets<crate::als::params::AlsMovementParams>>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -420,7 +420,7 @@ mod tests {
                     .unwrap()
                     .as_f32()
                     .unwrap();
-                let expected_prediction = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+                let expected_prediction = app.world_mut().run_system_once(move |spatial: crate::extensions::SceneQuery,
                     actors: Query<(&Collider, &TnuaConfig<AlsControlScheme>)>,
                     avatars: Query<&GlobalTransform>, configs: Res<Assets<AlsControlSchemeConfig>>,
                     characters: Query<Entity, With<AlsCharacter>>| {
@@ -631,7 +631,7 @@ mod tests {
             app.update();
             let (contact, animation, trace, state) = app
                 .world_mut()
-                .run_system_once(|spatial: crate::extensions::RagdollSpatialQuery| {
+                .run_system_once(|spatial: crate::extensions::SceneQuery| {
                     let origin = Vec3::new(0.1, 2.0, 0.0);
                     let velocity = Vec3::NEG_Y * 10.0;
                     let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
@@ -1008,7 +1008,7 @@ mod tests {
 
     #[test]
     fn ground_prediction_uses_the_source_mesh_scaled_sweep() {
-        fn sample(spatial: crate::extensions::RagdollSpatialQuery) -> [f32; 5] {
+        fn sample(spatial: crate::extensions::SceneQuery) -> [f32; 5] {
             let filter =
                 SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
             let unfiltered = SpatialQueryFilter::default();

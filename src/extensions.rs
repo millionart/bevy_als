@@ -9,15 +9,13 @@ pub mod als_curves;
 pub mod animation_context;
 #[path = "animation_graph_ext/blend_space_1d.rs"]
 pub mod blend_space_1d;
-#[path = "avian_ext/control_rig_mesh_ray.rs"]
-pub mod control_rig_mesh_ray;
 #[cfg(test)]
 #[path = "animation_graph_ext/control_rig_program_tests.rs"]
 mod control_rig_program_tests;
-#[path = "avian_ext/control_rig_query.rs"]
-pub mod control_rig_query;
-#[path = "control_rig/control_rig_units.rs"]
+#[path = "control_rig_ext/control_rig_units.rs"]
 pub mod control_rig_units;
+#[path = "avian_ext/cooked_mesh_raycast.rs"]
+pub mod cooked_mesh_raycast;
 #[path = "tnua_ext/crouch_transaction.rs"]
 pub mod crouch_transaction;
 #[path = "animation_graph_ext/curve.rs"]
@@ -90,8 +88,8 @@ pub mod normalized_blendspace;
 pub mod overlay;
 #[path = "bevy_ext/overlay_materials.rs"]
 pub mod overlay_materials;
-#[path = "avian_ext/penetration_recovery.rs"]
-pub mod penetration_recovery;
+#[path = "animation_graph_ext/physics_asset.rs"]
+pub mod physics_asset;
 #[path = "als_extras/levels/playground.rs"]
 pub mod playground;
 #[path = "als_extras/environment/playground_materials.rs"]
@@ -106,15 +104,10 @@ pub mod post_physics_animation;
 pub mod profile_blend;
 #[path = "bevy_ext/projected_decal.rs"]
 pub mod projected_decal;
-#[path = "avian_ext/query_collision.rs"]
-pub mod query_collision;
-#[path = "avian_ext/ragdoll_angular_drive.rs"]
+#[path = "animation_graph_ext/ragdoll_angular_drive.rs"]
 pub mod ragdoll_angular_drive;
 #[path = "animation_graph_ext/ragdoll_config_node.rs"]
 pub mod ragdoll_config_node;
-pub use query_collision::ComplexCollider;
-#[path = "avian_ext/ragdoll_physics_profile.rs"]
-pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]
 pub mod ragdolling_tag_blend;
 #[path = "animation_graph_ext/raw_curve_sampling.rs"]
@@ -135,12 +128,18 @@ pub mod root_graph_boundaries;
 pub mod root_motion_clip;
 #[path = "animation_graph_ext/root_motion_defaults.rs"]
 pub mod root_motion_defaults;
+#[path = "avian_ext/scene_query.rs"]
+pub mod scene_query;
+#[path = "avian_ext/shape_raycast.rs"]
+pub(crate) mod shape_raycast;
 #[path = "animation_graph_ext/skeleton_aware_layered_graph.rs"]
 pub mod skeleton_aware_layered_graph;
 #[path = "animation_graph_ext/slot_node.rs"]
 pub mod slot_node;
 #[path = "animation_graph_ext/source_animation_state_getter.rs"]
 pub mod source_animation_state_getter;
+#[path = "avian_ext/source_body_dynamics.rs"]
+pub mod source_body_dynamics;
 #[path = "animation_graph_ext/source_cached_pose.rs"]
 pub mod source_cached_pose;
 #[path = "avian_ext/source_capsule_sweep.rs"]
@@ -289,7 +288,13 @@ pub use overlay::{
     build_branch_filter_bone_mask, build_branch_filter_bone_mask_by_name, build_grouped_bone_mask,
     mask_coverage,
 };
-pub use penetration_recovery::sum_penetration_adjustments;
+pub use physics_asset::{
+    RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
+    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
+    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied,
+    RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet, SourceCollisionIgnorePawn,
+    SourceCollisionPawn,
+};
 pub use playground::{
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundActor,
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundComponent,
@@ -315,13 +320,6 @@ pub use ragdoll_angular_drive::{
     RagdollAngularDriveSet,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
-pub use ragdoll_physics_profile::{
-    RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
-    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
-    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied,
-    RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet, RagdollShapeCollisionMode,
-    RagdollSpatialQuery, SourceCollisionIgnorePawn, SourceCollisionPawn,
-};
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};
 pub use reference_mesh_difference::ReferenceMeshDifferenceNode;
@@ -333,6 +331,7 @@ pub use rich_curve::{
 pub use root_graph_boundaries::ControlRigBoundaryNode;
 pub use root_motion_clip::RootMotionClipNode;
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
+pub use scene_query::{ComplexCollider, SceneQuery, ShapeCollisionMode};
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
 pub use source_animation_state_getter::SourceAnimationStateGetterNode;

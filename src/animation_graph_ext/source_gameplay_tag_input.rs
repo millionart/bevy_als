@@ -15,7 +15,7 @@ use bevy_gameplay_tag::GameplayTag;
 struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::extensions::animation_context::AnimationContextState>,
-    rig_query: Option<crate::extensions::control_rig_query::RigQueryContext>,
+    rig_query: Option<crate::control_rig_query::RigQueryContext>,
     rig_foot_locations_cm: Option<[Vec3; 2]>,
     foot_lock_distances_squared_cm: Option<[f64; 2]>,
     graphs: HashMap<String, LinkedGraphInput>,
@@ -85,14 +85,12 @@ impl SourceAnimationInputs {
 
     pub fn set_rig_query_context(
         &mut self,
-        context: Option<crate::extensions::control_rig_query::RigQueryContext>,
+        context: Option<crate::control_rig_query::RigQueryContext>,
     ) {
         Arc::make_mut(&mut self.0).rig_query = context;
     }
 
-    pub fn rig_query_context(
-        &self,
-    ) -> Option<crate::extensions::control_rig_query::RigQueryContext> {
+    pub fn rig_query_context(&self) -> Option<crate::control_rig_query::RigQueryContext> {
         self.0.rig_query.clone()
     }
 
@@ -163,7 +161,7 @@ pub(crate) fn active_slot_input_context(
 
 pub(crate) fn active_rig_query_context(
     entity: Entity,
-) -> Option<crate::extensions::control_rig_query::RigQueryContext> {
+) -> Option<crate::control_rig_query::RigQueryContext> {
     current_inputs(entity)?.rig_query_context()
 }
 
@@ -343,16 +341,12 @@ mod tests {
                         blend_out: 0.2,
                     }),
                 );
-                inputs.set_rig_query_context(Some(
-                    crate::extensions::control_rig_query::RigQueryContext {
-                        world: Arc::new(
-                            crate::extensions::control_rig_query::RigQueryWorld::default(),
-                        ),
-                        to_world: default(),
-                        channel: "Visibility".into(),
-                        filter: default(),
-                    },
-                ));
+                inputs.set_rig_query_context(Some(crate::control_rig_query::RigQueryContext {
+                    world: Arc::new(crate::control_rig_query::RigQueryWorld::default()),
+                    to_world: default(),
+                    channel: "Visibility".into(),
+                    filter: default(),
+                }));
                 Arc::downgrade(&inputs.0)
             };
             if !replace {
