@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
@@ -12,6 +12,7 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
+use super::mesh_space_additive::{hierarchy_order, local_rotation};
 use crate::extensions::{
     raw_sequence_sampling::normalize_source_rotation,
     source_compression::source_quaternion_product, source_pose::SourcePose,
@@ -66,44 +67,6 @@ impl MeshSpaceDifferenceNode {
     pub const IN_POSE_B: &'static str = "pose_b";
     pub const IN_TIME_B: &'static str = "time_b";
     pub const OUT_POSE: &'static str = "pose";
-}
-
-fn hierarchy_order(skeleton: &Skeleton) -> Vec<BoneId> {
-    fn visit(
-        skeleton: &Skeleton,
-        bone: BoneId,
-        visited: &mut HashSet<BoneId>,
-        order: &mut Vec<BoneId>,
-    ) {
-        if !visited.insert(bone) {
-            return;
-        }
-        if let Some(parent) = skeleton.parent(&bone) {
-            visit(skeleton, parent, visited, order);
-        }
-        order.push(bone);
-    }
-
-    let mut visited = HashSet::default();
-    let mut order = Vec::new();
-    visit(skeleton, skeleton.root(), &mut visited, &mut order);
-    for bone in skeleton.iter_bones() {
-        visit(skeleton, bone, &mut visited, &mut order);
-    }
-    order
-}
-
-fn local_rotation(pose: &Pose, skeleton: &Skeleton, bone: BoneId) -> Quat {
-    pose.paths
-        .get(&bone)
-        .and_then(|index| pose.bones.get(*index))
-        .and_then(|bone| bone.rotation)
-        .or_else(|| {
-            skeleton
-                .default_transforms(bone)
-                .map(|transform| transform.local.rotation)
-        })
-        .unwrap_or(Quat::IDENTITY)
 }
 
 fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[BoneId]) -> HashMap<BoneId, Quat> {

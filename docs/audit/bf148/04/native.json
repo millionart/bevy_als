@@ -1,0 +1,20 @@
+{
+  "records": [
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+      "reader_flags": [],
+      "file": "Head.native.json.gz",
+      "raw_bytes": 1746722,
+      "sha256": "410c9cef53e70c105da6e4266fb28c6e5bb1b31affc16ee6030ab657aff5fefc",
+      "graph_count": 11
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+      "reader_flags": [],
+      "file": "Layering.native.json.gz",
+      "raw_bytes": 14692000,
+      "sha256": "866fe8bbfae412e9750acf4d5ed4c08ef45950dae28a2dae3546c6dfe2bd7111",
+      "graph_count": 5
+    }
+  ]
+}

@@ -13,7 +13,7 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::{BonePose, Pose, RootMotionDelta},
+    pose::{BoneId, BonePose, Pose, RootMotionDelta},
     skeleton::Skeleton,
 };
 
@@ -131,12 +131,12 @@ fn merge_non_rotation(base: &mut BonePose, additive: &BonePose, alpha: f32) {
     base.weights = merge_weights(base.weights.clone(), additive.weights.clone(), alpha);
 }
 
-fn hierarchy_order(skeleton: &Skeleton) -> Vec<bevy_animation_graph::core::pose::BoneId> {
+pub(super) fn hierarchy_order(skeleton: &Skeleton) -> Vec<BoneId> {
     fn visit(
         skeleton: &Skeleton,
-        bone: bevy_animation_graph::core::pose::BoneId,
-        visited: &mut HashSet<bevy_animation_graph::core::pose::BoneId>,
-        order: &mut Vec<bevy_animation_graph::core::pose::BoneId>,
+        bone: BoneId,
+        visited: &mut HashSet<BoneId>,
+        order: &mut Vec<BoneId>,
     ) {
         if !visited.insert(bone) {
             return;
@@ -168,14 +168,10 @@ pub(crate) fn materialize_missing_reference_bones(base: &mut Pose, skeleton: &Sk
     }
 }
 
-fn base_local_rotation(
-    base: &Pose,
-    skeleton: &Skeleton,
-    bone: bevy_animation_graph::core::pose::BoneId,
-) -> Quat {
-    base.paths
+pub(super) fn local_rotation(pose: &Pose, skeleton: &Skeleton, bone: BoneId) -> Quat {
+    pose.paths
         .get(&bone)
-        .and_then(|index| base.bones.get(*index))
+        .and_then(|index| pose.bones.get(*index))
         .and_then(|pose| pose.rotation)
         .or_else(|| {
             skeleton
@@ -185,10 +181,7 @@ fn base_local_rotation(
         .unwrap_or(Quat::IDENTITY)
 }
 
-fn additive_rotation(
-    additive: &Pose,
-    bone: bevy_animation_graph::core::pose::BoneId,
-) -> Option<Quat> {
+fn additive_rotation(additive: &Pose, bone: BoneId) -> Option<Quat> {
     additive
         .paths
         .get(&bone)
@@ -329,7 +322,7 @@ pub fn apply_local_space_additive(
             continue;
         };
         let additive_bone = &additive.bones[*additive_index];
-        let base_rotation = base_local_rotation(base, skeleton, *bone);
+        let base_rotation = local_rotation(base, skeleton, *bone);
         let base_bone = &mut base.bones[base_index];
         if let Some(rotation) = additive_bone.rotation {
             base_bone.rotation = Some(blend_additive_rotation(base_rotation, rotation, alpha));
@@ -371,10 +364,9 @@ pub fn apply_mesh_space_additive(
     }
 
     let hierarchy = hierarchy_order(skeleton);
-    let mut mesh_rotations: HashMap<bevy_animation_graph::core::pose::BoneId, Quat> =
-        HashMap::default();
+    let mut mesh_rotations: HashMap<BoneId, Quat> = HashMap::default();
     for bone in &hierarchy {
-        let local = base_local_rotation(base, skeleton, *bone);
+        let local = local_rotation(base, skeleton, *bone);
         let rotation = skeleton
             .parent(bone)
             .and_then(|parent| mesh_rotations.get(&parent).copied())
@@ -538,11 +530,7 @@ mod tests {
         (1.0 - left.dot(right).abs()).abs() < 1e-5
     }
 
-    fn test_skeleton() -> (
-        Skeleton,
-        bevy_animation_graph::core::pose::BoneId,
-        bevy_animation_graph::core::pose::BoneId,
-    ) {
+    fn test_skeleton() -> (Skeleton, BoneId, BoneId) {
         let root_path = EntityPath::default().child("root");
         let child_path = root_path.child("child");
         let root = root_path.id();
