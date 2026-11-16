@@ -1,0 +1,13 @@
+{
+  "format": "als_animation_visual_runner_v1",
+  "case": "ragdoll",
+  "frame_delta_seconds": null,
+  "frame_hitch_seconds": null,
+  "manual_exit_code": 0,
+  "report_path": "docs/audit/bf150/scene-regressions/history-reuse-ragdoll/report.json",
+  "report_exists": true,
+  "validation_exit_code": 0,
+  "validation_scope": "full",
+  "render_effects_passed": true,
+  "decal_renderer_passed": true
+}
