@@ -73,3 +73,5 @@ pwsh -NoProfile -File tools/run_animation_visual_validation.ps1 \
 ```
 
 `runner.json` 保存验证范围、退出码及渲染回执。`process.report.json` 保存 watchdog 的进展、时限和退出原因。解压各次 `report.json.gz` 后可用 `tools/validate_animation_visual_evidence.py --report <解压文件> --min-screenshots 0 --check` 重跑原预算断言。性能取证时的 WGPU CPU pass 计时和 Metal GPU 执行计时来自两种独立采集。CPU 栈文本仅对本地路径作脱敏。
+
+后续 BF150.04 用 Footprint 的片元读回识别 CPU 实例构建与渲染批次类型不匹配，补齐了渲染状态和真实地砖材质的管线准备。历史回执里的 `receiver_ready` 表示管线就绪。本次 Footprint 另核对 36 个真实 GPU 请求的材质结果。 [后续场景回归](../scene-regressions/README.md)

@@ -65,6 +65,7 @@ fn main() {
     ))
     .expect("playground world time settings must be valid");
     let mut app = App::new();
+    let use_gpu_instances = !cfg!(all(target_os = "macos", target_arch = "aarch64"));
     app.add_plugins((
         DefaultPlugins
             .set(AssetPlugin {
@@ -79,10 +80,7 @@ fn main() {
                 ..default()
             })
             .set(bevy::pbr::PbrPlugin {
-                use_gpu_instance_buffer_builder: !cfg!(all(
-                    target_os = "macos",
-                    target_arch = "aarch64"
-                )),
+                use_gpu_instance_buffer_builder: use_gpu_instances,
                 ..default()
             }),
         SourceWorldTimePlugin {
@@ -92,6 +90,20 @@ fn main() {
         AlsPlayableCharacterPlugin,
         AlsGameModePlugin,
     ));
+    if !use_gpu_instances {
+        use bevy::render::{
+            RenderApp, RenderStartup,
+            batching::gpu_preprocessing::{GpuPreprocessingMode, GpuPreprocessingSupport},
+            init_gpu_resource,
+        };
+        app.sub_app_mut(RenderApp).add_systems(
+            RenderStartup,
+            (|mut support: ResMut<GpuPreprocessingSupport>| {
+                support.max_supported_mode = GpuPreprocessingMode::None;
+            })
+            .after(init_gpu_resource::<GpuPreprocessingSupport>),
+        );
+    }
     app.add_plugins((
         OverlayObjectPlugin,
         AlsDebugDisplayPlugin,

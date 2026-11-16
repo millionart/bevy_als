@@ -1,0 +1,12 @@
+{
+  "foot-settings": {
+    "file": "foot-settings.native.json.gz",
+    "raw_sha256": "7ebf5075edbca1f23820987f7a69b5af84d9f415769796f307a85ab67c5b6954",
+    "watchdog": "foot-settings.native.json.reader.report.json"
+  },
+  "foot-material": {
+    "file": "foot-material.native.json.gz",
+    "raw_sha256": "cd05524cdf657db9bc21e56d35f5fa60966a130cdfc5cd27a46f2b614d1bdf3d",
+    "watchdog": "foot-material.native.json.reader.report.json"
+  }
+}

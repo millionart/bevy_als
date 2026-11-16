@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::extensions::source_gaussian_bloom::{SourceGaussianBloom, SourceGaussianBloomPlugin};
 use bevy::asset::AssetId;
-use bevy::camera::Exposure;
+use bevy::camera::{Exposure, visibility::NoFrustumCulling};
 use bevy::color::LinearRgba;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::core_pipeline::tonemapping::TonemappingLuts;
@@ -1484,9 +1484,11 @@ fn playground_material_tint_system(
                             commands
                                 .entity(child)
                                 .remove::<MeshMaterial3d<StandardMaterial>>();
-                            commands
-                                .entity(child)
-                                .insert((MeshMaterial3d(handle.clone()), applied));
+                            commands.entity(child).insert((
+                                MeshMaterial3d(handle.clone()),
+                                applied,
+                                NoFrustumCulling,
+                            ));
                         }
                     }
                     if landscape {

@@ -16,6 +16,8 @@ BF150.02 记录布娃娃与起身的墙钟帧时、图求值、冷启动、渲�
 
 BF150.03 逐文件复核扩展归属，合并 Control Rig 测试，并记录有源依据的独立搬移与回归。 [扩展归属复核](extension-ownership/README.md)
 
+BF150.04 记录 Control Rig、Default Overlay 与 Footprint 的源对照、原阈值和正式 Playground 回归。 [场景回归报告](scene-regressions/README.md)
+
 定向回归使用下列命令。各场景的 launcher 参数见 `runner.json`。解压 `report.json.gz` 后，可用 `tools/validate_animation_visual_evidence.py --report <文件> --min-screenshots 0 --check --functional-only` 核对原报告。过程日志已移除本机路径。
 
 ```sh
