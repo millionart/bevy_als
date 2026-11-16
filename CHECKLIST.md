@@ -177,6 +177,13 @@
     - 13:37 locomotion 后：功能通过，原报告已保留。
     - 13:37 完成：源码字节与试验前一致，同 target 的反例、2157 单元、37 集成、格式与定向 lint 通过。startup、head、locomotion 功能通过，无图错误。见 [BF148.06b 证据](docs/audit/bf148/06b/README.md)。
 
+## BF149 — 独立 Bevy Control Rig 插件
+
+- [x] BF149.01 — 提取并发布 `bevy_control_rig`。Gate 验证独立 Bevy 插件注册、RigVM、层级、数学和 IK，核对源 Rig 合同及 GitHub 提交。开始 2026-11-16 14:11 +08:00，预估结束 2026-11-16 14:40 +08:00，实际结束 2026-11-16 14:22 +08:00，偏差 −18 分钟，第 1 轮通过，未拆分。估时依据为当前七个通用算法模块、两个共享数学原语和八个自定义单位名，以及 BF148.06a 的 Rig 取证与定向回归实耗。
+  - 14:11 范围：本地 `CR_Als` 和当前图内消费者作为迁移合同。Rig 算法、单位、程序和通用 IK 进入独立插件。源单位 ID 映射、图节点、角色输入、Avian 查询和源资产由本项目持有。先通过独立编译和测试，再接入已发布提交。
+  - 14:22 source/static：原生重新读取后核对了两入口、45 条单位调用和 43 个曲线名。七个模块和两个共享数学原语的实现身份对照、独立 50 项测试、注册消融与同 target 恢复、格式、lint 和 rustdoc 通过。远端 `main` 已确认，应用接线由 .02 验收。[BF149.01 证据](docs/audit/bf149/01/README.md)。
+- [ ] BF149.02 — 用锁定的 Git 依赖替换本地实现。依赖 .01。Gate 核对同一 Bevy 和原 Animation Graph revision，保留图调用、序列化、查询和测试，验证真实 Playground `startup`、`control_rig`、`foot_ik`。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

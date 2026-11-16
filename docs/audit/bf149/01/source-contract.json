@@ -1,0 +1,36 @@
+{
+  "request": {
+    "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+    "timeout_seconds": 240,
+    "no_progress_seconds": 90
+  },
+  "native_report": {
+    "file": "rig.native.json.gz",
+    "bytes": 20438237,
+    "sha256": "0d3d930fff85567fec8860a6737914781bc0e032853b5bed8b827aa84bf8ec88"
+  },
+  "runtime_program": {
+    "file": "assets/ALS/Character/CR_Als.program.json",
+    "sha256": "0975a1d306bce47f5c3db95aaefd2e9498bb31285fd6bde2d89510439a2ce260"
+  },
+  "source_graphs": 10,
+  "source_nodes": 172,
+  "entries": {
+    "Forwards Solve": 0,
+    "Construction": 150
+  },
+  "instructions": 165,
+  "matched_unit_calls": 45,
+  "custom_source_unit_names": [
+    "FAlsRigUnit_ApplyFootOffsetLocation::Execute",
+    "FAlsRigUnit_ApplyFootOffsetRotation::Execute",
+    "FAlsRigUnit_CalculatePoleVector::Execute",
+    "FAlsRigUnit_ChainLength::Execute",
+    "FAlsRigUnit_DistributeRotationSimple::Execute",
+    "FAlsRigUnit_FootOffsetTrace::Execute",
+    "FAlsRigVMFunction_DamperExactVector::Execute",
+    "FAlsRigVMFunction_IsGameWorld::Execute"
+  ],
+  "curve_names_equal": true,
+  "bones": 79
+}
