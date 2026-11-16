@@ -1,0 +1,8 @@
+{
+  "bytes": 275409072,
+  "sha256": "b7ad9c01b4f1f2f2393260abcd6254df21766a3b13e5570c6a00bfbcb726b5a1",
+  "archive": "short-step-native.native.json.gz",
+  "reader_binary_sha256": "27fb6d10de0fa02124ef7b73d8144a0901f15eb9e683d7182cbb652daa825abf",
+  "source_scale": 1.0,
+  "world_displacement_comparison_scale": 2.0
+}

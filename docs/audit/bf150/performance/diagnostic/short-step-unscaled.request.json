@@ -1,0 +1,846 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 100,
+  "capture_asset_player_ticks": false,
+  "cases": [
+    {
+      "name": "observed_short_step_unscaled",
+      "local_controller": true,
+      "dynamic_base": false,
+      "spawn_height_cm": 990.4,
+      "spawn_yaw_degrees": 45,
+      "frames": [
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.006985542,
+          "rendered": true
+        }
+      ]
+    }
+  ],
+  "capture_pose_boundaries": true,
+  "capture_rig_output": true
+}

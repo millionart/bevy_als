@@ -1,0 +1,128 @@
+{
+  "own_records": 6367,
+  "span_ms": 3162.989875,
+  "active_union_ms": 552.9924,
+  "filtered_sha256": "16e035f3ef02b9be9b77708ec51c36693812b293dc175f5e455e0e341161ffff",
+  "groups": {
+    "uniform allocation:uniform allocation": [
+      69,
+      201.68232899999998
+    ],
+    "bin unpacking:bin unpacking": [
+      69,
+      126.73958200000004
+    ],
+    "main_opaque_pass_3d:main_opaque_pass_3d": [
+      138,
+      116.31920700000008
+    ],
+    "ssao:ssao": [
+      69,
+      104.627626
+    ],
+    "source_bloom_pass:source_bloom_pass": [
+      2611,
+      40.989247999999876
+    ],
+    "(wgpu internal) PendingWrites:Blit": [
+      66,
+      20.724836
+    ],
+    "taa:taa": [
+      138,
+      20.165084999999998
+    ],
+    "early prepass:early prepass": [
+      138,
+      16.678712999999988
+    ],
+    "shadow_directional_light_0_cascade_1:shadow_directional_light_0_cascade_1": [
+      138,
+      12.844997999999993
+    ],
+    "ssao_spatial_denoise:ssao_spatial_denoise": [
+      69,
+      11.330955999999999
+    ],
+    "shadow_directional_light_0_cascade_3:shadow_directional_light_0_cascade_3": [
+      140,
+      10.641252000000007
+    ],
+    "shadow_directional_light_0_cascade_0:shadow_directional_light_0_cascade_0": [
+      138,
+      10.258246
+    ],
+    "shadow_directional_light_0_cascade_2:shadow_directional_light_0_cascade_2": [
+      140,
+      9.905245999999996
+    ],
+    "auto_exposure:auto_exposure": [
+      69,
+      8.257125
+    ],
+    "tonemapping:tonemapping": [
+      137,
+      4.988008
+    ],
+    "ui:ui": [
+      137,
+      4.011456
+    ],
+    "ssao_preprocess_depth:ssao_preprocess_depth": [
+      69,
+      3.5936609999999996
+    ],
+    "early_mesh_preprocessing:early_mesh_preprocessing": [
+      69,
+      3.4818750000000014
+    ],
+    "bevy_core_pipeline:Blit": [
+      70,
+      3.2260390000000005
+    ],
+    "upscaling:upscaling": [
+      138,
+      2.7862050000000007
+    ],
+    "(wgpu internal) Pre Pass:(wgpu internal) Indirect draw validation pass": [
+      419,
+      1.9530829999999977
+    ],
+    "late_view_shadow_indirect_parameters_building:late_view_shadow_indirect_parameters_building": [
+      276,
+      1.7876630000000016
+    ],
+    "early_view_shadow_indirect_parameters_building:early_view_shadow_indirect_parameters_building": [
+      278,
+      1.5893880000000005
+    ],
+    "(wgpu internal) Pre Pass:Blit": [
+      419,
+      1.5777569999999992
+    ],
+    "main_indirect_parameters_building:main_indirect_parameters_building": [
+      69,
+      1.390919
+    ],
+    "early_prepass_indirect_parameters_building:early_prepass_indirect_parameters_building": [
+      69,
+      1.1495830000000002
+    ],
+    "(wgpu internal) Transit:Blit": [
+      70,
+      0.9063279999999999
+    ],
+    "(wgpu internal) Signal:Blit": [
+      69,
+      0.7743329999999995
+    ],
+    "GPU Execution": [
+      23,
+      0.763372
+    ],
+    "sparse buffer updates:sparse buffer updates": [
+      63,
+      0.416208
+    ]
+  }
+}

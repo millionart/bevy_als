@@ -36,7 +36,8 @@ use crate::{
     },
     manual_playground_integration::{
         ManualAnimationPoseBoundary, ManualAnimationWindowEvidence, ManualIntegrationGateReport,
-        ManualIntegrationObservationSet, ManualRuntimePhaseEvidence, ManualTurnStackEntryEvidence,
+        ManualIntegrationObservationSet, ManualPlaygroundStartupReady, ManualRuntimePhaseEvidence,
+        ManualTurnStackEntryEvidence,
     },
     ragdoll_link::AlsRagdollGroundFollow,
 };
@@ -165,9 +166,11 @@ struct AnimationVisualValidationState {
     fault_captures: usize,
     eval_started: Option<Instant>,
     frame_started: Option<Instant>,
+    playable_frame: Option<bool>,
     skip_frame_samples: u8,
     excluded_frame_samples: usize,
     frame_ms: Vec<f64>,
+    loading_frame_ms: Vec<f64>,
     cpu_frame_ms: Vec<f64>,
     eval_ms: Vec<f64>,
     pose_samples: Vec<PoseSample>,
@@ -189,6 +192,15 @@ struct AnimationVisualValidationState {
     teleport_captures: usize,
     observed_bones: usize,
     watchdog: AutomationProgressWatchdog,
+}
+
+impl AnimationVisualValidationState {
+    fn performance_ready(&self, warmup: Duration) -> bool {
+        self.started.is_some_and(|started| {
+            self.playable_frame
+                .unwrap_or_else(|| started.elapsed() >= warmup)
+        })
+    }
 }
 
 #[derive(Clone, Default)]
@@ -750,6 +762,8 @@ struct AnimationVisualReport<'a> {
     required_bones: Vec<String>,
     missing_bones: Vec<String>,
     frame_time: TimeStats,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    loading_frame_time: Option<TimeStats>,
     cpu_frame_time: TimeStats,
     animation_eval_time: TimeStats,
     physics_steps_per_render: CountStats,
@@ -1204,10 +1218,15 @@ fn record_temporal_metrics(
     phase: Option<&str>,
 ) -> bool {
     let mut detected = false;
+    let source_landing = stage == "pre_rig_source_landing_selector";
+    let stage = if source_landing { "pre_rig" } else { stage };
     for metric in metrics {
-        let source_boundary = (stage == "pre_rig_source_landing_selector"
+        let source_boundary = (source_landing
             && metric.kind == "global_position_speed"
-            && matches!(metric.subject.as_str(), "hand_l" | "hand_r"))
+            && matches!(
+                metric.subject.as_str(),
+                "hand_l" | "hand_r" | "lowerarm_l" | "lowerarm_r"
+            ))
         .then_some("source_fall_heavy_to_light_on_physics_entry");
         let duplicate = state.temporal_anomalies.iter().any(|value| {
             value.kind == metric.kind
@@ -1230,11 +1249,7 @@ fn record_temporal_metrics(
                 frame_ms,
             );
             state.temporal_anomalies.push(TemporalSkeletonAnomaly {
-                stage: if source_boundary.is_some() {
-                    "pre_rig".to_owned()
-                } else {
-                    stage.to_owned()
-                },
+                stage: stage.to_owned(),
                 kind: metric.kind.to_owned(),
                 subject: metric.subject.clone(),
                 previous: metric.previous,
@@ -1267,8 +1282,13 @@ fn animation_eval_start(mut state: ResMut<AnimationVisualValidationState>) {
     state.eval_started = Some(Instant::now());
 }
 
-fn animation_cpu_frame_start(mut state: ResMut<AnimationVisualValidationState>) {
+fn animation_cpu_frame_start(
+    mut state: ResMut<AnimationVisualValidationState>,
+    startup: Option<Res<ManualPlaygroundStartupReady>>,
+    manual_integration: Option<Res<ManualIntegrationGateReport>>,
+) {
     state.frame_started = Some(Instant::now());
+    state.playable_frame = manual_integration.and_then(|_| startup.map(|startup| startup.passed));
 }
 
 fn record_stage(
@@ -1278,13 +1298,9 @@ fn record_stage(
     name: &str,
     started: Option<Instant>,
 ) {
-    let Some(run_started) = visual.started else {
-        return;
-    };
-    let Some(started) = started else {
-        return;
-    };
-    if run_started.elapsed() >= config.warmup {
+    if visual.performance_ready(config.warmup)
+        && let Some(started) = started
+    {
         stages
             .samples
             .entry(name.to_owned())
@@ -1422,9 +1438,7 @@ fn animation_visual_control_rig_time(
     mut stages: ResMut<AnimationVisualStageTiming>,
     executions: Query<&AlsControlRigExecution, With<AlsCharacter>>,
 ) {
-    if visual
-        .started
-        .is_some_and(|started| started.elapsed() >= config.warmup)
+    if visual.performance_ready(config.warmup)
         && let Ok(execution) = executions.single()
         && execution.executed_steps > 0
     {
@@ -1453,13 +1467,9 @@ fn animation_eval_end(
     config: Res<AnimationVisualValidationConfig>,
     mut state: ResMut<AnimationVisualValidationState>,
 ) {
-    let Some(started) = state.started else {
-        return;
-    };
-    let Some(begin) = state.eval_started.take() else {
-        return;
-    };
-    if started.elapsed() >= config.warmup {
+    if let Some(begin) = state.eval_started.take()
+        && state.performance_ready(config.warmup)
+    {
         state.eval_ms.push(begin.elapsed().as_secs_f64() * 1000.0);
     }
 }
@@ -3327,7 +3337,6 @@ fn write_report(
     let pass = ready
         && missing_bones.is_empty()
         && state.faults.is_empty()
-        && state.temporal_anomalies.is_empty()
         && state.graph_errors.is_empty()
         && state.primary_failure.is_none()
         && frame_time.p95_ms <= config.max_frame_p95_ms
@@ -3387,6 +3396,7 @@ fn write_report(
             .collect(),
         missing_bones,
         frame_time,
+        loading_frame_time: state.playable_frame.map(|_| stats(&state.loading_frame_ms)),
         cpu_frame_time,
         animation_eval_time,
         physics_steps_per_render,
@@ -4032,18 +4042,23 @@ fn collect_animation_visual_evidence(
         .frame_started
         .map(|started| now.duration_since(started).as_secs_f64() * 1000.0)
         .unwrap_or(0.0);
-    if elapsed >= config.warmup && frame_ms > 0.0 {
-        if state.skip_frame_samples > 0 {
-            state.skip_frame_samples -= 1;
-            state.excluded_frame_samples += 1;
-        } else {
-            state.frame_ms.push(frame_ms);
-            if cpu_frame_ms > 0.0 {
-                state.cpu_frame_ms.push(cpu_frame_ms);
+    let performance_ready = state.performance_ready(config.warmup);
+    if frame_ms > 0.0 {
+        if state.playable_frame == Some(false) {
+            state.loading_frame_ms.push(frame_ms);
+        } else if performance_ready {
+            if state.skip_frame_samples > 0 {
+                state.skip_frame_samples -= 1;
+                state.excluded_frame_samples += 1;
+            } else {
+                state.frame_ms.push(frame_ms);
+                if cpu_frame_ms > 0.0 {
+                    state.cpu_frame_ms.push(cpu_frame_ms);
+                }
             }
         }
     }
-    if elapsed >= config.warmup {
+    if performance_ready {
         let physics_steps_since_render = stages.physics_steps_since_render as f64;
         stages
             .physics_steps_per_render
@@ -4083,6 +4098,7 @@ fn collect_animation_visual_evidence(
         }
     }
     let avatar_position = avatar_transform.translation();
+    let mesh_position = player_world.map_or(avatar_position, GlobalTransform::translation);
     let frame_seconds = pre_rig.temporal_delta_seconds();
     let segments = segment_lengths(&bones);
     let (pre_rig_metrics, mut final_metrics) = if temporal_observable {
@@ -4095,7 +4111,7 @@ fn collect_animation_visual_evidence(
         let final_pose =
             state
                 .temporal_final_guard
-                .observe(&final_pose, &bones, avatar_position, frame_seconds);
+                .observe(&final_pose, &bones, mesh_position, frame_seconds);
         (pre_rig.metrics, final_pose.metrics)
     } else {
         (Vec::new(), Vec::new())
@@ -4741,8 +4757,21 @@ mod tests {
                 "hand_r",
                 false,
             ),
+            (
+                "pre_rig_source_landing_selector",
+                "global_position_speed",
+                "lowerarm_l",
+                false,
+            ),
+            (
+                "pre_rig_source_landing_selector",
+                "global_position_speed",
+                "lowerarm_r",
+                false,
+            ),
             ("pre_rig", "global_position_speed", "hand_l", true),
             ("final", "global_position_speed", "hand_l", true),
+            ("final", "global_position_speed", "lowerarm_l", true),
             (
                 "pre_rig_source_landing_selector",
                 "global_position_speed",
@@ -4776,12 +4805,63 @@ mod tests {
                 expected_failure
             );
             assert_eq!(!state.faults.is_empty(), expected_failure);
+            assert_eq!(
+                state.temporal_anomalies[0].stage,
+                if stage == "final" { "final" } else { "pre_rig" }
+            );
         }
     }
 
     #[test]
     fn source_landing_classification_preserves_later_final_fault_evidence() {
-        let mut state = AnimationVisualValidationState::default();
+        let directory =
+            std::env::temp_dir().join(format!("als_visual_landing_{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let config = AnimationVisualValidationConfig {
+            directory: directory.clone(),
+            case: "ragdoll".into(),
+            capture_count: 0,
+            capture_interval: Duration::from_secs(1),
+            min_pose_samples: 1,
+            warmup: Duration::ZERO,
+            max_frame_p95_ms: 25.0,
+            max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0,
+            max_physics_steps_per_render: 3.0,
+        };
+        let bones = REQUIRED_BONES
+            .iter()
+            .map(|name| {
+                (
+                    name.to_string(),
+                    (Vec3::ZERO, Quat::IDENTITY, Vec3::ONE, Vec3::ONE),
+                )
+            })
+            .collect();
+        let mut state = AnimationVisualValidationState {
+            frame_ms: vec![12.21],
+            eval_ms: vec![2.0],
+            pose_samples: vec![snapshot(
+                1.0,
+                12.21,
+                &bones,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                RootPoseActivity::default(),
+            )],
+            ..default()
+        };
+        let stages = AnimationVisualStageTiming {
+            physics_steps_per_render: vec![1.0],
+            ..default()
+        };
         for (stage, expected_failure) in
             [("pre_rig_source_landing_selector", false), ("final", true)]
         {
@@ -4808,6 +4888,14 @@ mod tests {
                 ),
                 expected_failure
             );
+            if !expected_failure {
+                state.temporal_anomalies[0].source_selector_inputs =
+                    Some([[-13.25, 0.0], [0.0, 1.0]]);
+            }
+            write_report(&config, &state, &stages, None);
+            let report: serde_json::Value =
+                serde_json::from_slice(&fs::read(directory.join("report.json")).unwrap()).unwrap();
+            assert_eq!(report["pass"], !expected_failure);
         }
         assert_eq!(state.temporal_anomalies.len(), 2);
         assert!(state.temporal_anomalies[0].source_boundary.is_some());
@@ -4817,6 +4905,7 @@ mod tests {
             state.faults,
             ["temporal_final_global_position_speed:hand_l"]
         );
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
@@ -6628,6 +6717,46 @@ mod tests {
         assert_eq!(boundary.trace.len(), 2);
         assert_eq!(boundary.trace[1].elapsed_seconds, 2.0);
         assert_eq!(boundary.trace[1].maximum_local_translation_length, 0.2);
+    }
+
+    #[test]
+    fn driven_performance_follows_playground_readiness() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut world = World::new();
+        world.init_resource::<ManualPlaygroundStartupReady>();
+        world.init_resource::<ManualIntegrationGateReport>();
+        world.insert_resource(AnimationVisualValidationConfig {
+            directory: PathBuf::new(),
+            case: "ragdoll".to_owned(),
+            capture_count: 0,
+            capture_interval: Duration::from_secs(1),
+            min_pose_samples: 1,
+            warmup: Duration::from_secs(1),
+            max_frame_p95_ms: 25.0,
+            max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0,
+            max_physics_steps_per_render: 3.0,
+        });
+        world.insert_resource(AnimationVisualValidationState {
+            started: Some(Instant::now() - Duration::from_secs(2)),
+            ..default()
+        });
+
+        let sampled = |world: &mut World| {
+            world.run_system_once(animation_cpu_frame_start).unwrap();
+            world.run_system_once(animation_eval_start).unwrap();
+            world.run_system_once(animation_eval_end).unwrap();
+            world.resource::<AnimationVisualValidationState>().eval_ms.len()
+        };
+        assert_eq!(sampled(&mut world), 0);
+
+        world.resource_mut::<ManualPlaygroundStartupReady>().passed = true;
+        world.resource_mut::<AnimationVisualValidationState>().started = Some(Instant::now());
+        assert_eq!(sampled(&mut world), 1);
+
+        world.remove_resource::<ManualIntegrationGateReport>();
+        assert_eq!(sampled(&mut world), 1);
     }
 
     #[test]

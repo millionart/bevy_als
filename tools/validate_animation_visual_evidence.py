@@ -1019,7 +1019,7 @@ def temporal_anomaly_issues(values):
             value.get("source_boundary") == "source_fall_heavy_to_light_on_physics_entry"
             and value.get("stage") == "pre_rig"
             and value.get("kind") == "global_position_speed"
-            and value.get("subject") in ("hand_l", "hand_r")
+            and value.get("subject") in ("hand_l", "hand_r", "lowerarm_l", "lowerarm_r")
             and value.get("trigger") == "rate"
             and value.get("threshold") == 40.0
             and isinstance(inputs, list) and len(inputs) == 2
@@ -2845,6 +2845,8 @@ def run_self_test():
             "source_selector_inputs": [[-13.295677, 0.0], [0.0, 1.0]],
         }
         assert not temporal_anomaly_issues([source_metric])
+        for subject in ("lowerarm_l", "lowerarm_r"):
+            assert not temporal_anomaly_issues([dict(source_metric, subject=subject)])
         for key, value in (("stage", "final"), ("subject", "head"), ("kind", "local_rotation_spike"),
             ("source_boundary", "unknown"), ("source_selector_inputs", None),
             ("source_selector_inputs", [[-9.0, 0.0], [0.0, 1.0]]),

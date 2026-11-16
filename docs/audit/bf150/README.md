@@ -12,6 +12,8 @@
 
 BF150.01 已在实际落地交接定位并修复该跳变。修复后的普通时钟布娃娃、原异常步长和普通时钟起身均通过。原始失败报告仍可复核。 [源对照与修复验收](ragdoll-source/README.md)
 
+BF150.02 记录布娃娃与起身的墙钟帧时、图求值、冷启动、渲染热点和修复消融。 [性能验收报告](performance/README.md)
+
 定向回归使用下列命令。各场景的 launcher 参数见 `runner.json`。解压 `report.json.gz` 后，可用 `tools/validate_animation_visual_evidence.py --report <文件> --min-screenshots 0 --check --functional-only` 核对原报告。过程日志已移除本机路径。
 
 ```sh

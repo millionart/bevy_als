@@ -77,6 +77,13 @@ fn main() {
                     ..default()
                 }),
                 ..default()
+            })
+            .set(bevy::pbr::PbrPlugin {
+                use_gpu_instance_buffer_builder: !cfg!(all(
+                    target_os = "macos",
+                    target_arch = "aarch64"
+                )),
+                ..default()
             }),
         SourceWorldTimePlugin {
             minimum: Duration::from_secs_f64(world_time.min_undilated_seconds),
