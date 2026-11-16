@@ -75,8 +75,7 @@ pub struct PackedDecalPrepareSet;
 #[derive(Component)]
 pub struct NoDecalReceiver;
 
-#[derive(Component, Clone, Debug)]
-pub struct PhysicalSurface(pub String);
+pub use crate::extensions::scene_query::PhysicalSurface;
 
 #[derive(Asset, TypePath, Clone, Debug)]
 pub struct PackedDecalMaterial {

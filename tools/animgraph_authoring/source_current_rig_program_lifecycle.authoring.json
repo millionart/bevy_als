@@ -135,7 +135,7 @@
   },
   "focused_tests": [
     {
-      "label": "extensions::control_rig_program_tests",
+      "label": "Control Rig program lifecycle",
       "argv": [
         "cargo",
         "test",
@@ -148,7 +148,11 @@
         "--config",
         "profile.play.package.bevy_als.opt-level=0",
         "--lib",
-        "extensions::control_rig_program_tests"
+        "--",
+        "--exact",
+        "extensions::control_rig_units::tests::initial_globals_match_native_cdo_hierarchy",
+        "extensions::control_rig_units::tests::control_rig_publishes_the_native_pelvis_offset_to_both_feet",
+        "extensions::control_rig_units::tests::control_rig_complete_source_program_runs_construction_and_frames"
       ]
     },
     {

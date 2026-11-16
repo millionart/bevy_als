@@ -287,6 +287,17 @@
     - 21:31 普通时钟 Gate 后。布娃娃与起身完整验证退出 0，墙钟 p95／最大／图求值分别 10.93／15.78／3.45 ms 与 10.55／16.02／3.54 ms；图错误、姿态故障均 0，物理步最大 1。此轮 startup 最大 23.29 ms，结果对应现有 Metal 缓存。封存原生、目标、反例与恢复身份。
     - 2026-11-16 21:33 +08:00 补证完成。开始 20:46，预估结束 21:16，偏差 +17 分钟。增加源原生求解、出生比例、自接触消融与回读验收复验，未拆分。四场原预算通过，实际原生两倍报告、正式前后连续帧、相对比例和父端匹配消融均可重验，临时探针已恢复。 [两倍体型源对照与性能](docs/audit/bf150/performance/scaled-short-step/README.md)
 
+  - [x] BF150.03 — 逐一复核 `src/*_ext` 的源归属并合并 Control Rig 测试。开始 2026-11-16 21:36 +08:00，预估结束 2026-11-16 22:06 +08:00，第 1 轮。参考 BF150 的源、调用方及 283 项回归和 BF149.02 的外置 Rig 边界。此项覆盖现有扩展文件、三个 Rig 测试、实际模块入口及活跃测试引用。Gate 为逐文件归属表、有依据的搬移、生产功能等价检查及受影响的定向回归。
+    - 21:45 source/static。开始时 92 个文件均已盘点。三个旧 Rig 测试在同 `target_game` 通过。重新读取 `CR_Als`、`B_Als_Character` 和 `SKM_Als`；原生骨骼网格有 15 槽，第 10 索引为 `Eyes_MAT` 并引用 `M_Als_Main`。角色材质接线归 ALS。`UAlsAnimationInstance::RefreshVelocityBlend` 对应四向速度混合，空中滑动沿 `UCharacterMovementComponent` 通用路径。物理表面对应 `UPhysicalMaterial::SurfaceType` 与命中查询。分别迁移职责并保留原公开 Rust 路径，现有烘焙几何回归继续验证角色消费者。
+    - 21:49 具体节点闭环。`FAlsAnimNode_GameplayTagsBlend::GetActiveChildIndex` 对应两个独立 ALS 标签节点文件的选择接线，把它们按字节移到 `als/nodes`，原反射名及其余组合节点继续消费现有接口。首轮定向编译发现剩余 Tnua 滑动测试需要单独导入 `Quat`，已补。两个 Rig authoring 文件的静态验证已通过。
+    - 21:56 source/static 与定向通过。逐文件表覆盖 92 项，搬移后扩展目录 88 项。脚本确认三文件生产字节、Rig 原断言、四向计算、物理表面和插件注册保持等价，修改断言的控制可被拒绝。129 项定向、迁移后精确 3 项、移动与 Blend 消费者 3 项、图资产 3 项和两个 authoring 声明均通过。继续载入正式 Playground 的原场景，覆盖启动、Rig、Overlay 和 Footprint。
+    - 21:59 runtime Gate 前。同 `target_game/play` 正式二进制构建成功。先跑无驱动 `startup` 与 `control_rig`，原场景、原预算及数值护栏继续执行。
+    - 22:00 首轮 runtime Gate 后。`startup` 完整通过；`control_rig` 的动作、图错误与渲染回执为通过，完整验证报 `calf_r` 和双脚的最终速率及图求值 p95 5.79 ms。静态等价已闭合。先取独立 Overlay 和 Footprint 消费者，再以同入口复核不含本次搬移的起点，区分已有现象与搬移差异。
+    - 22:02 其余运行记录。`default_overlay` 与 `footprint` 均在各自初始动作窗超时，已写完整报告，图错误 0。用自有备份对 14 个涉及的 Rust 文件做字节对照，当前同 target 按 `49673eac` 起点构建；依次复测同四场，确认旧 Gate 状态后即恢复搬移源码。
+    - 22:06 起点 runtime 对照前。14 个文件符合起点字节，同 `target_game/play` 重编通过。按同场景和普通时钟复核启动及三个消费者。
+    - 22:07 起点 runtime 对照后。起点二进制 SHA 与 BF150.02 上次封存一致。`startup` 两边通过；`control_rig` 两边均出现最终左脚速率和图求值超预算，起点 p95 5.53 ms。本次记录另出现右小腿和右脚速率。`default_overlay`／`footprint` 两边的超时、进程退出及缺失覆盖项一致。恢复这次搬移的 14 个文件，重编同 target 并重跑最小测试。
+    - 22:13 完成。开始 21:36，预估结束 22:06，实际结束 22:13，偏差 +7 分钟，未拆分。额外耗时为四场既有 runtime 状态的起点对照、字节恢复及同 target 再构建。三个 Rig 测试恢复后通过，正式二进制 SHA 与搬移后取证一致。归属、代码等价及定向回归通过，原完整场景判定随前后报告保留。 [逐文件审计与回归](docs/audit/bf150/extension-ownership/README.md)
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

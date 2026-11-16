@@ -1,5 +1,5 @@
 # Tnua 相关辅助
 
-`motion.rs` 提供水平运动计算，`crouch_transaction.rs` 提供胶囊姿态事务，`source_physics_timing.rs` 接入 Tnua/Avian 的角色整帧积分与普通刚体封顶时钟。
+`motion.rs` 提供通用 CMC 空中滑动和墙面转向计算。`crouch_transaction.rs` 提供胶囊姿态事务。
 
-ALS 的控制方案、运动参数、步阶和状态策略对标 `AlsCharacterMovementComponent`，放在 [`als/character/movement`](../als/character/movement/)，不把整套 ALS 策略归为通用 Tnua 扩展。时钟适配目前仍消费项目角色状态；上游提取时应按实际依赖分离策略。
+ALS 的控制方案、运动参数、步阶、状态策略和角色整帧时钟位于角色运动目录。四向速度混合及动画实际速度快照属于动画实例。 [角色运动](../als/character/movement/) [动画实际运动](../als/character/animation_instances/actual_motion.rs)

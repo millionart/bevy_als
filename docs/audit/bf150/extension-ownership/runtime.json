@@ -1,0 +1,205 @@
+{
+  "target": "target_game",
+  "profile": "play",
+  "baseline": "49673eac",
+  "before_binary_sha256": "efcfd5b2785235b6e58415b77a8ab8864eecc2461f5097159d27af824ac2119d",
+  "after_binary_sha256": "8e214c0fb86c9ca0ad84e8a7d67438a4417683bab6a3756bccd51ecb04194e64",
+  "cases": {
+    "startup": {
+      "before": {
+        "runner": "baseline-startup/runner.json",
+        "report": "baseline-startup/report.json.gz",
+        "report_sha256": "49602a3f20b6a2b53ebea30af61baddae7ceb2f8c226b01bbb2637ac446d97d3",
+        "manual_exit_code": 0,
+        "validation_exit_code": 0,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [],
+        "timed_out": null,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 20.274917,
+        "animation_eval_p95_ms": 3.381875
+      },
+      "after": {
+        "runner": "startup/runner.json",
+        "report": "startup/report.json.gz",
+        "report_sha256": "0d43f245f6aface4f3b42633f6ad0312ab6a9982ff28a7dc76b8d7898258c04d",
+        "manual_exit_code": 0,
+        "validation_exit_code": 0,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [],
+        "timed_out": null,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 26.229625,
+        "animation_eval_p95_ms": 3.505041
+      }
+    },
+    "control_rig": {
+      "before": {
+        "runner": "baseline-control_rig/runner.json",
+        "report": "baseline-control_rig/report.json.gz",
+        "report_sha256": "8887beaa17768104d302aac244b005180519748ffa7bf3f415793fd974034f21",
+        "manual_exit_code": 0,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [],
+        "timed_out": false,
+        "faults": [
+          "temporal_final_global_position_speed:foot_l"
+        ],
+        "graph_errors": 0,
+        "frame_max_ms": 36.383541,
+        "animation_eval_p95_ms": 5.532958
+      },
+      "after": {
+        "runner": "control_rig/runner.json",
+        "report": "control_rig/report.json.gz",
+        "report_sha256": "2c23a68bc3440baf976df0138b031ffd852dabdd78a77a6202300a662b6394e6",
+        "manual_exit_code": 0,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [],
+        "timed_out": false,
+        "faults": [
+          "temporal_final_global_position_speed:calf_r",
+          "temporal_final_global_position_speed:foot_l",
+          "temporal_final_global_position_speed:foot_r"
+        ],
+        "graph_errors": 0,
+        "frame_max_ms": 37.911625,
+        "animation_eval_p95_ms": 5.787916
+      }
+    },
+    "default_overlay": {
+      "before": {
+        "runner": "baseline-default_overlay/runner.json",
+        "report": "baseline-default_overlay/report.json.gz",
+        "report_sha256": "45591f22c46618109c389326f5ddbe1f03584386828c5fbd1a154df16387d360",
+        "manual_exit_code": 91,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [
+          "default_idle",
+          "default_walk",
+          "default_crouch",
+          "default_air",
+          "default_prediction",
+          "default_return",
+          "default_source_poses",
+          "default_prediction_increase",
+          "default_prediction_decrease",
+          "layering_curve_operators",
+          "layering_previous_curve_inputs",
+          "default_complete"
+        ],
+        "timed_out": true,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 57.714084,
+        "animation_eval_p95_ms": 3.4369169999999998
+      },
+      "after": {
+        "runner": "default_overlay/runner.json",
+        "report": "default_overlay/report.json.gz",
+        "report_sha256": "7fbe279a8d83ba266d6e07d90dda48266d083ef49b8c61b26e9a06d819b38ecd",
+        "manual_exit_code": 91,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": true,
+        "uncovered": [
+          "default_idle",
+          "default_walk",
+          "default_crouch",
+          "default_air",
+          "default_prediction",
+          "default_return",
+          "default_source_poses",
+          "default_prediction_increase",
+          "default_prediction_decrease",
+          "layering_curve_operators",
+          "layering_previous_curve_inputs",
+          "default_complete"
+        ],
+        "timed_out": true,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 56.494833,
+        "animation_eval_p95_ms": 3.263083
+      }
+    },
+    "footprint": {
+      "before": {
+        "runner": "baseline-footprint/runner.json",
+        "report": "baseline-footprint/report.json.gz",
+        "report_sha256": "183d5ca070283a54260ba2d7e1384a5c27d6871e103494b9262b98e99bf36190",
+        "manual_exit_code": 91,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": false,
+        "uncovered": [
+          "footprint_walk",
+          "footprint_walk_stop",
+          "footprint_run",
+          "footprint_run_stop",
+          "footprint_crouch",
+          "footprint_crouch_stop",
+          "footprint_cleanup",
+          "footprint_visible",
+          "footprint_fade",
+          "footprint_expired",
+          "footprint_moving_surface",
+          "footprint_gpu_pipelines",
+          "footprint_gpu_lifecycle",
+          "footprint_moving_gpu",
+          "footprint_debug_traces",
+          "footprint_source_consistency",
+          "footprint_rotating_ride"
+        ],
+        "timed_out": true,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 88.61120799999999,
+        "animation_eval_p95_ms": 3.483416
+      },
+      "after": {
+        "runner": "footprint/runner.json",
+        "report": "footprint/report.json.gz",
+        "report_sha256": "d9daf815b218d3ee01195e0115f4180ecff789f39039a1cd1718011f05daec10",
+        "manual_exit_code": 91,
+        "validation_exit_code": 1,
+        "render_effects_passed": true,
+        "decal_renderer_passed": false,
+        "uncovered": [
+          "footprint_walk",
+          "footprint_walk_stop",
+          "footprint_run",
+          "footprint_run_stop",
+          "footprint_crouch",
+          "footprint_crouch_stop",
+          "footprint_cleanup",
+          "footprint_visible",
+          "footprint_fade",
+          "footprint_expired",
+          "footprint_moving_surface",
+          "footprint_gpu_pipelines",
+          "footprint_gpu_lifecycle",
+          "footprint_moving_gpu",
+          "footprint_debug_traces",
+          "footprint_source_consistency",
+          "footprint_rotating_ride"
+        ],
+        "timed_out": true,
+        "faults": [],
+        "graph_errors": 0,
+        "frame_max_ms": 75.571917,
+        "animation_eval_p95_ms": 3.390125
+      }
+    }
+  }
+}

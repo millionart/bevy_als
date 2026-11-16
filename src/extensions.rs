@@ -9,9 +9,6 @@ pub mod als_curves;
 pub mod animation_context;
 #[path = "animation_graph_ext/blend_space_1d.rs"]
 pub mod blend_space_1d;
-#[cfg(test)]
-#[path = "animation_graph_ext/control_rig_program_tests.rs"]
-mod control_rig_program_tests;
 #[path = "control_rig_ext/control_rig_units.rs"]
 pub mod control_rig_units;
 #[path = "avian_ext/cooked_mesh_raycast.rs"]
@@ -40,9 +37,9 @@ pub mod f32_to_vec2;
 pub mod f_interp;
 #[path = "animation_graph_ext/first_update.rs"]
 pub mod first_update;
-#[path = "animation_graph_ext/gameplay_tag_blend.rs"]
+#[path = "als/nodes/gameplay_tag_blend.rs"]
 pub mod gameplay_tag_blend;
-#[path = "animation_graph_ext/gameplay_tag_layer_blend.rs"]
+#[path = "als/nodes/gameplay_tag_layer_blend.rs"]
 pub mod gameplay_tag_layer_blend;
 #[path = "animation_graph_ext/global_bone_mask_input.rs"]
 pub mod global_bone_mask_input;
@@ -77,7 +74,13 @@ pub mod mesh_space_difference;
 #[path = "animation_graph_ext/mesh_space_layered_blend.rs"]
 pub mod mesh_space_layered_blend;
 #[path = "tnua_ext/motion.rs"]
-pub mod motion;
+mod tnua_motion;
+pub mod motion {
+    pub use super::tnua_motion::falling_slide;
+    pub use crate::actual_motion::{
+        HorizontalMotion, HorizontalVelocityBlend, horizontal_motion_from_world_velocity,
+    };
+}
 #[path = "animation_graph_ext/multi_way_blend.rs"]
 pub mod multi_way_blend;
 #[path = "animation_graph_ext/nodes.rs"]
@@ -86,7 +89,7 @@ pub mod nodes;
 pub mod normalized_blendspace;
 #[path = "als/utility/overlay.rs"]
 pub mod overlay;
-#[path = "bevy_ext/overlay_materials.rs"]
+#[path = "als/character/overlay_materials.rs"]
 pub mod overlay_materials;
 #[path = "animation_graph_ext/physics_asset.rs"]
 pub mod physics_asset;

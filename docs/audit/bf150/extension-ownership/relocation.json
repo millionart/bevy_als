@@ -1,0 +1,23 @@
+{
+  "base": "49673eac",
+  "reviewed_files": 92,
+  "remaining_extension_files": 88,
+  "whole_file_moves": {
+    "src/bevy_ext/overlay_materials.rs": "src/als/character/overlay_materials.rs",
+    "src/animation_graph_ext/gameplay_tag_blend.rs": "src/als/nodes/gameplay_tag_blend.rs",
+    "src/animation_graph_ext/gameplay_tag_layer_blend.rs": "src/als/nodes/gameplay_tag_layer_blend.rs"
+  },
+  "rig_tests": [
+    "initial_globals_match_native_cdo_hierarchy",
+    "control_rig_publishes_the_native_pelvis_offset_to_both_feet",
+    "control_rig_complete_source_program_runs_construction_and_frames"
+  ],
+  "horizontal_motion_tests": [
+    "horizontal_motion_preserves_local_forward_after_yaw_rotation",
+    "horizontal_motion_uses_manhattan_normalized_four_way_weights",
+    "horizontal_motion_zeroes_vertical_and_stationary_velocity"
+  ],
+  "rig_units_production_sha256": "93548cb2a1a9a7f2f0167283a89cb83534fc5b3639ca635aab739f553e8f2a4d",
+  "asset_dependency_and_registration_identity": true,
+  "changed_fixture_assertion_rejected": true
+}

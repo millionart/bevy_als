@@ -6,7 +6,7 @@
 src/
   animation_graph_ext/         bevy_animation_graph 求值、节点、曲线、Rig 调用与 PhysicsAsset 装配
   avian_ext/                   源物理差异的补足，含 SceneQuery、几何查询、刚体与关节求解
-  bevy_ext/                    材质、贴花、文本、后处理和时间辅助
+  bevy_ext/                    投射贴花、文本、后处理和时间辅助
   control_rig_ext/             源工程自定义 Control Rig 单位及测试
   tnua_ext/                    控制器辅助与项目物理时钟适配
   als/
@@ -32,6 +32,8 @@ src/
 `ALSExtras/Levels`、`Environment`、`Core`、`UI` 是源工程的实际目录。`als_extras/ui` 包含 HUD 和 Overlay 菜单代码；源 `AlsCharacter_Debug.cpp::DisplayDebug` 对应的调试画布位于 `als/utility/show_debug_hud`，它与 Extras 的 HUD 分属不同来源。UI 的离线生成数据位于 `assets/ALSExtras/UI`。
 
 `als/character/movement` 中的速度、步阶、蹲起、旋转与源物理时钟/角色整帧策略对标源 `AlsCharacterMovementComponent`，所以属于 ALS。通用控制器辅助在 `tnua_ext`。`animation_graph_ext` 承载图基础能力；源 ALS 自定义节点、动作和骨骼选择属于 `als`。同文件中现存的交叉依赖未因移动文件自动消失，后续反哺上游按具体能力的依赖闭包提取。
+
+角色四向速度混合位于动画实例的 `actual_motion`。角色、相机及 Overlay 道具的源材质槽接线位于 `als/character/overlay_materials.rs`。碰撞命中的物理表面位于 `SceneQuery` 所在模块，供脚步效果消费。
 
 ## 关卡入口与自动场景
 

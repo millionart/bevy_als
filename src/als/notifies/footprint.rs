@@ -1,8 +1,7 @@
 use crate::als::{character::AlsCharacter, foot_ik::AlsFootBones, state::LocomotionState};
 use crate::extensions::SceneQuery;
-use crate::extensions::projected_decal::{
-    NoDecalReceiver, PackedDecal, PackedDecalMaterial, PhysicalSurface,
-};
+use crate::extensions::projected_decal::{NoDecalReceiver, PackedDecal, PackedDecalMaterial};
+use crate::extensions::scene_query::PhysicalSurface;
 use crate::{
     animation_events::{AlsAnimationEvent, AlsAnimationEventSet},
     character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar},

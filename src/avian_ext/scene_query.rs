@@ -10,6 +10,9 @@ use bevy::prelude::*;
 #[derive(Component, Clone)]
 pub struct ComplexCollider(pub Collider);
 
+#[derive(Component, Clone, Debug)]
+pub struct PhysicalSurface(pub String);
+
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ShapeCollisionMode {
     NoCollision,

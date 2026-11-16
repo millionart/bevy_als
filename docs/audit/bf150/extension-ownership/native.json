@@ -1,0 +1,112 @@
+{
+  "engine_revision": "396c9f059903aed5fec78ecd3d437a40c6415368",
+  "requests": {
+    "rig": {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "archive": "rig.native.json.gz",
+      "bytes": 20438237,
+      "sha256": "f9f677be098388756109bbd5cb92ddecd6b140606e76163b63a7fa8490c236d3",
+      "instructions": 165,
+      "entries": [
+        {
+          "name": "Forwards Solve",
+          "instruction": 0
+        },
+        {
+          "name": "Construction",
+          "instruction": 150
+        }
+      ],
+      "bones": 79
+    },
+    "character": {
+      "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+      "archive": "character.native.json.gz",
+      "bytes": 9919042,
+      "sha256": "8ef6f9e64f35e0b46c92aba312213d5a25427ac540601b6f045d90dc08477d2f"
+    },
+    "mesh": {
+      "asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "archive": "mesh.native.json.gz",
+      "bytes": 170624,
+      "sha256": "de06d457a23cc94ee339b06938500cdf3b31c19ad3aa9af9fa0f409146dd930c",
+      "slots": [
+        {
+          "index": 0,
+          "name": "Pelvis_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 1,
+          "name": "Torso_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 2,
+          "name": "Head_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 3,
+          "name": "UpperArm_L_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 4,
+          "name": "Shoulder_L_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 5,
+          "name": "LowerArm_L_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 6,
+          "name": "UpperLeg_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 7,
+          "name": "LowerLeg_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 8,
+          "name": "Feet_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 9,
+          "name": "Hand_L_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 10,
+          "name": "Eyes_MAT",
+          "material": "/Script/Engine.Material'/ALS/ALS/MaterialLibrary/M_Als_Main.M_Als_Main'"
+        },
+        {
+          "index": 11,
+          "name": "UpperArm_R_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 12,
+          "name": "Shoulder_R_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 13,
+          "name": "LowerArm_R_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        },
+        {
+          "index": 14,
+          "name": "Hand_R_MAT",
+          "material": "/Script/Engine.MaterialInstanceConstant'/ALS/ALS/Character/MI_Als_Character.MI_Als_Character'"
+        }
+      ]
+    }
+  }
+}

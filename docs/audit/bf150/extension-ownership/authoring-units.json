@@ -1,0 +1,139 @@
+{
+  "id": "source_current_rig_unit_algorithm_contract",
+  "failures": [],
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "exists": true,
+      "nodes": 4,
+      "positions": {
+        "positions": {
+          "b113030b-0000-4000-8000-000000000001": [
+            -480.0,
+            0.0
+          ],
+          "b113030b-0000-4000-8000-000000000002": [
+            -480.0,
+            160.0
+          ],
+          "b113030b-0000-4000-8000-000000000003": [
+            -480.0,
+            240.0
+          ],
+          "b113030b-0000-4000-8000-000000000004": [
+            -224.0,
+            192.0
+          ]
+        }
+      },
+      "edges": 4,
+      "io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": {
+        "non_pose_outputs": [
+          "ragdoll_config"
+        ],
+        "exceptions": [
+          "ragdoll_config"
+        ]
+      }
+    }
+  ],
+  "fsms": [],
+  "commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ],
+      "script_exists": true,
+      "timeout_seconds": 120,
+      "exit_code": 0,
+      "stdout_tail": "{\n  \"failures\": {}\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ],
+      "script_exists": true,
+      "timeout_seconds": 120,
+      "exit_code": 0,
+      "stdout_tail": "{\n  \"fix\": false,\n  \"checked_files\": 510,\n  \"repairs\": {},\n  \"failures\": {},\n  \"self_transitions\": []\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ],
+      "script_exists": true,
+      "timeout_seconds": 120,
+      "exit_code": 0,
+      "stdout_tail": "{\n  \"issues\": []\n}\n",
+      "stderr_tail": ""
+    }
+  ],
+  "recursive_source_inventory": {},
+  "recursive_inventory": [],
+  "source_evidence": [
+    {
+      "path": "docs/audit/bf149/01/rig.native.json.gz",
+      "exists": true,
+      "expected_sha256": "1cf09d3b44c09d301efceac19269ee3ac9a97f023da0f722aa440ce0ac697e3f",
+      "hash_kind": "bytes",
+      "sha256": "1cf09d3b44c09d301efceac19269ee3ac9a97f023da0f722aa440ce0ac697e3f",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf149/01/source-contract.json",
+      "exists": true,
+      "expected_sha256": "a834d734edce70c5c2dca61adacb1e78933772aa96114f0277d6458dd5d50830",
+      "hash_kind": "bytes",
+      "sha256": "a834d734edce70c5c2dca61adacb1e78933772aa96114f0277d6458dd5d50830",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf149/02/source-unit-owners.json",
+      "exists": true,
+      "expected_sha256": "1e11468b3b21728bb89def52b8eee0d85abc4ac36d23b24b03a000a312ff53e7",
+      "hash_kind": "bytes",
+      "sha256": "1e11468b3b21728bb89def52b8eee0d85abc4ac36d23b24b03a000a312ff53e7",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf149/02/unit-dispatch.json",
+      "exists": true,
+      "expected_sha256": "4eb3a53f1fc851652ed5994ec312739af0d20ec8a57c864b803cf5a530accc06",
+      "hash_kind": "bytes",
+      "sha256": "4eb3a53f1fc851652ed5994ec312739af0d20ec8a57c864b803cf5a530accc06",
+      "matches": true
+    }
+  ],
+  "pass": true
+}
