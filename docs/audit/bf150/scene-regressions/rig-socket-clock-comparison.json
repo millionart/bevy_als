@@ -1,0 +1,36 @@
+{
+  "engine_revision": "396c9f059903aed5fec78ecd3d437a40c6415368",
+  "source_sha256": {
+    "engine_clock": "fbc122433b3fdfe47b1f4dd0f246eebf0e14b7a957676b5a11e02b031c654109",
+    "als_foot_socket": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "reader": "0288a582a24ad81c88399005dd59485413d4727805b408080bccffe47348b7dd"
+  },
+  "request": "rig-socket-clock.request.json",
+  "native_trace": "rig-socket-clock.native.json.gz",
+  "frames_compared": 49,
+  "socket_checks": 98,
+  "previous_mesh_pose_in_current_comp_max_error_cm": 7.151510798442535e-07,
+  "current_mesh_pose_median_error_cm": 3.0596805279325414,
+  "original_40_m_s_guard_applied_to_ue_variable_steps": {
+    "foot_l": {
+      "frame": 53,
+      "prior_delta_seconds": 0.024000000208616257,
+      "delta_seconds": 0.0030805000569671392,
+      "measured_speed_m_s": 41.73952461127732
+    },
+    "foot_r": {
+      "frame": 37,
+      "prior_delta_seconds": 0.024000000208616257,
+      "delta_seconds": 0.0030805000569671392,
+      "measured_speed_m_s": 46.88798751504351
+    }
+  },
+  "target_trace": "cache-control-rig/report.json.gz",
+  "target_clock_trace": "cache-control-rig/process.stderr.log.gz",
+  "target_clock_peak": {
+    "previous_step_ms": 48.849,
+    "current_step_ms": 3.356709,
+    "wall_step_ms": 9.132,
+    "left_speed_m_s": 57.426983
+  }
+}

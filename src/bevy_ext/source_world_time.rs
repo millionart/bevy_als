@@ -25,6 +25,8 @@ impl Plugin for SourceWorldTimePlugin {
             !self.minimum.is_zero() && self.minimum <= self.maximum,
             "world time bounds are invalid"
         );
+        app.world_mut()
+            .remove_resource::<bevy::time::TimeReceiver>();
         app.init_resource::<Time<Virtual>>()
             .insert_resource(WorldTimeBounds {
                 minimum: self.minimum,
@@ -83,6 +85,24 @@ fn apply_world_time_bounds(
 mod tests {
     use super::*;
     use bevy::time::TimeUpdateStrategy;
+
+    #[test]
+    fn automatic_game_time_uses_the_game_thread_clock() {
+        let (render_sender, game_receiver) = bevy::time::create_time_channels();
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(game_receiver)
+            .add_plugins(SourceWorldTimePlugin {
+                minimum: Duration::from_micros(500),
+                maximum: Duration::from_millis(400),
+            });
+        assert!(matches!(
+            render_sender
+                .0
+                .try_send(bevy::platform::time::Instant::now()),
+            Err(bevy::time::TrySendError::Disconnected(_))
+        ));
+    }
 
     #[test]
     fn world_bounds_clamp_raw_time_before_dilation_and_preserve_pause() {
