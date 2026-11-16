@@ -22,21 +22,13 @@ use bevy_animation_graph::core::systems::RootMotionOutput;
 
 use crate::animation_events::{AlsNotifyLocomotionAction, AlsNotifyRootMotionScale};
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+use crate::get_up::{POST_LOCOMOTION_LAYER_WEIGHT, POST_LOCOMOTION_POSE, POST_LOCOMOTION_WEIGHT};
 use crate::root_motion_link::{ensure_root_motion_output, root_motion_world_transform};
 
 const ROLL_SLOT_GRAPH: &str =
     "ALS/Character/AnimationInstances/AB_Als_Grounded/RollSlot.animgraph.ron";
 const ROLL_SLOT_TIME_KEY: &str = "als_roll_slot_time";
-const ROOT_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "als_root_post_locomotion_slot_pose";
-const ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "als_root_post_locomotion_slot_weight";
-const ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str =
-    "als_root_post_locomotion_slot_layer_weight";
-const GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "post_locomotion.pose";
-const GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "post_locomotion.weight";
-const GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str = "post_locomotion.layer_weight";
-const ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX: &str = "als_root_post_locomotion_slot_curve_";
 const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
-const ROLL_SLOT_CURVE_NAMES: [&str; 2] = ["PoseStanding", "PoseGrounded"];
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollSlotSampler {
@@ -2321,7 +2313,7 @@ pub(crate) mod tests {
             .player_entity();
         let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
         let expected = graph
-            .get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY)
+            .get_global_input_data(POST_LOCOMOTION_WEIGHT)
             .unwrap()
             .as_f32()
             .unwrap();
@@ -2333,7 +2325,7 @@ pub(crate) mod tests {
             .world()
             .get::<crate::extensions::SourceAnimationInputs>(player)
             .unwrap()
-            .slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY)
+            .slot_input_context(POST_LOCOMOTION_POSE)
             .unwrap();
         assert_eq!(context.asset_samples.len(), 1);
         assert!(
@@ -4177,12 +4169,12 @@ pub(crate) mod tests {
             .get::<AnimationGraphPlayer>(player_entity)
             .unwrap();
         let overlay = player
-            .get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY)
+            .get_global_input_data(POST_LOCOMOTION_POSE)
             .unwrap()
             .as_pose()
             .unwrap();
         let weight = player
-            .get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY)
+            .get_global_input_data(POST_LOCOMOTION_WEIGHT)
             .unwrap()
             .as_f32()
             .unwrap();
@@ -5537,7 +5529,7 @@ fn bridge_roll_slot_samples(
         target_player.set_global_input_data("roll.weight", weight);
         let mut target_inputs = source_inputs.get_mut(target).unwrap();
         target_inputs.set_slot_input_context("roll.pose", context.clone());
-        let curve_values = ROLL_SLOT_CURVE_NAMES.map(|name| {
+        let [pose_standing, pose_grounded] = ["PoseStanding", "PoseGrounded"].map(|name| {
             context
                 .as_ref()
                 .and_then(|context| {
@@ -5548,12 +5540,6 @@ fn bridge_roll_slot_samples(
                 .copied()
                 .unwrap_or_default()
         });
-        for (name, value) in ROLL_SLOT_CURVE_NAMES.into_iter().zip(curve_values) {
-            target_player.set_global_input_data(
-                format!("{ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX}{name}"),
-                value,
-            );
-        }
         if let Some(get_up) = get_ups
             .get(character)
             .ok()
@@ -5561,7 +5547,7 @@ fn bridge_roll_slot_samples(
         {
             if let Some(roll_pose) = pose.as_ref()
                 && let Some(get_up_pose) = target_player
-                    .get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY)
+                    .get_global_input_data(POST_LOCOMOTION_POSE)
                     .and_then(|value| value.as_pose().ok())
                     .cloned()
             {
@@ -5575,16 +5561,10 @@ fn bridge_roll_slot_samples(
                         (roll_pose.root_motion.clone(), alpha),
                         (get_up_pose.root_motion.clone(), 1.0 - alpha),
                     ]);
-                target_player.set_global_input_data(
-                    GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-                    DataValue::Pose(mixed),
-                );
-                target_player.set_global_input_data(
-                    GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY,
-                    total.min(1.0),
-                );
+                target_player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(mixed));
+                target_player.set_global_input_data(POST_LOCOMOTION_WEIGHT, total.min(1.0));
                 if let (Some(get_up_context), Some(roll_context)) = (
-                    target_inputs.slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY),
+                    target_inputs.slot_input_context(POST_LOCOMOTION_POSE),
                     context,
                 ) {
                     let mixed_context =
@@ -5592,33 +5572,17 @@ fn bridge_roll_slot_samples(
                             (get_up_context, 1.0 - alpha),
                             (roll_context, alpha),
                         ]);
-                    target_inputs.set_slot_input_context(
-                        GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-                        Some(mixed_context),
-                    );
+                    target_inputs.set_slot_input_context(POST_LOCOMOTION_POSE, Some(mixed_context));
                 }
             }
         } else {
-            target_inputs.set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, context);
+            target_inputs.set_slot_input_context(POST_LOCOMOTION_POSE, context);
             if let Some(pose) = pose {
-                target_player.set_global_input_data(
-                    ROOT_POST_LOCOMOTION_SLOT_POSE_KEY,
-                    DataValue::Pose(pose.clone()),
-                );
-                target_player.set_global_input_data(
-                    GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-                    DataValue::Pose(pose),
-                );
+                target_player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(pose));
             }
-            for key in [
-                ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY,
-                ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY,
-                GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY,
-            ] {
-                target_player.set_global_input_data(key, weight);
-            }
+            target_player.set_global_input_data(POST_LOCOMOTION_WEIGHT, weight);
             target_player.set_global_input_data(
-                GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY,
+                POST_LOCOMOTION_LAYER_WEIGHT,
                 if pose_ready { 1.0_f32 } else { 0.0 },
             );
         }
@@ -5645,8 +5609,8 @@ fn bridge_roll_slot_samples(
             root_motion_rotation: root_motion.rotation_delta,
             root_motion_scale: root_scales.get(character).map_or(1.0, |scale| scale.0),
             animation_locomotion,
-            pose_standing: curve_values[0],
-            pose_grounded: curve_values[1],
+            pose_standing,
+            pose_grounded,
         });
     }
 }

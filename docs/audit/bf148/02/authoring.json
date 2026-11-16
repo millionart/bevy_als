@@ -1,0 +1,45 @@
+{
+  "id": "bf148.02-runtime-slots",
+  "pass": true,
+  "failures": [],
+  "graphs": 1,
+  "graph_nodes": 13,
+  "graph_edges": 13,
+  "fsms": 0,
+  "fsm_states": 0,
+  "fsm_transitions": 0,
+  "commands": [
+    {
+      "label": "Runtime graph boundary",
+      "scope": "source",
+      "exit_code": 0
+    },
+    {
+      "label": "ALS runtime graph positions",
+      "scope": "layout",
+      "exit_code": 0
+    },
+    {
+      "label": "Installed graph editor records",
+      "scope": "editor",
+      "exit_code": 0
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "docs/audit/bf148/02/native.json",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/02/Root.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/02/Standing.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    }
+  ]
+}

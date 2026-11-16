@@ -170,7 +170,6 @@ pub fn update_start_stop(
 }
 
 pub fn start_stop_detector_system(
-    time: Res<Time>,
     mut q: Query<
         (
             &AlsActualVelocity,
@@ -182,23 +181,15 @@ pub fn start_stop_detector_system(
         With<crate::als::character::AlsCharacter>,
     >,
 ) {
-    let Ok((vel, cmd, ovr, (view, player_view), mut ss)) = q.single_mut() else {
-        return;
-    };
-    let _ = time;
-    let input = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let hspeed = vel.horizontal_speed;
-    let dir = classify(
-        view_relative_move_axes(input.move_dir, player_view.map_or(view.0, |view| view.0)),
-        view.0,
-    );
-    update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir);
-}
-pub fn predict_stop_distance(speed: f32, braking_deceleration: f32) -> f32 {
-    if braking_deceleration <= 1e-4 {
-        return 0.0;
+    let config = StartStopConfig::default();
+    for (velocity, command, override_command, (view, player_view), mut state) in &mut q {
+        let input = override_command.map_or(command, |override_command| &override_command.0);
+        let direction = classify(
+            view_relative_move_axes(input.move_dir, player_view.map_or(view.0, |view| view.0)),
+            view.0,
+        );
+        update_start_stop(&mut state, &config, velocity.horizontal_speed, direction);
     }
-    speed * speed / (2.0 * braking_deceleration)
 }
 
 pub fn stop_direction_is_left(dir: MoveDirection) -> bool {
@@ -215,6 +206,48 @@ pub fn stop_direction_is_left(dir: MoveDirection) -> bool {
 mod tests {
     use super::*;
     use std::f32::consts::TAU;
+
+    #[test]
+    fn start_stop_updates_each_character() {
+        use crate::als::character::AlsCharacter;
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        let moving = world
+            .spawn((
+                AlsCharacter,
+                AlsActualVelocity {
+                    horizontal_speed: 1.0,
+                    ..default()
+                },
+                AlsInputCommand::default(),
+                StartStopState::default(),
+            ))
+            .id();
+        let stopping = world
+            .spawn((
+                AlsCharacter,
+                AlsActualVelocity::default(),
+                AlsInputCommand::default(),
+                StartStopState {
+                    phase: StartStopPhase::Started(MoveDirection::Right),
+                    last_direction: Some(MoveDirection::Right),
+                },
+            ))
+            .id();
+
+        world.run_system_once(start_stop_detector_system).unwrap();
+        let phase = |actor| world.get::<StartStopState>(actor).unwrap().phase;
+        assert_eq!(
+            phase(moving),
+            StartStopPhase::Started(MoveDirection::Forward)
+        );
+        assert_eq!(
+            phase(stopping),
+            StartStopPhase::Stopping(MoveDirection::Right)
+        );
+    }
 
     fn world_dir(yaw: f32, rel_degrees: f32) -> Vec2 {
         let rel = rel_degrees.to_radians();

@@ -1,0 +1,114 @@
+{
+  "standing_stop_baseline": {
+    "manual": true,
+    "graph_errors": [],
+    "validation_exit_code": 1,
+    "windows": [
+      {
+        "label": "quick_stop_default",
+        "variant": "A_Als_Stand_Transition_Left",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.36431593,
+        "final_rotation_span": 0.36431593
+      },
+      {
+        "label": "quick_stop_left",
+        "variant": "A_Als_Stand_Transition_Left",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.46433848,
+        "final_rotation_span": 0.46433848
+      },
+      {
+        "label": "quick_stop_right",
+        "variant": "A_Als_Stand_Transition_Right",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.7166421,
+        "final_rotation_span": 0.7166421
+      },
+      {
+        "label": "stop_lock_left",
+        "variant": "A_Als_Stop_Left",
+        "first_failed_boundary": null,
+        "root_rotation_span": 0.9337831,
+        "final_rotation_span": 0.6839609
+      },
+      {
+        "label": "stop_lock_right",
+        "variant": "A_Als_Stop_Right",
+        "first_failed_boundary": null,
+        "root_rotation_span": 0.96567124,
+        "final_rotation_span": 0.6486146
+      },
+      {
+        "label": "stop_plant_left",
+        "variant": "A_Als_Stop_Left",
+        "first_failed_boundary": null,
+        "root_rotation_span": 1.0336437,
+        "final_rotation_span": 0.5267415
+      },
+      {
+        "label": "stop_plant_right",
+        "variant": "A_Als_Stop_Right",
+        "first_failed_boundary": null,
+        "root_rotation_span": 1.0044852,
+        "final_rotation_span": 0.5165814
+      }
+    ]
+  },
+  "standing_stop": {
+    "manual": true,
+    "graph_errors": [],
+    "validation_exit_code": 1,
+    "windows": [
+      {
+        "label": "quick_stop_default",
+        "variant": "A_Als_Stand_Transition_Left",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.37355512,
+        "final_rotation_span": 0.37355512
+      },
+      {
+        "label": "quick_stop_left",
+        "variant": "A_Als_Stand_Transition_Left",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.46404722,
+        "final_rotation_span": 0.46404722
+      },
+      {
+        "label": "quick_stop_right",
+        "variant": "A_Als_Stand_Transition_Right",
+        "first_failed_boundary": "standing_states_fsm: static",
+        "root_rotation_span": 0.6182493,
+        "final_rotation_span": 0.6182493
+      },
+      {
+        "label": "stop_lock_left",
+        "variant": "A_Als_Stop_Left",
+        "first_failed_boundary": null,
+        "root_rotation_span": 0.91614383,
+        "final_rotation_span": 0.68801457
+      },
+      {
+        "label": "stop_lock_right",
+        "variant": "A_Als_Stop_Right",
+        "first_failed_boundary": null,
+        "root_rotation_span": 0.9852577,
+        "final_rotation_span": 0.5381316
+      },
+      {
+        "label": "stop_plant_left",
+        "variant": "A_Als_Stop_Left",
+        "first_failed_boundary": null,
+        "root_rotation_span": 1.0418261,
+        "final_rotation_span": 0.52405053
+      },
+      {
+        "label": "stop_plant_right",
+        "variant": "A_Als_Stop_Right",
+        "first_failed_boundary": null,
+        "root_rotation_span": 1.0499692,
+        "final_rotation_span": 0.5603849
+      }
+    ]
+  }
+}

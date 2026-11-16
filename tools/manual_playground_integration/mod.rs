@@ -4002,7 +4002,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
     ]
 }
 
-fn generated_stop_quick_source_pose_chain(crouching: bool) -> Vec<ManualAnimationPoseBoundary> {
+fn generated_stop_source_pose_chain(crouching: bool) -> Vec<ManualAnimationPoseBoundary> {
     let mut chain = if crouching {
         crouch_turn_source_pose_chain()
     } else {
@@ -7606,7 +7606,7 @@ fn drive_manual_integration(
                 requires_source_pose_chain: true,
                 source_node: Some("AB_Als_Standing/Standing States"),
                 source_state: Some("Move to Idle"),
-                source_pose_chain: generated_stop_quick_source_pose_chain(false),
+                source_pose_chain: generated_stop_source_pose_chain(false),
                 ..default()
             };
             if entering {
@@ -11604,7 +11604,18 @@ fn observe_manual_integration(
                 requires_source_pose_chain: true,
                 source_node: Some(source_node),
                 source_state: Some(branch),
-                source_pose_chain: generated_stop_quick_source_pose_chain(crouching_actions),
+                source_pose_chain: if quick {
+                    vec![ManualAnimationPoseBoundary {
+                        label: "transition_slot",
+                        graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                        node: "Slot 'Transition'\nGroup 'Grounded'",
+                        output: "Pose",
+                        minimum_translation_span: 0.0,
+                        minimum_rotation_span_radians: 0.0,
+                    }]
+                } else {
+                    generated_stop_source_pose_chain(crouching_actions)
+                },
                 expected_animation_variant: Some(expected_variant),
                 observed_animation_variant: observed
                     .and_then(crate::stop_link::source_transition_sequence),
@@ -11969,7 +11980,7 @@ fn observe_manual_integration(
             let mut chain = if crouching_actions {
                 crouch_turn_source_pose_chain()
             } else {
-                generated_stop_quick_source_pose_chain(false)
+                generated_stop_source_pose_chain(false)
             };
             if !crouching_actions && rotating && index != 7 {
                 chain.insert(0, ManualAnimationPoseBoundary {
@@ -17810,7 +17821,7 @@ mod tests {
                 }
             }
         }
-        let chain = generated_stop_quick_source_pose_chain(true);
+        let chain = generated_stop_source_pose_chain(true);
         assert_eq!(chain.len(), 3);
         assert!(
             chain
@@ -19492,8 +19503,8 @@ mod tests {
     }
 
     #[test]
-    fn generated_stop_quick_pose_chain_uses_the_idle_endpoint_only() {
-        let chain = generated_stop_quick_source_pose_chain(false);
+    fn generated_stop_pose_chain_uses_the_idle_endpoint_only() {
+        let chain = generated_stop_source_pose_chain(false);
         assert_eq!(chain.len(), 4);
         assert_eq!(chain[0].label, "standing_states_fsm");
         assert_eq!(chain[1].label, "standing_graph_output");

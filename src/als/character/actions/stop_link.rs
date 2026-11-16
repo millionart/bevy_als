@@ -1,17 +1,6 @@
 use crate::actual_motion::AlsActualMotion;
-use crate::als::dynamics::{
-    AlsGroundedDynamics, AlsLandingBrakingFriction,
-    predict_grounded_stop_distance_with_braking_friction,
-};
-use crate::als::input::AlsInputCommand;
-use crate::als::motion::{
-    AlsActualVelocity, AlsInputOverride, AlsRotationResponseState, AlsViewYaw,
-    view_relative_move_direction,
-};
-use crate::als::orientation::world_forward_to_yaw;
-use crate::als::params::AlsMovementParams;
-use crate::als::start_stop::predict_stop_distance;
-use crate::als::state::{LocomotionState, RotationMode, Stance};
+use crate::als::motion::AlsRotationResponseState;
+use crate::als::state::{RotationMode, Stance};
 use crate::als::transitions::{TransitionConfig, select_quick_stop};
 use crate::extensions::profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend};
 use crate::extensions::source_slot::{
@@ -26,43 +15,6 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-pub struct AlsStopMatch {
-    pub active: bool,
-    pub remaining: f32,
-    pub total: f32,
-    pub left_weight: f32,
-    pub right_weight: f32,
-    pub weight: f32,
-    pub last_input_move: f32,
-    pub last_input_yaw: Option<f32>,
-    pub quick_stop_play_rate: f32,
-    pub quick_stop_start_time: f32,
-    pub quick_stop_blend_in_duration: f32,
-    pub quick_stop_blend_out_duration: f32,
-    pub quick_stop_remaining_yaw_degrees: f32,
-}
-
-impl Default for AlsStopMatch {
-    fn default() -> Self {
-        Self {
-            active: false,
-            remaining: 0.0,
-            total: 1.0,
-            left_weight: 0.0,
-            right_weight: 0.0,
-            weight: 0.0,
-            last_input_move: 0.0,
-            last_input_yaw: None,
-            quick_stop_play_rate: 1.75,
-            quick_stop_start_time: 0.3,
-            quick_stop_blend_in_duration: 0.1,
-            quick_stop_blend_out_duration: 0.2,
-            quick_stop_remaining_yaw_degrees: 0.0,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlsTransitionKind {
@@ -427,8 +379,6 @@ pub struct AlsRootTransitionSlotRuntime {
     pub pose_ready: bool,
 }
 
-pub const STOP_TRIGGER_MIN_SPEED: f32 = 1.0;
-pub const STOP_RELEASE_INPUT_EPSILON: f32 = 0.05;
 pub const QUICK_STOP_BLEND_IN: f32 = 0.1;
 pub const QUICK_STOP_BLEND_OUT: f32 = 0.2;
 pub const QUICK_STOP_START_TIME: f32 = 0.3;
@@ -443,28 +393,11 @@ pub const TRANSITION_SEQUENCE_DURATION: f32 = 2.3333333;
 pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
 pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
 pub const DYNAMIC_TRANSITION_PLAY_RATE: f32 = 1.5;
-const ROOT_TRANSITION_SLOT_POSE_KEY: &str = "als_root_transition_slot_pose";
-const ROOT_TRANSITION_SLOT_WEIGHT_KEY: &str = "als_root_transition_slot_weight";
-const ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "als_root_transition_slot_layer_weight";
+pub(crate) const ROOT_TRANSITION_SLOT_WEIGHT_KEY: &str = "als_root_transition_slot_weight";
 const GENERATED_TRANSITION_SLOT_POSE_KEY: &str = "transition.pose";
 const GENERATED_TRANSITION_SLOT_WEIGHT_KEY: &str = "transition.weight";
 const GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "transition.layer_weight";
 const GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY: &str = "transition.mesh_space_additive";
-const ROOT_TRANSITION_SLOT_CURVE_PREFIX: &str = "als_root_transition_slot_curve_";
-const ROOT_TRANSITION_SLOT_CURVE_NAMES: [&str; 12] = [
-    "PoseStanding",
-    "PoseCrouching",
-    "PoseMoving",
-    "RotationYawOffset",
-    "FootLeftLock",
-    "FootRightLock",
-    "AllowTransitions",
-    "RotationYawSpeed",
-    "PoseGrounded",
-    "FootLeftIk",
-    "FootRightIk",
-    "PoseInAir",
-];
 
 fn quick_stop_actor_yaw_degrees(rotation: Quat) -> f64 {
     let DQuat { x, y, z, w } = rotation.as_dquat();
@@ -499,15 +432,6 @@ pub(crate) fn transition_blend_amount(elapsed: f32, duration: f32) -> f32 {
     alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
-fn move_toward(current: f32, target: f32, max_delta: f32) -> f32 {
-    let diff = target - current;
-    if diff.abs() <= max_delta {
-        target
-    } else {
-        current + diff.signum() * max_delta
-    }
-}
-
 pub struct AlsStopLinkPlugin;
 
 impl Plugin for AlsStopLinkPlugin {
@@ -517,12 +441,9 @@ impl Plugin for AlsStopLinkPlugin {
             .add_systems(
                 Update,
                 (
-                    ensure_stop_match,
-                    stop_link_system.after(ensure_stop_match),
                     quick_stop_notify_system,
                     transition_playback_system.after(quick_stop_notify_system),
                     ensure_root_transition_slot_samplers
-                        .before(stop_link_system)
                         .before(quick_stop_notify_system)
                         .before(transition_playback_system),
                 ),
@@ -533,21 +454,6 @@ impl Plugin for AlsStopLinkPlugin {
                     .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             );
-    }
-}
-
-fn ensure_stop_match(
-    mut commands: Commands,
-    q: Query<
-        Entity,
-        (
-            With<crate::als::character::AlsCharacter>,
-            Without<AlsStopMatch>,
-        ),
-    >,
-) {
-    for entity in &q {
-        commands.entity(entity).insert(AlsStopMatch::default());
     }
 }
 
@@ -676,7 +582,6 @@ fn clear_transition_slot(
 ) {
     for key in [
         ROOT_TRANSITION_SLOT_WEIGHT_KEY,
-        ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY,
         GENERATED_TRANSITION_SLOT_WEIGHT_KEY,
         GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY,
         GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY,
@@ -705,37 +610,6 @@ fn discard_transition_target(
             end_transition_instance(stack, runtime);
         }
         commands.entity(entity).try_despawn();
-    }
-}
-
-fn root_transition_curve_key(name: &str, crouching: bool) -> Option<&'static str> {
-    match (crouching, name) {
-        (true, "PoseCrouching") => Some("als_crouching_curve_pose_crouching"),
-        (true, "PoseMoving") => Some("als_crouching_curve_pose_moving"),
-        (true, "RotationYawOffset") => Some("als_crouching_curve_rotation_yaw_offset"),
-        (true, "FootLeftLock") => Some("als_crouching_curve_foot_left_lock"),
-        (true, "FootRightLock") => Some("als_crouching_curve_foot_right_lock"),
-        (true, "AllowTransitions") => Some("als_crouching_curve_allow_transitions"),
-        (true, "RotationYawSpeed") => Some("als_crouching_curve_rotation_yaw_speed"),
-        (false, "PoseStanding") => Some("als_standing_curve_pose_standing"),
-        (false, "PoseMoving") => Some("als_standing_curve_pose_moving"),
-        (false, "RotationYawOffset") => Some("als_standing_curve_rotation_yaw_offset"),
-        (false, "FootLeftLock") => Some("als_standing_curve_foot_left_lock"),
-        (false, "FootRightLock") => Some("als_standing_curve_foot_right_lock"),
-        (false, "AllowTransitions") => Some("als_standing_curve_allow_transitions"),
-        (false, "RotationYawSpeed") => Some("als_standing_curve_rotation_yaw_speed"),
-        _ => None,
-    }
-}
-
-fn write_root_transition_slot_curves(player: &mut AnimationGraphPlayer, crouching: bool) {
-    for name in ROOT_TRANSITION_SLOT_CURVE_NAMES {
-        let value = root_transition_curve_key(name, crouching)
-            .and_then(|key| player.get_global_input_data(key))
-            .and_then(|value| value.as_f32().ok())
-            .filter(|value| value.is_finite())
-            .unwrap_or_default();
-        player.set_global_input_data(format!("{ROOT_TRANSITION_SLOT_CURVE_PREFIX}{name}"), value);
     }
 }
 
@@ -804,7 +678,6 @@ fn bridge_root_transition_slot_samples(
     clips: Res<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     playbacks: Query<&AlsTransitionMontageStack>,
-    stances: Query<&Stance>,
     mut samplers: Query<&mut AlsRootTransitionSlotSampler>,
     mut target_players: Query<&mut AnimationGraphPlayer>,
     mut commands: Commands,
@@ -817,17 +690,11 @@ fn bridge_root_transition_slot_samples(
             .get(sampler.character)
             .ok()
             .filter(|stack| stack.entries.iter().any(root_transition_slot_active));
-        let playback = stack.and_then(AlsTransitionMontageStack::latest);
-        let crouching = playback.is_some_and(|value| value.is_crouching())
-            || stances
-                .get(sampler.character)
-                .is_ok_and(|stance| *stance == Stance::Crouching);
         let Some(stack) = stack else {
             clear_transition_slot(
                 &mut target_player,
                 source_inputs.get_mut(sampler.target_player).ok(),
             );
-            write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
                 .insert(AlsRootTransitionSlotRuntime::default());
@@ -852,7 +719,6 @@ fn bridge_root_transition_slot_samples(
                 &mut target_player,
                 source_inputs.get_mut(sampler.target_player).ok(),
             );
-            write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
                 .insert(AlsRootTransitionSlotRuntime {
@@ -862,17 +728,13 @@ fn bridge_root_transition_slot_samples(
                 });
             continue;
         };
-        target_player
-            .set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 1.0_f32);
-        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
         target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 1.0_f32);
         target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 1.0_f32);
-        write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
         source_inputs
             .get_mut(sampler.target_player)
@@ -885,138 +747,6 @@ fn bridge_root_transition_slot_samples(
                 weight,
                 pose_ready: true,
             });
-    }
-}
-
-#[allow(clippy::type_complexity)]
-pub fn stop_link_system(
-    time: Res<Time>,
-    mut q: Query<
-        (
-            &AlsActualVelocity,
-            &LocomotionState,
-            &Stance,
-            &RotationMode,
-            &Transform,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
-            &crate::als::character::AlsMovementParamsHandle,
-            Option<&AlsGroundedDynamics>,
-            Option<&AlsLandingBrakingFriction>,
-            &mut AlsStopMatch,
-            &AlsInputCommand,
-            Option<&AlsInputOverride>,
-        ),
-        With<crate::als::character::AlsCharacter>,
-    >,
-    params: Res<Assets<AlsMovementParams>>,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-) {
-    let dt = time.delta_secs();
-    let Ok((
-        vel,
-        loco,
-        stance,
-        rotation_mode,
-        transform,
-        (view_yaw, player_view),
-        handle,
-        dynamics,
-        landing_braking,
-        mut m,
-        cmd,
-        ovr,
-    )) = q.single_mut()
-    else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let hspeed = vel.horizontal_speed;
-    let input_move = effective.move_dir.length();
-    if input_move > STOP_RELEASE_INPUT_EPSILON {
-        let direction = view_relative_move_direction(
-            effective.move_dir,
-            player_view.map_or(view_yaw.0, |view| view.0),
-        );
-        if direction.length_squared() > 1e-6 {
-            m.last_input_yaw = Some(world_forward_to_yaw(direction));
-        }
-    }
-
-    if m.active {
-        m.remaining = (m.remaining - hspeed * dt).max(0.0);
-        let stopped = hspeed <= 0.05;
-        let aborted = input_move > 0.30 || *loco != LocomotionState::Grounded;
-        if m.remaining <= 0.005 || stopped || aborted {
-            if stopped {
-                m.remaining = 0.0;
-            }
-            m.active = false;
-        }
-    } else {
-        let released_while_fast = m.last_input_move > 0.30
-            && input_move <= STOP_RELEASE_INPUT_EPSILON
-            && *loco == LocomotionState::Grounded
-            && hspeed >= STOP_TRIGGER_MIN_SPEED;
-        if released_while_fast {
-            let config = TransitionConfig::default();
-            let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-            let target_yaw = m.last_input_yaw.unwrap_or(actor_yaw);
-            let quick_stop = select_quick_stop(
-                *rotation_mode,
-                f64::from(actor_yaw.to_degrees()),
-                target_yaw.to_degrees(),
-                &config,
-            );
-            let fallback_braking = dynamics
-                .map(|value| value.0.braking_deceleration)
-                .unwrap_or(p.acceleration.braking_deceleration);
-            let dynamic_distance = predict_grounded_stop_distance_with_braking_friction(
-                p,
-                *stance,
-                *rotation_mode,
-                hspeed,
-                landing_braking.map_or(0.0, |state| state.factor),
-            );
-            m.total = if dynamic_distance > 0.0 {
-                dynamic_distance
-            } else {
-                predict_stop_distance(hspeed, fallback_braking)
-            }
-            .max(0.3);
-            m.remaining = m.total;
-            m.active = true;
-            m.left_weight = if quick_stop.right { 0.0 } else { 1.0 };
-            m.right_weight = if quick_stop.right { 1.0 } else { 0.0 };
-            m.quick_stop_play_rate = quick_stop.play_rate;
-            m.quick_stop_start_time = quick_stop.start_time;
-            m.quick_stop_blend_in_duration = quick_stop.blend_in_duration;
-            m.quick_stop_blend_out_duration = quick_stop.blend_out_duration;
-            m.quick_stop_remaining_yaw_degrees = quick_stop.remaining_yaw_degrees;
-        }
-    }
-    m.last_input_move = input_move;
-
-    let weight_target = if m.active { 1.0 } else { 0.0 };
-    let w_speed = if m.active {
-        m.quick_stop_blend_in_duration.recip()
-    } else {
-        m.quick_stop_blend_out_duration.recip()
-    };
-    m.weight = move_toward(m.weight, weight_target, w_speed * dt);
-
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            player.set_input_data("stop_weight", DataValue::from(m.weight));
-            player.set_input_data("stop_right_weight", DataValue::from(m.right_weight));
-            player.set_input_data("stop_remaining", DataValue::from(m.remaining));
-            player.set_input_data("stop_total", DataValue::from(m.total));
-            player.set_input_data("stop_play_rate", DataValue::from(m.quick_stop_play_rate));
-            player.set_input_data("stop_start_time", DataValue::from(m.quick_stop_start_time));
-        }
     }
 }
 
@@ -1076,6 +806,11 @@ fn transition_playback_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::als::{
+        input::AlsInputCommand,
+        motion::{AlsViewYaw, view_relative_move_direction},
+        orientation::world_forward_to_yaw,
+    };
 
     fn play_loaded_transition(app: &mut App, character: Entity) -> Entity {
         use bevy::ecs::system::RunSystemOnce;
@@ -2707,18 +2442,6 @@ mod tests {
             Some("A_Als_Crouch_Transition_Right")
         );
         assert_eq!(crouching.start_time, 0.2);
-    }
-
-    #[test]
-    fn root_transition_slot_uses_crouching_curve_context_for_crouching_playback() {
-        assert_eq!(
-            root_transition_curve_key("RotationYawSpeed", true),
-            Some("als_crouching_curve_rotation_yaw_speed")
-        );
-        assert_eq!(
-            root_transition_curve_key("RotationYawSpeed", false),
-            Some("als_standing_curve_rotation_yaw_speed")
-        );
     }
 
     #[test]

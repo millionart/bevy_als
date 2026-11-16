@@ -95,7 +95,28 @@
   - 11:26 startup 后 / locomotion 前：无 driver 功能通过，保留报告中的帧预算结果。沿同一二进制跑 locomotion，核对 Sequence、Blend 和标量输入在实际状态切换中的消费。
   - 11:27 locomotion 后 / camera 前：实际运动功能 Gate 通过。用同一二进制复验相机图 Bool Blend 与曲线输入。
   - 11:28 完成：camera 功能通过。三场景均无图错误，性能预算记录随原始报告保留。[BF148.01 原生、测试及运行证据](docs/audit/bf148/01/README.md)。
-- [ ] BF148.02 — 旧急停输入与重复 Slot 发布。依赖 .01。Gate：核对运行时与 Validation 消费边界，去除默认装配中的旧更新和无人读取的 Pose 发布，真实 Stop/Quick Stop 选片、时钟和过渡姿态通过。开始与预估结束待依赖完成后登记。依据：两套发布路径及生成角色根图，参考 BF146.05 多动作入口与 BF144 的 Standing Stop 验收。
+- [x] BF148.02 — 旧急停输入与重复 Slot 发布。依赖 .01。Gate：核对运行时与 Validation 消费边界，去除默认装配中的旧更新和无人读取的 Slot 发布，保留逐角色启停状态，真实 Stop/Quick Stop 与 PostLocomotion 姿态通过。开始：2026-11-16 11:30 +08:00；预估结束：2026-11-16 12:10 +08:00；实际结束：2026-11-16 12:09 +08:00；偏差：−1 分钟；第 1 轮，功能 Gate 通过，未拆分。依据：两套发布路径及生成角色根图，参考 BF146.05 多动作入口、BF144 Standing Stop 及 .01 同 target 定向重编与公共 Gate 实耗。
+  - 11:33 source/static：UE `PlayQuickStopAnimation` 经队列在 Transition slot 播放；根图原生读数同时显示 Transition 与 PostLocomotion，后者经角色 Montage_Play 消费。实际 RON 使用 `transition.pose` 与 `post_locomotion.pose`。横向确认同类无消费者 Pose 发布，以及只被 Validation 读取或完全无读取方的旧键。保留脚部 pin 和公共诊断读到的 StartStopState，同路径 `single_mut` 会令两个角色一起停更，补双角色反例。
+  - 11:41 source/static：266 个原生图、4 个 Standing 编译状态机与 40 个资产播放器已写证据。双角色反例在原版返回 Idle。根图作者性 13 节点/13 边通过，删除旧急停广播与两套无人读取的 Slot 别名。首次编译指出统一常量后残留旧后缀及 Roll 遥测仍读两个曲线值，已统一调用名并保留实际遥测，重编定向集。
+  - 11:49 source/static：按用户要求复查扩展边界。`AnimNode_Slot.cpp` 39、55、58、119 按源 SlotName 注册、取权重并采样。两原生 Slot 和各自 Source/Pose 边已核对；`f67952b3`、`f10c3594` 的旧键用于手工根图转发，`7dcff912` 移走其读取图。当前扩展入口是实际 SourceSlotNode，仍读取旧 Transition 激活权重的 Validation 图保留该键。定向 134 项通过，同入口预构建中。
+  - 11:50 startup 前：同启动器 `target_game/play` 预构建通过，开始无 driver startup，再检查 Standing Stop、Grounded Roll 与 Get Up 的 Slot 姿态及交接。
+  - 11:50 startup 后 / standing_stop 前：无 driver 功能通过。下一场核对 Stop 两侧与 Quick Stop 实际选片、时钟和过渡姿态。
+  - 11:51 standing_stop 后：三条 Quick Stop 窗口因 `standing_states_fsm: static` 失败。保留原报告，先核对实际图层位姿、活动资产与既有同场景证据，查清失败来源后再启动对照。
+  - 11:53 基线对照前：手动覆盖 10/10、四条 Stop 窗口通过，三条 Quick Stop 报告全程有 79 骨的 Standing FSM 固定姿态，均无图错误。用 .01 提交的字节和相同 profile、场景、帧时配置对照，恢复后重编。
+  - 11:56 基线对照后：.01 基线也报告相同三个 FSM 静止，根姿态实际运动且手动覆盖均通过。原生 Standing Idle 的 A_Als_Stand_Pose 固定 ExplicitFrame=0，Quick Stop Motion 由源 Transition Montage 注入（`AnimNode_Slot.cpp` 100–119）。恢复 .02 字节，修正观察器将 Quick Stop 运动绑定同源 GUID 的 Transition Slot 输出。普通 Stop 继续核查原有链路，保留姿态、选片和时钟门槛。
+  - 12:01 source/static：恢复四个生产文件逐字一致，作者性与既有 134 项定向结论可用。观察器修正后格式检查及六项定向通过，同 target 重新预构建。随后重跑 startup、standing_stop 与相同观察路径的 crouching_actions，再检 PostLocomotion。
+  - 12:04 startup 前：定向与作者性已通过，使用同启动器重编的二进制。无 driver 核对恢复后二进制冷启动。
+  - 12:05 startup 后：功能通过，原报告已保留。
+  - 12:05 standing_stop 前：定向与作者性已通过，使用同启动器重编的二进制。用原生 Transition Slot 观察 Quick Stop，原有 Stop 链继续验收。
+  - 12:05 standing_stop 后：功能通过，原报告已保留。
+  - 12:05 crouching_actions 前：定向与作者性已通过，使用同启动器重编的二进制。复验同一 Slot 观察器对蹲姿 Quick Stop 的消费。
+  - 12:06 crouching_actions 后：功能未通过，保留报告并先定位原因。
+  - 12:07 source/static：蹲姿组合的退出 91 来自后段 `dynamic_left`，与 BF144-U07 原始报告同一失败项。当前四条蹲姿 Stop/Quick Stop 通过原运动窗口断言，实际 Slot 姿态与时钟都已记录，无图错误。保留完整组合失败及定向复验结果，继续 PostLocomotion 两场。
+  - 12:08 grounded 前：沿同一已通过 startup 和 Standing Stop 的二进制。核对 PostLocomotion 的实际 Roll 姿态与动作交接。
+  - 12:08 grounded 后：功能通过，原报告已保留。
+  - 12:08 get_up 前：沿同一已通过 startup 和 Standing Stop 的二进制。核对共享 PostLocomotion 发布的实际 Get Up。
+  - 12:09 get_up 后：功能通过，原报告已保留。
+  - 12:09 完成：Standing Stop 七窗、蹲姿相关四窗、Grounded Roll 与 Get Up 通过。组合场景既有 `dynamic_left` 超时有原始报告和检验边界。源图、横向检查、对照与验收见 [BF148.02 证据](docs/audit/bf148/02/README.md)。
 - [ ] BF148.03 — 碰撞层原值归属。依赖 .02。Gate：删除可从原值推出的标记，横向核对同类保存状态，验证双 owner 释放顺序与原组件存在/缺失两端，以及真实动作碰撞交接。开始与预估结束待依赖完成后登记。依据：BF102.21 保留归属语义，现有两项定向用例和 BF146.05 的移动基座、起身交接可复用。
 - [ ] BF148.04 — Mesh Space 骨骼遍历复用。依赖 .03。Gate：核对三类消费者及同类实现，复用父骨先行遍历，保留骨骼和姿态输出、公共视觉 Gate。开始与预估结束待依赖完成后登记。依据：三份遍历已经逐字比较，BF144-D163 的 Mesh Space 测试和真实 Control Rig 窗口可复用。
 - [ ] BF148.05 — 必有结果的包装。依赖 .04。Gate：审查仅返回 `Some` 或 `Ok` 的内部包装，精简动作选片、FSM 及实际命中的同类调用；保持动作映射、回调和图状态时序，定向 lint、图和动作回归通过。开始与预估结束待依赖完成后登记。依据：Clippy 已标记两条主链，另有内部 helper 待核对；参考 BF146.05 的消息回归与 BF147.02 的检查实耗。

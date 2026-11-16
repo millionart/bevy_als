@@ -116,12 +116,6 @@ pub(crate) fn rotation_mode_tag(rotation_mode: RotationMode) -> GameplayTag {
     rotation_mode.tag()
 }
 
-fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
-    if player.get_global_input_data(key).is_none() {
-        player.set_global_input_data(key, 0.0_f32);
-    }
-}
-
 #[allow(clippy::type_complexity)]
 fn root_graph_writer(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
@@ -218,13 +212,12 @@ fn root_graph_writer(
         )] {
             player.set_global_input_data(key, value);
         }
-        for key in [
-            "als_root_transition_slot_weight",
-            "als_root_post_locomotion_slot_weight",
-            "als_root_transition_slot_layer_weight",
-            "als_root_post_locomotion_slot_layer_weight",
-        ] {
-            set_missing_f32(&mut player, key);
+        let transition_weight_key = crate::stop_link::ROOT_TRANSITION_SLOT_WEIGHT_KEY;
+        if player
+            .get_global_input_data(transition_weight_key)
+            .is_none()
+        {
+            player.set_global_input_data(transition_weight_key, 0.0_f32);
         }
         player.set_global_input_data("als_root_defaults_enabled", true);
         let skeleton = player.skeleton().clone();

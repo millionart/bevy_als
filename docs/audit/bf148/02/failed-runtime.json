@@ -1,0 +1,122 @@
+{
+  "standing_stop_baseline": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "standing_stop_baseline/decal_render.json",
+        "bytes": 1204,
+        "sha256": "468e9c8937656529c7411632dc77d021e7fb42e276495ed06f093bf2b65f2192"
+      },
+      {
+        "path": "standing_stop_baseline/process.report.json",
+        "bytes": 408,
+        "sha256": "cf182c8dd42f85eb9f6ec21ed44498008384a2ce1f7335dbae8cd1f4180de689"
+      },
+      {
+        "path": "standing_stop_baseline/process.stderr.log.gz",
+        "bytes": 9265,
+        "sha256": "8c5ddd389b0451cefca140da2da5798f14491e3ed8ffaf6653dab6ed2dcc48d2"
+      },
+      {
+        "path": "standing_stop_baseline/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "standing_stop_baseline/render_effects.json",
+        "bytes": 243,
+        "sha256": "64964fb911577c7d06530956fc8dc7a50b9f161c3fc0fc4c09675aa42e119ae1"
+      },
+      {
+        "path": "standing_stop_baseline/report.json.gz",
+        "bytes": 44799816,
+        "sha256": "c0c4a005fa2cb2ab57c724985b3817a9c280f116d58e3ce00c16134f69b4224a"
+      },
+      {
+        "path": "standing_stop_baseline/runner.json",
+        "bytes": 394,
+        "sha256": "c551d154b1ba6f897488d7f7cb3c755d71736efc2a4cc3ce0009a43befa66f3d"
+      }
+    ]
+  },
+  "standing_stop_previous_observer": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "standing_stop_previous_observer/decal_render.json",
+        "bytes": 1204,
+        "sha256": "468e9c8937656529c7411632dc77d021e7fb42e276495ed06f093bf2b65f2192"
+      },
+      {
+        "path": "standing_stop_previous_observer/process.report.json",
+        "bytes": 408,
+        "sha256": "ec78c70425fd421d7b1fd95039b5c87f085433ccbef765f60fe213ca39bc2188"
+      },
+      {
+        "path": "standing_stop_previous_observer/process.stderr.log.gz",
+        "bytes": 9265,
+        "sha256": "b30d29639a687ad7b2279a1db2fd8fa013f3f56d9707fa4064a4709f1777974e"
+      },
+      {
+        "path": "standing_stop_previous_observer/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "standing_stop_previous_observer/render_effects.json",
+        "bytes": 226,
+        "sha256": "3166dbcd3c452ef30bd10f3ee2424ae09784f1a778a912e89ab1f6edbee8cf3c"
+      },
+      {
+        "path": "standing_stop_previous_observer/report.json.gz",
+        "bytes": 43454406,
+        "sha256": "ee420f57e06a0faa2605ca55ac1c230dd9937af80f53c412e0915ea257774058"
+      },
+      {
+        "path": "standing_stop_previous_observer/runner.json",
+        "bytes": 385,
+        "sha256": "ed4c7bb2895308f477c4183cf7e3392472b5738d73c8f7e83e4732a818e38569"
+      }
+    ]
+  },
+  "crouching_actions": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "crouching_actions/decal_render.json",
+        "bytes": 1302,
+        "sha256": "1d03073122419618d30f54f8b8ec615bd2a3b2a70930792331b49ce71323d58b"
+      },
+      {
+        "path": "crouching_actions/process.report.json",
+        "bytes": 410,
+        "sha256": "f9e8bdfed13e4d6aaba97a3c201a0b72587b4037c2a8e3e892d9df43c7e41c34"
+      },
+      {
+        "path": "crouching_actions/process.stderr.log.gz",
+        "bytes": 9964,
+        "sha256": "22dc8e7ea09a7963414b7303dfbcffcaff2c1e8186a22bb66c578a74148480b6"
+      },
+      {
+        "path": "crouching_actions/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "crouching_actions/render_effects.json",
+        "bytes": 256,
+        "sha256": "6197762863389a3f212dbc5787f4476d7e6a51794b26b7d9cb24a0eb5fe82051"
+      },
+      {
+        "path": "crouching_actions/report.json.gz",
+        "bytes": 58037613,
+        "sha256": "9137a1e0790ad5b9b527238fa661fad4b2e2ca55ef0265ecf22d9ee786a63d72"
+      },
+      {
+        "path": "crouching_actions/runner.json",
+        "bytes": 394,
+        "sha256": "cc6d87d73ff11577903c4fb8e2abe7af98c574ba0c26e39b132cdaa145e093e0"
+      }
+    ]
+  }
+}
