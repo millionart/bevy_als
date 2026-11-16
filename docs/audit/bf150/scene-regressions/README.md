@@ -8,6 +8,8 @@
 
 `AB_Als_Standing` 的 Idle 直接读取 `A_Als_Stand_Pose` 第 0 帧。Overlay 验收继续检查 Layering 的 Locomotion 输入存在并含有效骨骼，在 Idle 窗要求 Secondary Motion、加性结果和分层输出产生原幅度的运动。其余窗继续检查 Locomotion 的运动。 [Idle 原生节点](standing-idle-native.json) [旧动作窗误判](data-reuse-default-overlay/validator.log.gz)
 
+正式复验通过六个动作窗、姿态链和完整预算。墙钟 p95／峰值为 19.346／40.332 ms，图求值 p95 为 3.699 ms。 [正式复验](selective-default-overlay/runner.json)
+
 ## Footprint
 
 `FES_Als_Default` 的投射贴花使用 `SpawnAttachedToTraceHitComponent`。UE 通知以命中组件、网格倍率和足部旋转建立挂接，材质域是 `MD_DeferredDecal`，纹理为 `T_Als_Footprint_M`。首个零贴花控制的两个 Bevy 接收器均已加载并在真实视口。读回头为 `[652,1,0,1]`，代表数据长度、启用标记、样本数和请求号。缓冲 ID 在请求期间保持一致，片元入口诊断仍无写入。恢复旧 GPU 实例构建的对照得到 36 请求、576 样本及全部动作覆盖，墙钟 p95／最大为 39.279／108.111 ms，图求值 p95 为 4.572 ms。 [原生读数](footprint-native.json) [CPU 请求诊断](cache-cpu-footprint/decal_render.json) [GPU 实例对照](foot-gpu-instances/runner.json)

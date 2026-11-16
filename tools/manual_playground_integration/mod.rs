@@ -2331,11 +2331,14 @@ fn layering_graph_sample(
                     let time = ((sequence.explicit_value as f64 / sequence.frames_per_second)
                         as f32)
                         .clamp(0.0, clip.duration);
-                    let expected =
-                        crate::extensions::source_sequence_player::sample_pose(clip, time);
+                    let error = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                        clip,
+                        time,
+                        &probe.skeletons,
+                    )
+                    .and_then(|expected| default_overlay_pose_error(&actual, &expected));
                     if (actual.timestamp - time).abs() > 1e-5
-                        || default_overlay_pose_error(&actual, &expected)
-                            .is_none_or(|error| error > 2e-5)
+                        || error.is_none_or(|error| error > 2e-5)
                     {
                         sample.errors.push(format!(
                             "{}: source base pose frame mismatch",
@@ -2615,12 +2618,18 @@ fn default_overlay_graph_sample(
                         .errors
                         .push(format!("evaluator_{index}: sample time mismatch"));
                 }
-                check(
-                    &mut sample.errors,
-                    DEFAULT_OVERLAY_EVALUATORS[index],
-                    &actual,
-                    &crate::extensions::source_sequence_player::sample_pose(clip, expected_time),
-                );
+                let error = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                    clip,
+                    expected_time,
+                    &probe.skeletons,
+                )
+                .and_then(|expected| default_overlay_pose_error(&actual, &expected));
+                if error.is_none_or(|error| error > 2e-5) {
+                    sample.errors.push(format!(
+                        "{}: pose mismatch",
+                        DEFAULT_OVERLAY_EVALUATORS[index]
+                    ));
+                }
             }
             if let Some(blend) =
                 node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>()
@@ -2720,30 +2729,26 @@ fn default_overlay_graph_sample(
                 {
                     sample.errors.push("idle: sync time mismatch".into());
                 }
-                if let Some(clip) = probe.clips.get(&sequence.clip)
-                    && let Some(reference) = sequence
-                        .additive_reference
-                        .as_ref()
-                        .and_then(|handle| probe.clips.get(handle))
-                    && let Some(skeleton) = probe.skeletons.get(&reference.skeleton)
+                let prepared = probe.clips.get(&sequence.clip).and_then(|clip| {
+                    crate::extensions::source_compression::sample_prepared_pose(
+                        clip,
+                        actual.timestamp,
+                    )
+                });
+                if let Some((
+                    expected,
+                    crate::extensions::source_compression::PreparedPoseKind::LocalAdditive,
+                )) = prepared
                 {
-                    let expected =
-                        crate::extensions::reference_local_difference::make_local_difference(
-                            &crate::extensions::source_sequence_player::sample_pose(
-                                reference,
-                                sequence.additive_reference_position,
-                            ),
-                            &crate::extensions::source_sequence_player::sample_pose(
-                                clip,
-                                actual.timestamp,
-                            ),
-                            skeleton,
-                        );
                     check(
                         &mut sample.errors,
                         "idle additive sequence",
                         &actual,
                         &expected,
+                    );
+                } else {
+                    sample.errors.push(
+                        "idle additive sequence: prepared local additive pose missing".into(),
                     );
                 }
             }
@@ -2812,7 +2817,11 @@ fn default_overlay_window(
         .chain(
             LAYERING_BOUNDARIES
                 .iter()
-                .filter(|(label, _, _)| *label != "layering_base_poses")
+                .filter(|(label, _, _)| match *label {
+                    "layering_base_poses" => false,
+                    "layering_locomotion" => index != 0,
+                    _ => true,
+                })
                 .map(|(label, node, output)| ManualAnimationPoseBoundary {
                     label,
                     graph: LAYERING_GRAPH,
@@ -16308,6 +16317,60 @@ mod tests {
                 sample.evaluation_frame.unwrap(),
                 AlsLayeringState::default(),
             ));
+        }
+    }
+
+    #[test]
+    fn default_overlay_observers_compare_the_loaded_prepared_sequence_poses() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        fn observe(
+            In(entity): In<Entity>,
+            players: Query<&AnimationGraphPlayer>,
+            probe: MotionProbe,
+        ) -> (DefaultOverlayGraphSample, LayeringGraphSample) {
+            let player = players.get(entity).unwrap();
+            (
+                default_overlay_graph_sample(player, &probe, None),
+                layering_graph_sample(player, &probe, None),
+            )
+        }
+
+        let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.init_resource::<ButtonInput<KeyCode>>()
+            .init_resource::<Assets<StandardMaterial>>();
+        let player = app
+            .world()
+            .get::<AnimatedSceneInstance>(avatar)
+            .unwrap()
+            .player_entity();
+        for _ in 0..3 {
+            app.update();
+        }
+        let (overlay, layering) = app
+            .world_mut()
+            .run_system_once_with(observe, player)
+            .unwrap();
+        assert!(
+            overlay.ready && layering.base_evaluators > 0,
+            "{overlay:?} {layering:?}"
+        );
+        assert!(
+            !overlay.errors.iter().any(|error| {
+                error.contains("pose mismatch") || error.starts_with("idle additive sequence:")
+            }) && layering.errors.is_empty(),
+            "{overlay:?} {layering:?}"
+        );
+        assert!(layering.boundaries.contains(&"layering_locomotion"));
+        for (index, locomotion_moves) in [(0, false), (1, true)] {
+            let window = default_overlay_window(index, &overlay);
+            assert_eq!(
+                window
+                    .source_pose_chain
+                    .iter()
+                    .any(|boundary| boundary.label == "layering_locomotion"),
+                locomotion_moves
+            );
         }
     }
 

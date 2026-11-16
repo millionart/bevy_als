@@ -299,7 +299,7 @@
     - 22:13 完成。开始 21:36，预估结束 22:06，实际结束 22:13，偏差 +7 分钟，未拆分。额外耗时为四场既有 runtime 状态的起点对照、字节恢复及同 target 再构建。三个 Rig 测试恢复后通过，正式二进制 SHA 与搬移后取证一致。归属、代码等价及定向回归通过，原完整场景判定随前后报告保留。 [逐文件审计与回归](docs/audit/bf150/extension-ownership/README.md)
 
   - [ ] BF150.04 — 修复正式 Playground 的 Default Overlay／Footprint 超时及 Control Rig 腿部速率、图求值预算。2026-11-16 22:22 +08:00 启动。使用 BF150.03 前后原报告和 `65cf6c59` 同 target 为起点，拆成可独立验收的源消费与预算项，按原阈值封存最终场景。依据同类 BF150 原生读取、约三分钟同 target 编译和已有精确动作窗口。
-    - [ ] BF150.04a — Default Overlay 源图、初始窗与分层曲线。开始 2026-11-16 22:24 +08:00，预估结束 22:52 +08:00，第 1 轮。依赖已有双侧超时报告与可复用 native Default Overlay 读数；先拆开初始窗 `sample.ready`、layering 和实际角色输入，再进入后续窗。Gate 为最小反例、定向、正式完整 Overlay。
+    - [x] BF150.04a — Default Overlay 源图、初始窗与分层曲线。开始 2026-11-16 22:24 +08:00，预估结束 22:52 +08:00，第 1 轮。依赖已有双侧超时报告与可复用 native Default Overlay 读数；先拆开初始窗 `sample.ready`、layering 和实际角色输入，再进入后续窗。Gate 为最小反例、定向、正式完整 Overlay。
       - 22:31 source/static。原两版正式 trace 都停在 case 0，实际 standing/idle 输入有效，观察器在 Standing Pose、Default Poses 和 Idle Additive 三处用旧 glTF `sample_pose` 对比已准备的源序列。原生 Default 的帧取样和 Idle 的 LocalSpaceAdditive／Stand Pose 第零帧已读，目标准备数据保留普通站姿、步进 Overlay Pose 与已烘焙 Idle delta。旧孤立 fixture 未覆盖真实叶；加载真实角色后复现相同 pose mismatch，退出 101。观察器改读现有准备解码，时间、姿态阈值和图本身保持原逻辑。
       - 22:33 定向通过。真实角色回归覆盖 Default evaluator、Idle additive 及 Layering evaluator；旧读取的红灯和恢复报告均已保存。开始同 `target_game/play` 正式预构建。
       - 22:36 正式 Gate 前。同 target 构建成功。先 `startup` 后 `default_overlay`，观察六个动作窗是否取得 source 姿态，继续原预算。
@@ -307,6 +307,7 @@
       - 23:12 第一轮复盘。开始 22:24，预估结束 22:52，实际结束 23:12，偏差 +20 分钟。源取样与功能已闭合，完整 Gate 失败在和 Control Rig 共用的图计时，预热副本消融证实该试改不足。本项复用 .04d 的双计时取证与完整复验。开始 23:12，预估结束 23:54，第 2 轮。
       - 23:46 二次 source/static。共用求值 p95 达 3.695 ms 后，Python 完整判定仅拒绝 `default_idle: layering_locomotion: static`。复核所有前后正式报告，该输入从未移动，其余静止窗边界均有 Secondary Motion。fresh 读取 `AB_Als_Standing` 的 Idle evaluator 明确为 `A_Als_Stand_Pose` 第 0 帧；Layering 检查仍要求 `Locomotion Input` 存在。针对 Idle 修正运动链的源边归类，保留其余动作窗和原有幅度门槛。
       - 2026-11-17 00:14 第二轮复盘。开始 23:12，预估结束 23:54，实际结束 00:14，偏差 +20 分钟。此前漏检的 Idle 静止边已按原生节点修正，正式诊断的运动链全通过。剩余范围拆成定向 Rust 稳态检查和最终完整 Playground，各有原阈值 Gate。第 3 轮按 63 分钟拆分，前者开始 00:14、预估结束 00:44，后者开始 00:44、预估结束 01:17。共享二进制就绪后按依赖立即执行。
+      - 00:42 完成。定向阶段 00:14 开始、预估 00:44、实际 00:31，偏差 −13 分钟。正式阶段编译就绪后于 00:40 提前开始，预估 01:17、实际 00:42，偏差 −35 分钟。六窗、骨架有效性、原动作幅度及渲染通过，墙钟 p95／峰值／图 p95 为 19.346／40.332／3.699 ms。 [正式复验](docs/audit/bf150/scene-regressions/selective-default-overlay/runner.json)
     - [x] BF150.04b — Footprint 准备窗与 GPU/material 采样。开始 2026-11-16 22:34 +08:00，预估结束 23:06 +08:00，第 1 轮。与 Overlay 独立，先在其构建间读取源与首个 GPU 请求，按 BF150.03 两份准备窗记录、本地源 Footstep Notify、已有材质自测和同 target 时耗估时。Gate 为原初始动作覆盖、正式生命周期和原帧预算。
       - 22:38 初始边界。原两版都停在准备窗 GPU 请求 1（零贴花标准接收器控制），无 GPU 样本、渲染支持与接收器就绪为真。先用同正式入口的资源加载日志区分纹理／夹具准备和渲染读回，再限定修复边界。
       - 22:49–23:06 诊断 Gate。原生读取确认 `FES_Als_Default` 使用挂接投射贴花和 `M_Als_Footprint_Decal` 的 DeferredDecal 材质。正式 CPU 实例路径的请求头 `[652,1,0,1]`，两接收器可见且在视口，探针缓冲对象 ID 保持一致。片元入口诊断仍无写入。同一诊断二进制恢复 GPU 实例构建后，正式场景收齐 36 请求／576 样本并覆盖所有动作，墙钟 p95 39.279 ms、最大 108.111 ms，图求值 p95 4.572 ms。下一步依据 Bevy 的 `NoIndirectDrawing` 视图合同配齐 CPU 实例路径，复验原阈值。

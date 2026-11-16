@@ -1,0 +1,13 @@
+{
+  "asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+  "state": "Idle",
+  "raw_report": "standing.native.json.gz",
+  "raw_sha256": "116c11874ca1577198f3addb55b12dd148a4c45125d8372a7c13bfc393688582",
+  "watchdog": "standing.native.json.reader.report.json",
+  "evaluator": {
+    "guid": "a189ffa4-46d2-a4ea-01e7-728ccfb6d729",
+    "class": "/Script/AnimGraph.AnimGraphNode_SequenceEvaluator",
+    "title": "A_Als_Stand_Pose\nSequence Evaluator (by frame)",
+    "explicit_frame": 0
+  }
+}
