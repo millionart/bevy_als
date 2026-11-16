@@ -1,0 +1,21 @@
+{
+  "records": [
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "reader_flags": [],
+      "file": "Rig.native.json.gz",
+      "raw_bytes": 20438237,
+      "sha256": "9769068137dd3c3e24a018399864e491d64295ef5fd4f80d1282b468be99cc9f"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "reader_flags": [
+        "-GeometryQueryProbe",
+        "docs/audit/bf148/06a/threshold.request.json"
+      ],
+      "file": "Threshold.native.json.gz",
+      "raw_bytes": 20439503,
+      "sha256": "c678919d22787ccd75898b559978c78f6799cd614581535c7c2944de036a5fe7"
+    }
+  ]
+}
