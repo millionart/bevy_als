@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::{
     math::{DQuat, DVec3},
     platform::collections::HashMap,
@@ -92,8 +94,8 @@ struct SourceInertialBone {
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceInertializationState {
-    previous: Option<Pose>,
-    previous_previous: Option<Pose>,
+    previous: Option<Arc<Pose>>,
+    previous_previous: Option<Arc<Pose>>,
     previous_delta: f32,
     pending_delta: f32,
     pending_requests: Vec<crate::extensions::animation_context::SourceInertializationPart>,
@@ -113,7 +115,7 @@ pub(crate) struct SourceInertializationState {
     previous_curves: crate::extensions::SourceCurveValues,
     evaluated_curves: crate::extensions::SourceCurveValues,
     curve_differences: HashMap<crate::extensions::SourceCurveName, (f32, f32)>,
-    pub(crate) context: AnimationContextState,
+    pub(crate) context: Arc<AnimationContextState>,
 }
 
 impl InertializationPassthroughNode {
@@ -461,14 +463,14 @@ fn begin_source_inertialization(
         && let Some(root) = root
     {
         reexpress_root_history(
-            &mut previous,
+            Arc::make_mut(&mut previous),
             root,
             previous_component,
             component,
             world_space,
         );
         reexpress_root_history(
-            &mut previous_previous,
+            Arc::make_mut(&mut previous_previous),
             root,
             older_component,
             component,
@@ -534,7 +536,7 @@ fn record_source_inertial_history(
     attachment_epoch: f32,
 ) {
     let initial = state.previous.is_none();
-    state.previous_previous = state.previous.replace(pose.clone());
+    state.previous_previous = state.previous.replace(Arc::new(pose.clone()));
     state.previous_delta = delta;
     state.previous_previous_component = if initial {
         component
@@ -873,7 +875,7 @@ impl NodeLike for InertializationPassthroughNode {
             }
         }
         ctx.state_mut_or_else(SourceInertializationState::default)?
-            .context = context;
+            .context = Arc::new(context);
         Ok(())
     }
 
@@ -1045,7 +1047,7 @@ mod tests {
                     if let Ok(state) = context
                         .node_states
                         .get::<SourceInertializationState>(node.id, StateKey::Default)
-                        && let Some(pose) = &state.previous
+                        && let Some(pose) = state.previous.as_deref()
                     {
                         values.push((
                             format!("{id:?}/{:?}", node.id),
@@ -1345,8 +1347,8 @@ mod tests {
         target.add_bone(BonePose::from_transform(Transform::IDENTITY), root);
         target.add_bone(BonePose::from_transform(Transform::IDENTITY), foot);
         let new_state = || SourceInertializationState {
-            previous: Some(previous.clone()),
-            previous_previous: Some(previous.clone()),
+            previous: Some(previous.clone().into()),
+            previous_previous: Some(previous.clone().into()),
             ..default()
         };
         let profile = |scale| SourceBlendProfile {
@@ -2288,8 +2290,8 @@ mod tests {
             let steps = &sample["steps"];
             let target = pose(&steps[2]);
             let mut state = SourceInertializationState {
-                previous: Some(pose(&steps[1])),
-                previous_previous: Some(pose(&steps[0])),
+                previous: Some(pose(&steps[1]).into()),
+                previous_previous: Some(pose(&steps[0]).into()),
                 previous_delta: steps[1]["delta_seconds"].as_f64().unwrap() as f32,
                 ..default()
             };
@@ -2435,8 +2437,8 @@ mod tests {
         let mut target = Pose::default();
         target.add_bone(BonePose::from_transform(Transform::IDENTITY), bone);
         let mut state = SourceInertializationState {
-            previous: Some(previous.clone()),
-            previous_previous: Some(previous),
+            previous: Some(previous.clone().into()),
+            previous_previous: Some(previous.into()),
             ..default()
         };
         begin_source_inertialization(

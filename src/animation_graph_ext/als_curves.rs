@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use bevy::asset::{Asset, LoadContext};
 use bevy::prelude::*;
@@ -16,7 +17,7 @@ pub const ALS_CURVES_LABEL: &str = "AlsCurves";
 #[derive(Reflect, Serialize, Deserialize, Debug, Default, Clone)]
 #[reflect(opaque, Default, Serialize, Deserialize, Hash, PartialEq)]
 #[serde(transparent)]
-pub struct SourceCurveName(String);
+pub struct SourceCurveName(Arc<str>);
 
 impl SourceCurveName {
     pub fn as_str(&self) -> &str {
@@ -32,10 +33,24 @@ impl<S: AsRef<str> + ?Sized> PartialEq<S> for SourceCurveName {
 impl Eq for SourceCurveName {}
 impl std::hash::Hash for SourceCurveName {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        SourceCurveKey(self.as_str()).hash(state);
+    }
+}
+
+pub(crate) struct SourceCurveKey<'a>(pub &'a str);
+
+impl std::hash::Hash for SourceCurveKey<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.0.len());
         for byte in self.0.bytes() {
             state.write_u8(byte.to_ascii_lowercase());
         }
+    }
+}
+
+impl bevy::platform::collections::Equivalent<SourceCurveName> for SourceCurveKey<'_> {
+    fn equivalent(&self, name: &SourceCurveName) -> bool {
+        name == self.0
     }
 }
 impl AsRef<str> for SourceCurveName {
@@ -56,17 +71,17 @@ impl std::fmt::Display for SourceCurveName {
 }
 impl From<String> for SourceCurveName {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 impl From<&str> for SourceCurveName {
     fn from(value: &str) -> Self {
-        Self(value.to_owned())
+        Self(value.into())
     }
 }
 impl From<&String> for SourceCurveName {
     fn from(value: &String) -> Self {
-        Self(value.clone())
+        Self(value.as_str().into())
     }
 }
 impl From<Box<str>> for SourceCurveName {
@@ -76,7 +91,7 @@ impl From<Box<str>> for SourceCurveName {
 }
 impl From<SourceCurveName> for String {
     fn from(value: SourceCurveName) -> Self {
-        value.0
+        value.0.to_string()
     }
 }
 

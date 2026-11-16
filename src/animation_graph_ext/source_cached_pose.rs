@@ -108,35 +108,32 @@ fn collect_cached_requests<'a>(
                 node.forward_requests_through_skipped_cached_poses
             });
         let node_ctx = ctx.graph_context.create_node_context(*id);
-        let weights =
-            crate::extensions::source_pose_nodes::cached_update_branch_weights(&node_ctx)?;
-        let spec = node.new_spec(
-            bevy_animation_graph::core::context::spec_context::SpecResources {
-                graph_assets: &ctx.graph_context.resources.animation_graph_assets,
-                fsm_assets: &ctx.graph_context.resources.state_machine_assets,
-            },
-        )?;
-        for input in spec.sorted_inputs() {
-            let bevy_animation_graph::core::context::spec_context::NodeInput::Data(
-                pin,
-                DataSpec::Pose,
-            ) = input
-            else {
-                continue;
+        let inputs =
+            match crate::extensions::source_pose_nodes::cached_update_branch_weights(&node_ctx)? {
+                Some(weights) => weights,
+                None => node
+                    .new_spec(
+                        bevy_animation_graph::core::context::spec_context::SpecResources {
+                            graph_assets: &ctx.graph_context.resources.animation_graph_assets,
+                            fsm_assets: &ctx.graph_context.resources.state_machine_assets,
+                        },
+                    )?
+                    .sorted_inputs()
+                    .into_iter()
+                    .filter_map(|input| match input {
+                        bevy_animation_graph::core::context::spec_context::NodeInput::Data(
+                            pin,
+                            DataSpec::Pose,
+                        ) => Some((pin, 1.0)),
+                        _ => None,
+                    })
+                    .collect(),
             };
-            let factor = weights.as_ref().map_or(1.0, |weights| {
-                weights
-                    .iter()
-                    .find(|entry| entry.0 == pin)
-                    .map_or(0.0, |entry| entry.1)
-            });
+        for (pin, factor) in inputs {
             if factor <= 1e-5 {
                 continue;
             }
-            if let Some(source) = graph
-                .edges_inverted
-                .get(&TargetPin::NodeData(*id, pin.clone()))
-            {
+            if let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(*id, pin)) {
                 collect_cached_requests(ctx, source, weight * factor, forward, requests, path)?;
             }
         }

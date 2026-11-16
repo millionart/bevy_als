@@ -138,7 +138,7 @@ pub(crate) fn source_state_weight(
     Ok(machine_weights(ctx, node)?
         .previous_states
         .iter()
-        .find(|value| value.state_id == state_id)
+        .find(|value| value.has_name(state_id))
         .map_or(0.0, |value| value.value))
 }
 
@@ -216,14 +216,11 @@ pub fn source_input_data(ctx: &NodeContext, key: &str) -> Option<DataValue> {
         .node_states
         .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
         .ok();
-    source_property_value(
-        state,
-        ctx.graph_context.frame_index(),
-        key,
+    source_property_value(state, ctx.graph_context.frame_index(), key, || {
         ctx.graph_context
             .global_input_data
-            .get(&format!("source_frame_input.{key}")),
-    )
+            .get(&format!("source_frame_input.{key}"))
+    })
     .or_else(|| ctx.graph_context.global_input_data.get(key))
     .cloned()
 }
@@ -232,12 +229,13 @@ fn source_property_value<'a>(
     state: Option<&'a SourceInstanceProperties>,
     frame: u64,
     key: &str,
-    input: Option<&'a DataValue>,
+    input: impl FnOnce() -> Option<&'a DataValue>,
 ) -> Option<&'a DataValue> {
-    if state.is_none_or(|state| state.write_frames.get(key) != Some(&frame)) && input.is_some() {
-        return input;
+    let value = state.and_then(|state| state.values.get(key));
+    if value.is_some() && state.is_some_and(|state| state.write_frames.get(key) == Some(&frame)) {
+        return value;
     }
-    state.and_then(|state| state.values.get(key)).or(input)
+    input().or(value)
 }
 
 pub fn set_source_frame_input(
@@ -264,7 +262,7 @@ pub fn source_player_property<'a>(
         state,
         arena.map_or(0, |arena| arena.frame_index()),
         key,
-        player.get_global_input_data(format!("source_frame_input.{key}")),
+        || player.get_global_input_data(format!("source_frame_input.{key}")),
     )
 }
 
@@ -364,21 +362,21 @@ mod tests {
         let input = DataValue::Bool(true);
         let mut state = SourceInstanceProperties::default();
         assert_eq!(
-            source_property_value(Some(&state), 1, key, Some(&input)),
+            source_property_value(Some(&state), 1, key, || Some(&input)),
             Some(&input)
         );
         state.values.insert(key.to_owned(), DataValue::Bool(false));
         state.write_frames.insert(key.to_owned(), 1);
         assert_eq!(
-            source_property_value(Some(&state), 1, key, Some(&input)),
+            source_property_value(Some(&state), 1, key, || Some(&input)),
             Some(&DataValue::Bool(false))
         );
         assert_eq!(
-            source_property_value(Some(&state), 2, key, Some(&input)),
+            source_property_value(Some(&state), 2, key, || Some(&input)),
             Some(&input)
         );
         assert_eq!(
-            source_property_value(Some(&state), 2, key, None),
+            source_property_value(Some(&state), 2, key, || None),
             Some(&DataValue::Bool(false))
         );
     }

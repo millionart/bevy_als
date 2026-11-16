@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use bevy::prelude::*;
@@ -28,8 +29,8 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::animation_context::{
-    AnimationContextState, SourceRelevantAsset, capture_context_curve, graph_output_context_state,
-    merge_missing_context_curves, merge_sync_players,
+    AnimationContextState, SourceRelevantAsset, capture_context_curve, graph_output_context,
+    graph_output_context_state, merge_missing_context_curves, merge_sync_players,
 };
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::inertialization::InertializationNode;
@@ -78,10 +79,24 @@ pub struct InterruptibleFsmSource {
     blend_duration: Option<f32>,
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Copy, Debug, Default)]
 pub struct SourceFsmStateWeight {
-    pub state_id: String,
+    pub state_id: StateId,
     pub value: f32,
+}
+
+fn state_id_matches(state: StateId, name: &str) -> bool {
+    state
+        .uuid()
+        .hyphenated()
+        .encode_lower(&mut bevy::asset::uuid::Uuid::encode_buffer())
+        == name
+}
+
+impl SourceFsmStateWeight {
+    pub(crate) fn has_name(&self, name: &str) -> bool {
+        state_id_matches(self.state_id, name)
+    }
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -148,13 +163,13 @@ pub struct InterruptibleFsmState {
     context_slot: usize,
     blend_duration: Option<f32>,
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
-    pub context: AnimationContextState,
+    pub context: Arc<AnimationContextState>,
     recorded_machine_weight: f32,
     state_update_weight: f32,
     current_state_elapsed_time: f32,
     recorded_state_weights: Vec<SourceFsmStateWeight>,
-    source_pose: Option<(Pose, AnimationContextState)>,
-    last_pose: Option<Pose>,
+    source_pose: Option<Arc<(Pose, AnimationContextState)>>,
+    last_pose: Option<Arc<Pose>>,
     label_last_index: Option<usize>,
     first_update: bool,
     last_update_frame: Option<u64>,
@@ -254,11 +269,11 @@ impl InterruptibleFsmState {
     }
 
     pub fn cached_source_pose(&self) -> Option<&Pose> {
-        self.source_pose.as_ref().map(|(pose, _)| pose)
+        self.source_pose.as_deref().map(|(pose, _)| pose)
     }
 
     pub fn last_output_pose(&self) -> Option<&Pose> {
-        self.last_pose.as_ref()
+        self.last_pose.as_deref()
     }
 
     pub fn recorded_machine_weight(&self) -> f32 {
@@ -268,7 +283,7 @@ impl InterruptibleFsmState {
     pub fn recorded_state_weight(&self, state_id: &str) -> f32 {
         self.recorded_state_weights
             .iter()
-            .find(|value| value.state_id == state_id)
+            .find(|value| value.has_name(state_id))
             .map_or(0.0, |value| value.value)
     }
 
@@ -380,7 +395,7 @@ impl InterruptibleFsmNode {
         };
         self.state_pose_outputs
             .iter()
-            .find(|value| value.state_id == state.uuid().to_string())
+            .find(|value| state_id_matches(*state, &value.state_id))
             .map(|value| value.output.as_str())
             .unwrap_or(&self.state_pose_output)
     }
@@ -467,19 +482,27 @@ impl InterruptibleFsmNode {
         machine: &LowLevelStateMachine,
         condition: &SourceTransitionCondition,
     ) -> Option<TransitionId> {
-        machine
-            .transitions
-            .values()
-            .find_map(|transition| match &transition.id {
-                LowLevelTransitionId::Start(TransitionId::Direct(id))
-                | LowLevelTransitionId::Immediate(TransitionId::Direct(id))
-                    if transition.hl_source.uuid().to_string() == condition.source_state_id
-                        && id.uuid().to_string() == condition.transition_id =>
-                {
-                    Some(TransitionId::Direct(*id))
-                }
-                _ => None,
+        use bevy::asset::uuid::Uuid;
+
+        let uuid = Uuid::try_parse(&condition.transition_id).ok()?;
+        if uuid.hyphenated().encode_lower(&mut Uuid::encode_buffer())
+            != condition.transition_id.as_str()
+        {
+            return None;
+        }
+        let id = TransitionId::Direct(uuid.into());
+        [
+            LowLevelTransitionId::Start(id),
+            LowLevelTransitionId::Immediate(id),
+        ]
+        .iter()
+        .any(|key| {
+            machine.transitions.get(key).is_some_and(|transition| {
+                transition.id == *key
+                    && state_id_matches(transition.hl_source, &condition.source_state_id)
             })
+        })
+        .then_some(id)
     }
 
     fn transition_id(transition: &LowLevelTransition) -> &TransitionId {
@@ -494,10 +517,11 @@ impl InterruptibleFsmNode {
         let TransitionId::Direct(id) = id else {
             return None;
         };
-        let id = id.uuid().to_string();
+        let mut buffer = bevy::asset::uuid::Uuid::encode_buffer();
+        let id = id.uuid().hyphenated().encode_lower(&mut buffer);
         self.source_transition_conditions
             .iter()
-            .find(|condition| condition.transition_id == id)
+            .find(|condition| condition.transition_id.as_str() == id)
     }
 
     fn append_transition_notifications(
@@ -552,23 +576,19 @@ impl InterruptibleFsmNode {
         current: &[SourceFsmStateWeight],
         graphs: &Assets<AnimationGraph>,
     ) -> Result<Vec<SourceTransitionNotification>, GraphError> {
-        let state_id = |id: &str| {
-            machine.states.keys().find_map(|state| match state {
-                LowLevelStateId::HlState(value) if value.uuid().to_string() == id => Some(*value),
-                _ => None,
-            })
-        };
         let mut notifications = Vec::new();
         for weight in previous {
             if weight.value > f32::EPSILON
                 && current
                     .iter()
                     .all(|value| value.state_id != weight.state_id || value.value <= f32::EPSILON)
-                && let Some(state) = state_id(&weight.state_id)
+                && machine
+                    .states
+                    .contains_key(&LowLevelStateId::HlState(weight.state_id))
             {
                 notifications.extend(Self::state_function_notifications(
                     machine,
-                    state,
+                    weight.state_id,
                     "OnStateFullyBlendedOut",
                     graphs,
                 )?);
@@ -579,11 +599,13 @@ impl InterruptibleFsmNode {
                 && previous.iter().all(|value| {
                     value.state_id != weight.state_id || value.value < 1.0 - f32::EPSILON
                 })
-                && let Some(state) = state_id(&weight.state_id)
+                && machine
+                    .states
+                    .contains_key(&LowLevelStateId::HlState(weight.state_id))
             {
                 notifications.extend(Self::state_function_notifications(
                     machine,
-                    state,
+                    weight.state_id,
                     "OnStateFullyBlendedIn",
                     graphs,
                 )?);
@@ -614,7 +636,7 @@ impl InterruptibleFsmNode {
         let Some(alias) = self
             .state_aliases
             .iter()
-            .find(|alias| alias.state_id == alias_state.uuid().to_string())
+            .find(|alias| state_id_matches(alias_state, &alias.state_id))
         else {
             return false;
         };
@@ -626,7 +648,7 @@ impl InterruptibleFsmNode {
             alias
                 .member_state_ids
                 .iter()
-                .any(|member| member == &current.uuid().to_string())
+                .any(|member| state_id_matches(current, member))
         })
     }
 
@@ -743,7 +765,7 @@ impl InterruptibleFsmNode {
             .find_map(|node| node.try_inner_downcast_ref::<InertializationNode>())
         {
             crate::extensions::animation_context::merge_inertialization_request(
-                &mut state.context.inertialization_request,
+                &mut Arc::make_mut(&mut state.context).inertialization_request,
                 Some(
                     &crate::extensions::animation_context::SourceInertializationRequest {
                         frame: ctx.graph_context.frame_index(),
@@ -769,7 +791,7 @@ impl InterruptibleFsmNode {
             })?;
         let target_weight = source_weights
             .iter()
-            .find(|weight| weight.state_id == transition.hl_target.uuid().to_string())
+            .find(|weight| weight.state_id == transition.hl_target)
             .map_or(0.0, |weight| weight.value);
         let relevant_asset = self.source_target_relevant_asset(machine, state, ctx)?;
         let adjustment = self
@@ -884,9 +906,9 @@ impl InterruptibleFsmNode {
                     .source_transition_condition(transition_id)
                     .and_then(|condition| condition.always_reset_target_on_entry)
                     .unwrap_or(true);
-                let target_active = source_weights.iter().any(|weight| {
-                    weight.state_id == transition.hl_target.uuid().to_string() && weight.value > 0.0
-                });
+                let target_active = source_weights
+                    .iter()
+                    .any(|weight| weight.state_id == transition.hl_target && weight.value > 0.0);
                 if transition.reset_target_state && (always_reset || !target_active) {
                     reset = Some(transition.clone());
                 }
@@ -1008,8 +1030,8 @@ impl InterruptibleFsmNode {
         let (state_data, graph) = Self::active_graph(machine, &target, ctx)?;
         let sub_ctx = ctx.create_child_context(state_data.graph.id(), graph, Some(target.clone()));
         let mut relevant_asset =
-            graph_output_context_state(graph, &sub_ctx, self.state_pose_output_for(&target))
-                .and_then(|context| context.relevant_asset);
+            graph_output_context(graph, &sub_ctx, self.state_pose_output_for(&target))
+                .and_then(|context| context.relevant_asset.clone());
         if let Some(asset) = &mut relevant_asset {
             asset.weight *= state.recorded_machine_weight * state.state_update_weight;
         }
@@ -1027,7 +1049,7 @@ impl InterruptibleFsmNode {
         let Some(active_state) = Self::source_condition_state(machine, &state.state) else {
             return Ok(None);
         };
-        let relevant_asset = self.source_target_relevant_asset(machine, &state, ctx)?;
+        let mut relevant_asset = None;
         for condition in &self.source_transition_conditions {
             let transition =
                 Self::source_condition_transition_id(machine, condition).ok_or_else(|| {
@@ -1041,13 +1063,18 @@ impl InterruptibleFsmNode {
                 continue;
             };
             let matched = if let Some(trigger_time) = condition.automatic_trigger_time {
-                automatic_relevancy_valid
-                    && source_automatic_transition_adjustment(
-                        relevant_asset.as_ref(),
-                        trigger_time,
-                        condition.transition_duration,
-                    )
-                    .is_some()
+                if !automatic_relevancy_valid {
+                    continue;
+                }
+                if relevant_asset.is_none() {
+                    relevant_asset = Some(self.source_target_relevant_asset(machine, &state, ctx)?);
+                }
+                source_automatic_transition_adjustment(
+                    relevant_asset.as_ref().and_then(Option::as_ref),
+                    trigger_time,
+                    condition.transition_duration,
+                )
+                .is_some()
             } else {
                 self.source_condition_graph_matches(
                     machine,
@@ -1231,14 +1258,11 @@ impl InterruptibleFsmNode {
     }
 
     fn add_state_weight(weights: &mut Vec<SourceFsmStateWeight>, state: StateId, value: f32) {
-        if let Some(existing) = weights
-            .iter_mut()
-            .find(|entry| entry.state_id == state.uuid().to_string())
-        {
+        if let Some(existing) = weights.iter_mut().find(|entry| entry.state_id == state) {
             existing.value += value;
         } else {
             weights.push(SourceFsmStateWeight {
-                state_id: state.uuid().to_string(),
+                state_id: state,
                 value,
             });
         }
@@ -1247,7 +1271,7 @@ impl InterruptibleFsmNode {
     fn initial_state_weights(state: &LowLevelStateId) -> Vec<SourceFsmStateWeight> {
         match state {
             LowLevelStateId::HlState(value) => vec![SourceFsmStateWeight {
-                state_id: value.uuid().to_string(),
+                state_id: *value,
                 value: 1.0,
             }],
             LowLevelStateId::HlTransition(_) => Vec::new(),
@@ -1258,7 +1282,7 @@ impl InterruptibleFsmNode {
         match state {
             LowLevelStateId::HlState(state) => weights
                 .iter()
-                .find(|weight| weight.state_id == state.uuid().to_string())
+                .find(|weight| weight.state_id == *state)
                 .map_or(0.0, |weight| weight.value),
             LowLevelStateId::HlTransition(_) => 1.0,
         }
@@ -1276,7 +1300,7 @@ impl InterruptibleFsmNode {
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
-            context: AnimationContextState::default(),
+            context: default(),
             recorded_machine_weight: 1.0,
             state_update_weight: 1.0,
             current_state_elapsed_time: 0.0,
@@ -1482,7 +1506,7 @@ impl InterruptibleFsmNode {
                 .ok_or(GraphError::FSMCurrentStateMissing)?;
             let target_state = LowLevelStateId::HlState(target);
             if !tail_states.contains(&target_state) {
-                update_weights.retain(|weight| weight.state_id != target.uuid().to_string());
+                update_weights.retain(|weight| weight.state_id != target);
                 Self::add_state_weight(&mut update_weights, target, 1.0);
             }
             (target_state, 0, None)
@@ -1623,7 +1647,7 @@ impl InterruptibleFsmNode {
                     Self::local_state_weight(&update_weights, &source.state),
                 );
             }
-            source_pose = Some((pose, context));
+            source_pose = Some(Arc::new((pose, context)));
         }
         state.source_pose = source_pose;
         state.state_update_weight = Self::source_condition_state(machine, &state.state)
@@ -1685,7 +1709,7 @@ impl InterruptibleFsmNode {
                 let outer_output = self.outer_output(&state.state, id);
                 if outer_output == self.outer_pose_output {
                     if let DataValue::Pose(pose) = &mut value {
-                        let mut source_pose = graph_output_context_state(graph, &sub_ctx, id)
+                        let mut source_pose = graph_output_context(graph, &sub_ctx, id)
                             .and_then(|context| context.source_pose_for(pose).cloned());
                         if normalize_rotations {
                             if let Some(source) = &mut source_pose {
@@ -1699,7 +1723,9 @@ impl InterruptibleFsmNode {
                             }
                         }
                         context_state.source_pose = source_pose;
-                        latest_pose = Some(pose.clone());
+                        if !crate::extensions::sync_group_phase::source_sync_preview(ctx) {
+                            latest_pose = Some(pose.clone());
+                        }
                         pose_output = Some(id.clone());
                     }
                 }
@@ -1713,10 +1739,6 @@ impl InterruptibleFsmNode {
                     graph.get_time_update(SourcePin::InputTime(input.clone()), sub_ctx.clone())?;
                 ctx.set_time_update_back(pin.clone(), update);
             }
-        }
-        if let Some(pose) = latest_pose {
-            let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
-            ctx.state_mut_or_else(|| snapshot)?.last_pose = Some(pose);
         }
         context_state.asset_samples = tail_samples;
         if let Some(output) = pose_output
@@ -1755,8 +1777,11 @@ impl InterruptibleFsmNode {
             &mut context_state.skipped_cached_pose_request,
             state.context.skipped_cached_pose_request.as_ref(),
         );
-        let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
-        ctx.state_mut_or_else(|| snapshot)?.context = context_state;
+        let current = ctx.state_mut_or_else(|| state)?;
+        if let Some(pose) = latest_pose {
+            current.last_pose = Some(Arc::new(pose));
+        }
+        current.context = Arc::new(context_state);
         self.record_state_weights(machine, ctx)?;
         Ok(internal_events)
     }
@@ -1835,8 +1860,13 @@ impl NodeLike for InterruptibleFsmNode {
             .state_mut_or_else(|| initial_state.clone())
             .map_err(|error| entry_error("state finalization", error))?;
         state.transition_notifications.clear();
-        state.context.inertialization_request = None;
-        state.context.skipped_cached_pose_request = None;
+        if state.context.inertialization_request.is_some()
+            || state.context.skipped_cached_pose_request.is_some()
+        {
+            let context = Arc::make_mut(&mut state.context);
+            context.inertialization_request = None;
+            context.skipped_cached_pose_request = None;
+        }
         state.notification_generation = NOTIFICATION_GENERATION
             .fetch_add(1, Ordering::Relaxed)
             .wrapping_add(1);
@@ -2100,7 +2130,7 @@ struct FsmStackFrame {
     elapsed_time: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
-    source_pose: Option<(Pose, AnimationContextState)>,
+    source_pose: Option<Arc<(Pose, AnimationContextState)>>,
     role: FsmRole,
 }
 
@@ -2116,7 +2146,7 @@ struct InterruptibleFsmIo<'a> {
     previous_state: Option<StateId>,
     context_slot: usize,
     blend_duration: Option<f32>,
-    source_pose: Option<(Pose, AnimationContextState)>,
+    source_pose: Option<Arc<(Pose, AnimationContextState)>>,
     role: FsmRole,
     stack: VecDeque<FsmStackFrame>,
     state_pose_output: String,
@@ -2132,7 +2162,7 @@ impl<'a> InterruptibleFsmIo<'a> {
         };
         self.state_pose_outputs
             .iter()
-            .find(|value| value.state_id == state.uuid().to_string())
+            .find(|value| state_id_matches(*state, &value.state_id))
             .map(|value| value.output.as_str())
             .unwrap_or(&self.state_pose_output)
     }
@@ -2404,7 +2434,7 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
             GraphInputPin::Passthrough(pin) => self.parent_data(&pin, &ctx),
             GraphInputPin::FromFsmSource(pin) => {
                 let input = GraphInputPin::FromFsmSource(pin.clone());
-                if let Some((pose, context)) = &self.source_pose {
+                if let Some((pose, context)) = self.source_pose.as_deref() {
                     if pin.to_string() == InterruptibleFsmNode::OUT_POSE {
                         crate::extensions::animation_context::write_linked_input_context(
                             &mut ctx.clone(),
@@ -2556,7 +2586,7 @@ mod tests {
                         state.recorded_machine_weight = value / 4.0;
                         state.current_state_elapsed_time = value * 3.0;
                         state.recorded_state_weights = vec![SourceFsmStateWeight {
-                            state_id: state_id.uuid().to_string(),
+                            state_id: state_id,
                             value: value / 8.0,
                         }];
                         let weights = state.recorded_state_weights.clone();
@@ -3235,7 +3265,7 @@ mod tests {
             state.first_update = false;
             state.current_state_elapsed_time = 100.0;
             state.recorded_state_weights = vec![SourceFsmStateWeight {
-                state_id: targets[0].uuid().to_string(),
+                state_id: targets[0],
                 value: 1.0,
             }];
             node.set_time(100.0);
@@ -3243,7 +3273,7 @@ mod tests {
             crate::extensions::source_instance::record_source_state_weights(
                 &node,
                 vec![SourceFsmStateWeight {
-                    state_id: targets[0].uuid().to_string(),
+                    state_id: targets[0],
                     value: 1.0,
                 }],
             )
@@ -3494,11 +3524,11 @@ mod tests {
                         &node,
                         vec![
                             SourceFsmStateWeight {
-                                state_id: start.uuid().to_string(),
+                                state_id: start,
                                 value: 1.0 - state_weight,
                             },
                             SourceFsmStateWeight {
-                                state_id: targets[0].uuid().to_string(),
+                                state_id: targets[0],
                                 value: state_weight,
                             },
                         ],
@@ -3567,7 +3597,7 @@ mod tests {
                 hl_transition: None,
             });
             let weights = vec![SourceFsmStateWeight {
-                state_id: state_id.uuid().to_string(),
+                state_id: state_id,
                 value: 0.4,
             }];
             InterruptibleFsmNode::prewarm_active_state_caches(
@@ -3803,11 +3833,11 @@ mod tests {
             });
             let weights = vec![
                 SourceFsmStateWeight {
-                    state_id: state_id.uuid().to_string(),
+                    state_id: state_id,
                     value: values[0],
                 },
                 SourceFsmStateWeight {
-                    state_id: second.uuid().to_string(),
+                    state_id: second,
                     value: values[1],
                 },
             ];
@@ -3966,11 +3996,11 @@ mod tests {
             });
             let weights = vec![
                 SourceFsmStateWeight {
-                    state_id: state_id.uuid().to_string(),
+                    state_id: state_id,
                     value: values[0],
                 },
                 SourceFsmStateWeight {
-                    state_id: second.uuid().to_string(),
+                    state_id: second,
                     value: values[1],
                 },
             ];
@@ -7405,7 +7435,7 @@ mod tests {
                     let source_weight = 1.0 - alpha;
                     assert!(source_weight > 0.0 && source_weight <= f32::EPSILON);
                     state.recorded_state_weights.push(SourceFsmStateWeight {
-                        state_id: first.uuid().to_string(),
+                        state_id: first,
                         value: source_weight,
                     });
                 }
@@ -7729,7 +7759,7 @@ mod tests {
                             .unwrap();
                     state
                         .recorded_state_weights
-                        .retain(|weight| weight.state_id != first.uuid().to_string());
+                        .retain(|weight| weight.state_id != first);
                 }
                 let pose = graph
                     .query_with_context(
@@ -8061,7 +8091,7 @@ mod tests {
                             .unwrap();
                     state
                         .recorded_state_weights
-                        .retain(|weight| weight.state_id != first.uuid().to_string());
+                        .retain(|weight| weight.state_id != first);
                 }
                 let state = arena
                     .get_toplevel()
@@ -10435,7 +10465,7 @@ mod tests {
                     state.blend_duration = current.blend_duration;
                     state.blend_alpha = current.blend_alpha;
                     if entry.inertial {
-                        state.context.inertialization_request = Some(
+                        Arc::make_mut(&mut state.context).inertialization_request = Some(
                             crate::extensions::animation_context::SourceInertializationRequest {
                                 frame: ctx.graph_context.frame_index(),
                                 duration: 0.1,
@@ -10546,7 +10576,7 @@ mod tests {
             values
                 .iter()
                 .map(|(index, value)| SourceFsmStateWeight {
-                    state_id: states[*index].uuid().to_string(),
+                    state_id: states[*index],
                     value: *value,
                 })
                 .collect::<Vec<_>>()
@@ -10579,7 +10609,7 @@ mod tests {
         let target: StateId =
             serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
         let mut weights = vec![SourceFsmStateWeight {
-            state_id: source.uuid().to_string(),
+            state_id: source,
             value: 0.25,
         }];
         InterruptibleFsmNode::add_state_weight(&mut weights, source, 0.5);
@@ -10982,7 +11012,7 @@ mod tests {
             state_update_weight: 1.0,
             current_state_elapsed_time: 0.0,
             recorded_state_weights: vec![SourceFsmStateWeight {
-                state_id: state_id.clone(),
+                state_id: StateId::default(),
                 value: 0.25,
             }],
             source_pose: None,

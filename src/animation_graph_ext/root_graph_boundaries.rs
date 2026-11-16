@@ -577,7 +577,9 @@ impl NodeLike for ControlRigBoundaryNode {
             ctx.set_time_update_back(SOURCE_TIME, update);
         }
         let mut pose = ctx.data_back(self.pose_input.clone())?.into_pose()?;
-        if self.transfer_input_pose
+        let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
+        if !preview
+            && self.transfer_input_pose
             && pose.bones.iter().all(|bone| {
                 bone.translation.is_none() && bone.rotation.is_none() && bone.scale.is_none()
             })
@@ -632,21 +634,23 @@ impl NodeLike for ControlRigBoundaryNode {
             });
         let node_state = ctx.state_mut::<ControlRigNodeState>()?;
         node_state.context = state;
-        let started = capture.then(std::time::Instant::now);
-        let result = self.solve(
-            definition,
-            node_state,
-            &mut pose,
-            skeleton,
-            &inputs,
-            game_world,
-            delta_seconds,
-            to_world,
-            query.as_ref(),
-            capture,
-        );
-        node_state.elapsed_seconds = started.map_or(0.0, |start| start.elapsed().as_secs_f64());
-        result.map_err(failure)?;
+        if !preview {
+            let started = capture.then(std::time::Instant::now);
+            let result = self.solve(
+                definition,
+                node_state,
+                &mut pose,
+                skeleton,
+                &inputs,
+                game_world,
+                delta_seconds,
+                to_world,
+                query.as_ref(),
+                capture,
+            );
+            node_state.elapsed_seconds = started.map_or(0.0, |start| start.elapsed().as_secs_f64());
+            result.map_err(failure)?;
+        }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(OUT_POSE, pose.clone());
         ctx.set_data_fwd(LEGACY_OUT_POSE, pose);

@@ -43,14 +43,13 @@ use crate::extensions::{
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceBlendState {
-    initialized: bool,
-    value: f32,
+    alpha: SourceInputScaleBiasClampState,
     pub(crate) context: AnimationContextState,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub struct SourceTwoWayBlendState {
-    alpha: SourceBlendState,
+    alpha: SourceInputScaleBiasClampState,
     pub input_alpha: f32,
     pub blend_alpha: f32,
     a_is_relevant: bool,
@@ -142,7 +141,7 @@ pub(crate) fn read_blend_list_child(
     Ok((result?.into_pose()?, pose_input_context_state(&child, pin)))
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Copy, Debug, Default)]
 pub struct SourceInputScaleBiasClampState {
     initialized: bool,
     value: f32,
@@ -234,7 +233,7 @@ pub fn apply_source_input_scale_bias_clamp(
 }
 
 fn source_blend_alpha(
-    state: &mut SourceBlendState,
+    state: &mut SourceInputScaleBiasClampState,
     raw: f32,
     mapping_max: f32,
     mapping: &SourceAlphaMapping,
@@ -247,13 +246,7 @@ fn source_blend_alpha(
     delta: f32,
 ) -> f32 {
     if mapping.source_semantics {
-        let mut mapping_state = SourceInputScaleBiasClampState {
-            initialized: state.initialized,
-            value: state.value,
-        };
-        let target = apply_source_input_scale_bias_clamp(&mut mapping_state, raw, mapping, delta);
-        state.initialized = mapping_state.initialized;
-        state.value = mapping_state.value;
+        let target = apply_source_input_scale_bias_clamp(state, raw, mapping, delta);
         return (target * alpha_scale + alpha_bias).clamp(0.0, 1.0);
     }
     let mapped = if mapping_max > f32::EPSILON {
@@ -280,15 +273,20 @@ fn source_two_way_child_relevancy(
     state: &mut SourceTwoWayBlendState,
     alpha: f32,
 ) -> (bool, bool, bool, bool) {
-    const ZERO_ANIMWEIGHT_THRESHOLD: f32 = 1.0e-5;
-
-    let a_is_relevant = alpha < 1.0 - ZERO_ANIMWEIGHT_THRESHOLD;
-    let b_is_relevant = alpha > ZERO_ANIMWEIGHT_THRESHOLD;
+    let (a_is_relevant, b_is_relevant) = source_two_way_relevancy(alpha);
     let reset_a = a_is_relevant && !state.a_is_relevant;
     let reset_b = b_is_relevant && !state.b_is_relevant;
     state.a_is_relevant = a_is_relevant;
     state.b_is_relevant = b_is_relevant;
     (a_is_relevant, b_is_relevant, reset_a, reset_b)
+}
+
+fn source_two_way_relevancy(alpha: f32) -> (bool, bool) {
+    const ZERO_ANIMWEIGHT_THRESHOLD: f32 = 1.0e-5;
+    (
+        alpha < 1.0 - ZERO_ANIMWEIGHT_THRESHOLD,
+        alpha > ZERO_ANIMWEIGHT_THRESHOLD,
+    )
 }
 
 pub(crate) fn cached_update_branch_weights(
@@ -328,7 +326,9 @@ pub(crate) fn cached_update_branch_weights(
         ));
     }
     if let Some(blend) = node.try_inner_downcast_ref::<SourceApplyAdditiveNode>() {
-        let mut state = ctx.state::<SourceBlendState>().cloned().unwrap_or_default();
+        let mut state = ctx
+            .state::<SourceBlendState>()
+            .map_or_else(|_| default(), |state| state.alpha);
         let alpha = source_blend_alpha(
             &mut state,
             blend.alpha_input(ctx)?,
@@ -345,7 +345,9 @@ pub(crate) fn cached_update_branch_weights(
         return Ok(Some(vec![("Base".into(), 1.0), ("Additive".into(), alpha)]));
     }
     if let Some(blend) = node.try_inner_downcast_ref::<SourceMeshSpaceAdditiveNode>() {
-        let mut state = ctx.state::<SourceBlendState>().cloned().unwrap_or_default();
+        let mut state = ctx
+            .state::<SourceBlendState>()
+            .map_or_else(|_| default(), |state| state.alpha);
         let alpha = source_blend_alpha(
             &mut state,
             blend.alpha_input(ctx)?,
@@ -364,10 +366,9 @@ pub(crate) fn cached_update_branch_weights(
     if let Some(blend) = node.try_inner_downcast_ref::<SourceTwoWayBlendNode>() {
         let mut state = ctx
             .state::<SourceTwoWayBlendState>()
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(|_| default(), |state| state.alpha);
         let alpha = source_blend_alpha(
-            &mut state.alpha,
+            &mut state,
             blend.alpha_input(ctx)?,
             blend.mapping_max,
             &blend.mapping,
@@ -379,7 +380,7 @@ pub(crate) fn cached_update_branch_weights(
             blend.decreasing_speed,
             delta_seconds(ctx)?,
         );
-        let (a, b, _, _) = source_two_way_child_relevancy(&mut state, alpha);
+        let (a, b) = source_two_way_relevancy(alpha);
         return Ok(Some(vec![
             (
                 "A".into(),
@@ -402,10 +403,9 @@ pub(crate) fn cached_update_branch_weights(
             .ok_or_else(|| GraphError::GlobalInputDataMissing(blend.active_key.clone()))?;
         let mut state = ctx
             .state::<SourceGameplayTagBlendState>()
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(|_| default(), |state| state.blend.clone());
         let weights = advance_gameplay_tag_weights(
-            &mut state.blend,
+            &mut state,
             blend.child_count(),
             active,
             blend.blend_time(ctx, active)?,
@@ -420,10 +420,9 @@ pub(crate) fn cached_update_branch_weights(
         let (index, duration) = blend.active_blend(ctx)?;
         let mut state = ctx
             .state::<SourceGameplayTagBlendState>()
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(|_| default(), |state| state.blend.clone());
         let weights = crate::extensions::gameplay_tag_blend::advance_blend_list_weights(
-            &mut state.blend,
+            &mut state,
             2,
             index,
             duration,
@@ -712,7 +711,7 @@ impl NodeLike for SourceApplyAdditiveNode {
         let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
-            ctx.state_mut::<SourceBlendState>()?,
+            &mut ctx.state_mut::<SourceBlendState>()?.alpha,
             raw,
             0.0,
             &self.mapping,
@@ -837,11 +836,12 @@ impl SourceMeshSpaceAdditiveNode {
 
 impl NodeLike for SourceMeshSpaceAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         let mut base = ctx.data_back("Base")?.into_pose()?;
         let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
-            ctx.state_mut::<SourceBlendState>()?,
+            &mut ctx.state_mut::<SourceBlendState>()?.alpha,
             raw,
             0.0,
             &self.mapping,
@@ -855,7 +855,8 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
         );
         let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
         let mut source_pose = base_context.source_pose_for(&base).cloned();
-        if source_pose.is_none()
+        if !preview
+            && source_pose.is_none()
             && let Some(skeleton) = ctx
                 .graph_context
                 .resources
@@ -872,27 +873,29 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
                 })?
                 .into_pose()?;
             let context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
-            if ctx
-                .graph_context
-                .resources
-                .skeleton_assets
-                .get(&base.skeleton)
-                .is_none()
-            {
-                base.skeleton = additive.skeleton.clone();
+            if !preview {
+                if ctx
+                    .graph_context
+                    .resources
+                    .skeleton_assets
+                    .get(&base.skeleton)
+                    .is_none()
+                {
+                    base.skeleton = additive.skeleton.clone();
+                }
+                let skeleton = ctx
+                    .graph_context
+                    .resources
+                    .skeleton_assets
+                    .get(&base.skeleton)
+                    .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+                let precise = source_pose
+                    .as_deref()
+                    .zip(context.source_pose_for(&additive).map(Arc::as_ref));
+                source_pose = apply_source_additive_pose(
+                    &mut base, &additive, precise, alpha, skeleton, true, true,
+                );
             }
-            let skeleton = ctx
-                .graph_context
-                .resources
-                .skeleton_assets
-                .get(&base.skeleton)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            let precise = source_pose
-                .as_deref()
-                .zip(context.source_pose_for(&additive).map(Arc::as_ref));
-            source_pose = apply_source_additive_pose(
-                &mut base, &additive, precise, alpha, skeleton, true, true,
-            );
             context
         } else {
             AnimationContextState::default()
@@ -3209,7 +3212,7 @@ mod tests {
 
     #[test]
     fn source_two_way_alpha_matches_range_and_directional_interpolation() {
-        let mut state = SourceBlendState::default();
+        let mut state = SourceInputScaleBiasClampState::default();
         assert_eq!(
             source_blend_alpha(
                 &mut state,
@@ -3249,7 +3252,7 @@ mod tests {
     fn source_blend_state_keeps_context_with_the_alpha_history() {
         let mut state = SourceBlendState::default();
         let alpha = source_blend_alpha(
-            &mut state,
+            &mut state.alpha,
             0.5,
             0.0,
             &SourceAlphaMapping::default(),
@@ -3274,7 +3277,7 @@ mod tests {
 
     #[test]
     fn source_alpha_scale_bias_applies_on_the_first_legacy_sample() {
-        let mut state = SourceBlendState::default();
+        let mut state = SourceInputScaleBiasClampState::default();
         assert_eq!(
             source_blend_alpha(
                 &mut state,
@@ -3304,7 +3307,7 @@ mod tests {
             output_max: 0.5,
             ..default()
         };
-        let mut state = SourceBlendState::default();
+        let mut state = SourceInputScaleBiasClampState::default();
         assert_eq!(
             source_blend_alpha(
                 &mut state, 0.0, 0.0, &mapping, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
@@ -3342,7 +3345,7 @@ mod tests {
             interpolate_speed_decreasing: 2.0,
             ..default()
         };
-        let mut state = SourceBlendState::default();
+        let mut state = SourceInputScaleBiasClampState::default();
         assert_eq!(
             source_blend_alpha(
                 &mut state, 0.0, 0.0, &mapping, -1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.1

@@ -30,6 +30,29 @@ Playground 让 Automatic 使用主线程时间。手动步长、源世界时间�
 
 真实进程采样中，Rig 内部 p95 0.210 ms。`run_animation_player` 的栈覆盖姿态缓存、分层及同步组解析。按 UE CachedPose 更新与取值阶段拆除预热中的无用副本后，Control Rig／Default Overlay 图计时仍为 5.275／4.929 ms，已撤销该试改。采样会扰动帧时，预算由无进程采样的正式运行判定。 [热栈](control-rig.sample.txt.gz) [预热消融](cache-prewarm.patch.gz) [Control Rig 结果](cache-control-rig/runner.json) [Overlay 结果](cache-default-overlay/runner.json)
 
+同步边界的两次 pass 分开计时后，活动角色的预演中位数为 1.637 ms，组解析后的 pass 为 1.323 ms。UE `FAnimInstanceProxy::UpdateAnimation` 先更新图和同步组，序列解码、分层、加性与 Rig 解算在 Evaluate。将预演中的骨架计算移到实际求值后，预演中位数为 1.397 ms，随后继续减少可观测语义之外的数据复制。 [原 pass](sync-pass-control-rig/process.stderr.log.gz) [预演消融](update-only-control-rig/process.stderr.log.gz)
+
+状态机以类型化状态 ID 保存权重，转换条件直接查 `Start` 和 `Immediate`。保留了原条件顺序、源状态、别名和非法 ID 检查。同步、状态机及惯性化的历史快照复用已有数据，曲线读取和分层组装直接借用有效上下文。状态权重变化的首次回归为 3.966／4.325 ms，继续核对重复运行的余量。 [状态权重对照](typed-weights-control-rig/runner.json) [同二进制复跑](typed-weights-control-rig-repeat/runner.json)
+
+共享序列和 BlendSpace 的已发布上下文，并合并播放器求值任务内的收尾。自动转换在读取相关片段时间前先检查求值资格。Control Rig 的图求值 p95 从起点的 5.788 ms 降至 3.815 和 3.971 ms，两次速率告警均为 0。消融播放器收尾合并与延迟读取后，两次 p95 为 3.738 和 4.231 ms，第二次超原预算。两处源码已按字节恢复。 [消融补丁](dispatch-relevancy-ablation.patch.gz) [消融复跑](dispatch-ablation-control-rig-repeat/runner.json) [源码校验](restored-source.sha256)
+
+恢复后在原 `target_game` 重编，二进制 SHA-256 与通过八场完整回归的产物一致。无驱动启动和两次 Control Rig 完整复验通过，图求值 p95 分别为 3.882 和 3.726 ms，速率告警均为 0。 [恢复构建](restored-play-build.watchdog.json) [二进制校验](restored.binary.sha256) [首轮](restored-control-rig/runner.json) [复跑](restored-control-rig-repeat/runner.json)
+
+## 正式回归
+
+以下八场来自同一 `target_game/play` 正式二进制，完整判定均通过。所有场景的图错误和未归因姿态故障均为 0。每渲染帧最多执行 1 个物理步。定向 Rust 417 项、两套验证器自测和原生 socket 复算通过。 [机器可读结果与原阈值](runtime.json) [定向测试](restored-focused-retry.watchdog.json)
+
+| 场景 | 墙钟 p95 (ms) | 最大墙钟 (ms) | 图求值 p95 (ms) |
+| --- | ---: | ---: | ---: |
+| 启动 | 18.840 | 32.142 | 2.260 |
+| Control Rig | 19.305 | 40.228 | 3.815 |
+| Control Rig 复跑 | 19.398 | 39.413 | 3.971 |
+| Default Overlay | 19.440 | 37.094 | 3.540 |
+| Footprint | 18.412 | 59.262 | 2.825 |
+| 布娃娃 | 18.465 | 37.860 | 2.347 |
+| 布娃娃，6.985542 ms 步长 | 18.390 | 36.836 | 2.378 |
+| 起身 | 18.356 | 34.193 | 2.124 |
+
 ## 复跑
 
 ```powershell

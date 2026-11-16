@@ -193,6 +193,15 @@ pub struct SourceSyncPlayerStep {
 }
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
+
+pub(crate) fn source_sync_preview(ctx: &NodeContext) -> bool {
+    matches!(
+        ctx.graph_context
+            .global_input_data
+            .get(SOURCE_SYNC_RESOLVED),
+        Some(DataValue::Bool(false))
+    )
+}
 pub const SOURCE_SYNC_INERTIAL_SCOPE: &str = "__source_sync_inertial_scope";
 
 pub fn source_sync_excluded_key(identity: (GraphContextId, NodeId)) -> String {
@@ -337,7 +346,7 @@ pub fn resolved_source_marker_record(
         next: indices.y as i64,
         previous_distance: distances.x,
         next_distance: distances.y,
-        markers: sorted_markers(markers, duration),
+        markers: sorted_markers(markers, duration).into_owned(),
         duration,
         asset,
     }))
@@ -1142,19 +1151,27 @@ pub fn advance_sync_phase(state: &mut SyncPhaseState, input: SyncPhaseInput) -> 
     state.phase
 }
 
-fn sorted_markers(markers: &[SyncMarker], duration: f32) -> Vec<SyncMarker> {
+fn sorted_markers(markers: &[SyncMarker], duration: f32) -> std::borrow::Cow<'_, [SyncMarker]> {
+    let valid = |marker: &SyncMarker| {
+        !marker.name.is_empty()
+            && marker.time.is_finite()
+            && marker.time >= 0.0
+            && marker.time <= duration
+    };
+    if markers.iter().all(valid)
+        && markers
+            .windows(2)
+            .all(|pair| pair[0].time.total_cmp(&pair[1].time).is_le())
+    {
+        return std::borrow::Cow::Borrowed(markers);
+    }
     let mut result = markers
         .iter()
-        .filter(|marker| {
-            !marker.name.is_empty()
-                && marker.time.is_finite()
-                && marker.time >= 0.0
-                && marker.time <= duration
-        })
+        .filter(|marker| valid(marker))
         .cloned()
         .collect::<Vec<_>>();
     result.sort_by(|left, right| left.time.total_cmp(&right.time));
-    result
+    std::borrow::Cow::Owned(result)
 }
 
 pub fn marker_position_at_time(

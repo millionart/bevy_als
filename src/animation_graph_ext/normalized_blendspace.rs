@@ -309,7 +309,7 @@ struct SourceBlendSpaceSampleWeight {
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct NormalizedBlendSpaceState {
-    pub(crate) context: AnimationContextState,
+    pub(crate) context: Arc<AnimationContextState>,
     triangle: Option<usize>,
     samples: Vec<SourceBlendSpaceSampleWeight>,
     sample_times: Vec<Option<f32>>,
@@ -987,10 +987,11 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let sample_delta = tick.delta_seconds * tick.play_rate;
             tick.phase = phase;
             tick.marker_advance = marker_advance.clone();
-            ctx.state_mut::<NormalizedBlendSpaceState>()?.context = AnimationContextState {
-                sync_players: vec![tick],
-                ..default()
-            };
+            ctx.state_mut::<NormalizedBlendSpaceState>()?.context =
+                Arc::new(AnimationContextState {
+                    sync_players: vec![tick],
+                    ..default()
+                });
             (phase, sample_delta)
         } else {
             (
@@ -1091,6 +1092,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let mut source_poses = Vec::with_capacity(weights.len());
         let mut pose_indices = Vec::with_capacity(weights.len());
         let mut curves = bevy::platform::collections::HashMap::new();
+        let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         for (index, weight) in weights {
             let point = &self.points[index];
             let duration = self.point_duration(&mut ctx, point)?;
@@ -1160,7 +1162,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     let (handle, eligible) = clip_binding(target)?;
                     Some((handle, eligible, Some(kind)))
                 });
-            let prepared =
+            let prepared = if preview {
+                None
+            } else {
                 binding
                     .filter(|(_, eligible, _)| *eligible)
                     .and_then(|(handle, _, expected)| {
@@ -1169,8 +1173,20 @@ impl NodeLike for NormalizedBlendSpaceNode {
                         expected
                             .is_none_or(|expected| expected == actual)
                             .then_some((pose, clip.skeleton.clone()))
-                    });
+                    })
+            };
+            let clip = sample_clips[index]
+                .as_ref()
+                .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));
             let (pose, source) = match prepared {
+                _ if let Some(clip) = clip.filter(|_| preview) => (
+                    Pose {
+                        timestamp: time,
+                        skeleton: clip.skeleton.clone(),
+                        ..default()
+                    },
+                    None,
+                ),
                 Some((source, skeleton)) => (
                     Pose {
                         timestamp: time,
@@ -1192,9 +1208,6 @@ impl NodeLike for NormalizedBlendSpaceNode {
             poses.push((pose, weight));
             source_poses.push(source);
             pose_indices.push(index);
-            let clip = sample_clips[index]
-                .as_ref()
-                .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));
             for (name, value) in sample_source_curves(clip, &point.curves, time) {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
@@ -1222,7 +1235,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     0.0
                 });
         }
-        let context = &mut state.context;
+        let context = Arc::make_mut(&mut state.context);
         context.curves = curves;
         context.curves_are_authoritative = true;
         context.asset_samples.clear();

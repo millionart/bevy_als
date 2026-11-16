@@ -9,10 +9,13 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::animation_context::{
+    AnimationContextState, pose_input_context, pose_input_context_state,
+};
 use crate::extensions::sync_group_phase::{
-    SOURCE_SYNC_RESOLVED, resolve_source_sync_phases, source_sync_excluded_key,
-    source_sync_full_weight_key, source_sync_marker_name_key, source_sync_marker_set_key,
+    SOURCE_SYNC_RESOLVED, SourceSyncPlayerTick, resolve_source_sync_phases,
+    source_sync_excluded_key, source_sync_full_weight_key, source_sync_marker_name_key,
+    source_sync_marker_set_key,
 };
 
 #[derive(Reflect, Clone, Debug)]
@@ -45,9 +48,9 @@ impl Default for SourcePosePassthroughNode {
     }
 }
 
-fn order_source_sync_players(ctx: &NodeContext, context: &mut AnimationContextState) {
+fn order_source_sync_players(ctx: &NodeContext, players: &mut [SourceSyncPlayerTick]) {
     let owner = ctx.graph_context.context_id;
-    context.sync_players.sort_by_key(|player| {
+    players.sort_by_key(|player| {
         player
             .cached_submission_order
             .filter(|(context, _)| *context == owner)
@@ -86,6 +89,9 @@ impl NodeLike for SourcePosePassthroughNode {
             global_inputs
                 .to_mut()
                 .insert(SOURCE_SYNC_RESOLVED.to_owned(), DataValue::Bool(false));
+            let evaluate_pose = global_inputs
+                .to_mut()
+                .insert("animation.evaluate_pose".to_owned(), DataValue::Bool(false));
             let mut preview_ctx = ctx.clone();
             preview_ctx.graph_context.context_arena = (&mut snapshot).into();
             preview_ctx.graph_context.deferred_gizmos = (&mut gizmos).into();
@@ -96,14 +102,22 @@ impl NodeLike for SourcePosePassthroughNode {
                 &self.linked_pose_cache_order,
             )?;
             preview_ctx.data_back(self.input.clone())?;
-            let mut current =
-                pose_input_context_state(&preview_ctx, &self.input).unwrap_or_default();
+            let mut current = pose_input_context(&preview_ctx, &self.input)
+                .map(|context| context.sync_players.clone())
+                .unwrap_or_default();
             order_source_sync_players(&preview_ctx, &mut current);
+            if let Some(evaluate_pose) = evaluate_pose {
+                global_inputs
+                    .to_mut()
+                    .insert("animation.evaluate_pose".to_owned(), evaluate_pose);
+            } else {
+                global_inputs.to_mut().remove("animation.evaluate_pose");
+            }
             let previous = ctx
                 .state::<AnimationContextState>()
-                .cloned()
+                .map(|state| state.sync_players.as_slice())
                 .unwrap_or_default();
-            for player in &current.sync_players {
+            for player in &current {
                 if matches!(player.role,
                     crate::extensions::sync_group_phase::SourceSyncGroupRole::TransitionLeader
                         | crate::extensions::sync_group_phase::SourceSyncGroupRole::TransitionFollower)
@@ -124,7 +138,7 @@ impl NodeLike for SourcePosePassthroughNode {
                 marker_advance,
                 leader_samples,
                 marker_resets,
-            } in resolve_source_sync_phases(&current.sync_players, &previous.sync_players)
+            } in resolve_source_sync_phases(&current, previous)
             {
                 for identity in marker_resets {
                     global_inputs.to_mut().insert(
@@ -203,7 +217,7 @@ impl NodeLike for SourcePosePassthroughNode {
         ctx.set_data_fwd(self.output.clone(), pose);
         if let Some(mut context) = pose_input_context_state(&source_ctx, &self.input) {
             if self.synchronize_groups {
-                order_source_sync_players(&source_ctx, &mut context);
+                order_source_sync_players(&source_ctx, &mut context.sync_players);
                 for sample in &mut context.asset_samples {
                     if sample.sync_identity.is_some_and(|identity| {
                         global_inputs.contains_key(&source_sync_excluded_key(identity))

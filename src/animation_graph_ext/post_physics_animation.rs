@@ -563,7 +563,7 @@ pub fn evaluate_players<F: QueryFilter>(
 ) {
     players
         .par_iter_mut()
-        .for_each(|(entity, mut player, inputs, mut gate, initial)| {
+        .for_each(|(entity, mut player, mut inputs, mut gate, initial)| {
             let initialize = initial.is_some()
                 || gate.as_ref().is_some_and(|gate| gate.refresh_bones)
                     && player.get_animation_source().is_graph()
@@ -571,67 +571,67 @@ pub fn evaluate_players<F: QueryFilter>(
                         .get_context_arena()
                         .is_none_or(|arena| arena.frame_index() == 0);
             let update_graph = gate.as_ref().is_none_or(|gate| gate.update_graph);
-            if (!initialize && !update_graph)
-                || initial.is_some_and(|initial| {
-                    !initial.ready || player.get_default_output_pose().is_some()
+            if (initialize || update_graph)
+                && initial.is_none_or(|initial| {
+                    initial.ready && player.get_default_output_pose().is_none()
                 })
             {
-                return;
-            }
-            let playing = !player.is_paused();
-            player.set_global_input_data(
-                "animation.evaluate_pose",
-                initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones),
-            );
-            if initialize {
-                let delta = player
-                    .get_global_input_data("animation.delta_seconds")
-                    .cloned();
-                if delta.is_some() {
-                    player.set_global_input_data("animation.delta_seconds", 0.0_f32);
-                }
-                inputs.evaluate(entity, || {
-                    run_animation_player(entity, player.reborrow(), &Time::default(), &resources)
-                });
-                if let Some(delta) = delta {
-                    player.set_global_input_data("animation.delta_seconds", delta);
-                }
-            }
-            if update_graph
-                && (!initialize
-                    || (initial.is_none()
-                        && playing
-                        && !player.is_paused()
-                        && player.get_error().is_none()
-                        && player.get_default_output_pose().is_some()))
-            {
+                let playing = !player.is_paused();
                 player.set_global_input_data(
                     "animation.evaluate_pose",
-                    gate.as_ref().is_none_or(|gate| gate.refresh_bones),
+                    initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones),
                 );
-                let delta = player
-                    .get_global_input_data("animation.delta_seconds")
-                    .and_then(|value| value.as_f32().ok())
-                    .map_or(time.delta_secs(), |value| value);
-                let mut animation_time = Time::default();
-                animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));
-                inputs.evaluate(entity, || {
-                    run_animation_player(entity, player.reborrow(), &animation_time, &resources)
-                });
+                if initialize {
+                    let delta = player
+                        .get_global_input_data("animation.delta_seconds")
+                        .cloned();
+                    if delta.is_some() {
+                        player.set_global_input_data("animation.delta_seconds", 0.0_f32);
+                    }
+                    inputs.evaluate(entity, || {
+                        run_animation_player(
+                            entity,
+                            player.reborrow(),
+                            &Time::default(),
+                            &resources,
+                        )
+                    });
+                    if let Some(delta) = delta {
+                        player.set_global_input_data("animation.delta_seconds", delta);
+                    }
+                }
+                if update_graph
+                    && (!initialize
+                        || (initial.is_none()
+                            && playing
+                            && !player.is_paused()
+                            && player.get_error().is_none()
+                            && player.get_default_output_pose().is_some()))
+                {
+                    player.set_global_input_data(
+                        "animation.evaluate_pose",
+                        gate.as_ref().is_none_or(|gate| gate.refresh_bones),
+                    );
+                    let delta = player
+                        .get_global_input_data("animation.delta_seconds")
+                        .and_then(|value| value.as_f32().ok())
+                        .map_or(time.delta_secs(), |value| value);
+                    let mut animation_time = Time::default();
+                    animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));
+                    inputs.evaluate(entity, || {
+                        run_animation_player(entity, player.reborrow(), &animation_time, &resources)
+                    });
+                }
+                if update_graph
+                    && initial.is_none()
+                    && playing
+                    && player.get_error().is_none()
+                    && player.get_default_output_pose().is_some()
+                    && let Some(gate) = gate.as_mut()
+                {
+                    gate.pending_update = false;
+                }
             }
-            if update_graph
-                && initial.is_none()
-                && playing
-                && player.get_error().is_none()
-                && player.get_default_output_pose().is_some()
-                && let Some(gate) = gate.as_mut()
-            {
-                gate.pending_update = false;
-            }
-        });
-    players
-        .par_iter_mut()
-        .for_each(|(_, player, mut inputs, _, _)| {
             debug_draw_animation_players(player, &resources);
             inputs.set_rig_query_context(None);
         });

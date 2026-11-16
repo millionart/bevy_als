@@ -378,6 +378,7 @@ fn source_layered_root_motion(
 
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         let mut bone_data = ctx
             .state::<SourceLayeredBoneBlendState>()
             .ok()
@@ -385,35 +386,37 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         let weights = (0..self.layer_count())
             .map(|index| self.layer_weight(&ctx, index))
             .collect::<Result<Vec<_>, _>>()?;
+        let read_layer = |index, weight| {
+            crate::extensions::interruptible_fsm::with_machine_weight(weight, || {
+                ctx.data_back(self.layer_pin(index).to_owned())
+            })?
+            .into_pose()
+        };
+        let mut overlays = vec![None; weights.len()];
         if !self.update_base_pose_first {
             for (index, weight) in weights.iter().enumerate() {
                 if *weight > 1e-5 {
-                    crate::extensions::interruptible_fsm::with_machine_weight(*weight, || {
-                        ctx.data_back(self.layer_pin(index).to_owned())
-                    })?;
+                    overlays[index] = Some(read_layer(index, *weight)?);
                 }
             }
         }
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
-        let mut overlays = Vec::with_capacity(weights.len());
         let mut precise_overlays = Vec::with_capacity(weights.len());
         for (index, weight) in weights.iter().copied().enumerate() {
             if weight <= 1e-5 {
-                overlays.push(None);
                 precise_overlays.push(None);
                 continue;
             }
-            let overlay =
-                crate::extensions::interruptible_fsm::with_machine_weight(weight, || {
-                    ctx.data_back(self.layer_pin(index).to_owned())
-                })?
-                .into_pose()?;
+            if self.update_base_pose_first {
+                overlays[index] = Some(read_layer(index, weight)?);
+            }
+            let overlay = overlays[index].as_ref().unwrap();
             let overlay_context = pose_input_context_state(&ctx, self.layer_pin(index));
             precise_overlays.push(
                 overlay_context
                     .as_ref()
-                    .and_then(|context| context.source_pose_for(&overlay))
+                    .and_then(|context| context.source_pose_for(overlay))
                     .cloned(),
             );
             if let Some(overlay_context) = overlay_context {
@@ -438,9 +441,8 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 context.curves.extend(overlay_context.curves);
                 context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }
-            overlays.push(Some(overlay));
         }
-        if overlays.iter().any(Option::is_some) {
+        if !preview && overlays.iter().any(Option::is_some) {
             let skeletons = &ctx.graph_context.resources.skeleton_assets;
             if skeletons.get(&base.skeleton).is_none()
                 && let Some(overlay) = overlays

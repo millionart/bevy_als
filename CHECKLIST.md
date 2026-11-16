@@ -298,7 +298,7 @@
     - 22:07 起点 runtime 对照后。起点二进制 SHA 与 BF150.02 上次封存一致。`startup` 两边通过；`control_rig` 两边均出现最终左脚速率和图求值超预算，起点 p95 5.53 ms。本次记录另出现右小腿和右脚速率。`default_overlay`／`footprint` 两边的超时、进程退出及缺失覆盖项一致。恢复这次搬移的 14 个文件，重编同 target 并重跑最小测试。
     - 22:13 完成。开始 21:36，预估结束 22:06，实际结束 22:13，偏差 +7 分钟，未拆分。额外耗时为四场既有 runtime 状态的起点对照、字节恢复及同 target 再构建。三个 Rig 测试恢复后通过，正式二进制 SHA 与搬移后取证一致。归属、代码等价及定向回归通过，原完整场景判定随前后报告保留。 [逐文件审计与回归](docs/audit/bf150/extension-ownership/README.md)
 
-  - [ ] BF150.04 — 修复正式 Playground 的 Default Overlay／Footprint 超时及 Control Rig 腿部速率、图求值预算。2026-11-16 22:22 +08:00 启动。使用 BF150.03 前后原报告和 `65cf6c59` 同 target 为起点，拆成可独立验收的源消费与预算项，按原阈值封存最终场景。依据同类 BF150 原生读取、约三分钟同 target 编译和已有精确动作窗口。
+  - [x] BF150.04 — 修复正式 Playground 的 Default Overlay／Footprint 超时及 Control Rig 腿部速率、图求值预算。2026-11-16 22:22 +08:00 启动。使用 BF150.03 前后原报告和 `65cf6c59` 同 target 为起点，拆成可独立验收的源消费与预算项，按原阈值封存最终场景。依据同类 BF150 原生读取、约三分钟同 target 编译和已有精确动作窗口。
     - [x] BF150.04a — Default Overlay 源图、初始窗与分层曲线。开始 2026-11-16 22:24 +08:00，预估结束 22:52 +08:00，第 1 轮。依赖已有双侧超时报告与可复用 native Default Overlay 读数；先拆开初始窗 `sample.ready`、layering 和实际角色输入，再进入后续窗。Gate 为最小反例、定向、正式完整 Overlay。
       - 22:31 source/static。原两版正式 trace 都停在 case 0，实际 standing/idle 输入有效，观察器在 Standing Pose、Default Poses 和 Idle Additive 三处用旧 glTF `sample_pose` 对比已准备的源序列。原生 Default 的帧取样和 Idle 的 LocalSpaceAdditive／Stand Pose 第零帧已读，目标准备数据保留普通站姿、步进 Overlay Pose 与已烘焙 Idle delta。旧孤立 fixture 未覆盖真实叶；加载真实角色后复现相同 pose mismatch，退出 101。观察器改读现有准备解码，时间、姿态阈值和图本身保持原逻辑。
       - 22:33 定向通过。真实角色回归覆盖 Default evaluator、Idle additive 及 Layering evaluator；旧读取的红灯和恢复报告均已保存。开始同 `target_game/play` 正式预构建。
@@ -321,7 +321,7 @@
       - 23:16 正式诊断 Gate 后。主线程时钟在两套渲染条件的 Control Rig 完整动作中均无腿部速率告警及图错误。原生故意交替 24/3.081 ms 也能分别得到 41.740／46.888 m/s 的左右足速。真实长短步继续接受原始速率观测。待临时探针移除后复验正式 Gate 和时钟用例。
       - 23:37 第一轮复盘。开始 22:42，预估结束 23:17，实际结束 23:37，偏差 +20 分钟。源 socket 和时钟差异闭合，常规动作的正式诊断速率通过；融合回归仍因共用图预算和贴花渲染诊断尚未封存。恢复源码字节后回跑定向时钟及 Control Rig。开始 23:37，预估结束 00:30，第 2 轮。
       - 00:35 完成。第 2 轮开始 23:37，预估结束 00:30，实际结束 00:35，偏差 +5 分钟，未拆分。Automatic 主线程时钟复验、脚部及其它定向测试通过。无临时探针的正式 Control Rig 在原 40 m/s 门槛下骨骼速率和姿态故障均为 0，功能全覆盖。共用求值预算留 .04d。 [原生复算](docs/audit/bf150/scene-regressions/rig-socket-clock-comparison.json) [正式报告](docs/audit/bf150/scene-regressions/combined-control-rig/report.json.gz)
-    - [ ] BF150.04d — Control Rig 完整图求值预算。开始 2026-11-16 22:51 +08:00，预估结束 23:26 +08:00，第 1 轮。先在同 target 的真实 Control Rig 场景取热栈，依据 BF150.02 计时与当前求值 p95 区分 Rig 和其他图节点。源行为闭合后复验。Gate 为热点消融和原 25／75／4 ms 与物理步预算的正式完整回归。
+    - [x] BF150.04d — Control Rig 完整图求值预算。开始 2026-11-16 22:51 +08:00，预估结束 23:26 +08:00，第 1 轮。先在同 target 的真实 Control Rig 场景取热栈，依据 BF150.02 计时与当前求值 p95 区分 Rig 和其他图节点。源行为闭合后复验。Gate 为热点消融和原 25／75／4 ms 与物理步预算的正式完整回归。
       - 23:05 热栈与首次消融。正式采样中 Rig 内部 p95 0.210 ms，堆栈经缓存姿态、分层和同步组。UE 更新、读取 CachedPose 分开；试改移除预热阶段被丢弃的 pose 副本后，Control Rig／Default Overlay 的完整 p95 仍为 5.275／4.929 ms。已按源码字节撤销。下一次并列采集正式计时边界与实际求值系统，确认额外耗时归属。
       - 23:19 source/static。系统内部计时与原计时 p95 相差小于 0.14 ms，关逐节点 info 扫描后仍为 5.175／4.876 ms。`FAnimInstanceProxy::UpdateAnimation` 先收更新和同步 tick；序列骨架、BlendSpace 骨架及 Control Rig 解算在 Evaluate。目标同步预演对复制 arena 完整解码和解 Rig，再走真实求值。保留原同步预演时间、曲线、tick 记录；试在预演略过临时骨架计算，正式输出路径照常求值。
       - 23:25 消融后。预演候选保持动作和图输出通过，三场完整 p95 5.312／5.011／4.439 ms。收益未能覆盖原预算，已撤销候选。控制项继续用相同正式入口，试比较目标包的编译布局和 pose 容器的已知容量，原玩法、时钟和数据保持一致。
@@ -330,6 +330,11 @@
       - 23:57 诊断 Gate 后。marker record 候选两次 Control Rig p95 5.374／5.605 ms，未证实收益，已撤销。新 Idle 归类消除了 Overlay 运动链告警，复验仍受图 p95 波动影响。恢复所有临时采样的源码字节，保留已验证的数据复用，先尝试把回退属性解析延迟到本帧未写入时，并比较同 `play` 入口的 ThinLTO 编译。原预算与采集保持在正式脚本。
       - 2026-11-17 00:17 完整渲染 Gate 后。ThinLTO 首次构建 17 分 26 秒，Control Rig／Overlay 的图 p95 为 5.339／4.353 ms，姿态链继续通过，编译布局已撤销。针对实际执行同步预演的节点分别量两条 pass，确认本地 UE 更新／求值职责分界的耗时。
       - 00:31 source/static。实际采样的角色边界是 GraphContextId(1)，预演中位数 1.637 ms，组解析后的正式 pass 约 1.323 ms。只在隔离的同步预演跳过序列、BlendSpace、分层、加性和 Rig 的骨架求值，源权重、曲线和 tick 照常运行。该对照把预演中位数降到 1.397 ms。继续移除预演的曲线输入重复查找和整组混合状态复制。271 项定向 Rust、两套 validator 自测与 98 个原生 socket 复算通过。临时采样移除后重编正式入口。
+      - 00:46 source/static 与 runtime 复验。直接使用受权重驱动的已知 pose pin、复用分层已读姿态和曲线名借用后，正式 Overlay 通过，Control Rig 三次图 p95 为 4.064／4.789／4.696 ms，速率与图错误始终为零。进一步定位状态机提交输出和曲线上下文时无用的两份整状态复制。合并提交，已发布的状态机和惯性化历史采用共享快照，惯性化重定位仍使用独立可写值。重编后复跑同一真实入口。
+      - 01:00 第二轮复盘。开始 23:46，预估结束 00:39，实际结束 01:00，偏差 +21 分钟。状态机和惯性化的共享使最近两次 Control Rig p95 为 4.192／4.272 ms，关闭图日志仍波动超限。恢复地砖的稳态视锥剔除后仍为 4.256／4.248 ms。UE `FAnimInstanceProxy` 按原生机器与状态索引读权重，目标热路径反复格式化 UUID 并分配状态名。第 3 轮的 80 分钟窗口拆为类型化状态权重和源等价 Gate（开始 01:00，预估 01:36）及最终完整 Gate（预估开始 01:36，结束 02:20），前项通过后立即进入后项。
+      - 01:05 source／定向 runtime。类型化权重后的正式 Control Rig 两次为 3.966／4.325 ms，全部动作与速率均通过，预算仍缺稳定性。fresh UE `FAnimNode_StateMachine::FindValidTransition` 通过已烘焙状态的出口索引读取转换；目标每个条件扫描整个转换集合并格式化 ID。使用已验证的转换 ID 查 `Start` 或 `Immediate`，保留原条件顺序、源状态和非法输入判定。视锥消融没有达成图预算，且 Overlay 仍出现墙钟峰值，已恢复通过 Footprint 的原渲染源码。
+      - 01:27 完整 Gate。序列和 BlendSpace 的已发布上下文改为共享快照后，同一无探针二进制的 Control Rig 两次 p95 3.815／3.971 ms，零速率、姿态和图故障。Overlay、Footprint、startup、普通时钟布娃娃、6.985542 ms 布娃娃及起身完整通过。随后消融播放器派发合并和自动转换的延迟读取，Control Rig 两次 3.738／4.231 ms，后者超原预算。01:32 按源码字节恢复，先跑定向测试，再在同 target 重编检查身份和普通时钟反例。
+      - 2026-11-17 01:38 完成。第 3 轮源等价和定向阶段从 01:00 至 01:34，预估 01:36，偏差 −2 分钟，417 项测试通过。最终阶段 01:34 提前开始，预估 02:20、实际结束 01:38，偏差 −42 分钟。恢复构建的 SHA-256 与已通过八场的 `play` 二进制逐字节一致。恢复后的 startup 和两次 Control Rig 完整通过，Control Rig p95 为 3.882／3.726 ms，速率告警 0。各场原 25／75／4 ms、40 m/s 及物理步门槛记录已随 Gate 校验。 [报告](docs/audit/bf150/scene-regressions/README.md) [完整结果](docs/audit/bf150/scene-regressions/runtime.json)
 
 ## 背景与基础事实（已核实，持续有效）
 

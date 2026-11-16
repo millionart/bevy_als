@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::{
@@ -156,32 +158,21 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
                 if let Some(value) = self.data_values.get(&pin_id) {
                     return Ok(value.clone());
                 }
-                self.curve_values
-                    .get(&pin_id)
-                    .copied()
-                    .map(DataValue::F32)
-                    .ok_or_else(|| {
-                        GraphError::MissingGraphInputData(GraphInputPin::Passthrough(
-                            pin_id.clone(),
-                        ))
-                    })
-                    .or_else(|_| {
-                        let parent_pin = self
-                            .input_aliases
-                            .get(&pin_id)
-                            .cloned()
-                            .unwrap_or(pin_id.clone());
-                        let parent = self.parent_ctx.clone().with_state_key(ctx.state_key);
-                        let value = parent.data_back(parent_pin.clone())?;
-                        if matches!(value, DataValue::Pose(_)) {
-                            write_linked_input_context(
-                                &mut ctx,
-                                GraphInputPin::Passthrough(pin_id.clone()),
-                                pose_input_context_state(&parent, &parent_pin).unwrap_or_default(),
-                            )?;
-                        }
-                        Ok(value)
-                    })
+                if let Some(&value) = self.curve_values.get(&pin_id) {
+                    return Ok(DataValue::F32(value));
+                }
+                let parent_pin = self.input_aliases.get(&pin_id).unwrap_or(&pin_id);
+                let parent = self.parent_ctx.clone().with_state_key(ctx.state_key);
+                let value = parent.data_back(parent_pin.clone())?;
+                if matches!(value, DataValue::Pose(_)) {
+                    let context = pose_input_context_state(&parent, parent_pin).unwrap_or_default();
+                    write_linked_input_context(
+                        &mut ctx,
+                        GraphInputPin::Passthrough(pin_id),
+                        context,
+                    )?;
+                }
+                Ok(value)
             }
             other => Err(GraphError::InvalidGraphInputPinType(other)),
         }
@@ -307,21 +298,19 @@ pub fn pose_input_context_state(
     ctx: &NodeContext,
     pose_input: &str,
 ) -> Option<AnimationContextState> {
-    match ctx
+    pose_input_context(ctx, pose_input).map(Cow::into_owned)
+}
+
+pub(crate) fn pose_input_context<'a>(
+    ctx: &'a NodeContext,
+    pose_input: &str,
+) -> Option<Cow<'a, AnimationContextState>> {
+    let source = ctx
         .graph_context
         .graph
         .edges_inverted
-        .get(&TargetPin::NodeData(ctx.node_id, pose_input.to_owned()))?
-    {
-        SourcePin::NodeData(node, _) => node_context_state(
-            ctx.graph_context.node_states(),
-            ctx.graph_context.state_key,
-            *node,
-        )
-        .cloned(),
-        SourcePin::InputData(pin) => Some(linked_input_context(&ctx.graph_context, pin)),
-        _ => None,
-    }
+        .get(&TargetPin::NodeData(ctx.node_id, pose_input.to_owned()))?;
+    source_context(&ctx.graph_context, source)
 }
 
 pub fn node_context_state(
@@ -374,7 +363,7 @@ pub fn node_context_state(
     states
         .get::<InterruptibleFsmState>(node, key)
         .ok()
-        .map(|state| &state.context)
+        .map(|state| state.context.as_ref())
 }
 
 pub fn graph_output_context_state(
@@ -382,14 +371,29 @@ pub fn graph_output_context_state(
     ctx: &GraphContext,
     output: &str,
 ) -> Option<AnimationContextState> {
+    graph_output_context(graph, ctx, output).map(Cow::into_owned)
+}
+
+pub(crate) fn graph_output_context<'a>(
+    graph: &AnimationGraph,
+    ctx: &'a GraphContext,
+    output: &str,
+) -> Option<Cow<'a, AnimationContextState>> {
     let source = graph
         .edges_inverted
         .get(&TargetPin::OutputData(output.to_owned()))?;
+    source_context(ctx, source)
+}
+
+fn source_context<'a>(
+    ctx: &'a GraphContext,
+    source: &SourcePin,
+) -> Option<Cow<'a, AnimationContextState>> {
     match source {
         SourcePin::NodeData(node, _) => {
-            node_context_state(ctx.node_states(), ctx.state_key, *node).cloned()
+            node_context_state(ctx.node_states(), ctx.state_key, *node).map(Cow::Borrowed)
         }
-        SourcePin::InputData(pin) => Some(linked_input_context(ctx, pin)),
+        SourcePin::InputData(pin) => Some(Cow::Owned(linked_input_context(ctx, pin))),
         _ => None,
     }
 }
@@ -564,14 +568,15 @@ pub fn select_context_pose_output(
 fn source_curve_value(
     ctx: &NodeContext,
     source_node: NodeId,
+    source: Option<&AnimationContextState>,
     curve_name: &str,
     default: Option<f32>,
 ) -> Result<f32, GraphError> {
     let state_key = ctx.graph_context.state_key;
-    if let Some(state) = node_context_state(ctx.graph_context.node_states(), state_key, source_node)
+    if let Some(state) = source
         && let Some(value) = state
             .curves
-            .get(&crate::extensions::SourceCurveName::from(curve_name))
+            .get(&crate::extensions::als_curves::SourceCurveKey(curve_name))
     {
         return Ok(*value);
     }
@@ -596,6 +601,11 @@ pub fn resolve_context_curves(
     for input in context_inputs {
         ctx.data_back(input.pose_input.clone())?;
         let source_node = source_node_for_pose_input(ctx, &input.pose_input)?;
+        let source = node_context_state(
+            ctx.graph_context.node_states(),
+            ctx.graph_context.state_key,
+            source_node,
+        );
         for (child_input, data_spec) in child_graph.io_spec.iter_input_data() {
             let GraphInputPin::Passthrough(child_input) = child_input else {
                 continue;
@@ -603,11 +613,12 @@ pub fn resolve_context_curves(
             if *data_spec != DataSpec::F32 || !child_input.starts_with(&input.curve_prefix) {
                 continue;
             }
-            let curve_name = child_input[input.curve_prefix.len()..].to_owned();
+            let curve_name = &child_input[input.curve_prefix.len()..];
             let value = source_curve_value(
                 ctx,
                 source_node.clone(),
-                &curve_name,
+                source,
+                curve_name,
                 input.missing_curve_value,
             )?;
             if curves.insert(child_input.clone(), value).is_some() {
@@ -627,11 +638,15 @@ pub fn resolve_named_context_curves(
     curve_names: &[String],
     default: Option<f32>,
 ) -> Result<HashMap<String, f32>, GraphError> {
-    ctx.data_back(pose_input.to_owned())?;
     let source_node = source_node_for_pose_input(ctx, pose_input)?;
-    let mut curves = HashMap::default();
+    let source = node_context_state(
+        ctx.graph_context.node_states(),
+        ctx.graph_context.state_key,
+        source_node,
+    );
+    let mut curves = HashMap::with_capacity(curve_names.len());
     for curve_name in curve_names {
-        let value = source_curve_value(ctx, source_node.clone(), curve_name, default)?;
+        let value = source_curve_value(ctx, source_node, source, curve_name, default)?;
         curves.insert(curve_name.clone(), value);
     }
     Ok(curves)

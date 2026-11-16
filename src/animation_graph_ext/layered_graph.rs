@@ -11,9 +11,11 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+#[cfg(test)]
+use crate::extensions::animation_context::graph_output_context_state;
 use crate::extensions::animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextIoEnv,
-    AnimationContextState, capture_context_curve, context_time_update, graph_output_context_state,
+    AnimationContextState, capture_context_curve, context_time_update, graph_output_context,
     is_context_curve_input, merge_linked_input_context, merge_missing_context_curves,
     pose_input_context_state, resolve_context_curves, select_context_pose_output,
 };
@@ -460,10 +462,10 @@ impl NodeLike for LayeredGraphNode {
         }
         if self.capture_context {
             if let Some(output) = pose_output
-                && let Some(output_context) = graph_output_context_state(graph, &sub_ctx, &output)
+                && let Some(output_context) = graph_output_context(graph, &sub_ctx, &output)
             {
                 merge_missing_context_curves(&mut context_state, &output_context);
-                context_state.source_pose = output_context.source_pose;
+                context_state.source_pose = output_context.source_pose.clone();
             }
             self.merge_input_pose_contexts(graph, &ctx, &mut context_state);
             self.capture_global_curves(&ctx, &mut context_state)?;

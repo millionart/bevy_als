@@ -19,14 +19,16 @@ pub(crate) struct SourcePose {
 
 impl SourcePose {
     pub(crate) fn project_into(&self, pose: &mut Pose) {
+        let additional = self.bones.len().saturating_sub(pose.paths.len());
+        pose.bones.reserve(additional);
+        pose.paths.reserve(additional);
         for &(id, source) in &self.bones {
-            if let Some(index) = pose.paths.get(&id).copied() {
-                project_bone_transform(&mut pose.bones[index], source, self.length_scale);
-            } else {
-                let mut bone = BonePose::default();
-                project_bone_transform(&mut bone, source, self.length_scale);
-                pose.add_bone(bone, id);
-            }
+            let index = *pose.paths.entry(id).or_insert_with(|| {
+                let index = pose.bones.len();
+                pose.bones.push(BonePose::default());
+                index
+            });
+            project_bone_transform(&mut pose.bones[index], source, self.length_scale);
         }
     }
 

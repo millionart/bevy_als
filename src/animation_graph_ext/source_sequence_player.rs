@@ -55,7 +55,7 @@ pub(crate) struct SourceSequencePlayerState {
     previous_position: f32,
     has_previous_position: bool,
     delta_seconds: f32,
-    pub(crate) context: AnimationContextState,
+    pub(crate) context: Arc<AnimationContextState>,
     play_rate_state: SourceInputScaleBiasClampState,
 }
 
@@ -251,6 +251,16 @@ pub(crate) fn sample_source_pose(
     mesh_space: bool,
     root_lock: Option<SourceRootLock>,
 ) -> Result<(Pose, Option<Arc<SourcePose>>), GraphError> {
+    if crate::extensions::sync_group_phase::source_sync_preview(ctx) {
+        return Ok((
+            Pose {
+                timestamp: time,
+                skeleton: clip.skeleton.clone(),
+                ..Default::default()
+            },
+            None,
+        ));
+    }
     let skeletons = &ctx.graph_context.resources.skeleton_assets;
     let (target, baked_additive, mut source_pose) = match sample_prepared_source_pose(clip, time) {
         Some((source, kind)) => {
@@ -798,7 +808,7 @@ impl NodeLike for SourceSequencePlayerNode {
             looping: loop_animation,
             weight: 1.0,
         };
-        state.context = AnimationContextState {
+        let mut context = AnimationContextState {
             curves: sample_source_curves(Some(clip), &self.curves, position),
             relevant_asset: (!self.ignore_for_relevancy_test).then_some(clock.clone()),
             curves_are_authoritative: true,
@@ -811,8 +821,9 @@ impl NodeLike for SourceSequencePlayerNode {
                 clock.previous_position = start_position;
             }
             clock.has_previous_position = true;
-            state.context.asset_samples.push(
-                crate::extensions::animation_context::SourceAssetSample {
+            context
+                .asset_samples
+                .push(crate::extensions::animation_context::SourceAssetSample {
                     identity: format!("{:?}:{:?}", identity.0, identity.1),
                     notify_instance_id,
                     clip: self.clip.clone(),
@@ -825,8 +836,7 @@ impl NodeLike for SourceSequencePlayerNode {
                     montage: false,
                     interrupted: false,
                     slot_key: String::new(),
-                },
-            );
+                });
         }
         let (pose, source_pose) = sample_source_pose(
             &ctx,
@@ -837,9 +847,8 @@ impl NodeLike for SourceSequencePlayerNode {
             self.additive_mesh_space,
             self.root_lock,
         )?;
-        ctx.state_mut::<SourceSequencePlayerState>()?
-            .context
-            .source_pose = source_pose;
+        context.source_pose = source_pose;
+        ctx.state_mut::<SourceSequencePlayerState>()?.context = Arc::new(context);
         ctx.set_time(position);
         ctx.set_data_fwd("Pose", pose);
         Ok(())
