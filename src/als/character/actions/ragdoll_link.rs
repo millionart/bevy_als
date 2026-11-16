@@ -133,8 +133,8 @@ pub(crate) struct AlsRagdollDetachedPlayer {
 }
 
 #[derive(Component, Debug, Clone, Copy)]
-struct AlsRagdollInitialSpeedLimit {
-    remaining_updates: u8,
+pub(crate) struct AlsRagdollInitialSpeedLimit {
+    pub(crate) remaining_updates: u8,
     speed: f32,
 }
 

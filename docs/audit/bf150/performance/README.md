@@ -29,7 +29,7 @@ Playground 在 macOS arm64 使用 Bevy 的 CPU 实例缓冲构建。原渲染质
 
 ### 高帧率下的落地护栏
 
-首次恢复 CPU 构建时，两场性能预算均通过。布娃娃在 6.985542 ms 的落地动画步暴露出两个观察问题。前臂速度来自物理由关到开的同一帧，Rig 输入从重落地叶切到轻落地叶。原生 6.985542/6 ms 各记录了这个边界，来源是 B_Als_Character 实际 Rig 输入和发布骨骼。原生场景是一倍体型，下列数值把骨骼分量位移按场景两倍体型换算。6.985542 ms 的两侧前臂在 Rig 输入处为 36.11/37.44 m/s，6 ms 为 41.72/43.46 m/s，两场发布的前臂均在 29 m/s 内。系统盘写入限制阻止本次重新编译两倍体型探针。 [原生请求](diagnostic/short-step-native.request.json) [原生响应](diagnostic/short-step-native.native.json.gz)
+首次恢复 CPU 构建时，两场性能预算均通过。布娃娃在 6.985542 ms 的落地动画步暴露出两个观察问题。前臂速度来自物理由关到开的同一帧，Rig 输入从重落地叶切到轻落地叶。当时原生 6.985542/6 ms 使用一倍体型读取实际 Rig 输入与发布骨骼。按两倍网格几何换算的两侧前臂速度为 36.11/37.44 m/s 和 41.72/43.46 m/s。随后已补采实际两倍体型、匹配释放高度的原生报告。 [早期一倍体型报告](diagnostic/short-step-native.native.json.gz) [两倍体型原生补证](scaled-short-step/README.md)
 
 UE 的 `AlsCharacter_Actions.cpp` 使用 `KeepWorldTransform` 分离 mesh，胶囊随后独立跟随 pelvis。原失败目标报告的相邻两帧中，分别以胶囊和分离网格为原点计算最终左脚速度为 40.0175 和 13.9829 m/s。最终姿态观察改用实际动画网格的原点。前臂沿用双手已有的源选择器、读回状态和 pre-rig 条件，最终姿态仍接受原 40 m/s 检查。Rust 与 Python 先保留红灯，修复后 115 项相关定向和验证器自测均通过。 [首次恢复报告](after/ragdoll/report.json.gz) [源与目标两帧重算](diagnostic/short-step-comparison.json) [重算脚本](diagnostic/replay_source_motion.py) [定向回归](diagnostic/short-step-tests.stdout.log.gz)
 
@@ -45,6 +45,18 @@ UE 的 `AlsCharacter_Actions.cpp` 使用 `KeepWorldTransform` 分离 mesh，胶�
 两场使用同一正式二进制和原预算通过完整验收。每帧最多一次物理步，图错误与动作姿态故障均为 0，SSAO/TAA 和 decal 回执通过。对照的原 GPU 路径使用同一动作计时边界。动作各自仍记录约 2.47/2.51 秒的加载帧。无驱动启动墙钟 p95 为 11.80 ms，最大 2504.79 ms，因此启动的完整性能验证仍失败。 [两场与独立启动](accepted/) [数值和身份](results.json)
 
 原 6.985542 ms 动画步长的布娃娃回归也通过完整验证，墙钟 p95 10.59 ms，最大 36.26 ms，图求值 p95 3.57 ms。报告保留两侧手和右前臂的原生 pre-rig 观察，图和姿态故障均为 0。 [短步长回归](accepted/short-step/ragdoll/report.json.gz)
+
+### 两倍体型原生补证与修复后验收
+
+实际两倍体型、匹配释放高度的 UE 在第 195 个物理步入场。Rig 输入前臂速度为 40.52／41.91 m/s，确认跨过现有速度观测阈值。UE 对已有约束保留创建时的关节锚点，目标此前随父层世界比例再次缩放。修复后左脚父侧锚点由 −0.803934 m 恢复到原生的 −0.401967 m。物理发布的双脚首步，UE 为 0.602／0.578 m，目标为 0.637／0.603 m。 [原生对照与消融](scaled-short-step/README.md)
+
+| 修复后正式场景 | 墙钟 p95 | 最大帧 | 图求值 p95 |
+|---|---:|---:|---:|
+| 布娃娃 6.985542 ms | 10.41 ms | 16.15 ms | 3.74 ms |
+| 普通时钟布娃娃 | 10.93 ms | 15.78 ms | 3.45 ms |
+| 普通时钟起身 | 10.55 ms | 16.02 ms | 3.54 ms |
+
+三场用原预算通过完整验证，物理步最大均为 1，图错误和故障均为 0。短步长报告保留 35 条由实际动态刚体回读解释的入场观测。当前 Metal 缓存状态的独立启动也通过，最大帧 23.29 ms。上轮记录的 2.50 秒冷编译样本仍可复核。 [正式验收证据](scaled-short-step/acceptance.json)
 
 ## 复跑
 

@@ -13229,7 +13229,7 @@ fn observe_manual_integration(
                 let expected_y = fixture.locomotion_start.y - 0.92
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
-                let (colliders_scaled, joint_scaled) =
+                let (colliders_scaled, joint_frames_preserved) =
                     player
                         .get_spawned_ragdoll()
                         .map_or((false, false), |spawned| {
@@ -13261,14 +13261,12 @@ fn observe_manual_integration(
                                         )
                                     })
                                 });
-                            let joint_scaled = ragdoll_probe
+                            let joint_frames_preserved = ragdoll_probe
                                 .profiles
                                 .get(instance.player_entity())
                                 .ok()
                                 .and_then(|(_, profile)| {
-                                    profile.joints.iter().find(|joint| {
-                                        joint.definition.parent_frame.translation.length() > 0.01
-                                    })
+                                    profile.joints.iter().find(|joint| joint.label == "foot_l")
                                 })
                                 .is_some_and(|source| {
                                     spawned.joints.values().any(|entity| {
@@ -13276,30 +13274,28 @@ fn observe_manual_integration(
                                             |(joint, label)| {
                                                 label.0 == source.label
                                                     && joint.parent_frame.translation.abs_diff_eq(
-                                                        source.definition.parent_frame.translation
-                                                            * 2.0,
+                                                        source.definition.parent_frame.translation,
                                                         1e-4,
                                                     )
                                                     && joint.child_frame.translation.abs_diff_eq(
-                                                        source.definition.child_frame.translation
-                                                            * 2.0,
+                                                        source.definition.child_frame.translation,
                                                         1e-4,
                                                     )
                                             },
                                         )
                                     })
                                 });
-                            (colliders_scaled, joint_scaled)
+                            (colliders_scaled, joint_frames_preserved)
                         });
                 let scaled = transform.scale == Vec3::splat(2.0)
                     && (follow.target.y - expected_y).abs() < 0.12
                     && (transform.translation.y - follow.target.y).abs() < 0.02
                     && colliders_scaled
-                    && joint_scaled;
+                    && joint_frames_preserved;
                 state.coverage.ragdoll_scaled |= scaled;
                 if state.ragdoll_grounded_at.is_none() {
                     info!(
-                        "[MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y={:.3} expected_y={expected_y:.3} actor_y={:.3} scale={:?} colliders_scaled={colliders_scaled} joint_scaled={joint_scaled} matched={scaled}",
+                        "[MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y={:.3} expected_y={expected_y:.3} actor_y={:.3} scale={:?} colliders_scaled={colliders_scaled} joint_frames_preserved={joint_frames_preserved} matched={scaled}",
                         follow.target.y, transform.translation.y, transform.scale,
                     );
                 }

@@ -514,6 +514,8 @@ impl RagdollCollisionMember {
 pub struct RagdollPhysicsProfileApplied {
     pub spawned_root: Option<Entity>,
     pub scale: Vec3,
+    pub joint_scale: Vec3,
+    pub mesh_relative_scale: Vec3,
     pub live_scale_applied: bool,
     pub body_count: u32,
     pub collider_count: u32,
@@ -899,11 +901,34 @@ fn apply_ragdoll_physics_profiles(
             applied.spawned_root == Some(spawned.root)
                 && (applied.live_scale_applied || scale_factor != Vec3::ONE)
         });
-        let next = apply_profile_to_spawned_ragdoll(
+        let relative_scale = transforms
+            .get(player_entity)
+            .ok()
+            .map(|transform| transform.scale)
+            .filter(|scale| {
+                scale.is_finite()
+                    && scale.min_element() > 0.0
+                    && scale.max_element() - scale.min_element() <= 1e-4
+            });
+        let (joint_scale, mesh_relative_scale) = applied
+            .as_deref()
+            .filter(|previous| previous.spawned_root == Some(spawned.root))
+            .map_or((scale, relative_scale.unwrap_or(Vec3::ONE)), |previous| {
+                if let Some(relative) = relative_scale.filter(|_| scale_factor != Vec3::ONE) {
+                    (
+                        previous.joint_scale * (relative / previous.mesh_relative_scale),
+                        relative,
+                    )
+                } else {
+                    (previous.joint_scale, previous.mesh_relative_scale)
+                }
+            });
+        let mut next = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
             &profile,
             scale,
+            joint_scale,
             scale_factor,
             applied.is_none() || old_root.is_some() || profile.is_changed(),
             !live_scale_applied,
@@ -916,6 +941,7 @@ fn apply_ragdoll_physics_profiles(
             &transforms,
             &mut colliders,
         );
+        next.mesh_relative_scale = mesh_relative_scale;
         if profile.is_changed() && applied.is_some() && old_root.is_none() {
             let collider_entities = spawned.colliders.values().copied().collect::<Vec<_>>();
             commands.queue(move |world: &mut World| {
@@ -927,6 +953,8 @@ fn apply_ragdoll_physics_profiles(
                 *applied = next;
             } else {
                 applied.scale = scale;
+                applied.joint_scale = next.joint_scale;
+                applied.mesh_relative_scale = next.mesh_relative_scale;
                 applied.live_scale_applied = next.live_scale_applied;
                 applied.body_count = next.body_count;
                 applied.collider_count = next.collider_count;
@@ -1014,6 +1042,7 @@ fn apply_profile_to_spawned_ragdoll(
     spawned: &SpawnedRagdoll,
     profile: &RagdollPhysicsProfile,
     scale: Vec3,
+    joint_scale: Vec3,
     scale_factor: Vec3,
     recalculate_mass: bool,
     initial_shape: bool,
@@ -1029,6 +1058,7 @@ fn apply_profile_to_spawned_ragdoll(
     let mut applied = RagdollPhysicsProfileApplied {
         spawned_root: Some(spawned.root),
         scale,
+        joint_scale,
         live_scale_applied: !initial_shape,
         collision_disabled_pair_count: profile.collision_disabled_pairs.len() as u32,
         ..default()
@@ -1300,8 +1330,8 @@ fn apply_profile_to_spawned_ragdoll(
         let mut joint = joint_profile.definition.clone();
         joint.parent = parent;
         joint.child = child;
-        joint.parent_frame.translation *= bevy::math::Vec3A::from(scale);
-        joint.child_frame.translation *= bevy::math::Vec3A::from(scale);
+        joint.parent_frame.translation *= bevy::math::Vec3A::from(joint_scale);
+        joint.child_frame.translation *= bevy::math::Vec3A::from(joint_scale);
         commands
             .entity(*joint_entity)
             .remove::<(SphericalJoint, RevoluteJoint, JointDamping)>()
@@ -2640,6 +2670,7 @@ mod tests {
                             &profile,
                             Vec3::splat(scale),
                             Vec3::splat(scale),
+                            Vec3::splat(scale),
                             true,
                             true,
                             &body_labels,
@@ -3776,6 +3807,7 @@ mod tests {
                             &profile,
                             Vec3::ONE,
                             Vec3::ONE,
+                            Vec3::ONE,
                             true,
                             true,
                             &body_labels,
@@ -4262,6 +4294,7 @@ mod tests {
                 &profile,
                 Vec3::ONE,
                 Vec3::ONE,
+                Vec3::ONE,
                 true,
                 true,
                 &body_labels,
@@ -4538,6 +4571,7 @@ mod tests {
                         &profile,
                         Vec3::ONE,
                         Vec3::ONE,
+                        Vec3::ONE,
                         true,
                         true,
                         &body_labels,
@@ -4616,6 +4650,7 @@ mod tests {
                         &mut commands,
                         &again,
                         &driven_profile,
+                        Vec3::ONE,
                         Vec3::ONE,
                         Vec3::ONE,
                         true,
@@ -4735,6 +4770,7 @@ mod tests {
                         &mass_profile,
                         Vec3::ONE,
                         Vec3::ONE,
+                        Vec3::ONE,
                         true,
                         false,
                         &body_labels,
@@ -4844,6 +4880,7 @@ mod tests {
                         &mut commands,
                         &mass_again_scaled,
                         &mass_profile_scaled,
+                        Vec3::splat(2.0),
                         Vec3::splat(2.0),
                         Vec3::splat(2.0),
                         true,
@@ -7158,6 +7195,73 @@ mod tests {
     }
 
     #[test]
+    fn attached_parent_scale_keeps_live_joint_frames_until_mesh_scale_changes() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, _) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        let spawned = app
+            .world()
+            .get::<AnimationGraphPlayer>(player)
+            .unwrap()
+            .get_spawned_ragdoll()
+            .unwrap();
+        let root = spawned.root;
+        let joint = *spawned
+            .joints
+            .values()
+            .find(|entity| app.world().get::<JointLabel>(**entity).unwrap().0 == "foot_l")
+            .unwrap();
+        let original_anchor = app
+            .world()
+            .get::<SourcePhysicsJoint>(joint)
+            .unwrap()
+            .parent_frame
+            .translation;
+        assert!(original_anchor.length() > 0.3);
+
+        app.world_mut()
+            .get_mut::<Transform>(character)
+            .unwrap()
+            .scale = Vec3::splat(2.0);
+        app.update();
+        let applied = app
+            .world()
+            .get::<RagdollPhysicsProfileApplied>(player)
+            .unwrap();
+        assert_eq!(applied.spawned_root, Some(root));
+        assert!(applied.scale.abs_diff_eq(Vec3::splat(2.0), 1e-5));
+        assert_eq!(
+            app.world()
+                .get::<SourcePhysicsJoint>(joint)
+                .unwrap()
+                .parent_frame
+                .translation,
+            original_anchor,
+            "Parent scaling changed the existing joint connector"
+        );
+
+        for relative_scale in [1.5, 0.75] {
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale =
+                Vec3::splat(relative_scale);
+            app.update();
+            assert!(
+                app.world()
+                    .get::<RagdollPhysicsProfileApplied>(player)
+                    .unwrap()
+                    .scale
+                    .abs_diff_eq(Vec3::splat(2.0 * relative_scale), 1e-5)
+            );
+            assert!(
+                app.world()
+                    .get::<SourcePhysicsJoint>(joint)
+                    .unwrap()
+                    .parent_frame
+                    .translation
+                    .abs_diff_eq(original_anchor * relative_scale, 1e-5)
+            );
+        }
+    }
+
+    #[test]
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
@@ -7275,6 +7379,7 @@ mod tests {
                         &profile,
                         Vec3::ONE,
                         Vec3::ONE,
+                        Vec3::ONE,
                         true,
                         true,
                         &body_labels,
@@ -7320,6 +7425,7 @@ mod tests {
                             &mut commands,
                             &current,
                             &profile,
+                            Vec3::splat(scale),
                             Vec3::splat(scale),
                             Vec3::splat(scale_factor),
                             false,

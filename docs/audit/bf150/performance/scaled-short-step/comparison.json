@@ -1,0 +1,291 @@
+{
+  "source": {
+    "entry_step": 195,
+    "step_seconds": 0.006985541898757219,
+    "entry_actor_y_m": 1.9687775800506924,
+    "incoming_vertical_velocity_m_s": -13.294464209200815,
+    "mesh_y_m": -0.028296870401132424,
+    "root_world_step_m": 0.0,
+    "root_body_velocity_m_s": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "rig_input_speed_m_s": {
+      "root": 0.0,
+      "pelvis": 1.153570764350425,
+      "lowerarm_l": 40.51527862153957,
+      "lowerarm_r": 41.906847911281616,
+      "hand_l": 79.43734809742821,
+      "hand_r": 76.91100027749032,
+      "foot_l": 8.31685836917444,
+      "foot_r": 4.849024353617895
+    },
+    "published_speed_m_s": {
+      "root": 0.0,
+      "pelvis": 15.678700621473785,
+      "lowerarm_l": 79.61719755572511,
+      "lowerarm_r": 79.77519881521772,
+      "hand_l": 68.75633024280212,
+      "hand_r": 68.0782691017415,
+      "foot_l": 86.24696778771361,
+      "foot_r": 82.76622417788799
+    },
+    "physics_step_m": {
+      "root": 0.0,
+      "pelvis": 0.10952422010937615,
+      "lowerarm_l": 0.5561691870473154,
+      "lowerarm_r": 0.5572729715408069,
+      "hand_l": 0.48030001144096696,
+      "hand_r": 0.47556356809709993,
+      "foot_l": 0.6024817378389847,
+      "foot_r": 0.5781669318162058
+    },
+    "floor_physics_enabled": true,
+    "constraint_count": 20,
+    "joint_creation_scales": [
+      1
+    ],
+    "left_foot_parent_anchor_m": [
+      -0.40196691024499664,
+      1.3245234211207244e-08,
+      -2.522847969249207e-08
+    ],
+    "self_contacts_suppressed": false
+  },
+  "source_controls": {
+    "observed_short_step": {
+      "entry_step": 195,
+      "step_seconds": 0.006985541898757219,
+      "entry_actor_y_m": 1.9726706339100195,
+      "incoming_vertical_velocity_m_s": -13.294464209200815,
+      "mesh_y_m": -0.024296565225350265,
+      "root_world_step_m": 0.0,
+      "root_body_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physics_step_m": {
+        "root": 0.0,
+        "pelvis": 0.10951266837092351,
+        "lowerarm_l": 0.5560604284598584,
+        "lowerarm_r": 0.5571260723392116,
+        "hand_l": 0.4802787966990819,
+        "hand_r": 0.47553741574223374,
+        "foot_l": 0.6023660621200051,
+        "foot_r": 0.5780724770298767
+      },
+      "floor_physics_enabled": true,
+      "constraint_count": 20,
+      "joint_creation_scales": [
+        1
+      ],
+      "left_foot_parent_anchor_m": [
+        -0.40196691024499664,
+        1.3245234211207244e-08,
+        -2.522847969249207e-08
+      ],
+      "self_contacts_suppressed": false
+    },
+    "observed_short_step_no_floor_or_self_contacts_after_activation": {
+      "entry_step": 195,
+      "step_seconds": 0.006985541898757219,
+      "entry_actor_y_m": 1.9726706339100195,
+      "incoming_vertical_velocity_m_s": -13.294464209200815,
+      "mesh_y_m": -0.024296565225350265,
+      "root_world_step_m": 0.0,
+      "root_body_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physics_step_m": {
+        "root": 0.0,
+        "pelvis": 0.10920426054786311,
+        "lowerarm_l": 0.5555455808763204,
+        "lowerarm_r": 0.5567641804035408,
+        "hand_l": 0.48003114971211125,
+        "hand_r": 0.47524238072533387,
+        "foot_l": 0.647707279511064,
+        "foot_r": 0.6524231910766218
+      },
+      "floor_physics_enabled": false,
+      "constraint_count": 20,
+      "joint_creation_scales": [
+        1
+      ],
+      "left_foot_parent_anchor_m": [
+        -0.40196691024499664,
+        1.3245234211207244e-08,
+        -2.522847969249207e-08
+      ],
+      "self_contacts_suppressed": true
+    },
+    "observed_short_step_scaled_at_spawn": {
+      "entry_step": 195,
+      "step_seconds": 0.006985541898757219,
+      "entry_actor_y_m": 1.9726706339100195,
+      "incoming_vertical_velocity_m_s": -13.294464209200815,
+      "mesh_y_m": -0.024296565225350265,
+      "root_world_step_m": 0.0,
+      "root_body_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physics_step_m": {
+        "root": 0.0,
+        "pelvis": 0.08795508209606397,
+        "lowerarm_l": 0.1004095319180192,
+        "lowerarm_r": 0.1076325687349357,
+        "hand_l": 0.08904131445436517,
+        "hand_r": 0.0828209681784282,
+        "foot_l": 0.07351045775583973,
+        "foot_r": 0.06947322034013953
+      },
+      "floor_physics_enabled": true,
+      "constraint_count": 20,
+      "joint_creation_scales": [
+        2
+      ],
+      "left_foot_parent_anchor_m": [
+        -0.8039338204899933,
+        2.6490468422414488e-08,
+        -5.045695938498414e-08
+      ],
+      "self_contacts_suppressed": false
+    }
+  },
+  "target_before": {
+    "entry_step": 195,
+    "step_seconds": 0.006985541898757219,
+    "release_actor_y_m": 10.819999694824219,
+    "entry_actor_y_m": 1.9753574132919312,
+    "mesh_y_m": -0.028301119804382324,
+    "selector": [
+      [
+        -13.294465065002441,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "root_world_step_m": 0.0,
+    "root_body_velocity_m_s": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "published_body_position_error_m": {
+      "root": 3.932100380151394e-06,
+      "pelvis": 2.132480599880018e-06,
+      "lowerarm_l": 2.1457672119140625e-06,
+      "lowerarm_r": 1.0148905112167722e-05,
+      "hand_l": 4.579871347498547e-06,
+      "hand_r": 1.0095555953855576e-05,
+      "foot_l": 6.218338659164894e-06,
+      "foot_r": 6.563618990126908e-06
+    },
+    "body_position_step_m": {
+      "root": 0.0,
+      "pelvis": 0.08695726368177416,
+      "lowerarm_l": 0.09095407805191948,
+      "lowerarm_r": 0.09318616713673557,
+      "hand_l": 0.0724816536582593,
+      "hand_r": 0.07373471753742017,
+      "foot_l": 0.0903546476648945,
+      "foot_r": 0.08115237963359857
+    },
+    "rig_input_speed_m_s": {
+      "root": 0.0,
+      "pelvis": 1.1473281002909463,
+      "lowerarm_l": 39.93843352140114,
+      "lowerarm_r": 41.34218572878487,
+      "hand_l": 78.43870094662726,
+      "hand_r": 76.07633877680507,
+      "foot_l": 8.306546853155002,
+      "foot_r": 4.857438298139306
+    },
+    "published_speed_m_s": {
+      "root": 0.0005628912455382945,
+      "pelvis": 12.448184674324283,
+      "lowerarm_l": 13.020027591757755,
+      "lowerarm_r": 13.33993904000544,
+      "hand_l": 10.376256359982515,
+      "hand_r": 10.555705776978579,
+      "foot_l": 12.933829345801621,
+      "foot_r": 11.617855559238516
+    }
+  },
+  "target_after": {
+    "entry_step": 195,
+    "step_seconds": 0.006985541898757219,
+    "release_actor_y_m": 10.819999694824219,
+    "entry_actor_y_m": 1.9753574132919312,
+    "mesh_y_m": -0.028301119804382324,
+    "selector": [
+      [
+        -13.294465065002441,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "root_world_step_m": 0.0,
+    "root_body_velocity_m_s": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "published_body_position_error_m": {
+      "root": 3.932100380151394e-06,
+      "pelvis": 3.015782985847835e-06,
+      "lowerarm_l": 1.0229796387159794e-05,
+      "lowerarm_r": 1.975424183509575e-05,
+      "hand_l": 1.272583593853237e-05,
+      "hand_r": 1.3285285678629908e-05,
+      "foot_l": 5.582508790000962e-06,
+      "foot_r": 1.4553789524728116e-05
+    },
+    "body_position_step_m": {
+      "root": 0.0,
+      "pelvis": 0.09317584565096236,
+      "lowerarm_l": 0.5251315280753633,
+      "lowerarm_r": 0.5240507214367618,
+      "hand_l": 0.3703724935394546,
+      "hand_r": 0.32169384328408834,
+      "foot_l": 0.6374337460844126,
+      "foot_r": 0.6032584180925626
+    },
+    "left_foot_parent_anchor_m": [
+      -0.4019668996334076,
+      1.3245237795445064e-08,
+      -2.522848951969081e-08
+    ],
+    "rig_input_speed_m_s": {
+      "root": 0.0,
+      "pelvis": 1.1473281002909463,
+      "lowerarm_l": 39.93843352140114,
+      "lowerarm_r": 41.34218572878487,
+      "hand_l": 78.43870094662726,
+      "hand_r": 76.07633877680507,
+      "foot_l": 8.306546853155002,
+      "foot_r": 4.857438298139306
+    },
+    "published_speed_m_s": {
+      "root": 0.0005628912455382945,
+      "pelvis": 13.338537816184921,
+      "lowerarm_l": 75.1732976550928,
+      "lowerarm_r": 75.02180658200176,
+      "hand_l": 53.02051147899225,
+      "hand_r": 46.05254081362745,
+      "foot_l": 91.25116500522462,
+      "foot_r": 86.35954202560978
+    }
+  }
+}

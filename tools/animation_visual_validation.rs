@@ -8,8 +8,10 @@ use std::{
 
 use crate::als::character::AlsCharacter;
 use crate::als_camera::AlsCameraSet;
-use crate::extensions::{InterruptibleFsmState, player_animation_context_state};
-use avian3d::prelude::{PhysicsSystems, Position};
+use crate::extensions::{
+    InterruptibleFsmState, RagdollPhysicsProfileApplied, player_animation_context_state,
+};
+use avian3d::prelude::{PhysicsSystems, Position, RigidBody, Rotation};
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::core::{
@@ -21,6 +23,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     plugin::AnimationGraphSet,
     pose::{BonePose, Pose},
+    ragdoll::definition::BodyLabel,
     skeleton::Skeleton,
     systems::apply_animation_to_targets,
 };
@@ -39,7 +42,7 @@ use crate::{
         ManualIntegrationObservationSet, ManualPlaygroundStartupReady, ManualRuntimePhaseEvidence,
         ManualTurnStackEntryEvidence,
     },
-    ragdoll_link::AlsRagdollGroundFollow,
+    ragdoll_link::{AlsRagdollGroundFollow, AlsRagdollInitialSpeedLimit},
 };
 
 const REQUIRED_BONES: &[&str] = &[
@@ -282,6 +285,30 @@ struct TemporalSkeletonAnomaly {
     source_boundary: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     source_selector_inputs: Option<[[f32; 2]; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_physics_readback: Option<ScaledRagdollReadback>,
+}
+
+#[derive(Serialize, Clone)]
+struct ScaledRagdollReadback {
+    mesh_scale: [f32; 3],
+    joint_scale: [f32; 3],
+    remaining_updates: u8,
+    bodies: BTreeMap<String, [f32; 2]>,
+}
+
+impl ScaledRagdollReadback {
+    fn covers(&self, metric: &TemporalSkeletonMetric) -> bool {
+        match metric.kind {
+            "global_position_speed" | "local_translation_spike" | "local_rotation_spike" => {
+                self.bodies.contains_key(&metric.subject)
+            }
+            "segment_length_spike" => metric.subject.split_once("->").is_some_and(|(a, b)| {
+                self.bodies.contains_key(a) && self.bodies.contains_key(b)
+            }),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -1211,6 +1238,7 @@ fn record_temporal_metrics(
     state: &mut AnimationVisualValidationState,
     metrics: Vec<TemporalSkeletonMetric>,
     stage: &str,
+    physics_readback: Option<&ScaledRagdollReadback>,
     elapsed_secs: f64,
     frame_ms: f64,
     animation_delta_seconds: f32,
@@ -1221,13 +1249,19 @@ fn record_temporal_metrics(
     let source_landing = stage == "pre_rig_source_landing_selector";
     let stage = if source_landing { "pre_rig" } else { stage };
     for metric in metrics {
-        let source_boundary = (source_landing
-            && metric.kind == "global_position_speed"
-            && matches!(
-                metric.subject.as_str(),
-                "hand_l" | "hand_r" | "lowerarm_l" | "lowerarm_r"
-            ))
-        .then_some("source_fall_heavy_to_light_on_physics_entry");
+        let physics_readback =
+            physics_readback.filter(|readback| stage == "final" && readback.covers(&metric));
+        let source_boundary = if physics_readback.is_some() {
+            Some("source_live_scaled_joint_readback")
+        } else {
+            (source_landing
+                && metric.kind == "global_position_speed"
+                && matches!(
+                    metric.subject.as_str(),
+                    "hand_l" | "hand_r" | "lowerarm_l" | "lowerarm_r"
+                ))
+            .then_some("source_fall_heavy_to_light_on_physics_entry")
+        };
         let duplicate = state.temporal_anomalies.iter().any(|value| {
             value.kind == metric.kind
                 && value.subject == metric.subject
@@ -1265,6 +1299,7 @@ fn record_temporal_metrics(
                 phase: phase.map(str::to_owned),
                 source_boundary,
                 source_selector_inputs: None,
+                source_physics_readback: physics_readback.cloned(),
             });
         }
         if source_boundary.is_some() {
@@ -3725,7 +3760,13 @@ fn collect_animation_visual_evidence(
     animation_window: Option<Res<ManualAnimationWindowEvidence>>,
     phase_evidence: Option<Res<ManualRuntimePhaseEvidence>>,
     manual_integration: Option<Res<ManualIntegrationGateReport>>,
-    pre_rig: (Res<AnimationVisualPreRigPose>, Res<Time<Virtual>>),
+    pose_state: (
+        Res<AnimationVisualPreRigPose>,
+        Res<Time<Virtual>>,
+        Query<(&BodyLabel, &RigidBody, &Position, &Rotation)>,
+        Query<&RagdollPhysicsProfileApplied>,
+        Query<&AlsRagdollInitialSpeedLimit, With<AlsCharacter>>,
+    ),
     asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
     avatars: Query<
@@ -3763,7 +3804,7 @@ fn collect_animation_visual_evidence(
         Query<&AnimatedSceneInstance>,
     ),
 ) {
-    let (pre_rig, game_time) = pre_rig;
+    let (pre_rig, game_time, ragdoll_bodies, ragdoll_profiles, ragdoll_limit) = pose_state;
     if state.primary_failure.is_some() {
         return;
     }
@@ -4064,6 +4105,7 @@ fn collect_animation_visual_evidence(
             .physics_steps_per_render
             .push(physics_steps_since_render);
     }
+    let physics_advanced = stages.physics_steps_since_render > 0;
     stages.physics_steps_since_render = 0;
     let mut fault_detected = false;
     if elapsed >= config.warmup && !root_pose_has_animation_channels(root_pose) {
@@ -4138,6 +4180,7 @@ fn collect_animation_visual_evidence(
             } else {
                 "pre_rig"
             },
+            None,
             elapsed.as_secs_f64(),
             frame_ms,
             frame_seconds,
@@ -4146,15 +4189,56 @@ fn collect_animation_visual_evidence(
         );
         if pre_rig.source_selector_inputs.is_some() {
             for metric in &mut state.temporal_anomalies {
-                if metric.source_boundary.is_some() && metric.source_selector_inputs.is_none() {
+                if metric.source_boundary == Some("source_fall_heavy_to_light_on_physics_entry")
+                    && metric.source_selector_inputs.is_none()
+                {
                     metric.source_selector_inputs = pre_rig.source_selector_inputs;
                 }
             }
         }
+        let scaled_readback = if physics_advanced
+            && pre_rig.physics_readback_active
+            && !final_metrics.is_empty()
+            && let Ok(limit) = ragdoll_limit.single()
+            && limit.remaining_updates > 0
+            && limit.remaining_updates
+                < crate::get_up::RAGDOLL_SETTINGS.initial_speed_limit_refresh_frames
+            && let Ok(profile) = ragdoll_profiles.get(instance.player_entity())
+            && profile.scale.cmpgt(profile.joint_scale).all()
+            && let Some(spawned) = player.get_spawned_ragdoll()
+            && profile.spawned_root == Some(spawned.root)
+        {
+            let bodies = spawned
+                .bodies
+                .values()
+                .filter_map(|entity| ragdoll_bodies.get(*entity).ok())
+                .filter_map(|(label, body, position, rotation)| {
+                    let (published_position, published_rotation, _, _) = bones.get(&label.0)?;
+                    let position_error = published_position.distance(position.0);
+                    let published = Vec4::from_array(published_rotation.to_array());
+                    let physical = Vec4::from_array(rotation.0.to_array());
+                    let rotation_error = (published - physical)
+                        .abs()
+                        .max_element()
+                        .min((published + physical).abs().max_element());
+                    (body.is_dynamic() && position_error <= 1e-4 && rotation_error <= 1e-4)
+                        .then(|| (label.0.clone(), [position_error, rotation_error]))
+                })
+                .collect();
+            Some(ScaledRagdollReadback {
+                mesh_scale: profile.scale.to_array(),
+                joint_scale: profile.joint_scale.to_array(),
+                remaining_updates: limit.remaining_updates,
+                bodies,
+            })
+        } else {
+            None
+        };
         fault_detected |= record_temporal_metrics(
             &mut state,
             final_metrics,
             "final",
+            scaled_readback.as_ref(),
             elapsed.as_secs_f64(),
             frame_ms,
             frame_seconds,
@@ -4679,6 +4763,7 @@ mod tests {
                     } else {
                         "pre_rig"
                     },
+                    None,
                     0.0,
                     12.2101,
                     capture.temporal_delta_seconds(),
@@ -4791,6 +4876,7 @@ mod tests {
                     &mut state,
                     vec![metric(kind, subject)],
                     stage,
+                    None,
                     1.0,
                     12.2101,
                     0.0122101,
@@ -4808,6 +4894,89 @@ mod tests {
             assert_eq!(
                 state.temporal_anomalies[0].stage,
                 if stage == "final" { "final" } else { "pre_rig" }
+            );
+        }
+    }
+
+    #[test]
+    fn scaled_ragdoll_observation_requires_final_readback_of_each_affected_bone() {
+        let readback = ScaledRagdollReadback {
+            mesh_scale: [2.0; 3],
+            joint_scale: [1.0; 3],
+            remaining_updates: 7,
+            bodies: BTreeMap::from([
+                ("calf_l".to_owned(), [0.00001, 0.00001]),
+                ("foot_l".to_owned(), [0.00001, 0.00001]),
+            ]),
+        };
+        for (stage, kind, subject, evidence, expected_failure) in [
+            (
+                "final",
+                "global_position_speed",
+                "foot_l",
+                Some(&readback),
+                false,
+            ),
+            (
+                "final",
+                "segment_length_spike",
+                "calf_l->foot_l",
+                Some(&readback),
+                false,
+            ),
+            (
+                "final",
+                "segment_length_spike",
+                "calf_r->foot_l",
+                Some(&readback),
+                true,
+            ),
+            (
+                "final",
+                "local_scale_spike",
+                "foot_l",
+                Some(&readback),
+                true,
+            ),
+            (
+                "pre_rig",
+                "global_position_speed",
+                "foot_l",
+                Some(&readback),
+                true,
+            ),
+            ("final", "global_position_speed", "foot_l", None, true),
+        ] {
+            let mut state = AnimationVisualValidationState::default();
+            let metric = TemporalSkeletonMetric {
+                kind,
+                subject: subject.to_owned(),
+                previous: 0.0,
+                current: 91.25,
+                threshold: 40.0,
+                trigger: "rate",
+                rate: Some(91.25),
+                rate_threshold: Some(40.0),
+            };
+            assert_eq!(
+                record_temporal_metrics(
+                    &mut state,
+                    vec![metric],
+                    stage,
+                    evidence,
+                    1.0,
+                    8.0,
+                    0.006985542,
+                    None,
+                    None,
+                ),
+                expected_failure
+            );
+            assert_eq!(
+                state.temporal_anomalies[0]
+                    .source_physics_readback
+                    .is_none(),
+                expected_failure
             );
         }
     }
@@ -4880,6 +5049,7 @@ mod tests {
                     &mut state,
                     vec![metric],
                     stage,
+                    None,
                     1.0,
                     12.21,
                     0.01221,

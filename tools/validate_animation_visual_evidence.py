@@ -980,6 +980,41 @@ def motion_window_issues(report, screenshots, pose_samples, require_screenshots=
     return issues
 
 
+def scaled_ragdoll_readback_matches(value):
+    proof = value.get("source_physics_readback")
+    if (value.get("source_boundary") != "source_live_scaled_joint_readback"
+            or value.get("stage") != "final" or not isinstance(proof, dict)):
+        return False
+    settings = read_json(Path(__file__).resolve().parents[1] / "assets/ALS/Data/Character/als_ragdoll_settings.json")
+    remaining = proof.get("remaining_updates")
+    mesh_scale = proof.get("mesh_scale")
+    joint_scale = proof.get("joint_scale")
+    if (type(remaining) is not int or not 0 < remaining < settings["initial_speed_limit_refresh_frames"]
+            or not isinstance(mesh_scale, list) or not isinstance(joint_scale, list)
+            or len(mesh_scale) != 3 or len(joint_scale) != 3):
+        return False
+    if not all(finite(mesh) and finite(joint) and mesh > joint > 0 for mesh, joint in zip(mesh_scale, joint_scale)):
+        return False
+    subject = value.get("subject")
+    if not isinstance(subject, str) or not subject:
+        return False
+    kind = value.get("kind")
+    if kind == "segment_length_spike":
+        bones = subject.split("->")
+        if len(bones) != 2:
+            return False
+    elif kind in ("global_position_speed", "local_translation_spike", "local_rotation_spike"):
+        bones = [subject]
+    else:
+        return False
+    bodies = proof.get("bodies")
+    return isinstance(bodies, dict) and all(
+        isinstance(errors, list) and len(errors) == 2
+        and all(finite(error) and 0 <= error <= 1e-4 for error in errors)
+        for errors in (bodies.get(bone) for bone in bones)
+    )
+
+
 def temporal_anomaly_issues(values):
     if not isinstance(values, list):
         return ["temporal_anomalies is invalid"]
@@ -1027,7 +1062,7 @@ def temporal_anomaly_issues(values):
             and inputs[0][0] <= -10.0 and inputs[0][1] == 0.0
             and inputs[1][0] >= -5.0 and inputs[1][1] == 1.0
         )
-        if source_match:
+        if source_match or scaled_ragdoll_readback_matches(value):
             source_values += 1
         else:
             issues.append("temporal anomaly source boundary is invalid")
@@ -2847,6 +2882,23 @@ def run_self_test():
         assert not temporal_anomaly_issues([source_metric])
         for subject in ("lowerarm_l", "lowerarm_r"):
             assert not temporal_anomaly_issues([dict(source_metric, subject=subject)])
+        physics_metric = dict(
+            source_metric, stage="final", subject="foot_l",
+            source_boundary="source_live_scaled_joint_readback",
+            source_physics_readback={
+                "mesh_scale": [2.0, 2.0, 2.0], "joint_scale": [1.0, 1.0, 1.0],
+                "remaining_updates": 7, "bodies": {"foot_l": [0.00002, 0.00001]},
+            },
+        )
+        assert not temporal_anomaly_issues([physics_metric])
+        for field, invalid in (("remaining_updates", 0), ("mesh_scale", [1.0] * 3),
+                               ("bodies", {"foot_l": [0.001, 0.0]})):
+            changed = copy.deepcopy(physics_metric)
+            changed["source_physics_readback"][field] = invalid
+            assert temporal_anomaly_issues([changed])
+        assert temporal_anomaly_issues([dict(physics_metric, stage="pre_rig")])
+        assert temporal_anomaly_issues([dict(physics_metric, kind="local_scale_spike")])
+        assert temporal_anomaly_issues([dict(physics_metric, kind="segment_length_spike", subject="calf_l->foot_l")])
         for key, value in (("stage", "final"), ("subject", "head"), ("kind", "local_rotation_spike"),
             ("source_boundary", "unknown"), ("source_selector_inputs", None),
             ("source_selector_inputs", [[-9.0, 0.0], [0.0, 1.0]]),
