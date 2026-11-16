@@ -1,0 +1,35 @@
+{
+  "initial_single": {
+    "input": [
+      0.0075617465,
+      0.0049057025,
+      0.012461668,
+      0.9998817
+    ],
+    "parent_output": [
+      0.0075617465,
+      0.0049057025,
+      0.012461668,
+      0.9998817
+    ],
+    "child_present": false
+  },
+  "initial_trial": {
+    "input": [
+      0.0075617465,
+      0.0049057025,
+      0.012461668,
+      0.9998817
+    ],
+    "parent_output": [
+      0.0075617465,
+      0.0049057025,
+      0.012461668,
+      0.9998817
+    ],
+    "child_present": false
+  },
+  "trial_samples": 4096,
+  "trial_child_materializations": 0,
+  "invalid_fixture": "update_bone_weight does not insert a new entry into an empty mask"
+}

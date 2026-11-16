@@ -1,0 +1,122 @@
+{
+  "startup": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "startup/decal_render.json",
+        "bytes": 1148,
+        "sha256": "f511ece5ba525ec71c9269972222e4d6813d08b61ff62ab24ade48f035629818"
+      },
+      {
+        "path": "startup/process.report.json",
+        "bytes": 408,
+        "sha256": "748035aebf32e455b59ad36c5ad3af3b1b21e68a8336c543893ecff261bb350d"
+      },
+      {
+        "path": "startup/process.stderr.log.gz",
+        "bytes": 4475,
+        "sha256": "4a071b9ac5bba1b644deb4f51cde0e0337c73f29cc8e7f1acee4ce791743ce26"
+      },
+      {
+        "path": "startup/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "startup/render_effects.json",
+        "bytes": 229,
+        "sha256": "2725cda96991e3d20d7c91600cafbec64dfd47f2318002f3d5779310f0094e2e"
+      },
+      {
+        "path": "startup/report.json.gz",
+        "bytes": 7500078,
+        "sha256": "67bcf755bbe42bf19ec5ce753ac1da6a5d891d0ca0dc0dacdc70eae26051d84a"
+      },
+      {
+        "path": "startup/runner.json",
+        "bytes": 374,
+        "sha256": "821c2b62092e48a3821d565ea2a9eed12de956cae28da66356b01f00ca2a3a99"
+      }
+    ]
+  },
+  "head": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "head/decal_render.json",
+        "bytes": 1302,
+        "sha256": "1d03073122419618d30f54f8b8ec615bd2a3b2a70930792331b49ce71323d58b"
+      },
+      {
+        "path": "head/process.report.json",
+        "bytes": 408,
+        "sha256": "5ee23fe8d8fc0dcf279a9826913a7b0e04a6618b520fe295bc6edf1f964ede39"
+      },
+      {
+        "path": "head/process.stderr.log.gz",
+        "bytes": 9078,
+        "sha256": "de81dd23bbf3b32baba8387c70958ea815a739a019ec1d1b91138bc63a22ed86"
+      },
+      {
+        "path": "head/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "head/render_effects.json",
+        "bytes": 229,
+        "sha256": "6f9cf62a8a19c7dad9edc70ff6b07a9b1c6fb3d751c29d4d89d8d1656078c4ef"
+      },
+      {
+        "path": "head/report.json.gz",
+        "bytes": 36707491,
+        "sha256": "b41b795ff8be826e7a356bb0d636e7f25b5ba563d658678cb06d6d2ae9d91670"
+      },
+      {
+        "path": "head/runner.json",
+        "bytes": 368,
+        "sha256": "016f9ebb2b0eec1328bcba59a09106c83013da9676f9c7dba4e2d8b7701c6bf7"
+      }
+    ]
+  },
+  "locomotion": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "locomotion/decal_render.json",
+        "bytes": 1302,
+        "sha256": "249d5e6a362ebda1e5bae25fb81553812df4b414dda46eae144c204e3d9e0fc6"
+      },
+      {
+        "path": "locomotion/process.report.json",
+        "bytes": 408,
+        "sha256": "b670f8d89ca40081588a1447016b10f79d06ddbdef6b01defe503b4ee1a84c36"
+      },
+      {
+        "path": "locomotion/process.stderr.log.gz",
+        "bytes": 10092,
+        "sha256": "81de504af84b3e6b24f4b387874696ad4eee0cbfe552fb3271feb515185c3939"
+      },
+      {
+        "path": "locomotion/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "locomotion/render_effects.json",
+        "bytes": 229,
+        "sha256": "c444c0a5a4b4c5e5bf8e9b426f193c30b00240421fc295083c67b6de05ac44a4"
+      },
+      {
+        "path": "locomotion/report.json.gz",
+        "bytes": 40798776,
+        "sha256": "0722c00cb391ef5d57a795d14bc5ca72d7476acc9b889fcd0d6e3598f48f2e42"
+      },
+      {
+        "path": "locomotion/runner.json",
+        "bytes": 380,
+        "sha256": "71896f12132f3390b9973464990c128dc340160f662dcd770cebaf89aa8d85e6"
+      }
+    ]
+  }
+}
