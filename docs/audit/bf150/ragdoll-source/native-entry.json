@@ -1,0 +1,65 @@
+{
+  "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+  "source_report": {
+    "path": "drop.native.json.gz",
+    "bytes": 80048192,
+    "sha256": "3ac035a4373bd263a5f719c4e3fd530c0cdec3a032eeac361a687e53776440dc"
+  },
+  "patch_sha256": "c2bede21f798c70527daff979ab1839c3bbdbc2cba7d7eddc78319df824a9d7b",
+  "entries": [
+    {
+      "case": "observed_29ms",
+      "entry_index": 45,
+      "delta_seconds": 0.029539665207266808,
+      "before_mesh_m": [
+        0.0,
+        0.0,
+        0.3128726683359645
+      ],
+      "after_mesh_m": [
+        0.0,
+        0.0,
+        0.3128726683359645
+      ],
+      "local_step_m": 0.19079268087199402,
+      "world_step_m": 0.38158536174398805,
+      "body_visibility_error_m": 1.0291747899008092e-12
+    },
+    {
+      "case": "prior_31ms",
+      "entry_index": 44,
+      "delta_seconds": 0.030768124386668205,
+      "before_mesh_m": [
+        0.0,
+        0.0,
+        -0.00972506788329099
+      ],
+      "after_mesh_m": [
+        0.0,
+        0.0,
+        -0.00972506788329099
+      ],
+      "local_step_m": 0.20598164887664006,
+      "world_step_m": 0.4119632977532801,
+      "body_visibility_error_m": 1.0684939951067621e-12
+    },
+    {
+      "case": "fixed_60hz",
+      "entry_index": 81,
+      "delta_seconds": 0.01666666753590107,
+      "before_mesh_m": [
+        0.0,
+        0.0,
+        0.040636567551805454
+      ],
+      "after_mesh_m": [
+        0.0,
+        0.0,
+        0.040636567551805454
+      ],
+      "local_step_m": 0.11188678203648486,
+      "world_step_m": 0.22377356407296972,
+      "body_visibility_error_m": 1.173948192181143e-12
+    }
+  ]
+}

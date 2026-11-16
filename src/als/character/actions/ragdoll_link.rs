@@ -7,7 +7,7 @@ use crate::als::mantle::scaled_mantle_capsule_dimensions;
 use crate::als::motion::AlsRagdollAirExit;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
-use crate::als::transition::{StateTransitionEvent, commit_state};
+use crate::als::transition::{Dimension, StateTransitionEvent, StateValue, commit_state};
 use crate::extensions::SceneQuery;
 use crate::extensions::SourceCollisionIgnorePawn;
 use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
@@ -442,9 +442,25 @@ fn refresh_player_subtree_globals(
     player_world
 }
 
+fn landed_into_ragdoll(transitions: &Messages<StateTransitionEvent>, character: Entity) -> bool {
+    let air = StateValue::LocomotionState(LocomotionState::Air);
+    let grounded = StateValue::LocomotionState(LocomotionState::Grounded);
+    let none = StateValue::LocomotionState(LocomotionState::None);
+    let mut landed = false;
+    transitions
+        .iter_current_update_messages()
+        .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState)
+        .any(|event| {
+            let starts_ragdoll = landed && event.from == grounded && event.to == none;
+            landed = event.from == air && event.to == grounded;
+            starts_ragdoll
+        })
+}
+
 fn capture_ragdoll_player_world_transform(
     mut commands: Commands,
     transform_helper: TransformHelper,
+    transitions: Option<Res<Messages<StateTransitionEvent>>>,
     characters: Query<
         (
             Entity,
@@ -488,9 +504,18 @@ fn capture_ragdoll_player_world_transform(
         let Ok((parent, local_transform)) = player_parents.get(player) else {
             continue;
         };
-        let Some(world_transform) =
+        let world_transform = if transitions
+            .as_deref()
+            .is_some_and(|transitions| landed_into_ragdoll(transitions, character))
+        {
+            globals
+                .get(player)
+                .ok()
+                .map(GlobalTransform::compute_transform)
+        } else {
             refresh_player_subtree_globals(&transform_helper, player, &children, &mut globals)
-        else {
+        };
+        let Some(world_transform) = world_transform else {
             continue;
         };
         commands.entity(player).remove::<ChildOf>().insert((
@@ -772,7 +797,7 @@ fn sync_ragdoll_body_modes(
                     Some(BodyMode::Kinematic) => RigidBody::Kinematic,
                     Some(BodyMode::Dynamic) | None => RigidBody::Dynamic,
                 };
-                if recovering {
+                if recovering || (!activated && target_mode.is_kinematic()) {
                     linear_velocity.0 = if target_mode.is_dynamic() {
                         actor_velocity.map_or(Vec3::ZERO, |velocity| velocity.0)
                     } else {
@@ -1765,6 +1790,137 @@ fn sync_ragdoll_collider_layers(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn landing_ragdoll_uses_only_the_current_character_transitions() {
+        let mut messages = Messages::default();
+        let actor = Entity::from_raw_u32(1).expect("landing fixture actor");
+        let other = Entity::from_raw_u32(2).expect("other fixture actor");
+        let transition = |entity, from, to| StateTransitionEvent {
+            entity,
+            dimension: Dimension::LocomotionState,
+            from: StateValue::LocomotionState(from),
+            to: StateValue::LocomotionState(to),
+        };
+        messages.write(transition(
+            actor,
+            LocomotionState::Air,
+            LocomotionState::Grounded,
+        ));
+        messages.write(transition(
+            other,
+            LocomotionState::Grounded,
+            LocomotionState::None,
+        ));
+        assert!(!landed_into_ragdoll(&messages, actor));
+        assert!(!landed_into_ragdoll(&messages, other));
+        messages.write(transition(
+            actor,
+            LocomotionState::Grounded,
+            LocomotionState::None,
+        ));
+        assert!(landed_into_ragdoll(&messages, actor));
+        messages.update();
+        messages.write(transition(
+            actor,
+            LocomotionState::Grounded,
+            LocomotionState::None,
+        ));
+        assert!(!landed_into_ragdoll(&messages, actor));
+    }
+
+    #[test]
+    fn high_landing_keeps_the_published_mesh_and_kinematic_root() {
+        use bevy::animation::AnimatedBy;
+
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+        let find_body = |name: &str| {
+            bodies
+                .iter()
+                .find(|(label, _)| label == name)
+                .expect("high landing has the mapped physics body")
+                .1
+        };
+        let root_body = find_body("root");
+        let pelvis_body = find_body("pelvis");
+        let delta = 0.029539665_f32;
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_secs_f32(delta),
+        ));
+        let position = Vec3::new(-15.0, 10.82, -15.0);
+        let transform = Transform::from_translation(position)
+            .with_scale(Vec3::splat(2.0))
+            .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4));
+        app.world_mut().entity_mut(character).insert((
+            Position(position),
+            transform,
+            GlobalTransform::from(transform),
+            LinearVelocity::ZERO,
+        ));
+        let mut bones = app
+            .world_mut()
+            .query::<(&Name, &AnimatedBy, &Transform, &GlobalTransform, &ChildOf)>();
+        let mut previous = None;
+        let mut simulated_frames = 0;
+        for frame in 0..64 {
+            app.update();
+            let world = app.world();
+            let (_, _, local, visible, parent) = bones
+                .iter(world)
+                .find(|(name, owner, ..)| name.as_str() == "pelvis" && owner.0 == player)
+                .expect("loaded player has a visible pelvis");
+            let mesh = world.get::<GlobalTransform>(player).unwrap().translation();
+            let root = world
+                .get::<GlobalTransform>(parent.parent())
+                .unwrap()
+                .translation();
+            let current = (mesh, root, local.translation, visible.translation());
+            if world.get::<AlsNotifyLocomotionAction>(character)
+                == Some(&AlsNotifyLocomotionAction::Ragdolling)
+            {
+                let (previous_mesh, previous_root, previous_local, previous_visible) =
+                    previous.expect("high landing has a previous visible frame");
+                let body_root = world.get::<Position>(root_body).unwrap().0;
+                let body_pelvis = world.get::<Position>(pelvis_body).unwrap().0;
+                let local_step = local.translation.distance(previous_local);
+                let visible_step = visible.translation().distance(previous_visible);
+                println!(
+                    "[PELVIS-ENTRY] frame={frame} mesh_before={previous_mesh:?} mesh_after={mesh:?} body_root={body_root:?} local_step={local_step} world_step={visible_step}"
+                );
+                assert_eq!(
+                    mesh, previous_mesh,
+                    "Landing must detach the published mesh frame"
+                );
+                assert_eq!(
+                    world.get::<RigidBody>(root_body),
+                    Some(&RigidBody::Kinematic)
+                );
+                assert!(
+                    body_root.abs_diff_eq(previous_root, 1e-5) && root.abs_diff_eq(body_root, 1e-5),
+                    "Kinematic root must hold the published bone frame: before={previous_root:?} body={body_root:?} visible={root:?}"
+                );
+                assert_eq!(
+                    world.get::<LinearVelocity>(root_body),
+                    Some(&LinearVelocity::ZERO)
+                );
+                assert!(
+                    visible.translation().abs_diff_eq(body_pelvis, 1e-5),
+                    "Visible pelvis must follow its simulated body"
+                );
+                assert!(
+                    (local_step * 2.0 - visible_step).abs() < 1e-5,
+                    "Pelvis step must respect the published parent scale: local={local_step} world={visible_step}"
+                );
+                simulated_frames += 1;
+                if simulated_frames == 3 {
+                    return;
+                }
+            }
+            previous = Some(current);
+        }
+        panic!("High landing did not publish three simulated frames");
+    }
+
     #[test]
     fn ragdoll_drive_reads_pelvis_speed_before_startup_limit() {
         use crate::extensions::source_physics_joint::SourcePhysicsJoint;

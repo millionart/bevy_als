@@ -10,6 +10,8 @@
 
 同一 `target_game` 的 283 项定向 Rust 测试通过。正常启动、Control Rig、Foot IK、起身和相机以普通时钟通过正式 Playground 功能验收。布娃娃普通时钟下完成倒下、碰撞、恢复和输入交接，视觉护栏在 31.8 ms 帧记录骨盆局部位移 0.374535 m。旧 U07 的同类异常为 31.6 ms 和 0.390895 m。使用旧门禁相同的固定 60 Hz 参数复验，布娃娃通过。所有场景的图错误为 0，性能超预算项随原报告保留。 [二进制身份](build-identity.json) [运行结果](runtime.json) [布娃娃时钟对照](ragdoll-clock-comparison.json)
 
+BF150.01 已在实际落地交接定位并修复该跳变。修复后的普通时钟布娃娃、原异常步长和普通时钟起身均通过。原始失败报告仍可复核。 [源对照与修复验收](ragdoll-source/README.md)
+
 定向回归使用下列命令。各场景的 launcher 参数见 `runner.json`。解压 `report.json.gz` 后，可用 `tools/validate_animation_visual_evidence.py --report <文件> --min-screenshots 0 --check --functional-only` 核对原报告。过程日志已移除本机路径。
 
 ```sh
