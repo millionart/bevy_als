@@ -267,12 +267,11 @@ impl Probe {
 }
 
 fn step_replacement_allowed(playback: &AlsTransitionPlayback) -> bool {
-    crate::stop_link::source_transition_sequence(playback).is_some_and(|name| {
-        crate::standing_source::MONTAGES[name]
-            .curves
-            .sample("AllowTransitions", playback.clip_time)
-            .is_some_and(|value| value.abs() <= 1e-5)
-    })
+    let name = crate::stop_link::source_transition_sequence(playback);
+    crate::standing_source::MONTAGES[name]
+        .curves
+        .sample("AllowTransitions", playback.clip_time)
+        .is_some_and(|value| value.abs() <= 1e-5)
 }
 
 pub(super) fn drive(
@@ -747,7 +746,9 @@ pub(super) fn observe(
             } else {
                 "A_Als_Stand_DynamicTransition_Right"
             }),
-            observed_animation_variant: crate::stop_link::source_transition_sequence(playback),
+            observed_animation_variant: Some(crate::stop_link::source_transition_sequence(
+                playback,
+            )),
             observed_animation_clip_time: Some(playback.clip_time),
             observed_animation_weight: Some(playback.weight),
             observed_animation_play_rate: Some(playback.play_rate),

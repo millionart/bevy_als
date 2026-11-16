@@ -137,7 +137,21 @@
   - 12:32 standing_stop 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
   - 12:33 standing_stop 后：功能通过，原报告已保留。
   - 12:33 完成：三场景的实际姿态和选片通过，均无图错误。[BF148.04 源记录、等价指纹及验收](docs/audit/bf148/04/README.md)。
-- [ ] BF148.05 — 必有结果的包装。依赖 .04。Gate：审查仅返回 `Some` 或 `Ok` 的内部包装，精简动作选片、FSM 及实际命中的同类调用；保持动作映射、回调和图状态时序，定向 lint、图和动作回归通过。开始与预估结束待依赖完成后登记。依据：Clippy 已标记两条主链，另有内部 helper 待核对；参考 BF146.05 的消息回归与 BF147.02 的检查实耗。
+- [x] BF148.05 — 必有结果的包装。依赖 .04。Gate：审查仅返回 `Some` 或 `Ok` 的内部包装，精简动作选片、FSM 及实际命中的同类调用；保持动作映射、回调和图状态时序，定向 lint、图和动作回归通过。开始：2026-11-16 12:34 +08:00；预估结束：2026-11-16 13:04 +08:00；实际结束：2026-11-16 12:59 +08:00；偏差：−5 分钟；第 1 轮，功能 Gate 通过，未拆分。依据：Clippy 已标记两条主链，定向 lint 查全内部 helper；参考 .02、.04 同 target 动作回归和源状态机验收实耗。
+  - 12:37 source/static：新读 Standing 四个编译 FSM、22 状态和 40 玩家；UE StateMachine 866–895 区分搜索失败与已找到规则 ID，ALS 1636–1661 与 1780–1797 按姿势/两侧选片并发布 Transition Montage。定向 Clippy 命中四处恒成功包装，另两处为 FSM 父时间和状态机场景目标 yaw。已核对所有调用、真实业务可空边界和 trait 的结果类型。
+  - 12:44 source/static：省去恒成功的四处包装，合并直接转移条件检索并复用已解析的转移引用。定向 Clippy 4→0，Standing FSM 5 状态/12 转移作者性与格式、103 项定向均通过。随后以同入口启动 cold startup、state_machine 和 standing_stop。
+  - 12:46 startup 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
+  - 12:47 startup 后：功能通过，原报告已保留。
+  - 12:47 state_machine 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
+  - 12:48 state_machine 后：功能未通过，保留报告并先定位原因。
+  - 12:49 source/static：state_machine 的 TransitionNotify 阶段同样触发 Quick Stop，手动覆盖通过且最终旋转跨幅 0.3727 rad，首失败是固定的 Standing FSM。沿 .02 已确认的 native Idle 固定帧与 Transition Montage 链复用同一观察边界。保留原报告，重编本场景和普通 Standing Stop。
+  - 12:57 startup 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
+  - 12:57 startup 后：功能通过，原报告已保留。
+  - 12:57 state_machine 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
+  - 12:58 state_machine 后：功能通过，原报告已保留。
+  - 12:58 standing_stop 前：按当前条目的源和定向合同验证，启动同 target 预构建的公共入口。
+  - 12:59 standing_stop 后：功能通过，原报告已保留。
+  - 12:59 完成：最终定向 lint 0 条同类警告，103 项模块定向和四项观察器复验通过，startup、state_machine、standing_stop 功能通过，无图错误。见 [BF148.05 证据](docs/audit/bf148/05/README.md)。
 - [ ] BF148.06 — 手写 ARM64 归一化消融。依赖 .05。Gate：同输入对照、消费分支和实际姿态验收；仅在实际行为等价时删对应路径，保留有行为必要性的实现及反例。BF144-D248、.452b 和 U07 提供原生对照和数值差背景。
   - [ ] BF148.06a — F64 Control Rig 归一化。开始与预估结束待依赖完成后登记。Gate：包含退化阈值、IK/层级及公共 `control_rig` 等实际消费。
   - [ ] BF148.06b — F32 Mesh Space 归一化。依赖 .06a。开始与预估结束待依赖完成后登记。Gate：包含 additive/layered 姿态、曲线及公开图消费者，核对 F64 已通过的边界。

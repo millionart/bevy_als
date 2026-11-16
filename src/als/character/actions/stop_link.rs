@@ -155,9 +155,8 @@ impl AlsTransitionPlayback {
             start_time,
             TRANSITION_SEQUENCE_DURATION,
         );
-        playback.duration = crate::standing_source::MONTAGES
-            [source_transition_sequence(&playback).unwrap()]
-        .duration;
+        playback.duration =
+            crate::standing_source::MONTAGES[source_transition_sequence(&playback)].duration;
         playback.clip_time = start_time.clamp(0.0, playback.duration);
         playback.previous_clip_time = playback.clip_time;
         playback
@@ -471,40 +470,27 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
         )
 }
 
-pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Option<&'static str> {
-    let left = playback.index <= 0.5;
-    match playback.kind {
-        AlsTransitionKind::Stop => Some(if left {
-            "A_Als_Stop_Left"
-        } else {
-            "A_Als_Stop_Right"
-        }),
-        AlsTransitionKind::QuickStop => Some(if left {
-            "A_Als_Stand_Transition_Left"
-        } else {
-            "A_Als_Stand_Transition_Right"
-        }),
-        AlsTransitionKind::StandingDynamic => Some(if left {
-            "A_Als_Stand_DynamicTransition_Left"
-        } else {
-            "A_Als_Stand_DynamicTransition_Right"
-        }),
-        AlsTransitionKind::StandingTransition => Some(if left {
-            "A_Als_Stand_Transition_Left"
-        } else {
-            "A_Als_Stand_Transition_Right"
-        }),
-        AlsTransitionKind::CrouchingDynamic => Some(if left {
-            "A_Als_Crouch_DynamicTransition_Left"
-        } else {
-            "A_Als_Crouch_DynamicTransition_Right"
-        }),
-        AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => Some(if left {
-            "A_Als_Crouch_Transition_Left"
-        } else {
-            "A_Als_Crouch_Transition_Right"
-        }),
-    }
+pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> &'static str {
+    let (left, right) = match playback.kind {
+        AlsTransitionKind::Stop => ("A_Als_Stop_Left", "A_Als_Stop_Right"),
+        AlsTransitionKind::QuickStop | AlsTransitionKind::StandingTransition => (
+            "A_Als_Stand_Transition_Left",
+            "A_Als_Stand_Transition_Right",
+        ),
+        AlsTransitionKind::StandingDynamic => (
+            "A_Als_Stand_DynamicTransition_Left",
+            "A_Als_Stand_DynamicTransition_Right",
+        ),
+        AlsTransitionKind::CrouchingDynamic => (
+            "A_Als_Crouch_DynamicTransition_Left",
+            "A_Als_Crouch_DynamicTransition_Right",
+        ),
+        AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => (
+            "A_Als_Crouch_Transition_Left",
+            "A_Als_Crouch_Transition_Right",
+        ),
+    };
+    if playback.index <= 0.5 { left } else { right }
 }
 
 fn ensure_root_transition_slot_samplers(
@@ -629,7 +615,7 @@ fn sample_transition_stack(
         .filter(|entry| entry.active && entry.weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD)
         .map(|entry| {
             crate::standing_source::sample_source_montage(
-                source_transition_sequence(entry)?,
+                source_transition_sequence(entry),
                 entry.clip_time,
                 assets,
                 clips,
@@ -1197,7 +1183,7 @@ mod tests {
             let source_time =
                 (before.clip_time + delta * before.play_rate).clamp(0.0, before.duration);
             let (source_pose, _) = crate::standing_source::sample_source_montage(
-                source_transition_sequence(&before).unwrap(),
+                source_transition_sequence(&before),
                 source_time,
                 app.world()
                     .resource::<crate::standing_source::SourceMontageAssets>(),
@@ -1547,7 +1533,7 @@ mod tests {
                     }
                     let (expected_pose, expected_context) =
                         crate::standing_source::sample_source_montage(
-                            source_transition_sequence(entry).unwrap(),
+                            source_transition_sequence(entry),
                             expected_time,
                             app.world()
                                 .resource::<crate::standing_source::SourceMontageAssets>(),
@@ -1994,8 +1980,7 @@ mod tests {
                 sample.interrupted,
                 entry.instance_id == previous.instance_id
             );
-            let settings =
-                &crate::standing_source::MONTAGES[source_transition_sequence(entry).unwrap()];
+            let settings = &crate::standing_source::MONTAGES[source_transition_sequence(entry)];
             let clips = app
                 .world()
                 .resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
@@ -2093,7 +2078,7 @@ mod tests {
                     (true, true) => "A_Als_Crouch_Transition_Right",
                 };
                 assert!(root_transition_slot_active(&playback));
-                assert_eq!(source_transition_sequence(&playback), Some(expected));
+                assert_eq!(source_transition_sequence(&playback), expected);
             }
         }
         let equal = select_quick_stop(
@@ -2280,24 +2265,24 @@ mod tests {
         )));
         assert_eq!(
             source_transition_sequence(&AlsTransitionPlayback::stop(1.0)),
-            Some("A_Als_Stop_Right")
+            "A_Als_Stop_Right"
         );
         let dynamic = AlsTransitionPlayback::standing_dynamic(1.0);
         assert!(root_transition_slot_active(&dynamic));
         assert_eq!(
             source_transition_sequence(&dynamic),
-            Some("A_Als_Stand_DynamicTransition_Right")
+            "A_Als_Stand_DynamicTransition_Right"
         );
         assert_eq!(
             source_transition_sequence(&quick_stop),
-            Some("A_Als_Stand_Transition_Left")
+            "A_Als_Stand_Transition_Left"
         );
         for (index, expected) in [
             (0.0, "A_Als_Crouch_Transition_Left"),
             (1.0, "A_Als_Crouch_Transition_Right"),
         ] {
             let playback = AlsTransitionPlayback::crouching_quick_stop(index, 1.75);
-            assert_eq!(source_transition_sequence(&playback), Some(expected));
+            assert_eq!(source_transition_sequence(&playback), expected);
             assert_eq!(
                 crate::standing_source::MONTAGES[expected]
                     .reference_clip
@@ -2311,7 +2296,7 @@ mod tests {
         }
         assert_eq!(
             source_transition_sequence(&AlsTransitionPlayback::stop(1.0)),
-            Some("A_Als_Stop_Right")
+            "A_Als_Stop_Right"
         );
         assert_eq!((dynamic.start_time, dynamic.play_rate), (0.0, 1.5));
         let mut inactive = AlsTransitionPlayback::quick_stop(0.0, 1.75);
@@ -2364,7 +2349,7 @@ mod tests {
                 };
                 assert_eq!(
                     source_transition_sequence(&playback),
-                    Some(case.sequence.as_str())
+                    case.sequence.as_str()
                 );
                 assert_eq!(playback.duration, case.length);
                 assert_eq!(
@@ -2395,30 +2380,30 @@ mod tests {
         let quick_stop = AlsTransitionPlayback::quick_stop(1.0, 2.0);
         assert_eq!(
             source_transition_sequence(&quick_stop),
-            Some("A_Als_Stand_Transition_Right")
+            "A_Als_Stand_Transition_Right"
         );
         assert_eq!(quick_stop.start_time, QUICK_STOP_START_TIME);
         let crouching_stop = AlsTransitionPlayback::crouching_stop_right();
         assert_eq!(
             source_transition_sequence(&crouching_stop),
-            Some("A_Als_Crouch_Transition_Right")
+            "A_Als_Crouch_Transition_Right"
         );
         assert_eq!(crouching_stop.start_time, RIGHT_TRANSITION_START_TIME);
         let crouching_quick_stop = AlsTransitionPlayback::crouching_quick_stop(0.0, 2.0);
         assert_eq!(
             source_transition_sequence(&crouching_quick_stop),
-            Some("A_Als_Crouch_Transition_Left")
+            "A_Als_Crouch_Transition_Left"
         );
         assert_eq!(crouching_quick_stop.start_time, QUICK_STOP_START_TIME);
         let dynamic_left = AlsTransitionPlayback::crouching_dynamic(0.0);
         let dynamic_right = AlsTransitionPlayback::crouching_dynamic(1.0);
         assert_eq!(
             source_transition_sequence(&dynamic_left),
-            Some("A_Als_Crouch_DynamicTransition_Left")
+            "A_Als_Crouch_DynamicTransition_Left"
         );
         assert_eq!(
             source_transition_sequence(&dynamic_right),
-            Some("A_Als_Crouch_DynamicTransition_Right")
+            "A_Als_Crouch_DynamicTransition_Right"
         );
         assert_eq!(dynamic_left.start_time, 0.0);
     }
@@ -2429,7 +2414,7 @@ mod tests {
         assert_eq!(standing.kind, AlsTransitionKind::StandingTransition);
         assert_eq!(
             source_transition_sequence(&standing),
-            Some("A_Als_Stand_Transition_Right")
+            "A_Als_Stand_Transition_Right"
         );
         assert_eq!(standing.blend_in, 0.2);
         assert_eq!(standing.blend_out, 0.2);
@@ -2439,7 +2424,7 @@ mod tests {
         assert_eq!(crouching.kind, AlsTransitionKind::CrouchingStop);
         assert_eq!(
             source_transition_sequence(&crouching),
-            Some("A_Als_Crouch_Transition_Right")
+            "A_Als_Crouch_Transition_Right"
         );
         assert_eq!(crouching.start_time, 0.2);
     }

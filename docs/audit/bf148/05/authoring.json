@@ -1,0 +1,40 @@
+{
+  "id": "bf148.05-fsm-results",
+  "pass": true,
+  "failures": [],
+  "graphs": 0,
+  "graph_nodes": 0,
+  "graph_edges": 0,
+  "fsms": 1,
+  "fsm_states": 5,
+  "fsm_transitions": 12,
+  "commands": [
+    {
+      "label": "Runtime graph boundary",
+      "scope": "source",
+      "exit_code": 0
+    },
+    {
+      "label": "ALS runtime graph positions",
+      "scope": "layout",
+      "exit_code": 0
+    },
+    {
+      "label": "Installed graph editor records",
+      "scope": "editor",
+      "exit_code": 0
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "docs/audit/bf148/05/native.json",
+      "hash_kind": "bytes",
+      "matches": true
+    },
+    {
+      "path": "docs/audit/bf148/05/Standing.native.json.gz",
+      "hash_kind": "bytes",
+      "matches": true
+    }
+  ]
+}

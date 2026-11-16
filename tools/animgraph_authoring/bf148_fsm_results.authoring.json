@@ -1,0 +1,171 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "bf148.05-fsm-results",
+  "source_evidence": [
+    {
+      "path": "docs/audit/bf148/05/native.json",
+      "sha256": "e8c2f8a9a7bddebe27ed6a34ffef639da94a3cf419d23757313d4a71b10a8dca"
+    },
+    {
+      "path": "docs/audit/bf148/05/Standing.native.json.gz",
+      "sha256": "691da458d35d052055b29e972a6b168d299d1b3e53985cf235997f8188769e83"
+    }
+  ],
+  "fsms": [
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States.fsm.ron",
+      "expected_states": [
+        {
+          "id": "96e96e21-478b-7201-3c8b-9eb0b3683b0b",
+          "label": "Idle",
+          "graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
+          "position": [
+            176.0,
+            0.0
+          ]
+        },
+        {
+          "id": "125f1d0c-4327-0607-cc93-789cd53087bb",
+          "label": "Move",
+          "graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S1_Move.animgraph.ron",
+          "position": [
+            -16.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "de1f6546-4d25-6b82-0ea6-c99513ec4d1c",
+          "label": "Stop",
+          "graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S4_Stop.animgraph.ron",
+          "position": [
+            352.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9",
+          "label": "Rotate Left",
+          "graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S6_Rotate_Left.animgraph.ron",
+          "position": [
+            -48.0,
+            128.0
+          ]
+        },
+        {
+          "id": "e411bf59-4146-f189-ff1f-ac9dbc640cf1",
+          "label": "Rotate Right",
+          "graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron",
+          "position": [
+            352.0,
+            128.0
+          ]
+        }
+      ],
+      "expected_transitions": [
+        {
+          "id": "27653689-498d-d88b-b50b-958d81a08293",
+          "source": "e411bf59-4146-f189-ff1f-ac9dbc640cf1",
+          "target": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9"
+        },
+        {
+          "id": "2ced02a0-4e67-82fb-26ec-fea4d6e17763",
+          "source": "125f1d0c-4327-0607-cc93-789cd53087bb",
+          "target": "de1f6546-4d25-6b82-0ea6-c99513ec4d1c"
+        },
+        {
+          "id": "7b0f33ce-474f-eee7-450e-9b96e95c39b1",
+          "source": "96e96e21-478b-7201-3c8b-9eb0b3683b0b",
+          "target": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9"
+        },
+        {
+          "id": "8b83190a-430a-8576-f274-e0902113b5d9",
+          "source": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9",
+          "target": "e411bf59-4146-f189-ff1f-ac9dbc640cf1"
+        },
+        {
+          "id": "b522865b-4f36-2333-790a-b5837364870b",
+          "source": "de1f6546-4d25-6b82-0ea6-c99513ec4d1c",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        },
+        {
+          "id": "d8ec3dd3-44c3-0911-9550-45900dad4d7c",
+          "source": "e411bf59-4146-f189-ff1f-ac9dbc640cf1",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        },
+        {
+          "id": "37204e18-4c00-7da4-27bc-1291171597f4",
+          "source": "125f1d0c-4327-0607-cc93-789cd53087bb",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        },
+        {
+          "id": "0a270619-47b5-4594-24f5-b796527b255b",
+          "source": "96e96e21-478b-7201-3c8b-9eb0b3683b0b",
+          "target": "e411bf59-4146-f189-ff1f-ac9dbc640cf1"
+        },
+        {
+          "id": "015b69cc-4b31-f90d-a081-4ba3ca8fa34d",
+          "source": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        },
+        {
+          "id": "ea13c76c-4b6d-1e2e-0f02-4da14fed9e29",
+          "source": "e411bf59-4146-f189-ff1f-ac9dbc640cf1",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        },
+        {
+          "id": "ddc61518-487f-f6d9-c65c-45a36e8a7ac2",
+          "source": "96e96e21-478b-7201-3c8b-9eb0b3683b0b",
+          "target": "125f1d0c-4327-0607-cc93-789cd53087bb"
+        },
+        {
+          "id": "6a832c89-43b6-05a3-1706-019a381754d9",
+          "source": "981a0ca7-4229-bd6d-34ae-f6898f32c0c9",
+          "target": "96e96e21-478b-7201-3c8b-9eb0b3683b0b"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Pose": "Pose"
+        }
+      }
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "Runtime graph boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--check"
+      ]
+    },
+    {
+      "label": "ALS runtime graph positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/ALS"
+      ]
+    },
+    {
+      "label": "Installed graph editor records",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_quick_stop_consumes_the_notifying_frame_inputs",
+    "manual_case": "state_machine"
+  }
+}

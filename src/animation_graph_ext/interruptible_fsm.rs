@@ -482,12 +482,22 @@ impl InterruptibleFsmNode {
             })
     }
 
-    fn transition_id(transition: &LowLevelTransition) -> Option<&TransitionId> {
+    fn transition_id(transition: &LowLevelTransition) -> &TransitionId {
         match &transition.id {
             LowLevelTransitionId::Start(id)
             | LowLevelTransitionId::End(id)
-            | LowLevelTransitionId::Immediate(id) => Some(id),
+            | LowLevelTransitionId::Immediate(id) => id,
         }
+    }
+
+    fn source_transition_condition(&self, id: &TransitionId) -> Option<&SourceTransitionCondition> {
+        let TransitionId::Direct(id) = id else {
+            return None;
+        };
+        let id = id.uuid().to_string();
+        self.source_transition_conditions
+            .iter()
+            .find(|condition| condition.transition_id == id)
     }
 
     fn append_transition_notifications(
@@ -496,14 +506,7 @@ impl InterruptibleFsmNode {
         transition_id: &TransitionId,
         phase: &str,
     ) {
-        let TransitionId::Direct(transition_id) = transition_id else {
-            return;
-        };
-        if let Some(condition) = self
-            .source_transition_conditions
-            .iter()
-            .find(|condition| condition.transition_id == transition_id.uuid().to_string())
-        {
+        if let Some(condition) = self.source_transition_condition(transition_id) {
             state.transition_notifications.extend(
                 condition
                     .notifications
@@ -769,14 +772,8 @@ impl InterruptibleFsmNode {
             .find(|weight| weight.state_id == transition.hl_target.uuid().to_string())
             .map_or(0.0, |weight| weight.value);
         let relevant_asset = self.source_target_relevant_asset(machine, state, ctx)?;
-        let adjustment = Self::transition_id(transition)
-            .and_then(|id| match id {
-                TransitionId::Direct(id) => self
-                    .source_transition_conditions
-                    .iter()
-                    .find(|condition| condition.transition_id == id.uuid().to_string()),
-                _ => None,
-            })
+        let adjustment = self
+            .source_transition_condition(Self::transition_id(transition))
             .and_then(|condition| {
                 condition.automatic_trigger_time.and_then(|trigger| {
                     source_automatic_transition_adjustment(
@@ -882,14 +879,9 @@ impl InterruptibleFsmNode {
             };
             if let Some(transition) = transition {
                 let source_weights = state.recorded_state_weights.clone();
-                let always_reset = Self::transition_id(transition)
-                    .and_then(|id| match id {
-                        TransitionId::Direct(id) => self
-                            .source_transition_conditions
-                            .iter()
-                            .find(|condition| condition.transition_id == id.uuid().to_string()),
-                        _ => None,
-                    })
+                let transition_id = Self::transition_id(transition);
+                let always_reset = self
+                    .source_transition_condition(transition_id)
                     .and_then(|condition| condition.always_reset_target_on_entry)
                     .unwrap_or(true);
                 let target_active = source_weights.iter().any(|weight| {
@@ -913,9 +905,7 @@ impl InterruptibleFsmNode {
                         "TransitionInterrupt",
                     );
                 }
-                if let Some(transition_id) = Self::transition_id(transition)
-                    && (ending || !state.first_update || !self.skip_first_update_transition)
-                {
+                if ending || !state.first_update || !self.skip_first_update_transition {
                     self.append_transition_notifications(
                         &mut state,
                         transition_id,
@@ -1047,12 +1037,9 @@ impl InterruptibleFsmNode {
                         error: "source transition condition target is unavailable".to_owned(),
                     }
                 })?;
-            if self
-                .direct_transition(machine, &state, transition)
-                .is_none()
-            {
+            let Some(candidate) = self.direct_transition(machine, &state, transition) else {
                 continue;
-            }
+            };
             let matched = if let Some(trigger_time) = condition.automatic_trigger_time {
                 automatic_relevancy_valid
                     && source_automatic_transition_adjustment(
@@ -1090,10 +1077,7 @@ impl InterruptibleFsmNode {
             if !gates_match {
                 continue;
             }
-            if self
-                .direct_transition(machine, &state, transition)
-                .is_some_and(|transition| transition.hl_target == active_state)
-            {
+            if candidate.hl_target == active_state {
                 continue;
             }
             return Ok(Some(transition));
@@ -2355,14 +2339,10 @@ impl<'a> InterruptibleFsmIo<'a> {
             .or(Ok(None))
     }
 
-    fn parent_time(&self, _ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
-        Ok(self.parent_time_update.clone())
-    }
-
     fn nested_time(&self, ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
         let mut stack = self.stack.clone();
         let Some(frame) = stack.pop_back() else {
-            return self.parent_time(ctx);
+            return Ok(self.parent_time_update.clone());
         };
         let graph_handle = self
             .machine
@@ -2408,7 +2388,7 @@ impl<'a> InterruptibleFsmIo<'a> {
         let input = match self.role {
             FsmRole::Source => GraphInputPin::FromFsmSource("".into()),
             FsmRole::Target => GraphInputPin::FromFsmTarget("".into()),
-            FsmRole::Root => return self.parent_time(ctx),
+            FsmRole::Root => return Ok(self.parent_time_update.clone()),
         };
         graph.get_time_update(SourcePin::InputTime(input), sub_ctx)
     }
@@ -2485,7 +2465,9 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
     }
 
     fn get_time_fwd(&self, ctx: GraphContext) -> Result<TimeUpdate, GraphError> {
-        self.nested_time(&ctx).or_else(|_| self.parent_time(&ctx))
+        Ok(self
+            .nested_time(&ctx)
+            .unwrap_or_else(|_| self.parent_time_update.clone()))
     }
 }
 

@@ -706,7 +706,7 @@ mod tests {
             let profile = &fixture.profile;
             assert_eq!(
                 crate::stop_link::source_transition_sequence(&playback),
-                Some(case.sequence.as_str())
+                case.sequence.as_str()
             );
             assert_eq!(
                 (
@@ -1361,7 +1361,7 @@ mod tests {
                     .get::<AlsTransitionMontageStack>(character)
                     .is_some_and(|stack| stack.entries.iter().any(|entry| entry.active
                         && crate::stop_link::source_transition_sequence(entry)
-                            == Some("A_Als_Stand_Transition_Left"))),
+                            == "A_Als_Stand_Transition_Left")),
                 "Game-thread notify must play in its frame after worker stop; leave_ground={leave_ground}, telemetry={after:?}"
             );
         }
@@ -1668,7 +1668,7 @@ mod tests {
         let playback = transition_animation_call(&notification, Stance::Standing, false).unwrap();
         assert_eq!(
             crate::stop_link::source_transition_sequence(&playback),
-            Some("A_Als_Stand_Transition_Left")
+            "A_Als_Stand_Transition_Left"
         );
         assert_eq!(
             (
@@ -1694,7 +1694,7 @@ mod tests {
         let crouching = transition_animation_call(&notification, Stance::Crouching, true).unwrap();
         assert_eq!(
             crate::stop_link::source_transition_sequence(&crouching),
-            Some("A_Als_Crouch_Transition_Right")
+            "A_Als_Crouch_Transition_Right"
         );
         assert_eq!((crouching.start_time, crouching.clip_time), (0.65, 0.65));
         notification.arguments.pop();
@@ -1764,7 +1764,7 @@ mod tests {
             );
             assert_eq!(
                 crate::stop_link::source_transition_sequence(&playback),
-                Some(expected)
+                expected
             );
             assert_eq!(
                 (

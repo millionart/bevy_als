@@ -1,0 +1,9 @@
+{
+  "before": [
+    "src/animation_graph_ext/interruptible_fsm.rs:485:5: warning: this function's return value is unnecessarily wrapped by `Option`",
+    "src/animation_graph_ext/interruptible_fsm.rs:2358:5: warning: this function's return value is unnecessarily wrapped by `Result`",
+    "src/../tools/manual_playground_integration/mod.rs:9290:1: warning: this function's return value is unnecessarily wrapped by `Option`",
+    "src/als/character/actions/stop_link.rs:474:1: warning: this function's return value is unnecessarily wrapped by `Option`"
+  ],
+  "after": []
+}

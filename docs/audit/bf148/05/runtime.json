@@ -1,0 +1,162 @@
+{
+  "startup_before_observer": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "startup_before_observer/decal_render.json",
+        "bytes": 1148,
+        "sha256": "f511ece5ba525ec71c9269972222e4d6813d08b61ff62ab24ade48f035629818"
+      },
+      {
+        "path": "startup_before_observer/process.report.json",
+        "bytes": 407,
+        "sha256": "2cdfe48d191fe1fe81b98040a1e0afbe3f88259218af4003106fa0fe2bb6d2e3"
+      },
+      {
+        "path": "startup_before_observer/process.stderr.log.gz",
+        "bytes": 4475,
+        "sha256": "a510ab1c412f03c152231eb1a5e2c3e5a9a2a3c857ecb9f3d7c9bf9e97e4719a"
+      },
+      {
+        "path": "startup_before_observer/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "startup_before_observer/render_effects.json",
+        "bytes": 243,
+        "sha256": "f45c6375d2457fe4664dea52e00ac3176485012e0bbfd4005a05c87574c7e18f"
+      },
+      {
+        "path": "startup_before_observer/report.json.gz",
+        "bytes": 7406732,
+        "sha256": "93daee7ee77975271aaba979a68949945cfdbf85ee3d32541f1f91516dad76a2"
+      },
+      {
+        "path": "startup_before_observer/runner.json",
+        "bytes": 373,
+        "sha256": "90b3332243fceebde9039efa402455292af43a968ac89dc7fa33bc94b61b094b"
+      }
+    ]
+  },
+  "startup": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "startup/decal_render.json",
+        "bytes": 1148,
+        "sha256": "f511ece5ba525ec71c9269972222e4d6813d08b61ff62ab24ade48f035629818"
+      },
+      {
+        "path": "startup/process.report.json",
+        "bytes": 408,
+        "sha256": "32490ccd03b09622484691da36207e413d8314aa7c8e4a2298f226d4eaeb08a7"
+      },
+      {
+        "path": "startup/process.stderr.log.gz",
+        "bytes": 4475,
+        "sha256": "48d932c846b115093e7d95dfa524973f32d72e91e145a364c74220a911cb2e5c"
+      },
+      {
+        "path": "startup/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "startup/render_effects.json",
+        "bytes": 228,
+        "sha256": "86d6147d282f01353ff6cc71948f36b34dec6a660ed7468722f4bb306949c27b"
+      },
+      {
+        "path": "startup/report.json.gz",
+        "bytes": 7499552,
+        "sha256": "fbadff8ccbf2fa13e64ef581bfb790dc93fbbddf6fef1240f514b053b4f223b5"
+      },
+      {
+        "path": "startup/runner.json",
+        "bytes": 373,
+        "sha256": "90b3332243fceebde9039efa402455292af43a968ac89dc7fa33bc94b61b094b"
+      }
+    ]
+  },
+  "state_machine": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "state_machine/decal_render.json",
+        "bytes": 1303,
+        "sha256": "89498249f81aa9d9df206d5a3709ce78292a2ef35399f053f6b5d5f60a1195a3"
+      },
+      {
+        "path": "state_machine/process.report.json",
+        "bytes": 407,
+        "sha256": "7fb600c2becbf386a3bffc6d8b44abd3dccc5c11a2162fa2ab49c68e467fd988"
+      },
+      {
+        "path": "state_machine/process.stderr.log.gz",
+        "bytes": 23198,
+        "sha256": "1667bd8b050bfd7018db99b5b6ba5bbe02a374eae50982ba06a74b4d90b499ba"
+      },
+      {
+        "path": "state_machine/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "state_machine/render_effects.json",
+        "bytes": 229,
+        "sha256": "2e6bd6b531dff2577d4f9c02ab0d02bfd386a80094b2893cd4ebf24f2d9ec5de"
+      },
+      {
+        "path": "state_machine/report.json.gz",
+        "bytes": 51681081,
+        "sha256": "72c0c68244ca1830687d4a18328e0c1f89b2229319c406b515e409334626f524"
+      },
+      {
+        "path": "state_machine/runner.json",
+        "bytes": 385,
+        "sha256": "982bd2144402aceed1e8e2dd3b230ce7ee8a9aecff38dc32dfa806eb7518932e"
+      }
+    ]
+  },
+  "standing_stop": {
+    "scope": "functional",
+    "reports": [
+      {
+        "path": "standing_stop/decal_render.json",
+        "bytes": 1204,
+        "sha256": "468e9c8937656529c7411632dc77d021e7fb42e276495ed06f093bf2b65f2192"
+      },
+      {
+        "path": "standing_stop/process.report.json",
+        "bytes": 408,
+        "sha256": "22d0cd220688bc8142b118386db1da6c922deb170ca01bec6fda3795dc10b543"
+      },
+      {
+        "path": "standing_stop/process.stderr.log.gz",
+        "bytes": 9265,
+        "sha256": "4ec7db8f7b3591ef4a727af82a86b24e2b46030316895c9d04676969f2cee985"
+      },
+      {
+        "path": "standing_stop/process.stdout.log.gz",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "standing_stop/render_effects.json",
+        "bytes": 240,
+        "sha256": "65e2d9737c26696d8066dc7dbd3e607da5dbacaba97cbb1290b4108df2587d2a"
+      },
+      {
+        "path": "standing_stop/report.json.gz",
+        "bytes": 42386959,
+        "sha256": "5f67bd250887e868a3f3741dacd04ee6c283d284fa96bcd783b046ad0787ff40"
+      },
+      {
+        "path": "standing_stop/runner.json",
+        "bytes": 385,
+        "sha256": "73d3f23f3af331db54e7cd8b26c72fc25d0b5a2481f5ca95adb5f38c5291c30c"
+      }
+    ]
+  }
+}

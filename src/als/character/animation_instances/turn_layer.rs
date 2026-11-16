@@ -867,7 +867,7 @@ mod tests {
         let transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
         let turn_name = source_turn_sequence(false, false, 0.0);
         let crouch_turn_name = source_turn_sequence(true, false, 0.0);
-        let transition_name = crate::stop_link::source_transition_sequence(&transition).unwrap();
+        let transition_name = crate::stop_link::source_transition_sequence(&transition);
         let started = std::time::Instant::now();
         let watchdog_reason = |wall: std::time::Duration, stalled: std::time::Duration| {
             if wall.as_secs() >= 30 {

@@ -4029,6 +4029,17 @@ fn generated_stop_source_pose_chain(crouching: bool) -> Vec<ManualAnimationPoseB
     chain
 }
 
+fn quick_stop_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
+    vec![ManualAnimationPoseBoundary {
+        label: "transition_slot",
+        graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+        node: "Slot 'Transition'\nGroup 'Grounded'",
+        output: "Pose",
+        minimum_translation_span: 0.0,
+        minimum_rotation_span_radians: 0.0,
+    }]
+}
+
 fn state_machine_grounded_window(elapsed: f32) -> ManualAnimationWindowEvidence {
     let moving = (1.0..2.4).contains(&elapsed) || elapsed >= 3.5;
     ManualAnimationWindowEvidence {
@@ -7606,7 +7617,7 @@ fn drive_manual_integration(
                 requires_source_pose_chain: true,
                 source_node: Some("AB_Als_Standing/Standing States"),
                 source_state: Some("Move to Idle"),
-                source_pose_chain: generated_stop_source_pose_chain(false),
+                source_pose_chain: quick_stop_source_pose_chain(),
                 ..default()
             };
             if entering {
@@ -8282,9 +8293,7 @@ fn drive_manual_integration(
             }
             let body_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
             if state.scenario == IntegrationScenario::StateMachine {
-                if let Some(target_yaw) = state_machine_turn_target_yaw(elapsed, body_yaw) {
-                    view_yaw.0 = target_yaw;
-                }
+                view_yaw.0 = state_machine_turn_target_yaw(elapsed, body_yaw);
                 if state_machine_turn_phase_complete(elapsed) {
                     begin_phase(&mut state, IntegrationPhase::StateMachineRotate);
                 }
@@ -9287,13 +9296,13 @@ fn state_machine_rotation_boundary(elapsed: f32, delta: f32) -> Option<&'static 
     })
 }
 
-fn state_machine_turn_target_yaw(elapsed: f32, body_yaw: f32) -> Option<f32> {
+fn state_machine_turn_target_yaw(elapsed: f32, body_yaw: f32) -> f32 {
     if (STATE_MACHINE_TURN_FIRST_START..STATE_MACHINE_TURN_FIRST_END).contains(&elapsed) {
-        Some(body_yaw + 90.0f32.to_radians())
+        body_yaw + 90.0f32.to_radians()
     } else if (STATE_MACHINE_TURN_SECOND_START..STATE_MACHINE_TURN_SECOND_END).contains(&elapsed) {
-        Some(body_yaw - 90.0f32.to_radians())
+        body_yaw - 90.0f32.to_radians()
     } else {
-        Some(body_yaw)
+        body_yaw
     }
 }
 
@@ -10112,11 +10121,11 @@ fn observe_manual_integration(
                         minimum_translation_span: 0.0,
                         minimum_rotation_span_radians: 0.0,
                     }],
-                    expected_animation_variant: crate::stop_link::source_transition_sequence(
+                    expected_animation_variant: Some(crate::stop_link::source_transition_sequence(
                         &recorded,
-                    ),
+                    )),
                     observed_animation_variant: playback
-                        .and_then(crate::stop_link::source_transition_sequence),
+                        .map(crate::stop_link::source_transition_sequence),
                     observed_animation_clip_time: playback
                         .filter(|_| active)
                         .map(|value| value.clip_time),
@@ -11605,20 +11614,13 @@ fn observe_manual_integration(
                 source_node: Some(source_node),
                 source_state: Some(branch),
                 source_pose_chain: if quick {
-                    vec![ManualAnimationPoseBoundary {
-                        label: "transition_slot",
-                        graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
-                        node: "Slot 'Transition'\nGroup 'Grounded'",
-                        output: "Pose",
-                        minimum_translation_span: 0.0,
-                        minimum_rotation_span_radians: 0.0,
-                    }]
+                    quick_stop_source_pose_chain()
                 } else {
                     generated_stop_source_pose_chain(crouching_actions)
                 },
                 expected_animation_variant: Some(expected_variant),
                 observed_animation_variant: observed
-                    .and_then(crate::stop_link::source_transition_sequence),
+                    .map(crate::stop_link::source_transition_sequence),
                 observed_animation_clip_time: observed.map(|playback| playback.clip_time),
                 observed_animation_weight: observed.map(|playback| playback.weight),
                 observed_animation_play_rate: observed.map(|playback| playback.play_rate),
@@ -11800,7 +11802,7 @@ fn observe_manual_integration(
                 source_pose_chain: chain,
                 expected_animation_variant: Some(expected_variant),
                 observed_animation_variant: observed
-                    .and_then(crate::stop_link::source_transition_sequence),
+                    .map(crate::stop_link::source_transition_sequence),
                 observed_animation_clip_time: observed.map(|playback| playback.clip_time),
                 observed_animation_weight: observed.map(|playback| playback.weight),
                 observed_animation_play_rate: observed.map(|playback| playback.play_rate),
@@ -20036,9 +20038,15 @@ mod tests {
     fn state_machine_turn_fixture_allows_both_source_montages_to_finish() {
         assert!(STATE_MACHINE_TURN_FIRST_END - STATE_MACHINE_TURN_FIRST_START >= 1.0);
         assert!(STATE_MACHINE_TURN_SECOND_END - STATE_MACHINE_TURN_SECOND_START >= 1.0);
-        assert!(state_machine_turn_target_yaw(0.5, 0.0).is_some());
-        assert_eq!(state_machine_turn_target_yaw(2.0, 0.0), Some(0.0));
-        assert!(state_machine_turn_target_yaw(4.0, 0.0).is_some());
+        assert_eq!(
+            state_machine_turn_target_yaw(STATE_MACHINE_TURN_FIRST_START, 0.0),
+            90.0f32.to_radians()
+        );
+        assert_eq!(state_machine_turn_target_yaw(2.0, 0.0), 0.0);
+        assert_eq!(
+            state_machine_turn_target_yaw(STATE_MACHINE_TURN_SECOND_START, 0.0),
+            -90.0f32.to_radians()
+        );
         assert!(!state_machine_turn_phase_complete(
             STATE_MACHINE_TURN_END - 0.01
         ));

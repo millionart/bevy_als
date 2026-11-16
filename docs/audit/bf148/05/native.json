@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+      "reader_flags": [
+        "-StateMachinePlayers"
+      ],
+      "file": "Standing.native.json.gz",
+      "raw_bytes": 94311550,
+      "sha256": "2909fe72ea93ed2124bd092e7eae0bac2986800358e03b83e7da9c04715954d6",
+      "graph_count": 258
+    }
+  ]
+}
