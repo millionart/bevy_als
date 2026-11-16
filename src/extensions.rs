@@ -1,20 +1,20 @@
+pub use bevy_control_rig::{
+    hierarchy as control_rig_hierarchy, ik_space, math as control_rig_math,
+    program as control_rig_program, rig_ik as control_rig_ik,
+};
+
 #[path = "animation_graph_ext/als_curves.rs"]
 pub mod als_curves;
 #[path = "animation_graph_ext/animation_context.rs"]
 pub mod animation_context;
 #[path = "animation_graph_ext/blend_space_1d.rs"]
 pub mod blend_space_1d;
-#[path = "control_rig/control_rig_hierarchy.rs"]
-pub mod control_rig_hierarchy;
-#[path = "control_rig/control_rig_ik.rs"]
-pub mod control_rig_ik;
-#[path = "control_rig/control_rig_math.rs"]
-pub mod control_rig_math;
-#[path = "control_rig/control_rig_mesh_ray.rs"]
+#[path = "avian_ext/control_rig_mesh_ray.rs"]
 pub mod control_rig_mesh_ray;
-#[path = "control_rig/control_rig_program.rs"]
-pub mod control_rig_program;
-#[path = "control_rig/control_rig_query.rs"]
+#[cfg(test)]
+#[path = "animation_graph_ext/control_rig_program_tests.rs"]
+mod control_rig_program_tests;
+#[path = "avian_ext/control_rig_query.rs"]
 pub mod control_rig_query;
 #[path = "control_rig/control_rig_units.rs"]
 pub mod control_rig_units;
@@ -54,10 +54,8 @@ pub mod global_bool_input;
 pub mod global_f32_input;
 #[path = "animation_graph_ext/global_pose_input.rs"]
 pub mod global_pose_input;
-#[path = "control_rig/ik.rs"]
+#[path = "als/character/ik_hand_target.rs"]
 pub mod ik;
-#[path = "control_rig/ik_space.rs"]
-pub mod ik_space;
 #[path = "animation_graph_ext/inertialization.rs"]
 pub mod inertialization;
 #[path = "animation_graph_ext/inertialization_passthrough.rs"]
@@ -114,8 +112,6 @@ pub mod query_collision;
 pub mod ragdoll_angular_drive;
 #[path = "animation_graph_ext/ragdoll_config_node.rs"]
 pub mod ragdoll_config_node;
-#[path = "bevy_ext/source_math.rs"]
-pub(crate) mod source_math;
 pub use query_collision::ComplexCollider;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
@@ -517,6 +513,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DataValue>();
         AlsCurvesHandler::register(app);
         app.add_plugins((
+            bevy_control_rig::ControlRigPlugin,
             root_motion_defaults::RootMotionDefaultsPlugin,
             RagdollPhysicsProfilePlugin,
             RagdollAngularDrivePlugin,

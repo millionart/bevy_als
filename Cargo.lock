@@ -631,6 +631,7 @@ dependencies = [
  "bevy-tnua-avian3d",
  "bevy_animation_graph",
  "bevy_animation_graph_editor",
+ "bevy_control_rig",
  "bevy_enhanced_input",
  "bevy_gameplay_tag",
  "bevy_gltf",
@@ -957,6 +958,16 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "wgpu-types",
+]
+
+[[package]]
+name = "bevy_control_rig"
+version = "0.1.0"
+source = "git+https://github.com/millionart/bevy_control_rig?rev=ccca1b0dc7e855a63c6654430b41d3bedc214d3a#ccca1b0dc7e855a63c6654430b41d3bedc214d3a"
+dependencies = [
+ "bevy",
+ "bevy_math",
+ "serde",
 ]
 
 [[package]]

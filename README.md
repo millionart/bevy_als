@@ -72,7 +72,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 - Windows 仍可双击原有 `.bat`；它们调用同名 `.ps1`，两边都使用工作区内的 `target_game` 与默认2个构建任务。
 - 工具回归：`pwsh tools/run_ue_source_reader.ps1 -SelfTest`，以及 `& (./tools/python.ps1) -B tools/tests/test_platform_tools.py -v`。
 - `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
-- 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::control_rig_math::`；全量回归使用 `cargo test --jobs 2`。
+- 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::root_graph_boundaries::tests`。全量回归使用 `cargo test --jobs 2`。独立的 Rig 算法测试可在插件仓库运行。 [Bevy Control Rig](https://github.com/millionart/bevy_control_rig)
 - [examples 说明](tools/examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
 - `tools/tmp/saved/als_debug.ron` 保存手动运行的调试显示类别，不保存主显示开关；自动 Gate 不读写它。此目录不入 Git，删除该文件会重置类别选择，下次手动切换类别时重新生成。
 

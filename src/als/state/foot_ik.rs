@@ -10,7 +10,9 @@ use crate::als::state::{LocomotionState, Stance};
 use crate::als::transitions::{
     TransitionConfig, TransitionSelection, foot_lock_distance_squared_cm, select_dynamic_transition,
 };
-use crate::extensions::{control_rig_hierarchy::rig_normalize, source_math::source_rotate_vector};
+use crate::extensions::{
+    control_rig_hierarchy::rig_normalize, control_rig_math::source_rotate_vector,
+};
 
 pub const FOOT_BONE_NAMES: [&str; 10] = [
     "thigh_l",

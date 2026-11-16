@@ -4497,7 +4497,7 @@ mod tests {
         world.get_mut::<Transform>(root).unwrap().rotation = changed;
         let second = world.run_system_once(read).unwrap();
         let rotated =
-            crate::extensions::source_math::source_rotate_vector(changed.as_dquat(), location);
+            crate::extensions::control_rig_math::source_rotate_vector(changed.as_dquat(), location);
         assert_eq!(second, (rotated + component.translation * 100.0) * 0.01);
         assert_ne!(first, second);
     }

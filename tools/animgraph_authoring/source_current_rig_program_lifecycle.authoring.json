@@ -76,20 +76,20 @@
   "id": "source_current_rig_program_lifecycle_contract",
   "source_evidence": [
     {
-      "path": "target/bf134/02m8/current_program_lifecycle_contract.json",
-      "sha256": "dd30733b1799ee40fcca4ff79b00639462fa054cf72e3d78ce9b5ee4df06c9b8"
+      "path": "docs/audit/bf149/01/rig.native.json.gz",
+      "sha256": "1cf09d3b44c09d301efceac19269ee3ac9a97f023da0f722aa440ce0ac697e3f"
     },
     {
-      "path": "target/bf134/02m8/cr_als.ue.json",
-      "sha256": "29e8eaf89ca8fb9055e089a98cc6864ca6c06d93809e3aa6f4d066eaf34eb6fa"
+      "path": "docs/audit/bf149/01/source-contract.json",
+      "sha256": "a834d734edce70c5c2dca61adacb1e78933772aa96114f0277d6458dd5d50830"
     },
     {
-      "path": "target/bf134/02m8/target_compare.json",
-      "sha256": "ad7afaafc518cc8be7565981a348c957a77799033e7adefddcf0bb6bbf8ce12b"
+      "path": "docs/audit/bf149/02/source-unit-owners.json",
+      "sha256": "1e11468b3b21728bb89def52b8eee0d85abc4ac36d23b24b03a000a312ff53e7"
     },
     {
-      "path": "target/bf134/02m8/current_contract.json",
-      "sha256": "4ec60e2e3668a8af37ede17321eb738cb768f09e9375d9acf46c701d6a2aaaa7"
+      "path": "docs/audit/bf149/02/unit-dispatch.json",
+      "sha256": "4eb3a53f1fc851652ed5994ec312739af0d20ec8a57c864b803cf5a530accc06"
     }
   ],
   "verification_commands": [
@@ -135,7 +135,7 @@
   },
   "focused_tests": [
     {
-      "label": "extensions::control_rig_program::tests",
+      "label": "extensions::control_rig_program_tests",
       "argv": [
         "cargo",
         "test",
@@ -148,7 +148,7 @@
         "--config",
         "profile.play.package.bevy_als.opt-level=0",
         "--lib",
-        "extensions::control_rig_program::tests"
+        "extensions::control_rig_program_tests"
       ]
     },
     {

@@ -1,0 +1,30 @@
+{
+  "program_sha256": "0975a1d306bce47f5c3db95aaefd2e9498bb31285fd6bde2d89510439a2ce260",
+  "custom_calls": [
+    "FAlsRigUnit_ApplyFootOffsetLocation::Execute",
+    "FAlsRigUnit_ApplyFootOffsetRotation::Execute",
+    "FAlsRigUnit_CalculatePoleVector::Execute",
+    "FAlsRigUnit_ChainLength::Execute",
+    "FAlsRigUnit_DistributeRotationSimple::Execute",
+    "FAlsRigUnit_FootOffsetTrace::Execute",
+    "FAlsRigVMFunction_DamperExactVector::Execute",
+    "FAlsRigVMFunction_IsGameWorld::Execute"
+  ],
+  "native_unit_calls": [
+    "DISPATCH_RigVMDispatch_If::Condition:bool,True:FRigElementKey,False:FRigElementKey,Result:FRigElementKey",
+    "FRigUnit_BeginExecution::Execute",
+    "FRigUnit_GetCurveValue::Execute",
+    "FRigUnit_GetTransform::Execute",
+    "FRigUnit_PrepareForExecution::Execute",
+    "FRigUnit_SetRotation::Execute",
+    "FRigUnit_SetScale::Execute",
+    "FRigUnit_SetTranslation::Execute",
+    "FRigUnit_SpringInterpV2::Execute",
+    "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+    "FRigVMFunction_ControlFlowBranch::Execute"
+  ],
+  "total_calls": 45,
+  "reference_source": "3ea473fbccee0744ab0a1558e9362c8ae626182d",
+  "unit_body_identity": 15,
+  "custom_node_directory": "src/control_rig"
+}

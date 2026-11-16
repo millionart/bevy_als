@@ -1,0 +1,94 @@
+{
+  "binary_sha256": "bd27c452c48b4eacfb2b1992542c1aab9a74f20bf3599f95f48383db4d39568a",
+  "cases": [
+    {
+      "case": "startup",
+      "passed": true,
+      "scope": "functional",
+      "graph_errors": 0,
+      "observed_bones": 18,
+      "pose_samples": 84,
+      "motion_windows": 0,
+      "screenshot_count": 0,
+      "manual_coverage": [],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "report": "startup/report.json.gz",
+      "raw_bytes": 7685139,
+      "sha256": "94aed82e6f150ead54439e26b6b4dba60f7895f925dc800ae1ffb7ca8d79a940"
+    },
+    {
+      "case": "control_rig",
+      "passed": true,
+      "scope": "functional",
+      "graph_errors": 0,
+      "observed_bones": 18,
+      "pose_samples": 75,
+      "motion_windows": 0,
+      "screenshot_count": 0,
+      "manual_coverage": [
+        "runtime_assembly",
+        "animation_graph",
+        "standing_graph",
+        "control_rig",
+        "control_rig_actions",
+        "control_rig_stages",
+        "control_rig_input",
+        "control_rig_foot_targets",
+        "foot_probe",
+        "foot_lock"
+      ],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "report": "control_rig/report.json.gz",
+      "raw_bytes": 6867176,
+      "sha256": "95d9ace310a53306f1e50a2012000e2e28aa34923206dd3be6c0582ad9e55653"
+    },
+    {
+      "case": "foot_ik",
+      "passed": true,
+      "scope": "functional",
+      "graph_errors": 0,
+      "observed_bones": 18,
+      "pose_samples": 712,
+      "motion_windows": 12,
+      "screenshot_count": 0,
+      "manual_coverage": [
+        "runtime_assembly",
+        "animation_graph",
+        "standing_graph",
+        "direction_regression",
+        "foot_probe",
+        "foot_lock",
+        "foot_ik_space_baseline",
+        "foot_ik_no_hit_recovered",
+        "foot_ik_weight_ramp",
+        "foot_ik_teleport",
+        "foot_ik_slope",
+        "foot_ik_step",
+        "foot_ik_crouching",
+        "foot_ik_jump_air",
+        "foot_ik_landed",
+        "foot_ik_roll",
+        "foot_ik_mantle",
+        "mantle_start",
+        "mantle_complete",
+        "foot_ik_terrain_cleaned",
+        "foot_bones_replaced",
+        "camera_root_rebound"
+      ],
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ],
+      "report": "foot_ik/report.json.gz",
+      "raw_bytes": 67355335,
+      "sha256": "93b5f32a8a94bb5167e0807a4d2d990825714c3b9ae3d681122888c1393c7674"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ use crate::extensions::{
     control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},
     control_rig_math::{RigValue, rotation_basis},
     control_rig_program::{RigDefinition, RigValueRef},
-    control_rig_units::RigUnitContext,
+    control_rig_units::{RigUnitContext, call_unit},
     source_instance::source_input_data,
 };
 
@@ -352,7 +352,7 @@ impl ControlRigBoundaryNode {
                         } else {
                             Vec::new()
                         };
-                        let result = context.call(name, args);
+                        let result = call_unit(&mut context, name, args);
                         if capture {
                             calls.push(RigCallSample {
                                 instruction: pc,

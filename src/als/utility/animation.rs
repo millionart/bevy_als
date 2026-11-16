@@ -4,7 +4,7 @@ use bevy::prelude::*;
 fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
     let half = std::f64::consts::FRAC_1_SQRT_2;
     let rotation = character_rotation.as_dquat() * DQuat::from_xyzw(0.0, half, 0.0, half);
-    let local = crate::extensions::source_math::source_rotate_vector(
+    let local = crate::extensions::control_rig_math::source_rotate_vector(
         rotation.conjugate(),
         world_velocity.as_dvec3() * 100.0,
     );
@@ -66,12 +66,7 @@ pub fn acceleration_amount(
     Vec2::new(amount.x, amount.y)
 }
 
-pub fn inv_exp_approx(value: f32) -> f32 {
-    1.0 / (1.0
-        + 1.00746054 * value
-        + 0.45053901 * value * value
-        + 0.25724632 * value * value * value)
-}
+pub use bevy_control_rig::math::inv_exp_approx;
 
 #[cfg(test)]
 mod tests {

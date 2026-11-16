@@ -2,7 +2,7 @@ use avian3d::parry::shape::{Capsule, Cuboid};
 use bevy::math::{DQuat, DVec3};
 use bevy::prelude::{Quat, Vec3};
 
-use crate::extensions::source_math::source_rotate_vector;
+use crate::extensions::control_rig_math::source_rotate_vector;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum CapsuleSweepResult {
