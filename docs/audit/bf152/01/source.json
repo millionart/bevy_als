@@ -1,0 +1,63 @@
+{
+  "fork_revision": "e7639530e98c1c67da1e6b66eeee7da0bcac2351",
+  "fork_and_fix_parent": "83c4785856aa11f7ac1f4e0a9b7fc6ffec0d1319",
+  "upstream_fix": "1891a616ec91b935413b2800d8d387b7bd3920df",
+  "packages": {
+    "bevy-tnua": {
+      "version": "0.33.2",
+      "archive": "https://static.crates.io/crates/bevy-tnua/bevy-tnua-0.33.2.crate",
+      "archive_sha256": "0bca956de7ec823611b58856eb607e23b55c8a0fd944a298629a9232e66bea30",
+      "published_vcs": {
+        "git": {
+          "sha1": "83c4785856aa11f7ac1f4e0a9b7fc6ffec0d1319"
+        },
+        "path_in_vcs": ""
+      },
+      "compared_source_files": 26,
+      "source_bytes_match_fork": true,
+      "manifest_diff": "none"
+    },
+    "bevy-tnua-avian3d": {
+      "version": "0.13.2",
+      "archive": "https://static.crates.io/crates/bevy-tnua-avian3d/bevy-tnua-avian3d-0.13.2.crate",
+      "archive_sha256": "0c6a9b6c07848621b2fbe3d713bc7b0f0c7a673a626170b795fe6e966f942794",
+      "published_vcs": {
+        "git": {
+          "sha1": "1891a616ec91b935413b2800d8d387b7bd3920df"
+        },
+        "path_in_vcs": "avian3d"
+      },
+      "compared_source_files": 2,
+      "source_bytes_match_fork": true,
+      "manifest_diff": "version 0.13.1 -> 0.13.2"
+    },
+    "bevy-tnua-macros": {
+      "version": "0.3.0",
+      "archive": "https://static.crates.io/crates/bevy-tnua-macros/bevy-tnua-macros-0.3.0.crate",
+      "archive_sha256": "37a2016668a85bbf54d28a8e53c8fa951de2f4e05fd8d905516ca06f8d2a2c76",
+      "published_vcs": {
+        "git": {
+          "sha1": "6c5df298258f617c6499a33f91da90b632141abb"
+        },
+        "path_in_vcs": "macros"
+      },
+      "compared_source_files": 10,
+      "source_bytes_match_fork": true,
+      "manifest_diff": "none"
+    },
+    "bevy-tnua-physics-integration-layer": {
+      "version": "0.14.2",
+      "archive": "https://static.crates.io/crates/bevy-tnua-physics-integration-layer/bevy-tnua-physics-integration-layer-0.14.2.crate",
+      "archive_sha256": "2827f1b1410fdc147990200028d6092918a251acda56f88745d377f836afbf5a",
+      "published_vcs": {
+        "git": {
+          "sha1": "83c4785856aa11f7ac1f4e0a9b7fc6ffec0d1319"
+        },
+        "path_in_vcs": "physics-integration-layer"
+      },
+      "compared_source_files": 5,
+      "source_bytes_match_fork": true,
+      "manifest_diff": "none"
+    }
+  }
+}

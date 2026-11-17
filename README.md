@@ -12,20 +12,19 @@
 | upstream | fork | 用途 |
 |---|---|---|
 | mbrea-c/bevy_animation_graph | [millionart/bevy_animation_graph](https://github.com/millionart/bevy_animation_graph) | 动画图（AnimBP 替代） |
-| idanarye/bevy-tnua | [millionart/bevy-tnua](https://github.com/millionart/bevy-tnua) | 浮动角色控制器（CharacterMovement 替代） |
 
 项目使用单一 Cargo 包，已移除历史 `crates` 拆分。源码统一按源归属放在根 `src/`：`animation_graph_ext`、`avian_ext`、`bevy_ext`、`control_rig_ext`、`tnua_ext` 与 `als`、`als_camera`、`als_extras` 并列。关卡、环境、UI 分别对应 `als_extras/levels`、`environment`、`ui`；移植验收与诊断归 `tools`。完整对应关系见 [源码目录说明](src/README.md)。
 
 ### 依赖指向（M0.2）
 
-项目使用 Bevy 0.20.1、Avian 0.8 和 Enhanced Input 0.27。以下 fork 在根 `Cargo.toml` 中锁定到提交。
+项目使用 Bevy 0.20.1、Avian 0.8 和 Enhanced Input 0.27。Git 依赖在根 `Cargo.toml` 中锁定到提交，crates.io 发布版由 `Cargo.lock` 锁定。
 
-| crate（版本） | fork git 地址 |
+| crate（版本） | 来源 |
 |---|---|
 | bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（codex/bevy-0.20） |
 | bevy_gameplay_tag 0.3.0 | `https://github.com/millionart/bevy_gameplay_tag`（codex/bevy-0.20） |
-| bevy-tnua 0.33.2 | `https://github.com/millionart/bevy-tnua`（codex/bevy-0.20） |
-| bevy-tnua-avian3d 0.13.1 | `https://github.com/millionart/bevy-tnua`（codex/bevy-0.20） |
+| bevy-tnua 0.33.2 | [crates.io](https://crates.io/crates/bevy-tnua/0.33.2) |
+| bevy-tnua-avian3d 0.13.2 | [crates.io](https://crates.io/crates/bevy-tnua-avian3d/0.13.2)，包含 [多角色马达修复](https://github.com/idanarye/bevy-tnua/commit/1891a616ec91b935413b2800d8d387b7bd3920df) |
 
 - fork 改动必须独立小步提交并可回馈 upstream（agents.md 规则 4）；任何时候禁止 vendor 拷贝插件源码。
 - 本地源码调试时可用 `[patch.crates-io]`/path 覆盖，但路径只经 gitignored 本地配置或环境变量注入，禁止提交进仓库（agents.md 规则 7）。

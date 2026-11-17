@@ -336,6 +336,15 @@
       - 01:27 完整 Gate。序列和 BlendSpace 的已发布上下文改为共享快照后，同一无探针二进制的 Control Rig 两次 p95 3.815／3.971 ms，零速率、姿态和图故障。Overlay、Footprint、startup、普通时钟布娃娃、6.985542 ms 布娃娃及起身完整通过。随后消融播放器派发合并和自动转换的延迟读取，Control Rig 两次 3.738／4.231 ms，后者超原预算。01:32 按源码字节恢复，先跑定向测试，再在同 target 重编检查身份和普通时钟反例。
       - 2026-11-17 01:38 完成。第 3 轮源等价和定向阶段从 01:00 至 01:34，预估 01:36，偏差 −2 分钟，417 项测试通过。最终阶段 01:34 提前开始，预估 02:20、实际结束 01:38，偏差 −42 分钟。恢复构建的 SHA-256 与已通过八场的 `play` 二进制逐字节一致。恢复后的 startup 和两次 Control Rig 完整通过，Control Rig p95 为 3.882／3.726 ms，速率告警 0。各场原 25／75／4 ms、40 m/s 及物理步门槛记录已随 Gate 校验。 [报告](docs/audit/bf150/scene-regressions/README.md) [完整结果](docs/audit/bf150/scene-regressions/runtime.json)
 
+## BF152 — 恢复 Tnua 官方依赖
+
+- [x] BF152.01 — 用包含 #138 修复的 crates.io 发布版替换 Tnua fork。依赖 BF102.16 已完成。开始 2026-11-17 21:39 +08:00，预估结束 22:05 +08:00，实际结束 21:55 +08:00，偏差 −10 分钟；Gate 通过，未拆分。估时参考 BF145.02b 的依赖构建与 BF150.04d 的增量构建／启动，复用现有 target 与马达反例。
+  - 21:39 source/static：fork `e763953` 从 `83c4785` 只把 Avian 3D 马达循环里的 `return` 改成 `continue`；官方 `1891a61` 包含同一修复，crates.io 索引已发布 Avian 3D `0.13.2`，仍要求 Bevy `^0.20` 与 Avian `^0.8`。下一步验证发布包与实际锁定闭包。
+  - 21:45 静态闭环：四个官方包的校验和与索引相符；43 个 `src/` 文件和 fork 逐字节一致，原始清单仅 Avian 3D 版本号不同。在线索引更新无进展，由 watchdog 结束；验证后缓存发布包，`cargo tree --locked --offline` 通过，锁文件只变更四个 Tnua 包。下一步在 `target_game/play` 构建并运行 Gate。
+  - 21:48 马达 Gate 前：`cargo build --locked --offline --jobs 2 --profile play` 在 `target_game` 为两个入口构建成功，锁文件未变。执行既有五实体 `tnua_toggle_gate`，复验各启用马达及禁用／仅感知实体的恢复。
+  - 21:49 马达 Gate 通过：三个启用角色在另外两者暂停时分别前进 0.564 m，恢复后五者均移动。直接运行需指定 `BEVY_ASSET_ROOT=.`，最终报告无缺资产错误。Playground Gate 前：使用正式 `run_manual.ps1` 的同一目标目录做无场景驱动的 `startup -FunctionalOnly`；工作区 BF151 的在制改动只在场景驱动及其测试内，启动不安装该驱动。
+  - 21:55 Playground 启动 Gate 通过：518 个渲染帧、90 个姿态样本，缺失骨骼、图错误和姿态故障均为零，渲染检查通过。`Cargo.lock` 在启动前后相同，报告压缩后已按原始字节验证。[源码、锁定依赖及 Gate 证据](docs/audit/bf152/01/README.md)。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

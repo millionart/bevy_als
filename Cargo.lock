@@ -567,7 +567,8 @@ dependencies = [
 [[package]]
 name = "bevy-tnua"
 version = "0.33.2"
-source = "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bca956de7ec823611b58856eb607e23b55c8a0fd944a298629a9232e66bea30"
 dependencies = [
  "bevy",
  "bevy-tnua-macros",
@@ -579,8 +580,9 @@ dependencies = [
 
 [[package]]
 name = "bevy-tnua-avian3d"
-version = "0.13.1"
-source = "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c6a9b6c07848621b2fbe3d713bc7b0f0c7a673a626170b795fe6e966f942794"
 dependencies = [
  "avian3d",
  "bevy",
@@ -591,7 +593,8 @@ dependencies = [
 [[package]]
 name = "bevy-tnua-macros"
 version = "0.3.0"
-source = "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37a2016668a85bbf54d28a8e53c8fa951de2f4e05fd8d905516ca06f8d2a2c76"
 dependencies = [
  "atterate",
  "convert_case 0.11.0",
@@ -603,7 +606,8 @@ dependencies = [
 [[package]]
 name = "bevy-tnua-physics-integration-layer"
 version = "0.14.2"
-source = "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2827f1b1410fdc147990200028d6092918a251acda56f88745d377f836afbf5a"
 dependencies = [
  "bevy",
 ]

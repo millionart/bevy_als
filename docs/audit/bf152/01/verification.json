@@ -1,0 +1,117 @@
+{
+  "target_dir": "target_game",
+  "profile": "play",
+  "platform": "aarch64-apple-darwin",
+  "build_inputs_and_artifacts_sha256": {
+    "Cargo.toml": "aeda4cb45c8a4feaf108e86020c5798b512af60827aad1e852531f1f91731ece",
+    "Cargo.lock": "67949e6246d74501b52066a135c2707355c6b48f30a3b96ebbe2380426814d86",
+    "target_game/play/examples/tnua_toggle_gate": "3fecf7fb5a861f310466af6f5e9c27270ead2b2d3900cf52d0637c9953e67f73",
+    "target_game/play/examples/manual_playground": "d884aeb33aac4695d3bf34d433ee40f97e80ea7add7e6537553b028041b7b5a4"
+  },
+  "checks": {
+    "lock_online": {
+      "command": "cargo update --workspace",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": false,
+        "exit_reason": "no_progress_timeout",
+        "started_at_utc": "2026-11-17T13:40:58.1317370Z",
+        "last_progress_at_utc": "2026-11-17T13:40:58.1658241Z",
+        "last_progress_source": "lock.stderr.log",
+        "finished_at_utc": "2026-11-17T13:43:28.4154740Z",
+        "elapsed_seconds": 150.284,
+        "no_progress_seconds": 150.25,
+        "no_progress_limit_seconds": 150,
+        "timeout_seconds": 300,
+        "process_exit_code": 137
+      }
+    },
+    "lock_offline": {
+      "command": "cargo update --workspace --offline",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-17T13:44:46.1425870Z",
+        "last_progress_at_utc": "2026-11-17T13:44:46.5093010Z",
+        "last_progress_source": "lock-offline.stderr.log",
+        "finished_at_utc": "2026-11-17T13:44:46.6801430Z",
+        "elapsed_seconds": 0.538,
+        "no_progress_seconds": 0.171,
+        "no_progress_limit_seconds": 25,
+        "timeout_seconds": 60,
+        "process_exit_code": 0
+      }
+    },
+    "dependencies": {
+      "command": "cargo tree --locked --offline --package bevy-tnua --package bevy-tnua-avian3d --depth 1",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-17T13:45:22.7608250Z",
+        "last_progress_at_utc": "2026-11-17T13:45:23.0668804Z",
+        "last_progress_source": "dependency-tree.stdout.log",
+        "finished_at_utc": "2026-11-17T13:45:23.3079720Z",
+        "elapsed_seconds": 0.547,
+        "no_progress_seconds": 0.241,
+        "no_progress_limit_seconds": 25,
+        "timeout_seconds": 40,
+        "process_exit_code": 0
+      }
+    },
+    "build": {
+      "command": "cargo build --locked --offline --jobs 2 --profile play --example tnua_toggle_gate --example manual_playground",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-17T13:45:32.0044470Z",
+        "last_progress_at_utc": "2026-11-17T13:47:57.6063449Z",
+        "last_progress_source": "build.stderr.log",
+        "finished_at_utc": "2026-11-17T13:47:57.7951640Z",
+        "elapsed_seconds": 145.791,
+        "no_progress_seconds": 0.189,
+        "no_progress_limit_seconds": 480,
+        "timeout_seconds": 1200,
+        "process_exit_code": 0
+      }
+    },
+    "toggle": {
+      "command": "target_game/play/examples/tnua_toggle_gate",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-17T13:48:49.8892800Z",
+        "last_progress_at_utc": "2026-11-17T13:48:51.6923658Z",
+        "last_progress_source": "toggle-with-assets.stderr.log",
+        "finished_at_utc": "2026-11-17T13:48:51.9483290Z",
+        "elapsed_seconds": 2.059,
+        "no_progress_seconds": 0.256,
+        "no_progress_limit_seconds": 22,
+        "timeout_seconds": 35,
+        "process_exit_code": 0
+      },
+      "environment": {
+        "BEVY_ASSET_ROOT": ".",
+        "RUST_LOG": "info"
+      },
+      "report": "toggle.txt"
+    },
+    "startup": {
+      "command": "pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly -OutputDirectory docs/audit/bf152/01/startup",
+      "environment": {
+        "CARGO_NET_OFFLINE": "true"
+      },
+      "runner": "startup/runner.json",
+      "watchdog": "startup/process.report.json",
+      "artifact_sha256": "1f2437df8794e4483b42d744578b5aed62b1ed4d0355955a8ec70293046ef3f9",
+      "report": {
+        "archive": "startup/report.json.gz",
+        "raw_bytes": 8241717,
+        "raw_sha256": "6da6d76218b575e4fcbc051ebb2920fdfa93d002ab948c03893556452b9bbe09"
+      }
+    }
+  }
+}
