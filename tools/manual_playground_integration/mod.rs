@@ -343,7 +343,7 @@ const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
 
 const STANDING_DYNAMIC_CASES: [(&str, f32); 2] = [("dynamic_right", 1.0), ("dynamic_left", 0.0)];
 
-fn standing_dynamic_command(
+fn dynamic_idle_command(
     body_yaw: f32,
     view_yaw: f32,
     current: RotationMode,
@@ -359,28 +359,23 @@ fn standing_dynamic_command(
     }
 }
 
-fn crouching_dynamic_command(
-    index: usize,
-    started: bool,
-    released: bool,
-    base_yaw: f32,
-    view_yaw: f32,
-    current: RotationMode,
-) -> crate::als::input::AlsInputCommand {
-    let mut command = standing_stop_command(
-        if index == 0 { 6 } else { 5 },
-        current,
-        started && !released,
-        false,
-    );
-    if !started {
-        command.look_delta = Vec2::new(
-            -crate::als::motion::wrap_yaw_radians(base_yaw - view_yaw)
-                / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT,
-            0.0,
-        );
+fn crouching_dynamic_fixture_pose(
+    mut pose: Transform,
+    feet: &AlsFootLockState,
+    side: f32,
+) -> Option<Transform> {
+    if !feet.valid
+        || !crate::als::foot_ik::is_full_animation_weight(feet.left.lock_amount)
+        || !crate::als::foot_ik::is_full_animation_weight(feet.right.lock_amount)
+    {
+        return None;
     }
-    command
+    let pivot = if side > 0.5 { &feet.left } else { &feet.right };
+    pose.rotate_around(
+        pivot.target_location.as_vec3(),
+        Quat::from_rotation_y(std::f32::consts::FRAC_PI_6),
+    );
+    Some(pose)
 }
 
 fn standing_dynamic_foot_restored(
@@ -6254,6 +6249,7 @@ fn drive_manual_integration(
             Option<&AlsCrouchingGraphTelemetry>,
             Option<&AlsRollState>,
             Option<&AlsMantleState>,
+            Option<&AlsFootLockState>,
         ),
         With<AlsCharacter>,
     >,
@@ -6321,6 +6317,7 @@ fn drive_manual_integration(
         crouching_graph,
         roll_for_input,
         mantle_for_input,
+        foot_lock,
     )) = crouch_state.get_mut(character)
     else {
         return;
@@ -6583,23 +6580,23 @@ fn drive_manual_integration(
         }
         IntegrationPhase::StandingDynamic => {
             let index = state.stop_case_index;
+            let (label, side) = STANDING_DYNAMIC_CASES[index];
             if entering {
                 state.turn_probe = StandingTurnProbe::default();
                 state.stop_playback = None;
                 state.stop_branch_seen = false;
                 state.dynamic_unlocked = false;
                 state.dynamic_selection_valid = true;
-                state.generated_stop_quick_input_released = false;
                 if index == 0 && !crouching_actions {
                     reinitialize_fixture_rotation_response(
                         rotation_response,
                         &mut aiming_yaw_constraint,
                         rotation_animation,
                     );
-                    reset_character(
+                    reset_character_with_rotation(
                         &mut transform,
                         &mut position,
-                        rotation,
+                        rotation.as_deref_mut(),
                         &mut velocity,
                         &mut view_yaw,
                         &mut view_pitch,
@@ -6607,12 +6604,7 @@ fn drive_manual_integration(
                         fixture.facing_yaw,
                     );
                 }
-                state.turn_probe.base_yaw = world_forward_to_yaw(*transform.forward());
-                rebase_temporal_fixture(
-                    &mut state,
-                    &mut phase_evidence,
-                    STANDING_DYNAMIC_CASES[index].0,
-                );
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, label);
                 *overlay = OverlayState::Default;
             }
             request.locomotion_state = Some(LocomotionState::Grounded);
@@ -6620,32 +6612,34 @@ fn drive_manual_integration(
             request.gait = Some(Gait::Walking);
             if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none()
             {
-                state.turn_probe.started_at = Some(elapsed);
-                if !crouching_actions {
+                if crouching_actions {
+                    if let Some(pose) = foot_lock
+                        .and_then(|feet| crouching_dynamic_fixture_pose(*transform, feet, side))
+                    {
+                        reset_character(
+                            &mut transform,
+                            &mut position,
+                            rotation,
+                            &mut velocity,
+                            &mut view_yaw,
+                            &mut view_pitch,
+                            pose.translation,
+                            world_forward_to_yaw(*pose.forward()),
+                        );
+                        state.turn_probe.started_at = Some(elapsed);
+                    }
+                } else {
                     let forward = *transform.forward();
                     transform.translation -= forward * 0.1;
                     position.0 = transform.translation;
+                    state.turn_probe.started_at = Some(elapsed);
                 }
             }
-            if crouching_actions {
-                let started = state.turn_probe.started_at.is_some();
-                state.generated_stop_quick_input_released |=
-                    started && action_transition == Some(true);
-                input.0 = crouching_dynamic_command(
-                    index,
-                    started,
-                    state.generated_stop_quick_input_released,
-                    state.turn_probe.base_yaw,
-                    view_yaw.0,
-                    *rotation_mode,
-                );
-            } else {
-                input.0 = standing_dynamic_command(
-                    world_forward_to_yaw(*transform.forward()),
-                    view_yaw.0,
-                    *rotation_mode,
-                );
-            }
+            input.0 = dynamic_idle_command(
+                world_forward_to_yaw(*transform.forward()),
+                view_yaw.0,
+                *rotation_mode,
+            );
             if state.coverage.standing_dynamic[index] {
                 state.stop_case_index += 1;
                 begin_phase(
@@ -17662,7 +17656,7 @@ mod tests {
                 app.world_mut()
                     .get_mut::<AlsInputOverride>(character)
                     .unwrap()
-                    .0 = standing_dynamic_command(body_yaw, view_yaw, mode);
+                    .0 = dynamic_idle_command(body_yaw, view_yaw, mode);
                 app.update();
                 observed |= moved
                     && app
@@ -17699,7 +17693,7 @@ mod tests {
             RotationMode::Aiming,
             RotationMode::VelocityDirection,
         ] {
-            let command = standing_dynamic_command(0.4, 0.3, current);
+            let command = dynamic_idle_command(0.4, 0.3, current);
             assert_eq!(command.move_dir, Vec2::ZERO);
             assert!(!command.aim_held);
             assert_eq!(
@@ -17817,6 +17811,58 @@ mod tests {
     }
 
     #[test]
+    fn crouching_dynamic_fixture_displaces_only_the_requested_foot() {
+        use crate::als::transitions::{
+            TransitionConfig, TransitionSequence, select_dynamic_transition,
+        };
+
+        let original =
+            Transform::from_xyz(2.0, 1.0, -3.0).with_rotation(Quat::from_rotation_y(0.7));
+        let local_feet = [Vec3::new(-0.17, -0.6, 0.03), Vec3::new(0.17, -0.6, -0.03)];
+        let locks = local_feet.map(|point| original.transform_point(point).as_dvec3());
+        let [left, right] = locks.map(|location| crate::als::foot_ik::AlsFootLockFootState {
+            target_location: location,
+            lock_location: location,
+            lock_amount: 1.0,
+            ..default()
+        });
+        let feet = AlsFootLockState {
+            valid: true,
+            left,
+            right,
+            ..default()
+        };
+        let select = |pose: Transform| {
+            let distances = std::array::from_fn(|side| {
+                dynamic_distance_squared_cm(pose.transform_point(local_feet[side]), locks[side])
+            });
+            select_dynamic_transition(
+                distances,
+                [left.lock_amount, right.lock_amount],
+                1.0,
+                Stance::Crouching,
+                &TransitionConfig::default(),
+            )
+            .map(|selection| selection.sequence)
+        };
+        assert_eq!(select(original), None);
+        for (side, sequence) in [
+            (1.0, TransitionSequence::CrouchingRight),
+            (0.0, TransitionSequence::CrouchingLeft),
+        ] {
+            let pose = crouching_dynamic_fixture_pose(original, &feet, side).unwrap();
+            let pivot_index = usize::from(side == 0.0);
+            assert!(
+                dynamic_distance_squared_cm(
+                    pose.transform_point(local_feet[pivot_index]),
+                    locks[pivot_index]
+                ) < dynamic_threshold_squared_cm(1.0)
+            );
+            assert_eq!(select(pose), Some(sequence));
+        }
+    }
+
+    #[test]
     fn crouching_actions_use_the_actual_stance_graph_and_continuous_source_inputs() {
         assert_eq!(
             initial_phase(IntegrationScenario::CrouchingActions),
@@ -17849,38 +17895,6 @@ mod tests {
         for side in [0.0, 1.0] {
             assert_eq!(dynamic_transition_side(false, side), side);
             assert_eq!(dynamic_transition_side(true, side + 2.0), side);
-        }
-        for index in 0..2 {
-            for (started, released, moving) in [
-                (false, false, false),
-                (true, false, true),
-                (true, true, false),
-            ] {
-                let command = crouching_dynamic_command(
-                    index,
-                    started,
-                    released,
-                    0.3,
-                    0.3,
-                    RotationMode::VelocityDirection,
-                );
-                assert_eq!(command.move_dir != Vec2::ZERO, moving);
-                assert!(!command.aim_held);
-                if moving {
-                    let input_yaw = crate::als::orientation::world_forward_to_yaw(
-                        crate::als::motion::view_relative_move_direction(command.move_dir, 0.3),
-                    )
-                    .to_degrees();
-                    let (side, rate) = crate::stop_link::quick_stop_selection(
-                        RotationMode::VelocityDirection,
-                        Some(input_yaw),
-                        &Transform::from_rotation(Quat::from_rotation_y(0.3)),
-                        Some(0.3),
-                    );
-                    assert_eq!(side, STANDING_DYNAMIC_CASES[index].1);
-                    assert!((rate - 2.375).abs() < 1e-5);
-                }
-            }
         }
         let chain = generated_stop_source_pose_chain(true);
         assert_eq!(chain.len(), 3);

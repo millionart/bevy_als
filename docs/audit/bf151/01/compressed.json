@@ -1,0 +1,42 @@
+{
+  "baseline-30hz/process.stderr.log.gz": {
+    "bytes": 5678,
+    "sha256": "724785f56418b552b601b658b6bddf09b208bfe68a9e4a2940894df3f26d8787"
+  },
+  "baseline-30hz/report.json.gz": {
+    "bytes": 47576096,
+    "sha256": "7b145c3c981883f2c711f581536a1659ea808550bb8c60028ed535857da00a60"
+  },
+  "baseline-runtime/process.stderr.log.gz": {
+    "bytes": 5660,
+    "sha256": "e40260cb7d9497e460baa05e76f6da1e9f2cf128ca1821c810f0a542a3feeafd"
+  },
+  "baseline-runtime/report.json.gz": {
+    "bytes": 86157009,
+    "sha256": "5804a4fe0d2f376a6c9c6af2b4fb96af3834efe936d9eb6bad3215c5458ccb1e"
+  },
+  "crouching.native.json.gz": {
+    "bytes": 48748153,
+    "sha256": "969e093bc73a5f73c42c9faaade10af3bee68897850cc5969246742e041f832d"
+  },
+  "fixed-30hz/process.stderr.log.gz": {
+    "bytes": 9687,
+    "sha256": "84357ca384bc70668828a8d3fbda7ab9ab566ef9fbf6315b4d6ace9be45a2f41"
+  },
+  "fixed-30hz/report.json.gz": {
+    "bytes": 40457936,
+    "sha256": "a5d14d642123543968ea6cb30fca1405bd5a5abdc13ae35102bba988b71ba929"
+  },
+  "fixed-runtime/process.stderr.log.gz": {
+    "bytes": 9834,
+    "sha256": "1ae0c3899ead907c62de3ea15cb484145bc7b3c973fb125f026bafc431b35443"
+  },
+  "fixed-runtime/report.json.gz": {
+    "bytes": 79637796,
+    "sha256": "7dca7621f5e57090b4a0eaf515b7c4a3f4a0e96bafd348999a1bf3aecb0017d2"
+  },
+  "settings.native.json.gz": {
+    "bytes": 106177,
+    "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+  }
+}

@@ -1,0 +1,295 @@
+{
+  "launcher": "run_manual.ps1",
+  "target": "target_game",
+  "profile": "play",
+  "baseline_commit": "b070df4c",
+  "baseline_binary_sha256": "285bd6ed812a5a96696a7631d8519b8a21585ceca10c2e667354b996ed586d26",
+  "runs": [
+    {
+      "name": "baseline-runtime",
+      "runner": "baseline-runtime/runner.json",
+      "frame_delta_seconds": null,
+      "manual_exit_code": 0,
+      "visual_report_pass": true,
+      "manual_passed": true,
+      "timed_out": false,
+      "coverage": {
+        "runtime_assembly": true,
+        "animation_graph": true,
+        "crouching": true,
+        "crouch_stop_right": true,
+        "crouch_quick_stop_default": true,
+        "crouch_quick_stop_left": true,
+        "crouch_quick_stop_right": true,
+        "turn_180_left": true,
+        "turn_180_right": true,
+        "dynamic_right": true,
+        "dynamic_left": true
+      },
+      "graph_errors": 0,
+      "faults": 0,
+      "temporal_anomalies": 0,
+      "frame_p95_ms": 17.657667,
+      "max_frame_ms": 40.295417,
+      "eval_p95_ms": 2.2419160000000002,
+      "physics_steps_per_render_max": 1.0,
+      "phases": {
+        "dynamic_left": {
+          "allow_transitions_peak_cm": [
+            8.026508054183616,
+            3.9693113754919733
+          ],
+          "queue_writes": 1,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 1.3176376819610596,
+            "distance_cm": [
+              8.00666279742403,
+              1.9639450118997537
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 75,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Left",
+          "slot_rotation_span_radians": 0.33614987
+        },
+        "dynamic_right": {
+          "allow_transitions_peak_cm": [
+            4.30456846259337,
+            9.003952186119438
+          ],
+          "queue_writes": 1,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 0.9842849373817444,
+            "distance_cm": [
+              0.006704060077133248,
+              8.729807094882835
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 75,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Right",
+          "slot_rotation_span_radians": 0.3222261
+        }
+      }
+    },
+    {
+      "name": "baseline-30hz",
+      "runner": "baseline-30hz/runner.json",
+      "frame_delta_seconds": 0.0333333333333333,
+      "manual_exit_code": 91,
+      "visual_report_pass": true,
+      "manual_passed": false,
+      "timed_out": true,
+      "coverage": {
+        "runtime_assembly": true,
+        "animation_graph": true,
+        "crouching": true,
+        "crouch_stop_right": true,
+        "crouch_quick_stop_default": true,
+        "crouch_quick_stop_left": true,
+        "crouch_quick_stop_right": true,
+        "turn_180_left": true,
+        "turn_180_right": true,
+        "dynamic_right": true,
+        "dynamic_left": false
+      },
+      "graph_errors": 0,
+      "faults": 0,
+      "temporal_anomalies": 0,
+      "frame_p95_ms": 17.608083999999998,
+      "max_frame_ms": 37.029832999999996,
+      "eval_p95_ms": 2.198292,
+      "physics_steps_per_render_max": 1.0,
+      "phases": {
+        "dynamic_left": {
+          "allow_transitions_peak_cm": [
+            6.50025246314027,
+            4.413017534219271
+          ],
+          "queue_writes": 0,
+          "first_matching_queue_inputs": null,
+          "sample_count": 0,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Left",
+          "slot_rotation_span_radians": null
+        },
+        "dynamic_right": {
+          "allow_transitions_peak_cm": [
+            8.181833754334509,
+            38.9411445844467
+          ],
+          "queue_writes": 2,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 1.0,
+            "distance_cm": [
+              0.10575847633868844,
+              38.52653915452052
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 38,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Right",
+          "slot_rotation_span_radians": 0.3220849
+        }
+      }
+    },
+    {
+      "name": "fixed-30hz",
+      "runner": "fixed-30hz/runner.json",
+      "frame_delta_seconds": 0.0333333333333333,
+      "manual_exit_code": 0,
+      "visual_report_pass": true,
+      "manual_passed": true,
+      "timed_out": false,
+      "coverage": {
+        "runtime_assembly": true,
+        "animation_graph": true,
+        "crouching": true,
+        "crouch_stop_right": true,
+        "crouch_quick_stop_default": true,
+        "crouch_quick_stop_left": true,
+        "crouch_quick_stop_right": true,
+        "turn_180_left": true,
+        "turn_180_right": true,
+        "dynamic_right": true,
+        "dynamic_left": true
+      },
+      "graph_errors": 0,
+      "faults": 0,
+      "temporal_anomalies": 0,
+      "frame_p95_ms": 17.574917,
+      "max_frame_ms": 39.401291,
+      "eval_p95_ms": 2.088708,
+      "physics_steps_per_render_max": 1.0,
+      "phases": {
+        "dynamic_left": {
+          "allow_transitions_peak_cm": [
+            23.536510653353325,
+            18.495521656508902
+          ],
+          "queue_writes": 2,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 0.5333333015441895,
+            "distance_cm": [
+              23.536510653353325,
+              11.549889597098307
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 18,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Left",
+          "slot_rotation_span_radians": 0.32930312
+        },
+        "dynamic_right": {
+          "allow_transitions_peak_cm": [
+            13.225853079143352,
+            16.775275818560505
+          ],
+          "queue_writes": 2,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 0.5333333015441895,
+            "distance_cm": [
+              8.134199582810508,
+              16.775275818560505
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 18,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Right",
+          "slot_rotation_span_radians": 0.32929948
+        }
+      }
+    },
+    {
+      "name": "fixed-runtime",
+      "runner": "fixed-runtime/runner.json",
+      "frame_delta_seconds": null,
+      "manual_exit_code": 0,
+      "visual_report_pass": true,
+      "manual_passed": true,
+      "timed_out": false,
+      "coverage": {
+        "runtime_assembly": true,
+        "animation_graph": true,
+        "crouching": true,
+        "crouch_stop_right": true,
+        "crouch_quick_stop_default": true,
+        "crouch_quick_stop_left": true,
+        "crouch_quick_stop_right": true,
+        "turn_180_left": true,
+        "turn_180_right": true,
+        "dynamic_right": true,
+        "dynamic_left": true
+      },
+      "graph_errors": 0,
+      "faults": 0,
+      "temporal_anomalies": 0,
+      "frame_p95_ms": 17.518958,
+      "max_frame_ms": 36.324542,
+      "eval_p95_ms": 2.01375,
+      "physics_steps_per_render_max": 1.0,
+      "phases": {
+        "dynamic_left": {
+          "allow_transitions_peak_cm": [
+            24.692869238821185,
+            18.450226241510723
+          ],
+          "queue_writes": 2,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 0.5001739859580994,
+            "distance_cm": [
+              24.692869238821185,
+              9.96243656859273
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 34,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Left",
+          "slot_rotation_span_radians": 0.32905138
+        },
+        "dynamic_right": {
+          "allow_transitions_peak_cm": [
+            13.089909431890979,
+            16.78365670854378
+          ],
+          "queue_writes": 2,
+          "first_matching_queue_inputs": {
+            "elapsed_seconds": 0.5005563497543335,
+            "distance_cm": [
+              6.99427748837673,
+              16.78365670854378
+            ],
+            "lock_amounts": [
+              1.0,
+              1.0
+            ]
+          },
+          "sample_count": 34,
+          "expected_sequence": "A_Als_Crouch_DynamicTransition_Right",
+          "slot_rotation_span_radians": 0.32925075
+        }
+      }
+    }
+  ],
+  "candidate_binary_sha256": "1f2437df8794e4483b42d744578b5aed62b1ed4d0355955a8ec70293046ef3f9",
+  "candidate_fixture_sha256": "8d575e00099233137b5889e3cb307d90fe85c45c19b4226b8a9838a298405b85",
+  "candidate_lockfile_sha256": "67949e6246d74501b52066a135c2707355c6b48f30a3b96ebbe2380426814d86",
+  "candidate_base_commit": "57948987"
+}

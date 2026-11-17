@@ -1,0 +1,27 @@
+
+running 23 tests
+test als::foot_ik::tests::dynamic_transition_uses_full_lock_distance_and_two_frame_block ... ok
+test als::foot_ik::tests::dynamic_transition_detects_horizontal_lock_drift_and_respects_gates ... ok
+test als::transitions::tests::dynamic_transition_requires_source_threshold_and_uses_opposite_side ... ok
+test als::transitions::tests::dynamic_transition_compares_native_distance_precision_for_both_stances ... ok
+test als::dynamics::tests::dynamic_stop_prediction_consumes_the_speed_dependent_braking_curve ... ok
+test extensions::source_pose_nodes::tests::source_make_dynamic_additive_defaults_to_local_space ... ok
+test manual_playground_integration::tests::crouching_dynamic_fixture_displaces_only_the_requested_foot ... ok
+test extensions::source_pose_nodes::tests::source_make_dynamic_additive_selects_mesh_space_difference ... ok
+test extensions::source_physics_joint::tests::browser_review_joint_non_dynamic_finite_inertias_have_no_response ... ok
+test manual_playground_integration::tests::standing_dynamic_inputs_release_aim_and_require_foot_recovery ... ok
+test manual_playground_integration::tests::standing_dynamic_tracks_a_played_instance_until_it_stops ... ok
+test stop_link::tests::root_transition_slot_accepts_the_source_dynamic_transition_montages ... ok
+test stop_link::tests::dynamic_transition_durations_preserve_the_native_blend_out_boundary ... ok
+test als::motion::tests::loaded_walking_character_pushes_a_non_step_dynamic_wall ... ok
+test extensions::source_physics_joint::tests::hard_joint_velocity_stage_uses_both_dynamic_anchor_arms ... ok
+test als::motion::tests::normal_landing_applies_source_impact_force_to_dynamic_bases ... ok
+test als::motion::tests::overlap_impulse_only_runs_for_new_dynamic_sensor_contacts ... ok
+test als::motion::tests::falling_blocking_hit_applies_the_source_force_to_dynamic_bodies ... ok
+test als::motion::tests::loaded_landing_pushes_dynamic_base_before_standing_force ... ok
+test als::motion::tests::loaded_character_pushes_a_dynamic_wall_on_falling_impact ... ok
+test als::motion::tests::loaded_character_pushes_dynamic_base_with_world_physics_time ... ok
+test als::motion::tests::loaded_falling_impact_publishes_dynamic_wall_velocity ... ok
+test manual_playground_integration::tests::standing_dynamic_input_reaches_both_actual_transition_branches ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 2104 filtered out; finished in 3.80s
