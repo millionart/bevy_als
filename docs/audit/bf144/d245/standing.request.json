@@ -1,6 +1,0 @@
-{
-  "asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
-  "output": "docs/audit/bf144/d245/standing.native.json",
-  "timeout_seconds": 240,
-  "no_progress_seconds": 90
-}

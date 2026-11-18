@@ -1,6 +1,0 @@
-
-thread 'main' (2728283) panicked at docs/audit/bf144/474/replay.rs:15:803:
-assertion `left == right` failed: Complete source foot global-to-local endpoint
-  left: 161
- right: 696
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

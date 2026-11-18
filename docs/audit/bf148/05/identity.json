@@ -1,8 +1,0 @@
-{
-  "profile": "play",
-  "path": "target_game/play/examples/manual_playground",
-  "sha256": "dccc6b4dab49f53927356251fa975a9484b4bee2efe9803e85c9cb7a0d9b0bba",
-  "baseline": "bff7c3c1",
-  "focused_tests": 103,
-  "observer_tests": 4
-}

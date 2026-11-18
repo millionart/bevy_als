@@ -1,4 +1,0 @@
-{
-  "capture-disabled": "AssertionError: Actual executed Rig call capture is required",
-  "observation-disabled": "AssertionError: Actual Rig snapshot field is required"
-}

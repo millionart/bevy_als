@@ -1,5 +1,0 @@
-{
-  "self_test": "PASS",
-  "invalid_contract_cases_rejected": 5,
-  "old_reader_missing_move_input_contract_rejected": true
-}

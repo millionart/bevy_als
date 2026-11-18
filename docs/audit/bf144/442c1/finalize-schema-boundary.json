@@ -1,6 +1,0 @@
-{
-  "initial_finalizer_error": "KeyError: pass",
-  "correction": "Use render_effects.passed actual schema; public visual functional gate remains pass",
-  "decal_is_out_of_current_scope": true,
-  "production_or_runtime_change": false
-}

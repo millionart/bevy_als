@@ -1,9 +1,0 @@
-{
-  "gate": "PASS_PURE_PUBLIC_DEBUG_RAW_CACHE_AND_COMPLETE_OLD_VM_TRANSPARENCY",
-  "calls": 1272,
-  "bones_per_cache": 79,
-  "full_old_register_local_call_trace_history_exact": true,
-  "pure_debug_no_pose_getters_or_state_changes": true,
-  "malformed_debug_rejected": 2,
-  "source_and_target_snapshot_formats_kept_separate": true
-}

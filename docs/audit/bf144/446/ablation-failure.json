@@ -1,4 +1,0 @@
-{
-  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446/check.py\", line 47, in <module>\n    else:result=validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446/check.py\", line 16, in validate\n    h=row['history_input']\n      ~~~^^^^^^^^^^^^^^^^^\nKeyError: 'history_input'\n",
-  "expected_rejection": "Missing history_input field"
-}

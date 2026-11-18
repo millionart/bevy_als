@@ -1,6 +1,0 @@
-
-thread 'main' (2858461) panicked at docs/audit/bf144/476/replay.rs:6:195:
-assertion `left == right` failed: All active actual leg IK public complete results
-  left: 0
- right: 1272
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,5 +1,0 @@
-{
-  "exit_code": 6,
-  "error": "GetActorRotation is a private member of AController",
-  "correction": "Remove redundant controller and character actor rotation fields; actual view-target actor rotation remains"
-}

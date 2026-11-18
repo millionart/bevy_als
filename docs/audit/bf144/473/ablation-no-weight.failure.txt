@@ -1,6 +1,0 @@
-
-thread 'main' (2713990) panicked at docs/audit/bf144/473/replay.rs:17:415:
-assertion `left == right` failed: Complete source weighted and equality global writer
-  left: 690
- right: 696
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

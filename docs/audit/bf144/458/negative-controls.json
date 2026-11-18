@@ -1,8 +1,0 @@
-{
-  "no_observation": "KeyError: 'ragdoll_blend'",
-  "constant_state": {
-    "left": "left: Array [Number(1.0), Number(0.0)]",
-    "right": "right: Array [Number(0.25), Number(0.75)]",
-    "isolated_nondefault_reader_fixture_failed_before_runtime": true
-  }
-}

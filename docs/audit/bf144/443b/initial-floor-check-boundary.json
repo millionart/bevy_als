@@ -1,8 +1,0 @@
-{
-  "stage": "post floor correction",
-  "ordinal": 29,
-  "absolute_target_y": 0.9215172529220581,
-  "actual_final_y": 0.9215173125267029,
-  "reason": "Actual code applies normalized direction times length then adds to position, not absolute assignment",
-  "old_three_phase_records_unchanged": true
-}

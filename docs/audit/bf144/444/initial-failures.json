@@ -1,6 +1,0 @@
-{
-  "facts_initial": "Selected facade depfile omitted core source units; use the actual core depfile",
-  "compile_initial": "AnimationGraphSet is exported from core plugin, not systems",
-  "stale_binary_executed": false,
-  "production_changed": false
-}

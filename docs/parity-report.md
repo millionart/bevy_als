@@ -6,8 +6,8 @@
 | --- | --- |
 | ALS 角色与运动 | ECS 角色组件保留输入、姿态、步态、旋转、移动基座和地空切换的语义。Tnua 和 Avian 提供控制器与物理基础，ALS 保留运动策略、根运动以及翻滚、攀爬、布娃娃和起身的调度。参见 BF144、BF146 及 [布娃娃交接](audit/bf150/ragdoll-source/README.md)。 |
 | 动画图与 Control Rig | 原生 AnimBP 的状态机、分层、同步、曲线、事件和 Slot 合同生成 RON/FSM。ECS 提供角色输入，图内 Rig 节点在原阶段执行离线编译的 RigVM 程序。GameplayTag 保留层级和匹配语义。参见 [BF115](archive/2026-09-12/BF115-2026-09-12.md)、[Rig 插件验收](audit/bf149/02/README.md)和[分层复验](audit/bf150/overlay-test-recheck/README.md)。 |
-| ALSCamera | 相机组件使用生成的图与曲线、基座继承、场景探测和震动配置。最近的相机专项依据见 BF116.01 及 [查询归属回归](audit/bf150/README.md)。 |
-| ALSExtras | 示例保留 Playground、PlayerStart、环境、HUD、Overlay 模式菜单和本地操控。接收器材质执行脚印贴花，源通道与运行采样保留专项验证。参见 [资产布局](asset-layout.md)和 [Footprint 验收](audit/bf150/scene-regressions/README.md#footprint)。 |
+| ALSCamera | 相机组件使用生成的图与曲线、基座继承、场景探测和震动配置。参见[首次求值验收](audit/bf116/01c2a-camera-first-evaluation/README.md)和[相机查询回归](audit/bf150/camera/runner.json)。 |
+| ALSExtras | 示例保留 Playground、PlayerStart、环境、HUD、Overlay 模式菜单和本地操控。接收器材质执行脚印贴花，源通道与运行采样保留专项验证。参见[资产布局](asset-layout.md)和 [Footprint 验收](audit/bf150/scene-regressions/runtime.json)。 |
 
 ## 保留的差异
 

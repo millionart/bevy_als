@@ -1,7 +1,0 @@
-{
-  "native_source": "docs/audit/bf144/d100b3a/shapes.native.json.gz",
-  "native_identity": "docs/audit/bf144/d100b3a/native-identity.json",
-  "target": "assets/ALSExtras/Environment/Meshes/static_convex_topology.runtime.json",
-  "target_bytes": 80043,
-  "target_sha256": "0874e8ad7778530c2c6bb6afea1b8bd866068f7e9e01ef43f596e0d7169a8829"
-}

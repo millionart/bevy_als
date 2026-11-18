@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_DELETE_REDUNDANT_ROUNDED_CHILD_F64_CONTROL",
-  "removed_mode": "children-rounded",
-  "all100488_translation_and_scale_outputs_equal_current_f32": true,
-  "proof": "analysis-prototype.json and replay-prototype.json",
-  "current_public_endpoint_calibration_unchanged": true,
-  "scope": "All current1272 four-domain input cases; no general all-input arithmetic claim"
-}

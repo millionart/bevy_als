@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_POST_PACKAGE_CANONICAL_REBUILD_RESTORED_ALL5192_BYTES",
-  "raw_bytes": 64226874,
-  "raw_sha256": "d4621810173ea192ea85d6cf0f4fff4542df1a388e40a9a72324560bbb997fd1",
-  "existing_compressed_sha256": "eaebfd72b9f532a45782446213d0792b4993885bbc2a67c221f5c53c50238f32",
-  "full_case_count": 5192,
-  "duplicate_raw_removed_only_after_exact_decompression_check": true
-}

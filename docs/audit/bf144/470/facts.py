@@ -1,9 +1,0 @@
-import hashlib
-import json
-import os
-from pathlib import Path
-
-r=Path(__file__).resolve().parent;config=json.loads(Path('tools/env.local.json').read_bytes());plugin=Path(config['ue_project']).parent/'Plugins/ALS-Refactored/Source/ALS';engine=Path(os.environ['ALS_UE_SOURCE_ROOT']);specs=[('source:Private/Nodes/AlsRigUnit_ApplyFootOffsetRotation.cpp',[(24,38)]),('source:Public/Nodes/AlsRigUnit_ApplyFootOffsetRotation.h',[(42,68)]),('Engine/Source/Runtime/Core/Public/Math/Quat.h',[(1024,1034),(1260,1274)]),('Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl',[(721,732)]),('Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h',[(2330,2341)]),('Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorConstants.h.inl',[(87,96)]),('src/control_rig/control_rig_units.rs',[(245,263)])];facts=[]
-for key,ranges in specs:
- p=plugin/key.split(':',1)[1]if key.startswith('source:')else engine/key if key.startswith('Engine/')else Path(key);raw=p.read_bytes();lines=raw.decode('utf-8-sig').splitlines();facts.append(dict(key=key,sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=a,end=b,text='\n'.join(lines[a-1:b]))for a,b in ranges]))
-paths=list((Path.home()/'.cargo/registry/src').glob('*/glam-0.32.1/src/f64/dquat.rs'));raw=paths[0].read_bytes();assert all(p.read_bytes()==raw for p in paths);lines=raw.decode().splitlines();indices=[i for i,line in enumerate(lines)if'pub fn mul_quat'in line or'impl Mul for DQuat'in line];facts.append(dict(key='dependency:glam-0.32.1/src/f64/dquat.rs',sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=i+1,end=i+20,text='\n'.join(lines[i:i+20]))for i in indices]));(r/'source-facts.json').write_text(json.dumps(facts,indent=2)+'\n');print('Captured source initial inverse/product and ARM64 swizzles/sign accumulation without normalization',flush=True)

@@ -1,5 +1,0 @@
-{
-  "expected_failure": "Already converted source cannot satisfy the original target height contract twice",
-  "process_exit_code": 101,
-  "assertion_excerpt": "left: 0.96750605; right: 0.967506"
-}

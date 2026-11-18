@@ -1,9 +1,0 @@
-{
-  "samples": [
-    {"name": "common-forward", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [133.33333730697632, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "actual-165", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [148.56575727462769, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "actual-25", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [333.33775997161865, 0.008583068120060489, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "actual-26", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [374.9999761581421, 0.008583068120060489, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "zero", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [0, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}}
-  ]
-}

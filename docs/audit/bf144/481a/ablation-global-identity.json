@@ -1,7 +1,0 @@
-{
-  "gate": "PASS_METADATA_ONLY_CACHE_ABLATION_REJECTED_WITH_OLD_BODY_UNCHANGED",
-  "case": "global-identity",
-  "snapshots": 130,
-  "changed_cache_records": 10260,
-  "only_selected_metadata_changed": true
-}

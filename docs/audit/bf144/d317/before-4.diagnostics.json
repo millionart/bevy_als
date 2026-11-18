@@ -1,6 +1,0 @@
-{
-  "sample": "world_delta=0.054094832 physics_delta=0.03333333 platform_shift=Vec3(-0.305748, 0.0, 0.0) actor_shift=Vec3(-0.4961816, 0.0, 0.0) mode=Air",
-  "expected_mode": "Grounded",
-  "actual_mode": "Air",
-  "first_failed_contract": "The actor lost support after consuming the full world-frame support displacement."
-}

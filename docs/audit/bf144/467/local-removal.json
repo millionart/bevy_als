@@ -1,6 +1,0 @@
-{
-  "all79_bones_present_in_existing_native_compact_local": true,
-  "complete_native_local_double_values_exact": 50402,
-  "only_required_global_snapshot_retained": true,
-  "prototype_getter_byte_restoration_complete_table_exact": true
-}

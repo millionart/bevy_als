@@ -1,7 +1,0 @@
-{
-  "assertion": "assertion `left == right` failed: Source selector and published flag must agree in the same frame",
-  "details": [
-    "left: 6",
-    "right: 0"
-  ]
-}

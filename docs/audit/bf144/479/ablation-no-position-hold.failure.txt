@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "docs/audit/bf144/479/isolation_gate.py", line 23, in <module>
-    assert not changed,'Orientation-only controls must preserve independently qualified source positions'
-           ^^^^^^^^^^^
-AssertionError: Orientation-only controls must preserve independently qualified source positions

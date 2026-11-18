@@ -1,9 +1,0 @@
-{
-  "all_other_player_differences_attributed": false,
-  "clock_differences": 313,
-  "current_rows_exact": 318,
-  "first_source_frame": 5,
-  "gate": "PASS_COMMON_POSITIVE318_IDLE_CLOCK_FACTORS",
-  "known_difference": "BF144-D201",
-  "native_rows_exact": 318
-}

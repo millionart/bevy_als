@@ -1,7 +1,0 @@
-{
-  "gate": "PARTIAL_WRAPPER_SOURCE_SOLVER_INPUT_ISOLATION",
-  "case": "factors",
-  "complete_source_and_public_endpoints_preserved": true,
-  "changed_solver_records": 0,
-  "first": []
-}

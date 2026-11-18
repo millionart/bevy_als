@@ -1,5 +1,0 @@
-{
-  "expected_exit_code": 101,
-  "assertion": "First Look difference is removed by the native view yaw alone",
-  "stderr": "\nthread 'main' (1836702) panicked at docs/audit/bf144/447c/replay.rs:27:13:\nassertion `left == right` failed: First Look difference is removed by the native view yaw alone\n  left: AlsHeadState { initialization_required: false, switching_look_sides: false, pitch_angle: 0.0, yaw_angle: 3.5451622, yaw_velocity: 181.6303, yaw_amount: 0.5098477 }\n right: AlsHeadState { initialization_required: false, switching_look_sides: false, pitch_angle: 0.0, yaw_angle: 3.5451584, yaw_velocity: 181.6303, yaw_amount: 0.50984764 }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
-}

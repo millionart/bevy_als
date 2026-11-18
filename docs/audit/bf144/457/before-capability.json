@@ -1,9 +1,0 @@
-{
-  "actual_current_source_corpus": "docs/audit/bf144/448a/restored.native.json.gz",
-  "ordinary_frames": 318,
-  "missing": [
-    "rig_output",
-    "locomotion_action"
-  ],
-  "cannot_attribute_current_rig_vs_ragdoll_rotations": true
-}

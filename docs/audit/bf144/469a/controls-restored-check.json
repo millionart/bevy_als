@@ -1,6 +1,0 @@
-{
-  "gate": "PASS_CONTROLLED_NATIVE_BOUNDARIES_EXACT_AFTER_SOURCE_BYTE_RESTORE",
-  "complete_controlled_boundaries_exact_after_byte_restore": true,
-  "cases": 4,
-  "frames": 28
-}

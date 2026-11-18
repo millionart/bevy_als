@@ -1,8 +1,0 @@
-{
-  "control": "SourceSlotNode.always_update_source_pose=true",
-  "process_exit_code": 101,
-  "invalid_root_pose": true,
-  "non_finite_quaternion": true,
-  "observer_assertion": "c458_ragdoll_blend pose equality",
-  "usable_as_causal_control": false
-}

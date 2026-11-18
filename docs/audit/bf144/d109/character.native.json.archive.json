@@ -1,8 +1,0 @@
-{
-  "format": "gzip",
-  "raw_path": "docs/audit/bf144/d109/character.native.json",
-  "archive_path": "docs/audit/bf144/d109/character.native.json.gz",
-  "raw_bytes": 9918896,
-  "raw_sha256": "11a1718445260b4255189c888a0b460e4bcb5c7f187aa84dfd97027d4f97ab47",
-  "archive_bytes": 367958
-}

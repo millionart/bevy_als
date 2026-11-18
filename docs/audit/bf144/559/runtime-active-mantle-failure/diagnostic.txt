@@ -1,2 +1,0 @@
-2026-11-04T14:31:16.451651Z  INFO bevy_als::als::motion: [MOTION] entity=1766v0 auto mantle begin kind=InAir height=1.08 start_time=0.800
-assertion failed: context.node_caches.is_updated(*id, key)

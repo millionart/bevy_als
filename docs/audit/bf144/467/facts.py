@@ -1,9 +1,0 @@
-import hashlib
-import json
-import os
-from pathlib import Path
-
-r=Path(__file__).resolve().parent;engine=Path(os.environ['ALS_UE_SOURCE_ROOT']);specs=[('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Math/ControlRigMathLibrary.cpp',[(6,18),(30,56)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Units/Highlevel/Hierarchy/RigUnit_TwoBoneIKSimple.cpp',[(143,155),(186,189),(200,220)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/AnimNode_ControlRigBase.cpp',[(153,169),(172,228),(303,330)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigHierarchyMappings.cpp',[(326,369)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigPoseAdapter.cpp',[(386,492)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Tools/ControlRigPoseAdapter.h',[(34,44),(108,114)]),('Engine/Source/Runtime/Engine/Public/BonePose.h',[(43,100),(343,350)]),('Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Rigs/RigHierarchy.h',[(2179,2202)])];facts=[]
-for key,ranges in specs:
- raw=(engine/key).read_bytes();lines=raw.decode('utf-8-sig').splitlines();facts.append(dict(key=key,sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=a,end=b,text='\n'.join(lines[a-1:b]))for a,b in ranges]))
-key='tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp';raw=(r/'reader.final.cpp').read_bytes();lines=raw.decode().splitlines();facts.append(dict(key=key,sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=a,end=b,text='\n'.join(lines[a-1:b]))for a,b in[(168,176),(1863,1901),(5124,5141),(5324,5333)]]));(r/'source-facts.json').write_text(json.dumps(facts,indent=2)+'\n');print('Captured native double pose/cache getters, output local conversion and IK root translation invariance',flush=True)

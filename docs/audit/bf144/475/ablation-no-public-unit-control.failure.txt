@@ -1,6 +1,0 @@
-
-thread 'main' (2779022) panicked at docs/audit/bf144/475/replay.rs:7:323:
-assertion `left == right` failed: Independent public centimeter method exact
-  left: RigTransform { rotation: DQuat(-0.11873583528138107, 0.07117258324113111, -0.04295466911747676, 0.9894398219274506), translation: DVec3(-0.40196689605712904, 3.636059509037892e-11, 2.7755575615628914e-17), scale: DVec3(1.0, 1.0, 1.0) }
- right: RigTransform { rotation: DQuat(-0.11873583528138107, 0.07117258324113111, -0.04295466911747676, 0.9894398219274506), translation: DVec3(-0.40196689605712904, 3.636059453526741e-11, 3.552713678800501e-17), scale: DVec3(1.0, 1.0, 1.0) }
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

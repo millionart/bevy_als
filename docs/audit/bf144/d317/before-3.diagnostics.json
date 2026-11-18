@@ -1,4 +1,0 @@
-{
-  "sample": "world_delta=0.054094832 physics_delta=0.03333333 platform_shift=Vec3(0.0, 0.0, 0.0) actor_shift=Vec3(-0.4961816, 0.0, 0.0) mode=Air",
-  "result": "The settled fixture platform did not integrate its velocity. The actor consumed the full-frame support prediction and became airborne."
-}

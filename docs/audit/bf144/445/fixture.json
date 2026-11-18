@@ -1,6 +1,0 @@
-{
-  "gate": "PASS_PUBLIC_REFLECTION_DEFAULT_TEMPORARY_AND_FRESH_FRAME_QUALIFICATION",
-  "rejected_absent_or_started_only": true,
-  "stale_previous_frame_rejected": true,
-  "temporary_and_default_covered": true
-}

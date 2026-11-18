@@ -1,5 +1,0 @@
-{
-  "gate": "PASS_REMOVING_COLD_SAMPLING_AND_CAMERA_INVALIDATION_LOSES_SIGNALS",
-  "removed_cold_samples": 0,
-  "removed_controlled_fallback_rows": 0
-}

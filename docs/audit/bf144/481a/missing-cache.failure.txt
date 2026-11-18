@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "docs/audit/bf144/481a/check_missing.py", line 7, in <module>
-    assert 'hierarchy_cache_before_item_reads'in boundary,'Old native report lacks raw hierarchy cache state; descendant propagation is unqualified'
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError: Old native report lacks raw hierarchy cache state; descendant propagation is unqualified

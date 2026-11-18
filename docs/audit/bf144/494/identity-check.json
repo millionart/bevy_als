@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_D278_VIRTUAL_SAME_SIX_LIBRARIES_AND_CURRENT396_IDENTITIES",
-  "reader_migration_from_491_preserved": true,
-  "six_libraries_unchanged": true,
-  "original_manual_playground_unchanged": true,
-  "replay_source_restored": true,
-  "current_source_identity_check": "docs/audit/bf144/445a/identity-check.json"
-}

@@ -1,6 +1,0 @@
-{
-  "case": "compressed_report_reader_assert_spacing",
-  "rejected_error": "NameError from missing whitespace in replacement of raw report assertion",
-  "corrected": true,
-  "wrong_result_not_accepted": true
-}

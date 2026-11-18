@@ -1,4 +1,0 @@
-{
-  "expected_rejection": "No next-engine-frame native refresh after removing the only counter advance",
-  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446f/check.py\", line 44, in <module>\n    label=sys.argv[1];data=load(label);result=validate(data)\n                                              ^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446f/check.py\", line 31, in validate\n    assert before['proxy_observed_engine_frame']==initial['proxy_observed_engine_frame']+1\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
-}

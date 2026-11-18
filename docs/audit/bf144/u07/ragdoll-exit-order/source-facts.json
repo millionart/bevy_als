@@ -1,8 +1,0 @@
-{
-  "sources": {
-    "Source/ALSExtras/Private/AlsCharacterExample.cpp": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833",
-    "Source/ALS/Private/AlsCharacter_Actions.cpp": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
-    "crates/bevy_ecs/src/schedule/schedule.rs": "b206578d6e8b303b9bc11d88087f6b8c385ea02dd5f281682ff7457d759b4cf0"
-  },
-  "contract": "Input_OnJump synchronously attempts StopRagdolling. Bevy records edges on system sets, then flattens them when building the executable schedule."
-}

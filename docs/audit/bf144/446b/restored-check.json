@@ -1,7 +1,0 @@
-{
-  "actual_history_frames": 318,
-  "shifted_floor_control_frames": 2,
-  "nonzero_initial_positions_and_yaws_verified": true,
-  "all_actual_frames_walking": true,
-  "negative_output_fixtures_rejected": 3
-}

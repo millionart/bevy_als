@@ -1,6 +1,0 @@
-{
-  "native_identity": "docs/audit/bf144/d104a/native-identities.json",
-  "box_native": "docs/audit/bf144/d104a/box.native.json.gz",
-  "fixture": "docs/audit/bf144/d104a/restore.native-samples.json",
-  "settings": "src/als/settings/contact_restore.rs"
-}

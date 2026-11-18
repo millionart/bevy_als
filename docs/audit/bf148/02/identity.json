@@ -1,9 +1,0 @@
-{
-  "baseline_commit": "0f6fa982",
-  "baseline_binary_sha256": "35c85d234d1789f8f9061044288400a34ec47559f833507fd89fb399bbba4d89",
-  "restored_binary_sha256": "9a6e3157c6102091195ee9c659cfdbe65c5204e33a86b794ee7712dd24a5c06f",
-  "cargo_target_dir": "target_game",
-  "profile": "play",
-  "focused_tests": 134,
-  "observer_tests": 6
-}

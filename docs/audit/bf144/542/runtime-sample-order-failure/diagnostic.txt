@@ -1,5 +1,0 @@
-thread 'Compute Task Pool (1)' (6391922) panicked at tools/tmp/bf144/542/playground_observed.rs:3945:65:
-called `Result::unwrap()` on an `Err` value: Zero
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-Encountered a panic in system `bf144_phase542::c542_clip`!
-Encountered a panic in system `bevy_app::main_schedule::Main::run_main`!

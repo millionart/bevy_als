@@ -1,6 +1,0 @@
-{
-  "asset": "/ALS/ALS/Data/Character/CS_Als_Default.CS_Als_Default",
-  "reader": "tools/run_ue_source_reader.ps1",
-  "timeout_seconds": 240,
-  "no_progress_seconds": 90
-}

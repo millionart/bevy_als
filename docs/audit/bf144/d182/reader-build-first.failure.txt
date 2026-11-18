@@ -1,6 +1,0 @@
-Undefined symbols for architecture x86_64:
-  "FAnimNotifyQueue::Reset(USkeletalMeshComponent*)", referenced from:
-ld: symbol(s) not found for architecture x86_64
-Undefined symbols for architecture arm64:
-  "FAnimNotifyQueue::Reset(USkeletalMeshComponent*)", referenced from:
-ld: symbol(s) not found for architecture arm64

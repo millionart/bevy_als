@@ -1,6 +1,0 @@
-{
-  "gate": "PASS_COMPLETE_OLD_BODY_AFTER_REMOVING_ONLY_ADDITIVE_CACHE_SNAPSHOT",
-  "kind": "weights-after",
-  "snapshots": 130,
-  "original_execution_pose_work_hierarchy_and_items_exact": true
-}

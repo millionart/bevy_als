@@ -1,8 +1,0 @@
-{
-  "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp": {
-    "before_sha256": "7bcc48dba260111aa4c13d9223b2763b659b89d0a9f4ddd4f5d54214b6625995",
-    "after_sha256": "351686e58432342e1711936b1f89460dc6734b9ec2227e4641bf48d054a27256",
-    "baseline_migration": "docs/audit/bf144/474a/reader-migration.json",
-    "scope": "One readonly raw hierarchy cache array under existing opt-in unit boundary; no pose getters, tracking state or source algorithms"
-  }
-}

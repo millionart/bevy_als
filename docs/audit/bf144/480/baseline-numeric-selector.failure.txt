@@ -1,6 +1,0 @@
-
-thread 'main' (2982724) panicked at docs/audit/bf144/480/../479/replay.rs:79:13:
-assertion `left == right` failed
-  left: Number(1.0)
- right: 0
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

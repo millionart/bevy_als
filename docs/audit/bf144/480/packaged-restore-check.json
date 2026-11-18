@@ -1,9 +1,0 @@
-{
-  "gate": "PASS_POST_PACKAGE_RECOMPILED_COMPLETE_WRAPPER_BYTES",
-  "raw_bytes": 10317842,
-  "raw_sha256": "065c2fa86f767fe96b33a50d3be56bf89d6782b7b675b398e4d18f2e7d0b96ce",
-  "compressed_sha256": "b71dccac0c5e71aa773e86e68e25957fc5b7426c46ef164835b149296b95a3fd",
-  "source_cases": 1332,
-  "public_cases": 1302,
-  "duplicate_raw_removed_after_exact_check": true
-}

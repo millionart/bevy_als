@@ -1,5 +1,0 @@
-[
-  "2026-11-11T10:00:49.840758Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y=1.819 expected_y=1.819 actor_y=1.819 scale=Vec3(2.0, 2.0, 2.0) colliders_scaled=true joint_scaled=true matched=true",
-  "2026-11-11T10:00:49.840775Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll ground follow stabilized",
-  "2026-11-11T10:00:50.525257Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll recovered position=(-15.535,1.822,-15.227) velocity=0.000"
-]

@@ -1,5 +1,0 @@
-{
-  "gate": "PASS_COMPLETE_LEGACY_UNIT_BOUNDARY_EXCEPT_ONE_ADDITIVE_DIRTY_FIELD",
-  "getter_values": 2544,
-  "all_old_boundary_items_current_initial_execution_pose_state_exact": true
-}

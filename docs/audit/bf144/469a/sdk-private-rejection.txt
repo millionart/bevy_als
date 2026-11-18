@@ -1,1 +1,0 @@
-The source SDK rejects ResolveFunctionsIfRequired because it is private. The boundary observer uses the already resolved public GetFunctions table after node initialization and cache-bones, without private API access.

@@ -1,6 +1,0 @@
-{
-  "expected_failure": "Repeated initialization no longer matches original Forward translation keys",
-  "process_exit_code": 101,
-  "actual_already_patched_x": 3.921628012903966e-05,
-  "required_original_x": 1.7007637193685825e-30
-}

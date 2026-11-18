@@ -1,7 +1,0 @@
-{
-  "raw_bytes": 11501959,
-  "raw_sha256": "7f9c2e0b59e0d08bb233b86bd4139e054d6cd16d57c21075ebfc8ea62bbecfbe",
-  "gzip_bytes": 919938,
-  "gzip_sha256": "d17e2bf8bd855f1d966fefdc5386b402b428e93468c3c7740ddb4d1bdaafd294",
-  "round_trip_byte_exact": true
-}

@@ -1,7 +1,0 @@
-{
-  "profile": "play",
-  "path": "target_game/play/examples/manual_playground",
-  "sha256": "dccc6b4dab49f53927356251fa975a9484b4bee2efe9803e85c9cb7a0d9b0bba",
-  "baseline": "3c7a47dc",
-  "decision": "retain_f64_neon"
-}

@@ -1,8 +1,0 @@
-{
-  "target_local_scale_one": 240,
-  "target_collider_scale_one": 240,
-  "target_parented": 0,
-  "source_actual_root_scale_one": 240,
-  "source_root_is_capsule_reference": "Character.cpp root assignment and native character asset/transform identity",
-  "source_scaled_size_getter_direct_stored_tqs": true
-}

@@ -1,9 +1,0 @@
-{
-  "failures": {
-    "controller-hold": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446c/compare.py\", line 61, in <module>\n    inputs=check_inputs(target['animation_before'],case,request)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446c/compare.py\", line 52, in check_inputs\n    assert before['control_rotation_degrees']==dict(pitch=0,yaw=actual_control,roll=0)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
-    "idle-direct": "\nthread 'main' (1730725) panicked at docs/audit/bf144/446c/replay.rs:22:9:\nassertion `left == right` failed\n  left: 0.19999999\n right: 0.2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
-  },
-  "initial_compare_process_report_preserved": false,
-  "baseline_comparison_json_preserved": true,
-  "restored_positive_process_required": true
-}

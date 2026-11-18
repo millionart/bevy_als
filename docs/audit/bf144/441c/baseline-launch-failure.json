@@ -1,8 +1,0 @@
-{
-  "scope": "observer launch; zero parameter frames",
-  "cause": "Direct binary uses executable parent as asset base when BEVY_ASSET_ROOT and CARGO_MANIFEST_DIR are absent",
-  "observed_asset_base_relative": "tools/tmp/bf144/441c/assets",
-  "correction": "Inject project root via the existing BEVY_ASSET_ROOT variable",
-  "public_startup_functional_gate": "passed independently",
-  "motion_algorithm_changed": false
-}

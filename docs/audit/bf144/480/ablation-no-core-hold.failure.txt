@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "docs/audit/bf144/480/core_isolation_gate.py", line 15, in <module>
-    assert not changed,'Partial wrapper factors must hold the independently qualified solver result fixed'
-           ^^^^^^^^^^^
-AssertionError: Partial wrapper factors must hold the independently qualified solver result fixed

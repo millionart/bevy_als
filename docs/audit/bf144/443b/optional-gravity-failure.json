@@ -1,8 +1,0 @@
-{
-  "failure_kind": "Diagnostic required-component assumption",
-  "runtime_phase": "First ready motor observation",
-  "error": "Observed motor body is missing",
-  "source_api": "Tnua Avian apply_motors uses Option<TnuaGravity>; Avian gravity scale defaults to 1",
-  "correction": "Capture optional override as zero additional acceleration when absent; optional gravity scale defaults to 1 and both presence flags recorded",
-  "production_changed": false
-}

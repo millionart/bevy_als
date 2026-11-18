@@ -1,8 +1,0 @@
-{
-  "samples": [
-    {"name": "upright-world-speed", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [160.0000023841858, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "pitched-world-speed", "rotation_xyzw": [0, 0.5, 0, 0.8660254037844386], "scaled_distance": {"a": [160.0000023841858, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "below-moving-smooth", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [80.0000011920929, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}},
-    {"name": "zero", "rotation_xyzw": [0, 0, 0, 1], "scaled_distance": {"a": [0, 0, 0], "b": [0, 0, 0], "scale": [1, 1, 1]}}
-  ]
-}

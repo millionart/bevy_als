@@ -1,6 +1,0 @@
-{
-  "failure": "Unexpected closing delimiter in generated main",
-  "cause": "Generator selected original early manual-duration block rather than final diagnostic injection",
-  "correction": "Select final injection with rindex before unique app.run boundary",
-  "production_changed": false
-}

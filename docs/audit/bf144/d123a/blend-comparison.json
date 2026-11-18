@@ -1,9 +1,0 @@
-{
-  "bones": 474,
-  "triple_bones": 237,
-  "early_normalization_failures": 237,
-  "f32_second_normalization_changes": 158,
-  "max_native_orientation_error": 1.3668035872266426e-16,
-  "max_native_norm_error": 4.504219219825245e-11,
-  "max_early_error": 0.03672681380193339
-}

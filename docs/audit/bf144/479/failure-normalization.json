@@ -1,6 +1,0 @@
-{
-  "file": "ablation-no-position-hold.failure.txt",
-  "raw_sha256": "0059a59027ba0f7d3f408394ab509333e8a8a0167ad8be7566b79285106294fc",
-  "stored_sha256": "27e1334cb04130473be46cd8d44404b028be26da03849961e213dfee8953c235",
-  "normalization": "Repository root prefix removed from Python traceback paths"
-}

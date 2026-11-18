@@ -1,5 +1,0 @@
-{
-  "gate": "REJECT_OLD_MISSING_INTERNAL_PROXY_CURVE_HISTORY",
-  "missing_snapshot_instances": 5778,
-  "source": "docs/audit/bf144/446b/restored.native.json.gz"
-}

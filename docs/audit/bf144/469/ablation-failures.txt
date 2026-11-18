@@ -1,9 +1,0 @@
-no-initial-target
-assertion `left == right` failed: Native source normal history dataset actual query 1 pc 98
-  left: DVec3(0.0, 0.0, 0.20634746551513672)
- right: DVec3(0.0, 0.0, 1.0)
-
-no-normal-history
-assertion `left == right` failed: Native source normal history dataset boundary_axis_0_negative query 6 pc 98
-  left: DVec3(0.0, -0.5000000677404093, 0.86602539361896)
- right: DVec3(0.0, -0.10317374673563012, 0.9723546795298843)

@@ -1,6 +1,0 @@
-{
-  "file": "src/avian_ext/ragdoll_physics_profile.rs",
-  "phase": "test compilation",
-  "error": "Removed CCD test block also contained the shared test-module import. The test module lost the parent types and macros.",
-  "correction": "Place use super::* at the start of the retained test module."
-}

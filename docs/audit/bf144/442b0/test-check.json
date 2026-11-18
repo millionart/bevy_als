@@ -1,8 +1,0 @@
-{
-  "self_test": "PASS",
-  "invalid_contract_cases_rejected": 5,
-  "restored_native_contract": {
-    "native_source_move_input_samples": 7,
-    "precise_source_stage_contract": true
-  }
-}

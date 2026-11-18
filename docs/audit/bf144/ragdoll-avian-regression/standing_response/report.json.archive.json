@@ -1,8 +1,0 @@
-{
-  "format": "gzip",
-  "raw_path": "docs/audit/bf144/ragdoll-avian-regression/standing_response/report.json",
-  "archive_path": "docs/audit/bf144/ragdoll-avian-regression/standing_response/report.json.gz",
-  "raw_bytes": 17990756,
-  "raw_sha256": "babe1d688e06b7892b3784ceb94e02a1a51d14fc8ba918e4b36ec4fe1baa732d",
-  "archive_bytes": 1620413
-}

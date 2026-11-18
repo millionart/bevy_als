@@ -1,6 +1,0 @@
-{
-  "p.Chaos.Collision.Manifold.FrictionExactPositionTolerance": "0.2",
-  "p.Chaos.Collision.Manifold.FrictionNearPositionTolerance": "1",
-  "p.Chaos.Collision.Manifold.EnableFrictionRestore": "true",
-  "p.Chaos.Collision.SimpleAssignContact": "true"
-}

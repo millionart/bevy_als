@@ -1,7 +1,0 @@
-{
-  "status": "FAILED_BEFORE_PROCESS_START",
-  "cause": "The watchdog stdout parent directory did not exist",
-  "process_started": false,
-  "correction": "Create the existing watchdog log directory before invocation",
-  "production_changed": false
-}

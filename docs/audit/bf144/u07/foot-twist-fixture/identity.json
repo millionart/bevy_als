@@ -1,8 +1,0 @@
-{
-  "native_bytes": 173766,
-  "native_sha256": "83728583715ca04e332872d440780bc8fcc14675b909bc08e68bad8e413b5d56",
-  "source": {
-    "Quat.h": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
-    "AlsAnimationInstance.cpp": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
-  }
-}

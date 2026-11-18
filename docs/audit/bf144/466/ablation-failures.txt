@@ -1,9 +1,0 @@
-merged-lifetime
-assertion `left == right` failed
-  left: true
- right: false
-
-no-state-history
-assertion `left == right` failed: Actual public foot replay query 19 pc 83 mode 0
-  left: [List([Name("Bone"), Name("pelvis")]), List([Name("Bone"), Name("thigh_l")]), Vector(DVec3(0.1707630157470703, 0.13361656665802002, -0.05072212219238281)), F32(-0.0010370166), F32(-6.895157e-5), F32(0.82768726), F32(0.2), F32(0.99), F32(12.0), F32(2.0), F32(0.0), Bool(true), List([List([Name("None"), Name("")]), I32(65535), I32(-1)]), List([List([Name("None"), Name("")]), I32(65535), I32(-1)]), List([F32(0.0), F32(-6.895157e-5), Bool(true)]), F32(-6.895157e-5), Vector(DVec3(0.1707630157470703, 0.1335476150852628, -0.05072212219238281))]
- right: [List([Name("Bone"), Name("pelvis")]), List([Name("Bone"), Name("thigh_l")]), Vector(DVec3(0.1707630157470703, 0.13361656665802002, -0.05072212219238281)), F32(-0.0010370166), F32(-6.895157e-5), F32(0.82768726), F32(0.2), F32(0.99), F32(12.0), F32(2.0), F32(0.0), Bool(true), List([List([Name("None"), Name("")]), I32(65535), I32(-1)]), List([List([Name("None"), Name("")]), I32(65535), I32(-1)]), List([F32(-0.00075962034), F32(-6.895157e-5), Bool(true)]), F32(-3.1089134e-5), Vector(DVec3(0.1707630157470703, 0.1335854775243206, -0.05072212219238281))]

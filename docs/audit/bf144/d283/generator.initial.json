@@ -1,6 +1,0 @@
-{
-  "python_version": "3.9.6",
-  "error": "TemporaryDirectory.__init__() got an unexpected keyword argument 'ignore_cleanup_errors'",
-  "resolution": "Run the existing importer with Python 3.12 via ALS_PYTHON.",
-  "watchdog": "docs/audit/bf144/d283/generator.initial.watchdog.json"
-}

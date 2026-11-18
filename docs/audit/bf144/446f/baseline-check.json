@@ -1,8 +1,0 @@
-{
-  "source_history_frames": 318,
-  "control_frames": 2,
-  "initialization_to_first_world_engine_frame_delta": 1,
-  "first_native_refresh_executed": true,
-  "first_default_pose_evaluator_ticked": true,
-  "negative_fixtures_rejected": 3
-}

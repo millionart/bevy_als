@@ -1,6 +1,0 @@
-
-thread 'main' (2764435) panicked at docs/audit/bf144/474/replay.rs:30:353:
-assertion `left == right` failed: Complete source foot global-to-local with actual dirty flag
-  left: 694
- right: 696
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,8 +1,0 @@
-{
-  "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp": {
-    "before_sha256": "351686e58432342e1711936b1f89460dc6734b9ec2227e4641bf48d054a27256",
-    "after_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
-    "baseline_migration": "docs/audit/bf144/481a/reader-migration.json",
-    "scope": "Opt-in transient native per-instance foot setting for character probe only"
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "raw_sha256": "4b9ca42d3b6defda9def24fe17ec0223679221e2d7f202c54c2a852aff8197e1",
-  "stored_sha256": "6916127847ad72bdf092dd15d2140f6c05d2971316e9e8ce71025c52c9f5cc8a",
-  "normalization": "Repository prefix removed and home prefix replaced with environment-neutral token",
-  "failed_gate_not_accepted": true,
-  "reason": "Evidence checker started before Git index update reached terminal completion"
-}

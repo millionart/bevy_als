@@ -1,8 +1,0 @@
-{
-  "cause": "Rig hierarchy order inserts virtual bones before some skeleton bones",
-  "rejected_original_same_input_request": true,
-  "source_names_from_native_required_skeleton": true,
-  "same79_names": true,
-  "all_pose_components_reordered_by_actual_bone_name": true,
-  "corrected_native_input_values_all_exact": true
-}

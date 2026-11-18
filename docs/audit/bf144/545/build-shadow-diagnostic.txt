@@ -1,6 +1,0 @@
-AlsGraphSourceReaderCommandlet.cpp:4693:28: error: declaration shadows a local variable [-Werror,-Wshadow]
- 4693 |             UBoxComponent* Box = NewObject<UBoxComponent>(Actor, TEXT("AuditStepOverhang"));
-      |                            ^
-AlsGraphSourceReaderCommandlet.cpp:4581:24: note: previous declaration is here
- 4581 |         UBoxComponent* Box = NewObject<UBoxComponent>(Floor);
-      |                        ^

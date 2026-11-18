@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_VM_TO_WORLD_REMOVAL_REJECTS_ALL_REFERENCE_RAYS_WITH_RIG_OUTPUT_UNCHANGED",
-  "references": 638,
-  "actual_source_references": 636,
-  "extra_initialization_references": 2,
-  "all_638_changed_from_hit_to_miss": true,
-  "complete_pose_externals_world_clock_events_and_visits_unchanged": true
-}

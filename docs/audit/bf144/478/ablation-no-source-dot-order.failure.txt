@@ -1,6 +1,0 @@
-
-thread 'main' (2926695) panicked at docs/audit/bf144/478/replay.rs:77:5:
-assertion `left == right` failed: Complete source scalar arithmetic matches native source/current position domains
-  left: 1938
- right: 2596
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

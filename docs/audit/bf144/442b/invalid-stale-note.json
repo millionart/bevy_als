@@ -1,6 +1,0 @@
-{
-  "failed_build": "consumers-build.report.json",
-  "reason": "Rust syntax error in newly added consumer call; stale prior matrix binary was mistakenly run afterward",
-  "output_scope": "Prior77 rotation cases only, no consumer fields; excluded from all consumer conclusions",
-  "correction": "Fix literal, remove old executable before builds, require successful build before executing"
-}

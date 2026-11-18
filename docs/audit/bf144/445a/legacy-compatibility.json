@@ -1,6 +1,0 @@
-{
-  "gate": "PASS_NO_FLAG_CURRENT240_COMPLETE_CHARACTER_PROBE_EXACT",
-  "old_report": "docs/audit/bf144/443/source.native.json.gz",
-  "current_report": "legacy.native.json.gz",
-  "complete_character_probe_exact": true
-}

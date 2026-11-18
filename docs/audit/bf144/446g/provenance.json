@@ -1,8 +1,0 @@
-{
-  "original_manual_playground_sha256": "e31547dfd6fd94cc8cb571c1d1ced35cd6791e64a49546fc31f7802dff38a3b7",
-  "base_observer": "docs/audit/bf144/446e/observer.rs",
-  "added": "Read-only all cold/ready motor, solver coefficients and raw physics keyed by actual application frame",
-  "production_changed": false,
-  "screenshots": 0,
-  "performance_acceptance": "paused"
-}

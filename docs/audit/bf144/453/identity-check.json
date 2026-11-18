@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_HEAD_POSITION_SCALE_INPUT_PROJECTION_FIXTURE_RESTORED_SAME_SIX_LIBRARIES_AND_CURRENT396_IDENTITIES",
-  "reader_migration_from_446f_preserved": true,
-  "six_libraries_unchanged": true,
-  "original_manual_playground_unchanged": true,
-  "observer_sources_restored": true,
-  "current_source_identity_check": "docs/audit/bf144/445a/identity-check.json"
-}

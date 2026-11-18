@@ -1,7 +1,0 @@
-{
-  "gate": "PASS_EXPLICIT_READER_MIGRATION_OTHER395_AND_SIX_LIBRARIES_UNCHANGED",
-  "current_base_files_unchanged": 396,
-  "reader_migration_explicit": true,
-  "other_base_files_unchanged": 395,
-  "same_six_runtime_libraries_unchanged": true
-}

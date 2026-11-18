@@ -1,8 +1,0 @@
-{
-  "gate": "PASS_EXACT_NATIVE_POST_SETROTATION_LOCAL_DIRTY_AND_FINAL_LOCAL_BRANCH",
-  "calls": 1272,
-  "dirty": 1272,
-  "clean": 0,
-  "complete_old_execution_pose_work_and_hierarchy_unchanged": true,
-  "descriptor_binding_restored": true
-}

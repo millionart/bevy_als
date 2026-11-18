@@ -1,9 +1,0 @@
-{
-  "baseline_current_transform_runtime_exit": 1,
-  "reason": "Existing render-effects verifier did not observe TAA execution before its five-second timer",
-  "physics_progress_before_exit": 150,
-  "graph_errors": [],
-  "faults": [],
-  "threshold_or_production_changes": false,
-  "next_diagnostic": "Run unchanged public startup functional gate to separate renderer environment from observer plumbing"
-}

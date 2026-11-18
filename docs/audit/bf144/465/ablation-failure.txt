@@ -1,3 +1,0 @@
-assertion `left == right` failed: Actual public spring replay query 19 mode 0
-  left: [F32(-0.0010370166), F32(2.0), F32(1.0), F32(0.0), Bool(false), F32(0.0), F32(0.0), Bool(true), F32(-0.0010370166), F32(0.0), F32(-0.0010370166), List([F32(-0.0010370166), F32(0.0), Bool(true)])]
- right: [F32(-0.0010370166), F32(2.0), F32(1.0), F32(0.0), Bool(false), F32(0.0), F32(0.0), Bool(true), F32(-6.895157e-5), F32(-0.0035913496), F32(-6.895157e-5), List([F32(-0.0010370166), F32(-0.0035913496), Bool(true)])]

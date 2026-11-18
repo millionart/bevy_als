@@ -1,1 +1,0 @@
-{"cameras":1,"executed_passes":[["render/ssao/elapsed_gpu",0.0],["render/ssao/elapsed_cpu",0.0018750000000000001]],"exit_reason":"render_pass_timeout","msaa_off":1,"no_progress_limit_seconds":5.0,"passed":false,"ssao":1,"taa":1,"waited_seconds":5.00000025}

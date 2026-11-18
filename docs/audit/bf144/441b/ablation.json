@@ -1,7 +1,0 @@
-{
-  "baseline_source_parameters_sha256": "69533a39a59a3fad5320790a004a4b43cbb49543e55b3d4edd6b67081b7a3613",
-  "data_control_removed_loses_two_signals": true,
-  "source_cubic_removed_native_assertion_failed_at_gait": 2.125,
-  "source_model_final_sha256": "6948b543712baa5a4d61dc78b28f4db3ccc4794846532308ae6eec0063a14e87",
-  "target_excerpt_final_sha256": "d98893efe283d530985c6519d2e6967fe7aed75f4d2539458fe11eb761bf0d60"
-}

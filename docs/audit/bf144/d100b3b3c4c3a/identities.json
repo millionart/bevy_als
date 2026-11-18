@@ -1,9 +1,0 @@
-{
-  "native": "docs/audit/bf144/d100b3b3c4c1/native-identities.json",
-  "fixture": "docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json",
-  "target": {
-    "path": "src/als/settings/contact_bounds_checks.rs",
-    "sha256": "a17fcf0a2f50e2d495e4f90ce263410edc183add6c62699a2facbccf60410f74"
-  },
-  "bounds_check_cvar_observed": false
-}

@@ -1,4 +1,0 @@
-{
-  "check-ablated": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446g/check.py\", line 52, in <module>\n    else:result=validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446g/check.py\", line 13, in validate\n    rows=data[key]\n         ~~~~^^^^^\nKeyError: 'physics_motors'\n",
-  "replay-ablated": "\nthread 'main' (1803567) panicked at docs/audit/bf144/446g/replay.rs:69:21:\nassertion `left == right` failed\n  left: Vec3(-15.0, 0.921037, -15.0)\n right: Vec3(-15.0, 0.91999996, -15.0)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
-}

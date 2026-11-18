@@ -1,9 +1,0 @@
-{
-  "before_sha256": "4644d4d4ededf330b034f5716f36a600463098433d27dcc2501091668d0fa060",
-  "after_sha256": "9acd3400c5d4b240bf53de58c2b465c9d9a69a9c7aeed7f729d80fe769cd8d31",
-  "changed_numeric_top_level_keys": [
-    "yaw_left",
-    "yaw_right"
-  ],
-  "forward_backward_changes_signed_zero": true
-}

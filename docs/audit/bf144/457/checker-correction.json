@@ -1,6 +1,0 @@
-{
-  "initial_assumption": "One case only",
-  "actual_authoritative_request": "Primary318 frames plus existing2-frame control, both with initialization",
-  "correction": "Validate both exact case lengths and all322 Rig-output packets; preserve full old two-case character probe",
-  "source_data_or_numeric_threshold_changed": false
-}

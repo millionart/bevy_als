@@ -1,9 +1,0 @@
-{
-  "binary": "target_game/play/examples/manual_playground",
-  "bytes": 307279840,
-  "sha256": "a25ad6029e3b6d028a0a9d24a0785a97b43016173045fe9d167099a5b0848688",
-  "source_sha256": "934ffb2e9d163fee75851a3d4b65e94695a7dcf34ac63140dd2596703f932f49",
-  "lock_sha256": "7ea433b986710c57b38d7e2bfcf1cfaf173783dd8f14b7b6d7f3fb49719feb3e",
-  "target": "target_game",
-  "profile": "play"
-}

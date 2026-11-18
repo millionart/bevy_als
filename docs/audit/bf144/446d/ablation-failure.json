@@ -1,4 +1,0 @@
-{
-  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446d/check.py\", line 40, in <module>\n    result=validate(data)\n           ^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446d/check.py\", line 32, in validate\n    assert main['proxy_native_update_engine_frame']+1==main['proxy_observed_engine_frame']\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
-  "expected_rejection": "Actual native frame and map data no longer satisfy the source stage contract"
-}

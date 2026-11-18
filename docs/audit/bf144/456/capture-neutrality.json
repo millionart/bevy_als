@@ -1,7 +1,0 @@
-{
-  "correct_source_priority_capture_disabled": true,
-  "all319_actual_calls_empty": true,
-  "all_old_five_arrays_exact": true,
-  "all_actual_vm_pose_registers_and_inputs_exact": true,
-  "only_call_trace_and_capture_provenance_fields_differ": true
-}

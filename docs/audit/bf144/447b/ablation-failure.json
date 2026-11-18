@@ -1,4 +1,0 @@
-{
-  "expected_rejection": "Head parameter/state and consumed pin observations missing",
-  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/447b/check.py\", line 44, in <module>\n    else:result=validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/447b/check.py\", line 17, in validate\n    x=a['head_values'];y=b['head_values']\n      ~^^^^^^^^^^^^^^^\nKeyError: 'head_values'\n"
-}

@@ -1,8 +1,0 @@
-{
-  "method": "Original manual_playground source with a passive parameter observer and explicit controlled input/time inserted before app.run",
-  "original_source_sha256": "e31547dfd6fd94cc8cb571c1d1ced35cd6791e64a49546fc31f7802dff38a3b7",
-  "original_scene_setup_removed_or_replaced": false,
-  "no_claim_as_unmodified_public_runner_gate": true,
-  "controlled_case": "Standing ViewDirection Running;240 frames;forward input20..59 and120..159;view yaw-90deg",
-  "source_parameter_values_injected": false
-}

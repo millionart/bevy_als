@@ -1,9 +1,0 @@
-{
-  "failure": "First observed post-evaluation global delta had already been restored by evaluate_players",
-  "source": "src/animation_graph_ext/post_physics_animation.rs:190-196",
-  "initialization_budget_delta": 0.0,
-  "post_evaluation_global_delta": 0.03333333507180214,
-  "initialize_predicate": "Actual before gate exists and arena absent or frame0",
-  "spring_state_first_counterexample": "query0 instruction54 actual replay valid true vs observed false",
-  "after_state_not_injected": true
-}
