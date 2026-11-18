@@ -1,0 +1,3 @@
+ALS plugins and tags loaded
+ALS avatar and camera ready; crouch requested
+ALS host input moved the crouched character 0.259 m

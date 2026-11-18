@@ -36,12 +36,12 @@ use bevy_als::game_mode::{
     request_als_player,
 };
 use bevy_als::overlay_object::OverlayObjectPlugin;
-use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 use bevy_als::playground_collision::{
     PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt, playground_kinematic_velocity_bridge,
 };
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
 use bevy_als::{
+    AlsPlugin,
     anim_probe::AnimProbePlugin,
     animation_visual_validation::AnimationVisualValidationPlugin,
     manual_playground_integration::{
@@ -87,7 +87,7 @@ fn main() {
             minimum: Duration::from_secs_f64(world_time.min_undilated_seconds),
             maximum: Duration::from_secs_f64(world_time.max_undilated_seconds),
         },
-        AlsPlayableCharacterPlugin,
+        AlsPlugin,
         AlsGameModePlugin,
     ));
     if !use_gpu_instances {

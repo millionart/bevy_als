@@ -1,4 +1,6 @@
-use avian3d::prelude::PhysicsPlugins;
+use avian3d::prelude::{
+    Collider, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedulePlugin, PhysicsSystems,
+};
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
@@ -24,15 +26,34 @@ pub use crate::character_assembly::{
 
 pub struct AlsPlayableCharacterPlugin;
 
+impl AlsPlayableCharacterPlugin {
+    pub fn physics_plugins() -> impl PluginGroup {
+        PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>()
+    }
+}
+
 impl Plugin for AlsPlayableCharacterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(
-            PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
-        );
+        if app.is_plugin_added::<PhysicsSchedulePlugin>() {
+            assert!(
+                app.is_plugin_added::<NarrowPhasePlugin<Collider, RagdollCollisionHooks>>()
+                    && app.get_schedule(PostUpdate).is_some_and(|schedule| schedule
+                        .graph()
+                        .system_sets
+                        .contains(PhysicsSystems::StepSimulation)),
+                "Register Avian with AlsPlugin::physics_plugins() before adding AlsPlugin"
+            );
+        } else {
+            app.add_plugins(Self::physics_plugins());
+        }
         app.add_plugins((
             TnuaAvian3dPlugin::new(Update),
             TnuaControllerPlugin::<AlsControlScheme>::new(Update),
-            EnhancedInputPlugin,
+        ));
+        if !app.is_plugin_added::<EnhancedInputPlugin>() {
+            app.add_plugins(EnhancedInputPlugin);
+        }
+        app.add_plugins((
             AlsInputPlugin,
             AlsInputRequestPlugin,
             AlsAimPlugin,
@@ -69,7 +90,7 @@ mod tests {
         .init_asset::<bevy::world_serialization::WorldAsset>()
         .init_asset::<Mesh>()
         .init_asset::<Image>()
-        .add_plugins(AlsPlayableCharacterPlugin);
+        .add_plugins(crate::AlsPlugin);
         app.finish();
         app.cleanup();
         app.world_mut().schedule_scope(Update, |world, schedule| {
@@ -112,11 +133,13 @@ mod tests {
             TransformPlugin,
             bevy::input::InputPlugin,
             bevy::gizmos::GizmoPlugin,
+            EnhancedInputPlugin,
         ))
         .init_asset::<bevy::world_serialization::WorldAsset>()
         .init_asset::<Mesh>()
         .init_asset::<Image>()
-        .add_plugins(AlsPlayableCharacterPlugin);
+        .add_plugins(crate::AlsPlugin::physics_plugins())
+        .add_plugins(crate::AlsPlugin);
         app.finish();
         app.cleanup();
         app.world_mut()
@@ -125,5 +148,18 @@ mod tests {
                     .initialize(world)
                     .expect("playable character animation phases must initialize");
             });
+    }
+
+    #[test]
+    #[should_panic(expected = "Register Avian with AlsPlugin::physics_plugins()")]
+    fn playable_character_rejects_physics_on_a_different_schedule() {
+        App::new()
+            .add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                TransformPlugin,
+                PhysicsPlugins::default().with_collision_hooks::<RagdollCollisionHooks>(),
+            ))
+            .add_plugins(crate::AlsPlugin);
     }
 }

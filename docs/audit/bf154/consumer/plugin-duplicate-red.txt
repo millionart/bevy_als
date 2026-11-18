@@ -1,0 +1,16 @@
+running 1 test
+test playable_character::tests::playable_character_animation_phases_initialize_with_the_real_physics_schedule ... FAILED
+
+failures:
+
+---- playable_character::tests::playable_character_animation_phases_initialize_with_the_real_physics_schedule stdout ----
+
+thread 'playable_character::tests::playable_character_animation_phases_initialize_with_the_real_physics_schedule' (16050967) panicked at src/als/character/playable_character.rs:32:13:
+Error adding plugin bevy_enhanced_input::EnhancedInputPlugin: : plugin was already added in application
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    playable_character::tests::playable_character_animation_phases_initialize_with_the_real_physics_schedule
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2126 filtered out; finished in 0.09s

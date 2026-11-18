@@ -1,0 +1,21 @@
+{
+  "base_commit": "a0df784e",
+  "asset_root": "game-assets",
+  "asset_directories": [
+    "ALS",
+    "ALSRuntime",
+    "ALSCamera"
+  ],
+  "bevy": "0.20.1",
+  "avian": "0.8.0",
+  "input": "KeyW",
+  "crouch": "AlsStateRequest",
+  "binary_sha256": "6e53d56e2eb80925ee1112a10983c940af3f64850ec37f40bfb8329b5e6a0257",
+  "fixture_sha256": "fd689fba17dad8b2d6a3ca803b5d042d68bd472b67dcdc8f5ce1a1a3e3154470",
+  "consumer_lock_sha256": "748e3c7ac334b41740a215de3707dd1d00bed26ad19711afcbc14a0f81deb258",
+  "implementation_sha256": {
+    "src/lib.rs": "0d5b74e1d37fcc809f92666a4335683a131d6dd636503585273abdad36c9a066",
+    "src/als/character/playable_character.rs": "b05937025ce9c7349f29ebca375d511af74f3eaa44eac324fe0da53f0bed1e45",
+    "src/als/character/character_runtime.rs": "584ff3bcbce58c1c078fa7bf19730741c7b963801d3552c8695afc4ec1c427ef"
+  }
+}

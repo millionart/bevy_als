@@ -2,6 +2,15 @@ pub mod als;
 pub mod als_camera;
 pub mod extensions;
 
+pub use als::character::{AlsCharacter, AlsCollisionLayer};
+pub use als::control_scheme::AlsControlSchemeConfig;
+pub use als::params::AlsMovementParams;
+pub use als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+pub use als::transition::AlsStateRequest;
+pub use playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin as AlsPlugin, spawn_als_character,
+};
+
 #[path = "als/character/animation_instances/ab_als_provider.rs"]
 pub mod ab_als_provider;
 #[path = "als/character/animation_instances/ab_als_root.rs"]

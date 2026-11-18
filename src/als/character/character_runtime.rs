@@ -1,5 +1,6 @@
 use crate::als::character::AlsCharacter;
 use crate::als::start_stop::{StartStopState, start_stop_detector_system};
+use bevy::asset::io::file::FileAssetReader;
 use bevy::prelude::*;
 use bevy_gameplay_tag::GameplayTagsPlugin;
 
@@ -35,10 +36,17 @@ pub struct AlsCharacterRuntimePlugin;
 
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(GameplayTagsPlugin::with_data_path(
-            "assets/ALS/Data/als_gameplay_tags.json",
+        let asset_plugins = app.get_added_plugins::<AssetPlugin>();
+        let asset_plugin = asset_plugins
+            .first()
+            .expect("Install AssetPlugin before ALS");
+        let tags = FileAssetReader::get_base_path()
+            .join(&asset_plugin.file_path)
+            .join("ALS/Data/als_gameplay_tags.json");
+        app.add_plugins((
+            GameplayTagsPlugin::with_data_path(tags.to_string_lossy()),
+            AlsActualMotionPlugin,
         ))
-        .add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
         .add_plugins(crate::footprint::FootprintPlugin)

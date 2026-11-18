@@ -1,0 +1,2 @@
+2026-11-18T04:41:39.878731Z ERROR bevy_gameplay_tag::gameplay_tags_manager: Failed to load tag data from ./assets/ALS/Data/als_gameplay_tags.json: failed to read tag data from './assets/ALS/Data/als_gameplay_tags.json': No such file or directory (os error 2)
+Load ALS tags from the host AssetPlugin directory

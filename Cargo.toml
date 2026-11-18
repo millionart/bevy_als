@@ -49,6 +49,10 @@ name = "manual_playground"
 path = "src/als_extras/levels/manual_playground.rs"
 
 [[example]]
+name = "als_character"
+path = "tools/examples/als_character.rs"
+
+[[example]]
 name = "action_priority_gate"
 path = "tools/examples/action_priority_gate.rs"
 
