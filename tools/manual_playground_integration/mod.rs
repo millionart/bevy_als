@@ -16737,7 +16737,7 @@ mod tests {
         assert_eq!(layering_curve_error(&actual, &expected), Some(0.5));
         actual.remove(&crate::extensions::SourceCurveName::from("LayerHeadSlot"));
         assert_eq!(layering_curve_error(&actual, &expected), None);
-        let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
+        let window = default_overlay_window(1, &DefaultOverlayGraphSample::default());
         for (label, node, output) in LAYERING_BOUNDARIES {
             if label != "layering_base_poses" {
                 assert!(
