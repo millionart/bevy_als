@@ -1873,9 +1873,9 @@ pub(crate) mod tests {
             assert!(serde_json::from_value::<AlsNotifyManifestFilter>(value).is_err());
         }
         let scene = include_str!("../../../assets/ALS/Character/B_Als.animscn.ron");
-        assert!(scene.contains("ALS/Animations/Base/A_Als_Idle.gltf#Scene0"));
+        assert!(scene.contains("ALS/Character/SKM_Als.gltf#Scene0"));
         let mesh: Value = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/Base/A_Als_Idle.gltf"
+            "../../../assets/ALS/Character/SKM_Als.gltf"
         ))
         .unwrap();
         assert_eq!(mesh["meshes"].as_array().unwrap().len(), 1);

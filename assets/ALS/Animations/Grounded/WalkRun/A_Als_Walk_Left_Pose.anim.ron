@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf",
+        path: "ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.glb",
         animation_name: "A_Als_Walk_Left_Pose_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

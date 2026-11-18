@@ -28,7 +28,7 @@ use crate::root_motion_link::{ensure_root_motion_output, root_motion_world_trans
 const ROLL_SLOT_GRAPH: &str =
     "ALS/Character/AnimationInstances/AB_Als_Grounded/RollSlot.animgraph.ron";
 const ROLL_SLOT_TIME_KEY: &str = "als_roll_slot_time";
-const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
+const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.glb#AlsCurves";
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollSlotSampler {

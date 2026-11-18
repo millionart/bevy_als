@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf",
+        path: "ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.glb",
         animation_name: "A_Als_Crouch_Rotate_90_Right_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

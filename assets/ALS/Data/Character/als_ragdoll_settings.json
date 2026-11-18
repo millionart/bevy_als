@@ -12,7 +12,7 @@
     "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
     "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",
     "clip": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
-    "curves": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves",
+    "curves": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.glb#AlsCurves",
     "montage_curves": {
       "FootLeftIk": {
         "times": [
@@ -491,7 +491,7 @@
     "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
     "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back",
     "clip": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
-    "curves": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.gltf#AlsCurves",
+    "curves": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.glb#AlsCurves",
     "montage_curves": {
       "FootLeftIk": {
         "times": [

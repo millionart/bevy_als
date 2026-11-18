@@ -643,7 +643,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gltf_reload_and_new_clips_supply_their_own_pose_and_ik_curves() {
+    fn glb_reload_and_new_clips_supply_their_own_pose_and_ik_curves() {
         use bevy::asset::io::{
             AssetSourceBuilder, AssetSourceEvent, AssetSourceId, AssetWatcher,
             memory::{Dir, MemoryAssetReader},
@@ -681,7 +681,7 @@ mod tests {
             let model = serde_json::json!({
                 "asset": {"version": "2.0"},
                 "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "root"}],
-                "buffers": [{"uri": format!("{name}.bin"), "byteLength": 32}],
+                "buffers": [{"byteLength": 32}],
                 "bufferViews": [
                     {"buffer": 0, "byteLength": 8},
                     {"buffer": 0, "byteOffset": 8, "byteLength": 24}
@@ -693,15 +693,26 @@ mod tests {
                 ],
                 "animations": [animation]
             });
+            let mut json = serde_json::to_vec(&model).unwrap();
+            json.resize(json.len().next_multiple_of(4), b' ');
             let data: Vec<_> = [0.0_f32, 1.0, x, 0.0, 0.0, x, 0.0, 0.0]
                 .into_iter()
                 .flat_map(f32::to_le_bytes)
                 .collect();
-            dir.insert_asset(Path::new(&format!("{name}.bin")), data);
-            dir.insert_asset_text(Path::new(&format!("{name}.gltf")), &model.to_string());
+            let size = 28 + json.len() + data.len();
+            let mut glb = b"glTF".to_vec();
+            glb.extend(2_u32.to_le_bytes());
+            glb.extend((size as u32).to_le_bytes());
+            glb.extend((json.len() as u32).to_le_bytes());
+            glb.extend(b"JSON");
+            glb.extend(json);
+            glb.extend((data.len() as u32).to_le_bytes());
+            glb.extend(b"BIN\0");
+            glb.extend(data);
+            dir.insert_asset(Path::new(&format!("{name}.glb")), glb);
             dir.insert_asset_text(
                 Path::new(&format!("{name}.anim.ron")),
-                &format!(r#"(source: GltfNamed(path: "{name}.gltf", animation_name: "Pose"), skeleton: "rig.skn.ron")"#),
+                &format!(r#"(source: GltfNamed(path: "{name}.glb", animation_name: "Pose"), skeleton: "rig.skn.ron")"#),
             );
         }
 
@@ -709,7 +720,7 @@ mod tests {
         put_clip(&dir, "editable", 1.0, Some(0.25));
         dir.insert_asset_text(
             Path::new("rig.skn.ron"),
-            r#"(source: Gltf(source: "editable.gltf", label: "Scene0"))"#,
+            r#"(source: Gltf(source: "editable.glb", label: "Scene0"))"#,
         );
         struct TestWatcher;
         impl AssetWatcher for TestWatcher {}
@@ -791,7 +802,7 @@ mod tests {
         };
         sample(&mut app, &editable, 1.0, Some(0.25));
         put_clip(&dir, "editable", 2.0, Some(0.75));
-        changes.get().unwrap()(AssetSourceEvent::ModifiedAsset("editable.gltf".into()));
+        changes.get().unwrap()(AssetSourceEvent::ModifiedAsset("editable.glb".into()));
         sample(&mut app, &editable, 2.0, Some(0.75));
 
         put_clip(&dir, "new", 3.0, None);

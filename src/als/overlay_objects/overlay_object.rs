@@ -862,7 +862,16 @@ pub(crate) mod tests {
                         .is_some_and(|name| name.as_str() == "string_mid")
                 })
                 .unwrap();
-            string_positions.push(pose.get_bone(string.id()).unwrap().translation.unwrap());
+            let sampled = pose.get_bone(string.id()).unwrap().translation.unwrap();
+            let target = player
+                .bone_entity(string.id())
+                .expect("Bow string is bound");
+            let driven = app.world().get::<Transform>(target).unwrap().translation;
+            assert!(
+                driven.abs_diff_eq(sampled, 1e-6),
+                "Draw pose did not drive the string bone"
+            );
+            string_positions.push(driven);
         }
         assert!(string_positions[0].distance(string_positions[2]) > 0.2);
         assert!(string_positions[1].distance(string_positions[0]) > 0.05);

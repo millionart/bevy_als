@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/View/A_Als_Look_Up.gltf",
+        path: "ALS/Animations/View/A_Als_Look_Up.glb",
         animation_name: "A_Als_Look_Up_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

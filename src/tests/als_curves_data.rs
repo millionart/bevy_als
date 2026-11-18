@@ -2,38 +2,32 @@ use bevy_als::extensions::{SourceCurveName, parse_curves};
 use std::collections::BTreeMap;
 use std::fs;
 
-const ROTATE_90_LEFT: &str = "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf";
+const ROTATE_90_LEFT: &str = "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.glb";
 const CROUCH_ROTATE_90_LEFT: &str =
-    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf";
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.glb";
 const CROUCH_ROTATE_90_RIGHT: &str =
-    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf";
-const CROUCH_TURN_90_LEFT: &str =
-    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf";
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.glb";
+const CROUCH_TURN_90_LEFT: &str = "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.glb";
 const CROUCH_TURN_90_RIGHT: &str =
-    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.glb";
 const CROUCH_TURN_180_LEFT: &str =
-    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.glb";
 const CROUCH_TURN_180_RIGHT: &str =
-    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf";
-const TORCH_POSES: &str = "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.gltf";
-const WALK_FORWARD: &str = "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.glb";
+const TORCH_POSES: &str = "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.glb";
+const WALK_FORWARD: &str = "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.glb";
 
 fn read_extension(path: &str) -> BTreeMap<String, serde_json::Value> {
-    let text = fs::read_to_string(path).expect("gltf file readable");
-    let doc: serde_json::Value = serde_json::from_str(&text).expect("valid gltf json");
-    let used = doc["extensionsUsed"].as_array().expect("extensionsUsed");
+    let bytes = fs::read(path).expect("GLB file readable");
+    let doc = bevy_gltf::gltf::Gltf::from_slice(&bytes).expect("valid GLB");
     assert!(
-        used.iter().any(|v| v == "ALS_float_curves"),
+        doc.extensions_used().any(|v| v == "ALS_float_curves"),
         "{path} missing extensionsUsed entry"
     );
     let mut out = BTreeMap::new();
-    for anim in doc["animations"].as_array().expect("animations") {
-        let name = anim["name"]
-            .as_str()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "animation".into());
-        if let Some(ext) = anim.pointer("/extensions/ALS_float_curves") {
-            out.insert(name, ext.clone());
+    for anim in doc.animations() {
+        if let Some(ext) = anim.extensions().and_then(|e| e.get("ALS_float_curves")) {
+            out.insert(anim.name().unwrap_or("animation").to_owned(), ext.clone());
         }
     }
     assert!(!out.is_empty(), "{path} carries no ALS_float_curves data");

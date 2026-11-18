@@ -1,8 +1,9 @@
 use bevy::{
-    animation::{AnimatedBy, AnimationTargetId},
+    animation::{AnimatedBy, AnimationPlayer, AnimationTargetId},
     asset::{AssetLoader, AssetPath, LoadContext, LoadedAsset, io::Reader},
     ecs::reflect::AppTypeRegistry,
     gltf::Gltf,
+    mesh::skinning::SkinnedMesh,
     prelude::*,
     world_serialization::WorldAsset,
 };
@@ -10,8 +11,109 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedScene, animation_clip::EntityPath, animation_graph::AnimationGraph,
     animation_graph_player::AnimationGraphPlayer, skeleton::Skeleton,
 };
+use bevy_gltf::{
+    extensions::{ErasedGltfExtensionHandler, GltfExtensionHandler, GltfExtensionHandlers},
+    gltf,
+};
 use serde::Deserialize;
 use std::io::{Error, ErrorKind};
+
+#[derive(Clone)]
+pub(crate) struct SkeletalModelBindings;
+
+impl SkeletalModelBindings {
+    pub(crate) fn register(app: &mut App) {
+        app.init_resource::<GltfExtensionHandlers>();
+        app.world()
+            .resource::<GltfExtensionHandlers>()
+            .0
+            .write_blocking()
+            .push(Box::new(Self));
+    }
+}
+
+impl GltfExtensionHandler for SkeletalModelBindings {
+    fn dyn_clone(&self) -> Box<dyn ErasedGltfExtensionHandler> {
+        Box::new(self.clone())
+    }
+
+    fn on_scene_completed(
+        &mut self,
+        context: &mut LoadContext<'_>,
+        scene: &gltf::Scene,
+        world_root: Entity,
+        world: &mut World,
+    ) {
+        if world
+            .try_query_filtered::<Entity, With<AnimationPlayer>>()
+            .is_some_and(|mut query| query.iter(world).next().is_some())
+        {
+            return;
+        }
+        let Some(root) = skinned_model_root(world_root, world) else {
+            return;
+        };
+        if bind_model_targets(scene, world_root, root, world).is_none() {
+            warn!(
+                "{}: could not bind the model's animation hierarchy",
+                context.path()
+            );
+        }
+    }
+}
+
+fn skinned_model_root(scene_root: Entity, world: &World) -> Option<Entity> {
+    let root_of = |mut entity| loop {
+        let parent = world.get::<ChildOf>(entity)?.parent();
+        if parent == scene_root {
+            return Some(entity);
+        }
+        entity = parent;
+    };
+    let mut meshes = world.try_query::<&SkinnedMesh>()?;
+    let mut roots = meshes
+        .iter(world)
+        .flat_map(|mesh| mesh.joints.iter().copied())
+        .map(root_of);
+    let root = roots.next()??;
+    roots
+        .all(|candidate| candidate == Some(root))
+        .then_some(root)
+}
+
+fn bind_model_targets(
+    scene: &gltf::Scene,
+    world_root: Entity,
+    model_root: Entity,
+    world: &mut World,
+) -> Option<()> {
+    let node_name = |node: &gltf::Node| {
+        node.name()
+            .map_or_else(|| format!("GltfNode{}", node.index()), str::to_owned)
+    };
+    let root_name = world.get::<Name>(model_root)?.as_str();
+    let node = scene.nodes().find(|node| node_name(node) == root_name)?;
+    let mut pending = vec![(node, world_root, EntityPath::default())];
+    let mut targets = Vec::new();
+    while let Some((node, parent, path)) = pending.pop() {
+        let name = node_name(&node);
+        let entity = world.get::<Children>(parent)?.iter().find(|&child| {
+            world
+                .get::<Name>(child)
+                .is_some_and(|label| label.as_str() == name)
+        })?;
+        let path = path.child(name);
+        targets.push((entity, AnimationTargetId(path.id().id())));
+        pending.extend(node.children().map(|child| (child, entity, path.clone())));
+    }
+    // The graph loader replaces the Bevy player while preserving the scene's ragdoll settings.
+    let root = targets[0].0;
+    world.entity_mut(root).insert(AnimationPlayer::default());
+    for (entity, id) in targets {
+        world.entity_mut(entity).insert((id, AnimatedBy(root)));
+    }
+    Some(())
+}
 
 #[derive(Deserialize)]
 struct StaticAnimatedSceneSerial {
@@ -145,6 +247,7 @@ fn bind_static_scene(
     }
     world
         .entity_mut(root)
+        .remove::<AnimationPlayer>()
         .insert(AnimationGraphPlayer::new(skeleton_handle).with_graph(graph));
     Ok(())
 }

@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Transitions/A_Als_CrouchToStand.gltf",
+        path: "ALS/Animations/Transitions/A_Als_CrouchToStand.glb",
         animation_name: "A_Als_CrouchToStand_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

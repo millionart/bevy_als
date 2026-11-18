@@ -104,21 +104,21 @@ const STANDING_SKELETON: &str = "ALS/Character/SKM_Als.skn.ron";
 const STOP_LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
 const STOP_RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
 const ROTATE_LEFT_CURVE_ASSET: &str =
-    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf#AlsCurves";
+    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.glb#AlsCurves";
 const ROTATE_RIGHT_CURVE_ASSET: &str =
-    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.gltf#AlsCurves";
+    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.glb#AlsCurves";
 const TURN_LEFT_90_CURVE_ASSET: &str =
-    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf#AlsCurves";
+    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.glb#AlsCurves";
 const TURN_RIGHT_90_CURVE_ASSET: &str =
-    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf#AlsCurves";
+    "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.glb#AlsCurves";
 const TURN_LEFT_180_CURVE_ASSET: &str =
-    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf#AlsCurves";
+    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.glb#AlsCurves";
 const TURN_RIGHT_180_CURVE_ASSET: &str =
-    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.gltf#AlsCurves";
+    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.glb#AlsCurves";
 const QUICK_STOP_LEFT_CURVE_ASSET: &str =
-    "ALS/Animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
+    "ALS/Animations/Transitions/A_Als_Stop_Left.glb#AlsCurves";
 const QUICK_STOP_RIGHT_CURVE_ASSET: &str =
-    "ALS/Animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
+    "ALS/Animations/Transitions/A_Als_Stop_Right.glb#AlsCurves";
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsStandingLayerSet;
 

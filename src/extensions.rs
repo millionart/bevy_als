@@ -512,6 +512,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DataSpec>()
             .register_type::<DataValue>();
         AlsCurvesHandler::register(app);
+        static_animated_scene::SkeletalModelBindings::register(app);
         app.add_plugins((
             bevy_control_rig::ControlRigPlugin,
             root_motion_defaults::RootMotionDefaultsPlugin,

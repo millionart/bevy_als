@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.gltf",
+        path: "ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.glb",
         animation_name: "A_Als_Bow_Aim_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

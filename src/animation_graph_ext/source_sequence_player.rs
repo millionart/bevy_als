@@ -837,7 +837,7 @@ mod tests {
             default(),
             default(),
             Some(GraphClipSource::GltfNamed {
-                path: "ALSRuntime/Animations/Base/A_Als_Stand_Pose.gltf".into(),
+                path: "ALSRuntime/Animations/Base/A_Als_Stand_Pose.glb".into(),
                 animation_name: "A_Als_Stand_Pose_0".into(),
             }),
         );

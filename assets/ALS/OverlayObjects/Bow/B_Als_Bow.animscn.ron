@@ -1,5 +1,5 @@
 (
-    source: "ALS/OverlayObjects/Bow/A_Als_Bow_Draw.gltf#Scene0",
+    source: "ALS/OverlayObjects/Bow/SKM_Als_Bow.gltf#Scene0",
     animation_graph: "ALS/OverlayObjects/Bow/AB_Als_Bow.runtime.animgraph.ron",
     skeleton: "ALS/OverlayObjects/Bow/SKM_Als_Bow.skn.ron",
 )

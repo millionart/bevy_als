@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.gltf",
+        path: "ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.glb",
         animation_name: "A_Als_Mantle_Low_Left_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

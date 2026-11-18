@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Air/Land/A_Als_Land_Heavy.gltf",
+        path: "ALS/Animations/Air/Land/A_Als_Land_Heavy.glb",
         animation_name: "A_Als_Land_Heavy_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

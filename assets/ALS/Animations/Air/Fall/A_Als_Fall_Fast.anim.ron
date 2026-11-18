@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Air/Fall/A_Als_Fall_Fast.gltf",
+        path: "ALS/Animations/Air/Fall/A_Als_Fall_Fast.glb",
         animation_name: "A_Als_Fall_Fast_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

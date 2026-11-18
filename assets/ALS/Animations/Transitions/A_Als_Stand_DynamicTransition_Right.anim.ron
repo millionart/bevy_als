@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.gltf",
+        path: "ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.glb",
         animation_name: "A_Als_Stand_DynamicTransition_Right_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

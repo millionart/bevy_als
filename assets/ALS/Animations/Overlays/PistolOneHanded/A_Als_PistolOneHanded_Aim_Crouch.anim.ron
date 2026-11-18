@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.gltf",
+        path: "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.glb",
         animation_name: "A_Als_PistolOneHanded_Aim_Crouch_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

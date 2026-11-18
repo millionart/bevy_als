@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Right.gltf",
+        path: "ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Right.glb",
         animation_name: "A_Als_Jump_Run_Right_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",
