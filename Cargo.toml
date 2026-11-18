@@ -4,6 +4,7 @@ description = "ALS-Refactored style advanced locomotion system rebuilt with Bevy
 edition = "2024"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/millionart/bevy_als"
 resolver = "2"
 autoexamples = false
 autotests = false
@@ -20,6 +21,7 @@ incremental = false
 
 [features]
 default = []
+playground = []
 
 [dependencies]
 bevy = { version = "0.20.1", features = ["file_watcher", "tga", "pbr_clustered_decals"] }
@@ -40,13 +42,10 @@ bevy_gltf = "0.20.1"
 bevy_animation_graph_editor = { git = "https://github.com/millionart/bevy_animation_graph", rev = "6d706f61c35a6cf7b1c96430a56ae46241b4d51f" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
-[[bin]]
-name = "bevy_als"
-path = "src/main.rs"
-
 [[example]]
 name = "manual_playground"
 path = "src/als_extras/levels/manual_playground.rs"
+required-features = ["playground"]
 
 [[example]]
 name = "als_character"
@@ -67,6 +66,7 @@ path = "tools/examples/als_graph_editor.rs"
 [[example]]
 name = "als_hud_gate"
 path = "tools/examples/als_hud_gate.rs"
+required-features = ["playground"]
 
 [[example]]
 name = "animgraph_spec_dump"
@@ -83,6 +83,7 @@ path = "tools/examples/bf_char18_dynamic_transition_gate.rs"
 [[example]]
 name = "bf_char99_gate"
 path = "tools/examples/bf_char99_gate.rs"
+required-features = ["playground"]
 
 [[example]]
 name = "camera_lag_axis_gate"
@@ -155,6 +156,7 @@ path = "tools/examples/gait_contract_gate.rs"
 [[example]]
 name = "game_mode_player_start_gate"
 path = "tools/examples/game_mode_player_start_gate.rs"
+required-features = ["playground"]
 
 [[example]]
 name = "gravity_scale_gate"
@@ -247,6 +249,7 @@ path = "tools/examples/rotation_response_gate.rs"
 [[example]]
 name = "scene_gate"
 path = "tools/examples/scene_gate.rs"
+required-features = ["playground"]
 
 [[example]]
 name = "show_debug_hud_gate"

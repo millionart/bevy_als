@@ -3,7 +3,7 @@
 | 目录或入口 | 保留用途 |
 |---|---|
 | 根目录 `run_manual.ps1`、`als_graph_editor.ps1`、`run_manual_integration_gate.ps1` | Mac/Windows 共用入口；同名 `.bat` 保留 Windows 双击启动 |
-| `python.ps1`、`requirements.txt` | 优先选择本工作区 `.venv`，依赖与准备步骤见根 README；本机 UE 路径由 `env.local.json` 提供 |
+| `python.ps1`、`requirements.txt` | 优先选择本工作区 `.venv`，本机 UE 路径由 `env.local.json` 提供 |
 | `run_ue_source_reader.ps1`、`build_ue_source_reader.ps1`、`ue_graph_source_reader/` | 从本地 UE/uasset 提取图、属性与递归依赖；reader 带进展 watchdog 和 `-SelfTest` |
 | `animgraph_authoring/` | AnimBP/Control Rig 转换、完整产物比较、源闭包审计及夹具；其中合同与地图仍被图审计 TODO 引用 |
 | `import/` | 源事实转为独立 runtime 资产、单位/坐标换算、材质通道和图合同审计 |
@@ -16,10 +16,14 @@
 | `tests/test_platform_tools.py` | 平台启动参数、退出码、路径、原生 reader 库选择与缓存复制回归 |
 | `examples/` | 可独立运行的 Rust 检查、图编辑器和规格导出；使用 `cargo run --example <name>` |
 | `tests/` | Rust 集成测试；由 `cargo test --tests` 自动执行 |
-| `manual_playground_integration/`、`animation_visual_validation.rs`、`anim_probe.rs` | manual Playground 的移植验收驱动、报告和诊断；保留 crate 内的遥测访问，运行时按 Gate 条件启用 |
+| `manual_playground_integration/`、`animation_visual_validation.rs`、`anim_probe.rs` | Playground feature 与库单元测试使用的验收驱动、报告和诊断 |
+| `tmp/` | 被 Git 忽略的临时导出、中间文件和 `saved/als_debug.ron` 调试偏好 |
 
 公共视觉 runner 的长期证据写入 `docs/audit/`，默认目录为 `docs/audit/animation_visual/<Case>`。`-OutputDirectory` 必须位于该 Git 证据根目录，目标目录已存在时拒绝覆盖；重跑请选新的目录并随对应条目提交报告。截图关闭使用 `-CaptureCount 0`，性能验收暂停使用 `-FunctionalOnly`。
-| `tmp/` | 被 Git 忽略的临时导出、中间文件和 `saved/als_debug.ron` 调试偏好；删除偏好文件会恢复默认类别 |
+
+维护脚本使用 PowerShell 7 和 Python 3.10+。运行 `python -m venv .venv`（Mac 使用 `python3`），再用 `& (./tools/python.ps1) -m pip install -r tools/requirements.txt` 安装工具依赖。Playground 启动器默认使用工作区的 `target` 和 2 个构建任务，遵循 Cargo 的目录配置。
+
+原生 reader 使用 UE 5.8.3，Mac 需要 Xcode。复制 `tools/env.example.json` 为 `tools/env.local.json`，填写本机 `ue_project` 和 `ue_cmd`。两平台的命令分别位于 `Engine/Binaries/Mac/UnrealEditor-Cmd` 与 `Engine/Binaries/Win64/UnrealEditor-Cmd.exe`。ALS 源工程需有当前平台的 `ALSRefactoredEditor` 构建。若保留 Windows 专用 `BlueprintNodeExporter`，将其 `.uproject` 插件条目限制为 `PlatformAllowList: ["Win64"]`，并在项目 `TargetPlatforms` 中列出需要的平台。`docs/env.md` 可保留本机环境笔记，两份本地配置均由 Git 忽略。
 
 `import/probe_anim_graph_nodes.py`、`probe_property_access.py`、`probe_gltf_curves.py` 接受显式资产参数，仍可检查原生属性或导出曲线。没有其他脚本调用一个 CLI，不等于它已经无用。
 

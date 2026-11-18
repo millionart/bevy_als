@@ -604,6 +604,7 @@ fn capture_decal_pipelines(
                 std::any::TypeId::of::<PackedDecalReceiverMaterial>(),
                 "standard",
             ),
+            #[cfg(any(test, feature = "playground"))]
             (
                 std::any::TypeId::of::<
                     crate::extensions::playground_materials::PlaygroundTilesMaterial,

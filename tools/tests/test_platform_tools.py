@@ -53,14 +53,15 @@ class PlatformToolsTest(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, status, result.stderr)
                 call = json.loads((self.root / "call.json").read_text(encoding="utf-8-sig"))
-                self.assertEqual(call["argv"], ["run", "--jobs", jobs or "2", "--profile", "play", "--example", "manual_playground"])
+                self.assertEqual(call["argv"], ["run", "--jobs", jobs or "2", "--profile", "play", "--features", "playground", "--example", "manual_playground"])
                 self.assertEqual(call["target"] or "", target)
 
     def test_manual_launcher_uses_cargo_target_configuration(self):
         (self.root / "Cargo.toml").write_text(
             '[package]\nname = "launcher_fixture"\nversion = "0.1.0"\nedition = "2021"\n'
             '[profile.play]\ninherits = "dev"\n'
-            '[[example]]\nname = "manual_playground"\npath = "main.rs"\n',
+            '[features]\nplayground = []\n'
+            '[[example]]\nname = "manual_playground"\npath = "main.rs"\nrequired-features = ["playground"]\n',
             encoding="utf-8",
         )
         (self.root / "main.rs").write_text("fn main() {}\n", encoding="utf-8")

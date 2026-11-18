@@ -1,0 +1,4 @@
+{
+  "pass": true,
+  "negative_cases": 9
+}

@@ -93,10 +93,13 @@ pub mod overlay;
 pub mod overlay_materials;
 #[path = "animation_graph_ext/physics_asset.rs"]
 pub mod physics_asset;
+#[cfg(any(test, feature = "playground"))]
 #[path = "als_extras/levels/playground.rs"]
 pub mod playground;
+#[cfg(any(test, feature = "playground"))]
 #[path = "als_extras/environment/playground_materials.rs"]
 pub mod playground_materials;
+#[cfg(any(test, feature = "playground"))]
 #[path = "als_extras/environment/playground_sky.rs"]
 pub mod playground_sky;
 #[path = "animation_graph_ext/pose_timestamp.rs"]
@@ -298,6 +301,7 @@ pub use physics_asset::{
     RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet, SourceCollisionIgnorePawn,
     SourceCollisionPawn,
 };
+#[cfg(any(test, feature = "playground"))]
 pub use playground::{
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundActor,
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundComponent,
@@ -523,5 +527,6 @@ impl Plugin for AlsExtPlugin {
     }
 }
 
+#[cfg(any(test, feature = "playground"))]
 #[path = "bevy_ext/source_gaussian_bloom.rs"]
 pub mod source_gaussian_bloom;

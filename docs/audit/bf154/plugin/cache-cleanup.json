@@ -1,0 +1,37 @@
+{
+  "dev": {
+    "cargo_summary": "Removed 66919 files, 106.5GiB total",
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-18T05:07:00.7895950Z",
+      "last_progress_at_utc": "2026-11-18T05:07:08.0295478Z",
+      "last_progress_source": "final-clean-dev.stderr",
+      "finished_at_utc": "2026-11-18T05:07:08.1246800Z",
+      "elapsed_seconds": 7.335,
+      "no_progress_seconds": 0.095,
+      "no_progress_limit_seconds": 280,
+      "timeout_seconds": 540,
+      "process_exit_code": 0
+    }
+  },
+  "play": {
+    "cargo_summary": "Removed 37144 files, 77.3GiB total",
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-18T05:07:12.8216820Z",
+      "last_progress_at_utc": "2026-11-18T05:07:17.6638230Z",
+      "last_progress_source": "final-clean-play.stderr",
+      "finished_at_utc": "2026-11-18T05:07:17.8932060Z",
+      "elapsed_seconds": 5.072,
+      "no_progress_seconds": 0.229,
+      "no_progress_limit_seconds": 280,
+      "timeout_seconds": 540,
+      "process_exit_code": 0
+    }
+  },
+  "generated_footprint_directories": 1
+}

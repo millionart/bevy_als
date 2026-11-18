@@ -1,0 +1,32 @@
+{
+  "consumer_cargo_features": [
+    "default"
+  ],
+  "earlier_consumer_inputs": {
+    "tools/anim_probe.rs": true,
+    "tools/animation_visual_validation.rs": true,
+    "tools/manual_playground_integration/mod.rs": true,
+    "src/als_extras/levels/playground.rs": true,
+    "src/als_extras/ui/als_hud.rs": true
+  },
+  "default_consumer_inputs": {
+    "tools/anim_probe.rs": false,
+    "tools/animation_visual_validation.rs": false,
+    "tools/manual_playground_integration/mod.rs": false,
+    "src/als_extras/levels/playground.rs": false,
+    "src/als_extras/ui/als_hud.rs": false
+  },
+  "default_contains_decal_receiver": true,
+  "default_contains_character": true,
+  "default_binary_sha256": "8f83fbb4f27decc178f9fe68c2574103ec0bc2dec9cfe66597426dd7d8173d0c",
+  "playground_build_inputs": {
+    "tools/anim_probe.rs": true,
+    "tools/animation_visual_validation.rs": true,
+    "tools/manual_playground_integration/mod.rs": true,
+    "src/als_extras/levels/playground.rs": true,
+    "src/als_extras/ui/als_hud.rs": true
+  },
+  "manual_binary_sha256": "3316170ceded07bdfbe404d259c86d326e606f9a022d0dd2cfa5b95810e510bb",
+  "example_binary_sha256": "ae8142c6d69a5869449f7e6f4f65e39b581ceb3e364ad8662e85b2d2186c82ab",
+  "cargo_lock_sha256": "67949e6246d74501b52066a135c2707355c6b48f30a3b96ebbe2380426814d86"
+}

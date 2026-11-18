@@ -1,37 +1,43 @@
 # bevy_als
 
-用 Bevy ECS 复刻 [ALS-Refactored](https://github.com/Sixze/ALS-Refactored)（v4.18，UE 5.8）的高级运动系统。
+面向 Bevy 0.20.1 的 ALS 风格高级运动插件。角色系统覆盖地面与空中运动、蹲起、转身、翻滚和攀爬。动画图、脚部 IK、布娃娃与起身、相机适配 [ALS-Refactored](https://github.com/Sixze/ALS-Refactored) v4.18。移植范围和已知差异见[差异报告](docs/parity-report.md)。
 
-- **不做代码级移植**：以 [bevy_animation_graph](https://github.com/mbrea-c/bevy_animation_graph)（替代 AnimBP）与 [bevy-tnua](https://github.com/idanarye/bevy-tnua)（替代 CharacterMovement）为基座，按需扩展。
-- **不含网络同步**。
-- 执行规则见 [agents.md](agents.md)，当前执行清单见 [CHECKLIST.md](CHECKLIST.md)，已完成批次见 [归档索引](docs/archive/archivedchecklist.md)，启动说明见 [goal.md](goal.md)。
-- 本地环境配置见 `docs/env.md`（隐私，不入库）；UE 取证统一使用仓库原生 uasset 读取器。
+在本仓库用以下命令运行最小角色场景。
 
-## 基座插件 fork
+```sh
+cargo run --locked --jobs 2 --profile play --example als_character
+```
 
-| upstream | fork | 用途 |
-|---|---|---|
-| mbrea-c/bevy_animation_graph | [millionart/bevy_animation_graph](https://github.com/millionart/bevy_animation_graph) | 动画图（AnimBP 替代） |
+使用 WASD 移动、鼠标转向、Ctrl 蹲起、Shift 冲刺和空格跳跃。完整场景见[最小示例](tools/examples/als_character.rs)。
 
-项目使用单一 Cargo 包，已移除历史 `crates` 拆分。源码统一按源归属放在根 `src/`：`animation_graph_ext`、`avian_ext`、`bevy_ext`、`control_rig_ext`、`tnua_ext` 与 `als`、`als_camera`、`als_extras` 并列。关卡、环境、UI 分别对应 `als_extras/levels`、`environment`、`ui`；移植验收与诊断归 `tools`。完整对应关系见 [源码目录说明](src/README.md)。
+## 在自己的项目中使用
 
-### 依赖指向（M0.2）
+在宿主的 `Cargo.toml` 添加依赖。示例地面使用 Avian 的 `Collider`，因此宿主也声明 `avian3d`。
 
-项目使用 Bevy 0.20.1、Avian 0.8 和 Enhanced Input 0.27。Git 依赖在根 `Cargo.toml` 中锁定到提交，crates.io 发布版由 `Cargo.lock` 锁定。
+```toml
+[dependencies]
+bevy = "0.20.1"
+bevy_als = { path = "../bevy_als" }
+avian3d = { version = "0.8", default-features = false }
+```
 
-| crate（版本） | 来源 |
-|---|---|
-| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（codex/bevy-0.20） |
-| bevy_gameplay_tag 0.3.0 | `https://github.com/millionart/bevy_gameplay_tag`（codex/bevy-0.20） |
-| bevy-tnua 0.33.2 | [crates.io](https://crates.io/crates/bevy-tnua/0.33.2) |
-| bevy-tnua-avian3d 0.13.2 | [crates.io](https://crates.io/crates/bevy-tnua-avian3d/0.13.2)，包含 [多角色马达修复](https://github.com/idanarye/bevy-tnua/commit/1891a616ec91b935413b2800d8d387b7bd3920df) |
+也可以使用 `git = "https://github.com/millionart/bevy_als"` 和仓库中可取得的 `rev`。版本兼容以本项目 [Cargo.toml](Cargo.toml) 中的 Bevy、Avian、Enhanced Input 与动画依赖为准。
 
-- fork 改动必须独立小步提交并可回馈 upstream（agents.md 规则 4）；任何时候禁止 vendor 拷贝插件源码。
-- 本地源码调试时可用 `[patch.crates-io]`/path 覆盖，但路径只经 gitignored 本地配置或环境变量注入，禁止提交进仓库（agents.md 规则 7）。
+1. 将同一版本的 `ALS/`、`ALSRuntime/` 和 `ALSCamera/` 目录放入宿主的 Bevy 资产根，保留内部相对路径。`DefaultPlugins` 的 `AssetPlugin.file_path` 可以指定其他资产根。图、动画、相机、脚印和玩法标签共用这个根。
+2. 在 `DefaultPlugins` 后注册 `bevy_als::AlsPlugin`。在启动系统中调用 `spawn_als_character`，传入生成位置和 `AlsCharacterBlueprint`。`spawn_input` 决定是否添加默认输入，`spawn_camera` 决定是否生成 `Camera3d`。调用示范见[最小示例](tools/examples/als_character.rs)。
+3. 给角色提供带 `AlsCollisionLayer::Default` 的 Avian 地面。需要表面查询的地面同时声明 `Visibility`。使用角色上的 `AlsStateRequest` 请求步态、蹲姿或 Overlay 等状态。资产加载和角色出生在运行中完成。
 
-## 状态
+`AlsPlugin` 负责注册 Tnua、动画图、玩法标签和 ALS 的系统，复用宿主已注册的 `EnhancedInputPlugin`。如果宿主需要预先配置 Avian，在 ALS 之前添加 `AlsPlugin::physics_plugins()`。这个组使用 `PostUpdate` 和 ALS 的碰撞 hooks。插件接入使用桌面 Bevy 的文件资产根。
 
-**M0–M11 与 BF102 已完成并归档**：详见 [归档清单索引](docs/archive/archivedchecklist.md)（逐项 Gate 证据）与 [docs/parity-report.md](docs/parity-report.md)（与 ALS-Refactored 差异对照）。
+宿主若要生成 Overlay 道具，可另注册 `bevy_als::overlay_object::OverlayObjectPlugin` 和 `bevy_als::extensions::overlay_materials::OverlayMaterialsPlugin`，两者分别负责道具与材质接线。
+
+## 自定义 Overlay
+
+在资产根下的 `ALS/Data/als_gameplay_tags.json` 登记新标签（例如 `Als.OverlayMode.CustomRifle`），并在 `ALS/Character/overlay_actor.runtime.json` 添加同名映射。可复制现有条目，再选择生成图、混合时间和物件配置。源导入器会补齐映射所需的 Tag 注册，并保留已有自定义标签。
+
+重新启动 Playground 后，Q 菜单会从 Tag 管理器枚举标签。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
+
+自定义 LocomotionMode 使用 `LocomotionState::new("Als.LocomotionMode.Climbing")`，通过 `AlsStateRequest.locomotion_state` 传入；RON 数据使用 `Named("Als.LocomotionMode.Climbing")`。原有 `LocomotionState::Custom` 保留物理控制含义并映射为空 Tag。命名入口保留身份，不自动实现对应的物理动作或动画分支。
 
 ## 布娃娃物理边界
 
@@ -41,48 +47,19 @@ ALS-Refactored 使用 UE Chaos。本项目使用 Avian 的原生碰撞与接触�
 
 每个刚体的 CCD 开关映射到 Avian `SweptCcd` 的过滤配置。当前 `PA_Als` 的 21 个刚体使用空过滤，关闭扫掠 CCD。开启的刚体使用 Avian 的原生线性扫掠。
 
-## 快速上手
+## Playground 与维护
 
-Mac 与 Windows 共用 PowerShell 7、Rust 和 Python 3.10+。Mac 还需要 Xcode；UE 原生读取器使用对应平台的 UE 5.8.3 安装。PowerShell 安装见 [官方说明](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)。
-
-首次准备 Python 环境（Mac 将第一条的 `python` 换成 `python3`）：
-
-```sh
-python -m venv .venv
-```
-
-在 PowerShell 中安装工具依赖；脚本会优先使用当前工作区的 `.venv`：
-
-```powershell
-& (./tools/python.ps1) -m pip install -r tools/requirements.txt
-```
-
-将 `tools/env.example.json` 复制为 `tools/env.local.json`，填写本机 `ue_project` 和 `ue_cmd`。Mac 的命令位于 `Engine/Binaries/Mac/UnrealEditor-Cmd`，Windows 为 `Engine/Binaries/Win64/UnrealEditor-Cmd.exe`。`docs/env.md` 只记录环境，不参与工具配置；这两个本地文件均不提交，换机器时分别配置。`.venv` 与编译产物也不能跨系统复用。
-
-源 ALS 工程也需要为当前平台构建 `ALSRefactoredEditor`；复制来的 `Binaries/Win64` 不能供 Mac 加载。本机保留的旧 `BlueprintNodeExporter` 只在 Windows 安装，其 `.uproject` 条目使用 `"PlatformAllowList": ["Win64"]`，工程 `TargetPlatforms` 同时列出 `Windows` 和 `Mac`。原生 reader 自己的插件由工具自动构建。
+`playground` feature 启用原场景、HUD 和自动验收工具。`run_manual.ps1` 自动带上该 feature，Windows 可双击 `run_manual.bat`。
 
 ```powershell
 pwsh -NoProfile -File ./run_manual.ps1
 pwsh -NoProfile -File ./als_graph_editor.ps1
-pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
-pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -FunctionalOnly
+pwsh -NoProfile -File tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
+cargo test --workspace --locked --jobs 2 --features playground -- --test-threads=1
 ```
 
-- Windows 仍可双击原有 `.bat`；它们调用同名 `.ps1`，两边默认使用工作区内的 `target` 与 2 个构建任务。Cargo 的 `CARGO_TARGET_DIR` 和 `build.target-dir` 配置仍可覆盖目录。
-- 工具回归：`pwsh tools/run_ue_source_reader.ps1 -SelfTest`，以及 `& (./tools/python.ps1) -B tools/tests/test_platform_tools.py -v`。
-- `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
-- 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::root_graph_boundaries::tests`。全量回归使用 `cargo test --jobs 2`。独立的 Rig 算法测试可在插件仓库运行。 [Bevy Control Rig](https://github.com/millionart/bevy_control_rig)
-- [examples 说明](tools/examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
-- `tools/tmp/saved/als_debug.ron` 保存手动运行的调试显示类别，不保存主显示开关；自动 Gate 不读写它。此目录不入 Git，删除该文件会重置类别选择，下次手动切换类别时重新生成。
-
-### 自定义 Overlay
-
-在 `assets/ALS/Data/als_gameplay_tags.json` 登记新标签（例如 `Als.OverlayMode.CustomRifle`），并在 `assets/ALS/Character/overlay_actor.runtime.json` 添加同名映射。可复制现有条目，再选择生成图、混合时间和物件配置；源导入器会补齐映射所需的 Tag 注册，并保留已有自定义标签。
-
-重新启动 `run_manual.ps1` 后，Q 菜单会从 Tag 管理器枚举标签；无需新增 Rust 枚举变体。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
-
-自定义 LocomotionMode 使用 `LocomotionState::new("Als.LocomotionMode.Climbing")`，通过 `AlsStateRequest.locomotion_state` 传入；RON 数据使用 `Named("Als.LocomotionMode.Climbing")`。原有 `LocomotionState::Custom` 保留物理控制含义并映射为空 Tag。命名入口保留身份，不自动实现对应的物理动作或动画分支。
+[工具说明](tools/README.md)记录 PowerShell、Python 和 UE 原生导入器的配置。[源码目录](src/README.md)、[现行清单](CHECKLIST.md)、[已归档清单](docs/archive/archivedchecklist.md)与[证据索引](docs/audit/README.md)提供维护入口。手动调试显示类别保存于本地 `tools/tmp/saved/als_debug.ron`。
 
 ## 许可
 
-ALS-Refactored 为商业资产，其内容不进入本仓库；本仓库自有代码 MIT OR Apache-2.0。
+本仓库自有代码采用 [MIT](LICENSE-MIT) 或 [Apache-2.0](LICENSE-APACHE)。`assets/` 含从 ALS/UE 导出的模型、动画和贴图，使用这些资产时适用其原始许可。[资产来源](assets/docs/export-manifest.md)

@@ -46,6 +46,7 @@ pub mod overlay_blend;
 pub mod params;
 #[path = "state/pivot.rs"]
 pub mod pivot;
+#[cfg(any(test, feature = "playground"))]
 #[path = "../als_extras/core/player_start_types.rs"]
 pub mod player_start;
 #[path = "character/actions/roll.rs"]

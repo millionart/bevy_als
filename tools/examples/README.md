@@ -13,6 +13,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 | 入口 | 用途 |
 |---|---|
+| `als_character` | 使用公开 `AlsPlugin` 和角色生成 API 的最小接入示例 |
 | `manual_playground` | 当前交互场景和真实运行验收 |
 | `als_graph_editor` | 图编辑器 |
 | `animgraph_spec_dump` | 静态图审计所需的真实节点规格 |
@@ -24,6 +25,8 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 专项检查不是当前真实场景 Gate 的替代品；没有逐条证明被覆盖的断言予以保留。现有 `main` 形式的 example 需用 `cargo run --jobs 2 --example <name>` 显式执行，`cargo test` 不会执行其 `main`。
 
 `tools/tests` 中的集成测试使用 `#[test]`，由 `cargo test --jobs 2 --tests` 执行。Cargo.toml 显式指定两类目标的位置；移动目录没有改变测试发现或运行命令。
+
+直接运行 `manual_playground`、`als_hud_gate`、`bf_char99_gate`、`game_mode_player_start_gate` 或 `scene_gate` 时，给 Cargo 加上 `--features playground`。手动启动器已经添加该参数。
 
 ## 已删除的旧演示
 
