@@ -2,6 +2,12 @@
 
 `bevy_als` 是面向 Bevy 0.20.1 的第三人称角色运动插件，移植自 [ALS-Refactored](https://github.com/Sixze/ALS-Refactored)。`AlsPlugin` 提供地面与空中运动、蹲起、翻滚、攀爬、分层动画、脚部 IK、布娃娃、起身和第三人称相机。
 
+## 使用
+
+宿主应用注册 `bevy_als::AlsPlugin`，用 `spawn_als_character` 创建角色。最小角色示例运行 `cargo run --locked --jobs 2 --example als_character`，完整 Playground 运行 `cargo run --locked --jobs 2 --features playground --example manual_playground`。
+
+运行时资产位于 `assets/`。动画片段的 `.anim.ron` 引用动画 GLB 和骨架，角色模型使用独立 GLB，贴图与着色器独立存放。Sequence 的通知和同步标记在相邻的 `*.notify.json` 中，Montage 的通知与播放参数在 `*.montage.json` 中。编辑通知后重新生成路径索引和事件轨道。转换命令见 [UEtoBevyWorkflow](https://github.com/millionart/UEtoBevyWorkflow)。
+
 ## 刻意未移植的功能
 
 | 原项目功能 | 本项目范围 |
@@ -38,6 +44,12 @@
 | --- | --- |
 | `animation_graph_ext` | 序列时钟、同步组、可中断转场、Slot、曲线、分层节点和图内 Rig 执行。 |
 | `control_rig_ext` | ALS 专用 Rig 单位，包括脚部探测、足部偏移和旋转分配。 |
-| ALS 角色运动与 `tnua_ext` | ALS 的步态、旋转、台阶、移动基座、动作根运动和物理时序。 |
+| ALS 角色运动与 `tnua_ext` | ALS 的步态、旋转、台阶、移动基座、动作根运动和物理时序。Tnua 辅助包括空中滑动、墙面转向和胶囊姿态切换。 |
 | `avian_ext` | 场景查询、碰撞过滤与骨骼刚体交接。布娃娃接触继续使用 Avian 原生求解。 |
 | `bevy_ext` | 脚印接收材质、贴花属性混合及场景渲染辅助。 |
+
+角色、相机和示例分别位于 `src/als/`、`src/als_camera/` 和 `src/als_extras/`。回归测试及夹具位于 `src/tests/`。
+
+## 许可
+
+代码采用 MIT 许可。随附的 ALS-Refactored 和 Unreal Engine 资产适用各自的原始许可。[LICENSE](LICENSE)
