@@ -2,14 +2,19 @@ use std::{
     collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
+    time::{Duration, Instant},
 };
 
 use bevy::{
-    asset::{Assets, Handle},
+    asset::{AssetApp, AssetPlugin, AssetServer, Assets, Handle, LoadState},
     ecs::system::{Res, ResMut, SystemParamItem},
     platform::collections::HashMap,
+    prelude::{App, MinimalPlugins},
 };
-use bevy_als::extensions::RootMotionClipNode;
+use bevy_als::{
+    animation_events::{ALS_NOTIFY_MANIFEST_PATH, AlsNotifyManifest, AlsNotifyManifestLoader},
+    extensions::RootMotionClipNode,
+};
 use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
 use bevy_animation_graph::core::{
     animation_clip::{GraphClip, loader::GraphClipSerial},
@@ -336,35 +341,45 @@ fn root_motion_clip_forwards_graph_clip_events() {
 
 #[test]
 fn every_compiled_event_track_deserializes_and_preserves_the_manifest_count() {
-    let manifest_path = assets_root().join("ALS/Animations/als_notify_manifest.json");
-    let manifest: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(manifest_path).expect("notify manifest must be readable"),
-    )
-    .expect("notify manifest must be valid json");
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+        .init_asset::<AlsNotifyManifest>()
+        .init_asset_loader::<AlsNotifyManifestLoader>();
+    let handle = app
+        .world()
+        .resource::<AssetServer>()
+        .load(ALS_NOTIFY_MANIFEST_PATH);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let manifest = loop {
+        app.update();
+        if let Some(manifest) = app
+            .world()
+            .resource::<Assets<AlsNotifyManifest>>()
+            .get(&handle)
+        {
+            break manifest.clone();
+        }
+        let state = app
+            .world()
+            .resource::<AssetServer>()
+            .load_state(handle.id());
+        assert!(!matches!(state, LoadState::Failed(_)), "{state:?}");
+        assert!(Instant::now() < deadline, "notify assets failed to load");
+        std::thread::sleep(Duration::from_millis(1));
+    };
     let mut graph_clips = BTreeSet::new();
     let mut expected_events = 0usize;
-    for source in manifest["clips"]
-        .as_array()
-        .expect("clips must be an array")
-    {
-        let events = source["events"]
-            .as_array()
-            .expect("events must be an array");
-        if events.is_empty() {
+    for source in manifest.clips {
+        if source.events.is_empty() {
             continue;
         }
-        expected_events += events.len();
-        for segment in source["runtime_segments"]
-            .as_array()
-            .expect("runtime segments must be an array")
-        {
-            graph_clips.insert(
-                segment["graph_clip"]
-                    .as_str()
-                    .expect("runtime graph clip must be a string")
-                    .to_string(),
-            );
-        }
+        expected_events += source.events.len();
+        graph_clips.extend(
+            source
+                .runtime_segments
+                .into_iter()
+                .map(|segment| segment.graph_clip),
+        );
     }
     let compiled_events = graph_clips
         .iter()

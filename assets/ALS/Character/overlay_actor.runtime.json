@@ -75,7 +75,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Rifle/SKM_Als_Rifle.gltf",
+      "mesh": "ALS/OverlayObjects/Rifle/SKM_Als_Rifle.glb",
       "kind": "Skeletal",
       "scene": null
     }
@@ -121,7 +121,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.gltf",
+      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.glb",
       "kind": "Skeletal",
       "scene": null
     }
@@ -167,7 +167,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.gltf",
+      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.glb",
       "kind": "Skeletal",
       "scene": null
     }
@@ -235,7 +235,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.gltf",
+      "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.glb",
       "kind": "Skeletal",
       "scene": "ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron"
     }
@@ -303,7 +303,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Torch/SM_Als_Torch.gltf",
+      "mesh": "ALS/OverlayObjects/Torch/SM_Als_Torch.glb",
       "kind": "Static",
       "scene": null
     }
@@ -349,7 +349,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Binoculars/SM_Als_Binoculars.gltf",
+      "mesh": "ALS/OverlayObjects/Binoculars/SM_Als_Binoculars.glb",
       "kind": "Static",
       "scene": null
     }
@@ -395,7 +395,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Box/SM_Als_Box.gltf",
+      "mesh": "ALS/OverlayObjects/Box/SM_Als_Box.glb",
       "kind": "Static",
       "scene": null
     }
@@ -441,7 +441,7 @@
           "reflectance": 0.5
         }
       ],
-      "mesh": "ALS/OverlayObjects/Barrel/SM_Als_Barrel.gltf",
+      "mesh": "ALS/OverlayObjects/Barrel/SM_Als_Barrel.glb",
       "kind": "Static",
       "scene": null
     }

@@ -1,0 +1,46 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 9.999999747378752e-05,
+      "event_id": "als_notify:/als/als/animations/air/jump/a_als_jump_run_left.a_als_jump_run_left:3c0db4a5-4be71605-1319f4ba-b693aa70",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "3C0DB4A5-4BE71605-1319F4BA-B693AA70",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Jump_Run_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 9.999999747378752e-05,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 9.999999747378752e-05,
+      "weight_threshold": 9.999999747378752e-06
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.6666666269302368,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.6666666269302368,
+  "source_asset": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.A_Als_Jump_Run_Left",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

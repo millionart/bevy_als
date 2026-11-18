@@ -121,7 +121,6 @@ pub(crate) struct AlsMantlePhysicsFrame {
     locked_axes: Option<LockedAxes>,
 }
 
-#[derive(Deserialize)]
 pub(crate) struct MantleMontageSettings {
     pub source_montage: String,
     pub source_sequence: String,
@@ -131,13 +130,11 @@ pub(crate) struct MantleMontageSettings {
     pub blend_in_seconds: f32,
     pub blend_out_seconds: f32,
     pub blend_out_mode: crate::extensions::profile_blend::AlphaBlendMode,
-    sequence_curves: crate::extensions::AlsPoseCurves,
     montage_curves: crate::extensions::AlsPoseCurves,
 }
 
 #[derive(Deserialize)]
 struct MantleSourceSettings {
-    montages: Vec<MantleMontageSettings>,
     stop_blend_out_seconds: f32,
     start_ragdoll_on_target_destruction: bool,
 }
@@ -147,13 +144,51 @@ static MANTLE_SETTINGS: LazyLock<MantleSourceSettings> = LazyLock::new(|| {
         .expect("generated mantle montage settings are valid")
 });
 
+static MANTLE_MONTAGES: LazyLock<[MantleMontageSettings; 6]> = LazyLock::new(|| {
+    [
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_High.montage.json"
+        ),
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.montage.json"
+        ),
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_BothArms.montage.json"
+        ),
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Box.montage.json"
+        ),
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Left.montage.json"
+        ),
+        include_str!(
+            "../../../assets/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Right.montage.json"
+        ),
+    ]
+    .map(|data| {
+        let crate::animation_events::AlsMontageAsset { source, playback } =
+            serde_json::from_str(data).expect("installed mantle montage must parse");
+        MantleMontageSettings {
+            source_montage: source.source_asset,
+            source_sequence: playback.source_sequence,
+            clip: source.runtime_segments[0].graph_clip.clone(),
+            sequence_length: source.sequence_length,
+            play_rate: playback.play_rate,
+            blend_in_seconds: playback.blend_in_seconds,
+            blend_out_seconds: playback.blend_out_seconds,
+            blend_out_mode: playback.blend_out_mode,
+            montage_curves: playback.montage_curves,
+        }
+    })
+});
+
 pub(crate) fn mantle_montage_settings(kind: MantleKind) -> &'static MantleMontageSettings {
-    &MANTLE_SETTINGS.montages[kind.action_settings().montage_index]
+    &MANTLE_MONTAGES[kind.montage_index()]
 }
 
 impl MantleAssets {
     pub(crate) fn clip(&self, kind: MantleKind) -> &Handle<GraphClip> {
-        &self.0[kind.action_settings().montage_index]
+        &self.0[kind.montage_index()]
     }
 }
 
@@ -163,8 +198,7 @@ fn load_mantle_assets(
     clip_curves: Option<Res<ClipCurves>>,
 ) {
     commands.insert_resource(MantleAssets(
-        MANTLE_SETTINGS
-            .montages
+        MANTLE_MONTAGES
             .iter()
             .map(|settings| assets.load(&settings.clip))
             .collect(),
@@ -188,12 +222,13 @@ fn sample_mantle_pose(
         crate::extensions::source_sequence_player::SourceRootLock::RefPose,
         false,
     )?;
-    let mut context = crate::get_up::sampled_curve_context(
-        Some(clip),
-        &settings.sequence_curves,
-        time,
-        clip_curves,
-    );
+    let mut context = crate::extensions::AnimationContextState {
+        curves: clip_curves
+            .and_then(|curves| curves.sample(clip, time))
+            .unwrap_or_default(),
+        curves_are_authoritative: true,
+        ..default()
+    };
     context.curves.extend(
         settings
             .montage_curves
@@ -3855,8 +3890,12 @@ pub(crate) mod tests {
         .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
         .init_asset::<Mesh>()
         .init_asset::<Image>()
+        .init_asset::<StandardMaterial>()
+        .init_asset::<crate::extensions::AlsAnimCurves>()
         .add_message::<crate::als::transition::StateTransitionEvent>()
         .add_message::<crate::animation_events::AlsAnimationEvent>();
+        crate::extensions::static_animated_scene::SkeletalModelBindings::register(&mut app);
+        crate::extensions::als_curves::AlsCurvesHandler::register(&mut app);
         app.finish();
         app.cleanup();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -4475,7 +4514,8 @@ pub(crate) mod tests {
                     }
                 );
                 let (pose, context) =
-                    sample_mantle_pose(clip, skeleton, settings, clip.duration, None).unwrap();
+                    sample_mantle_pose(clip, skeleton, settings, clip.duration, assets.1.as_ref())
+                        .unwrap();
                 let root_id = crate::extensions::root_motion_defaults::derive_default_root_bone(
                     clip, skeleton,
                 )
@@ -4488,10 +4528,13 @@ pub(crate) mod tests {
                 assert_eq!(pose.paths.len(), 79);
                 assert!(context.curves_are_authoritative && context.curves.len() > 5);
                 if kind == MantleKind::Low {
-                    let (_, low) = sample_mantle_pose(clip, skeleton, settings, 0.8, None).unwrap();
+                    let (_, low) =
+                        sample_mantle_pose(clip, skeleton, settings, 0.8, assets.1.as_ref())
+                            .unwrap();
                     let right_settings = mantle_montage_settings(MantleKind::LowRight);
                     let (_, right) =
-                        sample_mantle_pose(clip, skeleton, right_settings, 0.8, None).unwrap();
+                        sample_mantle_pose(clip, skeleton, right_settings, 0.8, assets.1.as_ref())
+                            .unwrap();
                     assert_eq!(settings.clip, right_settings.clip);
                     assert_eq!(
                         low.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")],
@@ -4508,20 +4551,44 @@ pub(crate) mod tests {
                         low.curves[&crate::extensions::SourceCurveName::from("PoseStanding")],
                         1.0
                     );
-                    let mut controlled: MantleSourceSettings =
-                        ron::from_str(crate::als::mantle::MANTLE_SOURCE_DATA).unwrap();
-                    let controlled = &mut controlled.montages[kind.action_settings().montage_index];
-                    controlled.sequence_curves.0.insert(
-                        "LayerArmRight".into(),
-                        crate::extensions::als_curves::AlsFloatCurve {
-                            times: vec![0.0],
-                            values: vec![0.5],
-                            interps: vec![crate::extensions::als_curves::AlsKeyInterp::Linear],
-                            ..default()
-                        },
+                    use bevy_animation_graph::core::animation_clip::loader::GraphClipSource;
+                    let Some(GraphClipSource::GltfNamed {
+                        path,
+                        animation_name,
+                    }) = &clip.source
+                    else {
+                        panic!("mantle sequence must come from its animation asset");
+                    };
+                    let controlled = ClipCurves::default();
+                    let curves = crate::extensions::AlsPoseCurves(
+                        [("LayerArmRight", 0.5), ("PoseStanding", 1.0)]
+                            .into_iter()
+                            .map(|(name, value)| {
+                                (
+                                    name.into(),
+                                    crate::extensions::als_curves::AlsFloatCurve {
+                                        times: vec![0.0],
+                                        values: vec![value],
+                                        interps: vec![
+                                            crate::extensions::als_curves::AlsKeyInterp::Linear,
+                                        ],
+                                        ..default()
+                                    },
+                                )
+                            })
+                            .collect(),
+                    );
+                    controlled.insert(
+                        path.clone(),
+                        crate::extensions::AlsAnimCurves(
+                            [(animation_name.clone().into_boxed_str(), curves)]
+                                .into_iter()
+                                .collect(),
+                        ),
                     );
                     let (_, overridden) =
-                        sample_mantle_pose(clip, skeleton, controlled, 0.8, None).unwrap();
+                        sample_mantle_pose(clip, skeleton, settings, 0.8, Some(&controlled))
+                            .unwrap();
                     assert_eq!(
                         overridden.curves
                             [&crate::extensions::SourceCurveName::from("LayerArmRight")],
@@ -4709,7 +4776,7 @@ pub(crate) mod tests {
                     skeleton,
                     mantle_montage_settings(kind),
                     montage.clip_time,
-                    None,
+                    app.world().resource::<MantleAssets>().1.as_ref(),
                 )
                 .unwrap();
                 let pose = player
@@ -4783,7 +4850,7 @@ pub(crate) mod tests {
                             skeletons.get(&clip.skeleton).unwrap(),
                             mantle_montage_settings(kind),
                             time,
-                            None,
+                            app.world().resource::<MantleAssets>().1.as_ref(),
                         )
                         .unwrap()
                     },

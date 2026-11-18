@@ -18,7 +18,9 @@ use bevy_animation_graph::core::{
 use serde::Deserialize;
 
 use crate::{
-    animation_events::{AlsAnimationEventSet, AlsNotifyLocomotionAction},
+    animation_events::{
+        AlsAnimationEventSet, AlsMontageAsset, AlsNotifyLocomotionAction, montage_action_notify,
+    },
     character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar},
 };
 
@@ -52,8 +54,44 @@ pub struct AlsRagdollSettings {
     pub angular_stiffness: f32,
     pub stop_montage_blend_seconds: f32,
     pub limit_initial_speed: bool,
+    #[serde(default = "front_get_up_settings")]
     pub front: GetUpClipSettings,
+    #[serde(default = "back_get_up_settings")]
     pub back: GetUpClipSettings,
+}
+
+fn front_get_up_settings() -> GetUpClipSettings {
+    load_get_up_montage(include_str!(
+        "../../../../assets/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.montage.json"
+    ))
+}
+
+fn back_get_up_settings() -> GetUpClipSettings {
+    load_get_up_montage(include_str!(
+        "../../../../assets/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.montage.json"
+    ))
+}
+
+fn load_get_up_montage(data: &str) -> GetUpClipSettings {
+    let AlsMontageAsset { source, playback } =
+        serde_json::from_str(data).expect("installed get-up montage must parse");
+    let clip = source.runtime_segments[0].graph_clip.clone();
+    let sequence_path = clip
+        .strip_suffix(".anim.ron")
+        .expect("get-up graph clip suffix");
+    let notify_end_clip_seconds =
+        montage_action_notify(&source, "Als.LocomotionAction.GettingUp").end_time;
+    GetUpClipSettings {
+        source_montage: source.source_asset,
+        source_sequence: playback.source_sequence,
+        curves: format!("{sequence_path}.glb#AlsCurves"),
+        clip,
+        montage_curves: playback.montage_curves,
+        sequence_length: source.sequence_length,
+        play_rate: playback.play_rate,
+        blend_out_seconds: playback.blend_out_seconds,
+        notify_end_clip_seconds,
+    }
 }
 
 pub static RAGDOLL_SETTINGS: LazyLock<AlsRagdollSettings> = LazyLock::new(|| {

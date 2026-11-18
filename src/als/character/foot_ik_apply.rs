@@ -2602,7 +2602,7 @@ mod tests {
             .resource_mut::<bevy::ecs::schedule::Schedules>()
             .remove(PostUpdate);
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Character/CR_Als.program.json"
+            "../../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let local = |value: RigTransform| Transform {

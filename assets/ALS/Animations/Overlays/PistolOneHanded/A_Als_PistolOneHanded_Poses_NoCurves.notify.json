@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.30000001192092896,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.30000001192092896,
+  "source_asset": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.A_Als_PistolOneHanded_Poses_NoCurves",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

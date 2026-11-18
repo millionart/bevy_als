@@ -1,0 +1,162 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.36666664481163025,
+      "event_id": "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:62a036a3-4be81ddd-9035309a-2d52e466",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "62A036A3-4BE81DDD-9035309A-2D52E466",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Crouch_Walk_Left_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "bSpawnSound": false
+      },
+      "start_time": 0.36666664481163025,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.5333333611488342,
+      "event_id": "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:440c3c60-455478c4-36eee58b-7e685df9",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "440C3C60-455478C4-36EEE58B-7E685DF9",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Crouch_Walk_Left_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 0.800000011920929,
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 0.5,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false
+      },
+      "start_time": 0.5333333611488342,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.9333332777023315,
+      "event_id": "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:4c24d72b-4a94b9dc-f300e18a-61c5eb16",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "4C24D72B-4A94B9DC-F300E18A-61C5EB16",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Crouch_Walk_Left_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "bSpawnSound": false
+      },
+      "start_time": 0.9333332777023315,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 1.0999999046325684,
+      "event_id": "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:60bcb922-4efda191-06537990-f19a7e00",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "60BCB922-4EFDA191-06537990-F19A7E00",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Crouch_Walk_Left_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 0.800000011920929,
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 0.5,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false
+      },
+      "start_time": 1.0999999046325684,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.1333333253860474,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.1333333253860474,
+  "source_asset": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.A_Als_Crouch_Walk_Left_Backward",
+  "source_kind": "AnimSequence",
+  "sync_markers": [
+    {
+      "id": "5DCC292A-4DCD6276-9F098585-F0379E35",
+      "name": "Right",
+      "time": 0.46666669845581055,
+      "track_index": 2
+    },
+    {
+      "id": "2A05BBA0-466F6A8A-FD41FC83-0DE0B34A",
+      "name": "Left",
+      "time": 1.0416667461395264,
+      "track_index": 2
+    }
+  ]
+}

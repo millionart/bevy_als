@@ -43,7 +43,7 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
 }
 
 pub const MENU_DILATION: f32 = 0.35;
-include!("../../../assets/ALSExtras/UI/W_Als_OverlayModeMenu.runtime.rs");
+include!("overlay_mode_menu_generated.rs");
 
 #[derive(Resource, Default)]
 pub struct OverlayMenuState {

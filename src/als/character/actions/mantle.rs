@@ -51,9 +51,12 @@ pub const MANTLE_IN_AIR_TRACE: MantleTraceSettings = MantleTraceSettings {
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize)]
 pub struct MantleActionSettings {
+    #[serde(default)]
     pub sequence_length: f32,
+    #[serde(default)]
     pub rate_scale: f32,
     pub montage_index: usize,
+    #[serde(default)]
     pub blend_in_seconds: f32,
     pub start_time_reference_min_height: f32,
     pub start_time_reference_max_height: f32,
@@ -182,7 +185,17 @@ pub enum MantleKind {
 
 impl MantleKind {
     pub fn action_settings(self) -> MantleActionSettings {
-        MANTLE_SETTINGS.actions[&self]
+        let montage = crate::mantle_drive::mantle_montage_settings(self);
+        MantleActionSettings {
+            sequence_length: montage.sequence_length,
+            rate_scale: montage.play_rate,
+            blend_in_seconds: montage.blend_in_seconds,
+            ..MANTLE_SETTINGS.actions[&self]
+        }
+    }
+
+    pub(crate) fn montage_index(self) -> usize {
+        MANTLE_SETTINGS.actions[&self].montage_index
     }
 
     pub fn is_high(self) -> bool {

@@ -2,11 +2,11 @@ use crate::als::air::AlsAirState;
 use crate::als::input::AlsInputCommand;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 use crate::als::roll::{
-    AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_ROTATION_HALF_LIFE_SECS,
-    advance_roll_clip, damper_exact_angle, select_roll_direction,
+    AlsRollState, ROLL_MONTAGE, ROLL_ROTATION_HALF_LIFE_SECS, advance_roll_clip,
+    damper_exact_angle, select_roll_direction,
 };
 #[cfg(test)]
-use crate::als::roll::{ROLL_PLAY_RATE, ROLL_WEIGHT_IN_SECS};
+use crate::als::roll::{ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE, ROLL_WEIGHT_IN_SECS};
 use crate::als::state::{LocomotionState, Stance};
 use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend};
 use crate::extensions::{AlsAnimCurves, AlsPoseCurves, als_curves::ClipCurves};
@@ -28,7 +28,6 @@ use crate::root_motion_link::{ensure_root_motion_output, root_motion_world_trans
 const ROLL_SLOT_GRAPH: &str =
     "ALS/Character/AnimationInstances/AB_Als_Grounded/RollSlot.animgraph.ron";
 const ROLL_SLOT_TIME_KEY: &str = "als_roll_slot_time";
-const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.glb#AlsCurves";
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollSlotSampler {
@@ -5124,9 +5123,13 @@ impl Plugin for AlsRollDrivePlugin {
 }
 
 fn load_roll_slot_curve_asset(mut commands: Commands, assets: Res<AssetServer>) {
+    let clip = &ROLL_MONTAGE.source.runtime_segments[0].graph_clip;
+    let sequence_path = clip
+        .strip_suffix(".anim.ron")
+        .expect("roll graph clip suffix");
     commands.insert_resource(RollSlotCurveHandle(
-        assets.load(ROLL_SLOT_CURVES),
-        assets.load("ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron"),
+        assets.load(format!("{sequence_path}.glb#AlsCurves")),
+        assets.load(clip),
     ));
 }
 
@@ -5228,7 +5231,7 @@ fn start_roll_input(
         if previous.active {
             let mut blend = stopped_blend
                 .unwrap_or_else(|| AlsRollBlendOut::new(&previous, previous.remaining_play_time()));
-            blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
+            blend.stop(ROLL_MONTAGE.playback.blend_in_seconds);
             for (entity, sampler, player) in &samplers {
                 if sampler.character != character {
                     continue;
@@ -5485,7 +5488,7 @@ fn bridge_roll_slot_samples(
                     montage: true,
                     interrupted: tail.is_some() || blend_outs.contains(character),
                     clock: crate::extensions::SourceRelevantAsset {
-                        duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS,
+                        duration: ROLL_MONTAGE.source.sequence_length,
                         position: clip_time,
                         previous_position,
                         has_previous_position: true,
@@ -5786,7 +5789,7 @@ fn advance_rolls(
                 let mut blend = stopped_blend.unwrap_or_else(|| {
                     AlsRollBlendOut::new(&previous_roll, previous_roll.remaining_play_time())
                 });
-                blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
+                blend.stop(ROLL_MONTAGE.playback.blend_in_seconds);
                 let mut tail = AlsRollTail::from_roll(&previous_roll, blend);
                 tail.advance(dt);
                 for (entity, sampler, player) in &samplers {

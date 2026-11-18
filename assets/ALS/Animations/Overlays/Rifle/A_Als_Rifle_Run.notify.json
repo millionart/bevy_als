@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.800000011920929,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.800000011920929,
+  "source_asset": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.A_Als_Rifle_Run",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

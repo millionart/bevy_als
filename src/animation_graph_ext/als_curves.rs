@@ -115,6 +115,10 @@ impl AlsAnimCurves {
 pub(crate) struct ClipCurves(Arc<RwLock<HashMap<AssetPath<'static>, AlsAnimCurves>>>);
 
 impl ClipCurves {
+    pub(crate) fn insert(&self, path: AssetPath<'static>, curves: AlsAnimCurves) {
+        self.0.write().unwrap().insert(path, curves);
+    }
+
     pub(crate) fn sample(&self, clip: &GraphClip, time: f32) -> Option<SourceCurveValues> {
         let GraphClipSource::GltfNamed {
             path,
@@ -630,9 +634,6 @@ impl GltfExtensionHandler for AlsCurvesHandler {
         let asset = AlsAnimCurves(map);
         // The same glTF load produces the pose and the curves, including an empty curve set.
         self.clip_curves
-            .0
-            .write()
-            .unwrap()
             .insert(load_context.path().clone(), asset.clone());
         load_context.add_labeled_asset(ALS_CURVES_LABEL.to_string(), asset);
     }

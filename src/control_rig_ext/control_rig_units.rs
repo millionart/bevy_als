@@ -2169,7 +2169,7 @@ mod tests {
         ))
         .unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         assert_eq!(source.len(), definition.bones.len());
@@ -2246,7 +2246,7 @@ mod tests {
         }
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let fixture: Fixture = serde_json::from_str(include_str!(
@@ -2375,7 +2375,7 @@ mod tests {
         use bevy::platform::collections::HashMap;
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let program = &definition.program;

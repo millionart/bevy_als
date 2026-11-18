@@ -1,0 +1,81 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.4333333671092987,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_standtocrouch.a_als_standtocrouch:39299b97-4fe96b77-99a9f993-65084474",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "39299B97-4FE96B77-99A9F993-65084474",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_StandToCrouch",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.5,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.4333333671092987,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.7333333492279053,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_standtocrouch.a_als_standtocrouch:d00773ed-4f88f906-a9b865a2-9d022092",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "D00773ED-4F88F906-A9B865A2-9D022092",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_StandToCrouch",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.5,
+        "bIgnoreFootstepSoundBlockCurve": true,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false
+      },
+      "start_time": 0.7333333492279053,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.0,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Transitions/A_Als_StandToCrouch.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.0,
+  "source_asset": "/ALS/ALS/Animations/Transitions/A_Als_StandToCrouch.A_Als_StandToCrouch",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

@@ -57,5 +57,5 @@
     }
   ],
   "scene": "ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron",
-  "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.gltf"
+  "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.glb"
 }

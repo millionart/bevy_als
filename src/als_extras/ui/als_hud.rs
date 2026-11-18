@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy::ui::Display;
 use bevy_enhanced_input::prelude::*;
 
-include!("../../../assets/ALSExtras/UI/W_Als_Hud.runtime.rs");
+include!("als_hud_generated.rs");
 pub const LABEL_GROW: f32 = 1.0;
 pub const KEY_CELL_GROW: f32 = 0.7;
 pub const DEBUG_KEY_CELL_GROW: f32 = 0.6;

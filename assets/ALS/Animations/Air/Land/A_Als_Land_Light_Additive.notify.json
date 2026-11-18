@@ -1,0 +1,86 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.09999999403953552,
+      "event_id": "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:47a22a0b-4bcaeaf5-f9c5839e-8ae1645f",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "47A22A0B-4BCAEAF5-F9C5839E-8AE1645F",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Land_Light_Additive",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::Land"
+        },
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.09999999403953552,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 9.999999747378752e-06
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.09999999403953552,
+      "event_id": "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:b19e837d-4490b48c-5cc0be9d-7e575b2a",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "B19E837D-4490B48C-5CC0BE9D-7E575B2A",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Land_Light_Additive",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::Land"
+        },
+        "bIgnoreFootstepSoundBlockCurve": true,
+        "bSpawnSound": false
+      },
+      "start_time": 0.09999999403953552,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 9.999999747378752e-06
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.1666666269302368,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Air/Land/A_Als_Land_Light_Additive.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.1666666269302368,
+  "source_asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

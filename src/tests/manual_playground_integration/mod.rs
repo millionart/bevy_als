@@ -15448,7 +15448,7 @@ mod tests {
         app.finish();
         app.cleanup();
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Character/CR_Als.program.json"
+            "../fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let local = |value: crate::extensions::control_rig_hierarchy::RigTransform| Transform {

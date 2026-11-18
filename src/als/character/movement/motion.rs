@@ -4866,12 +4866,7 @@ fn prepare_subminimum_custom_physics(
         } else if *mode == LocomotionState::Grounded
             && time.delta_secs() * dilation.map_or(1.0, |value| value.0)
                 < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
-            && roll.is_some_and(|roll| {
-                roll.active
-                    && roll.previous_time
-                        < crate::als::roll::ROLL_DURATION_SECS
-                            - crate::als::roll::ROLL_WEIGHT_OUT_SECS
-            })
+            && roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active_at_frame_start)
         {
             commands.entity(entity).insert((
                 avian3d::prelude::CustomPositionIntegration,

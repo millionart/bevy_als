@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.03333333507180214,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.03333333507180214,
+  "source_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

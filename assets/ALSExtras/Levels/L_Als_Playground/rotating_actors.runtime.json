@@ -41,7 +41,7 @@
           1.0
         ]
       },
-      "mesh_scene": "ALSExtras/Environment/Meshes/SM_Als_Block_3x3.gltf#Scene0",
+      "mesh_scene": "ALSExtras/Environment/Meshes/SM_Als_Block_3x3.glb#Scene0",
       "mesh_base": "SM_Als_Block_3x3",
       "collider_center": [
         0.0,

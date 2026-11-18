@@ -887,7 +887,7 @@ pub fn playground_setup_system(
 
     for actor in &manifest.actors {
         if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
-            let scene = assets.load("ALSExtras/Levels/L_Als_Playground/Landscape1.gltf#Scene0");
+            let scene = assets.load("ALSExtras/Levels/L_Als_Playground/Landscape1.glb#Scene0");
             let mut landscape = commands.spawn((
                 Name::new(format!("Landscape:{}", actor.name)),
                 Transform::IDENTITY,
@@ -1061,7 +1061,7 @@ pub fn playground_setup_system(
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene =
-                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
+                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.glb#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -1095,7 +1095,7 @@ pub fn playground_setup_system(
                 }
                 (Some(base), false) => {
                     let scene =
-                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
+                        assets.load(format!("ALSExtras/Environment/Meshes/{base}.glb#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -2704,7 +2704,7 @@ mod tests {
         assert!(curve.is_source_loaded());
         assert_eq!(curve.key_count(), 4);
         let samples: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/CF_Als_MovingObject.json"
+            "../../tests/fixtures/playground/moving_object_curve_samples.json"
         ))
         .unwrap();
         for sample in samples["keys"].as_array().unwrap() {

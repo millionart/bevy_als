@@ -1,5 +1,5 @@
 (
-    source: Gltf(source: "ALSCamera/SKM_Als_Camera.gltf", label: "Scene0"),
+    source: Gltf(source: "ALSCamera/SKM_Als_Camera.glb", label: "Scene0"),
     root: "cameraboom_root",
     source_skeleton: "/ALS/ALSCamera/SK_Als_Camera.SK_Als_Camera",
 )

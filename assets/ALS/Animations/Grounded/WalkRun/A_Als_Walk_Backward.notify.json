@@ -1,0 +1,160 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.43333330750465393,
+      "event_id": "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:0521a759-4eda6c64-e8ea92a4-d3c0aae9",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "0521A759-4EDA6C64-E8EA92A4-D3C0AAE9",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Walk_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "bSpawnSound": false
+      },
+      "start_time": 0.43333330750465393,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.5333333015441895,
+      "event_id": "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:dcd383eb-4be25b4a-206b5f99-e0d8e438",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "DCD383EB-4BE25B4A-206B5F99-E0D8E438",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Walk_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 0.75,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false
+      },
+      "start_time": 0.5333333015441895,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.9999999403953552,
+      "event_id": "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:aaa612a6-46eaba8c-bc0b35a2-aeca87f6",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "AAA612A6-46EABA8C-BC0B35A2-AECA87F6",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Walk_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "bSpawnSound": false
+      },
+      "start_time": 0.9999999403953552,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 1.0999999046325684,
+      "event_id": "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:120e3893-489998a3-fa987782-da49e7c0",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "120E3893-489998A3-FA987782-DA49E7C0",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Walk_Backward",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 0.75,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false
+      },
+      "start_time": 1.0999999046325684,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.1333333253860474,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.1333333253860474,
+  "source_asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.A_Als_Walk_Backward",
+  "source_kind": "AnimSequence",
+  "sync_markers": [
+    {
+      "id": "83554007-4B9CDEAF-311ED2B0-2C8E32F5",
+      "name": "Right",
+      "time": 0.5166667103767395,
+      "track_index": 2
+    },
+    {
+      "id": "7AD0F9DC-48AFEF77-F6709389-1E4FE3FF",
+      "name": "Left",
+      "time": 1.0833333730697632,
+      "track_index": 2
+    }
+  ]
+}

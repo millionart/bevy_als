@@ -677,7 +677,7 @@ mod tests {
 
     fn hot_swap_definition() -> RigDefinition {
         let mut definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         definition.program = RigProgram {
@@ -828,7 +828,7 @@ mod tests {
         .unwrap();
         assert_eq!(state.initialization_count, 1);
         let source: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let bone = source.bones[0].clone();
@@ -1615,7 +1615,7 @@ mod tests {
             outputs
         }
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let mut skeleton = Skeleton::default();
@@ -1767,7 +1767,7 @@ mod tests {
         use serde::de::DeserializeSeed;
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../tests/fixtures/rig/cr_als_program.json"
         ))
         .unwrap();
         let node = ControlRigBoundaryNode {

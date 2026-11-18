@@ -1952,14 +1952,11 @@ mod tests {
     fn actual_source_walking_stair_contact_consumes_each_segment_once() {
         use avian3d::prelude::SpatialQueryFilter;
         use bevy::ecs::system::RunSystemOnce;
-        for (mesh_name, source, bytes, mesh_origin, center, input, gait, speed) in [
+        for (mesh_name, source, mesh_origin, center, input, gait, speed) in [
             (
                 "SM_Als_Stairs_01",
-                include_str!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf"
-                ),
                 &include_bytes!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.bin"
+                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.glb"
                 )[..],
                 Vec3::new(-3.3333, 0.18, -30.0),
                 Vec3::new(0.0016979529, 1.2816019, -30.404602),
@@ -1969,11 +1966,8 @@ mod tests {
             ),
             (
                 "SM_Als_Stairs_03",
-                include_str!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.gltf"
-                ),
                 &include_bytes!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.bin"
+                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.glb"
                 )[..],
                 Vec3::new(-30.0, 0.36, -30.0),
                 Vec3::new(-26.67559, 13.69611, -42.672752),
@@ -1983,11 +1977,8 @@ mod tests {
             ),
             (
                 "SM_Als_Stairs_03",
-                include_str!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.gltf"
-                ),
                 &include_bytes!(
-                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.bin"
+                    "../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.glb"
                 )[..],
                 Vec3::new(-30.0, 0.36, -30.0),
                 Vec3::new(-26.67559, 13.69611, -42.672752),
@@ -1996,7 +1987,9 @@ mod tests {
                 6.5,
             ),
         ] {
-            let data: serde_json::Value = serde_json::from_str(source).unwrap();
+            let model = bevy_gltf::gltf::binary::Glb::from_slice(source).unwrap();
+            let data: serde_json::Value = serde_json::from_slice(&model.json).unwrap();
+            let bytes = model.bin.unwrap();
             let primitive = &data["meshes"][0]["primitives"][0];
             let accessor_bytes = |index: usize, width: usize| {
                 let accessor = &data["accessors"][index];

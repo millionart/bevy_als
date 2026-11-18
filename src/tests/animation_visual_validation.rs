@@ -4578,11 +4578,12 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         crate::playground_collision::PlaygroundCollisionPlugin.build(&mut app);
-        let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf"
+        let model = bevy_gltf::gltf::binary::Glb::from_slice(include_bytes!(
+            "../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.glb"
         ))
         .unwrap();
-        let bytes = include_bytes!("../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.bin");
+        let data: serde_json::Value = serde_json::from_slice(&model.json).unwrap();
+        let bytes = model.bin.unwrap();
         let primitive = &data["meshes"][0]["primitives"][0];
         let accessor_bytes = |index: usize, width: usize| {
             let accessor = &data["accessors"][index];
@@ -5111,7 +5112,7 @@ mod tests {
         app.finish();
         app.cleanup();
         let definition: RigDefinition =
-            serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json"))
+            serde_json::from_str(include_str!("fixtures/rig/cr_als_program.json"))
                 .unwrap();
         let reference = Transform::from_xyz(0.0, 0.4, 0.0)
             .with_rotation(Quat::from_rotation_y(0.3))
@@ -5469,7 +5470,7 @@ mod tests {
     fn temporal_rate_guard_recognizes_source_equivalent_near_extended_ik() {
         let (previous, current, hip, calf) = include!("fixtures/rig/ik_rate_limits.rs");
         let definition =
-            serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json"))
+            serde_json::from_str(include_str!("fixtures/rig/cr_als_program.json"))
                 .unwrap();
         let bones = BTreeMap::from([
             (
@@ -5588,7 +5589,7 @@ mod tests {
             root_graph_boundaries::{ControlRigNodeState, RigCallSample},
         };
         let mut definition: RigDefinition =
-            serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json"))
+            serde_json::from_str(include_str!("fixtures/rig/cr_als_program.json"))
                 .unwrap();
         definition.program.instructions = [
             "FRigUnit_TwoBoneIKSimplePerItem::Execute",

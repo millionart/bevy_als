@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::als::character::AlsCharacter;
 use crate::als::mantle::MantleKind;
-use crate::als::roll::AlsRollState;
 #[cfg(test)]
 use crate::als::roll::ROLL_PLAY_RATE;
+use crate::als::roll::{AlsRollState, ROLL_MONTAGE};
 use crate::als::state::Stance;
 use crate::als::transition::AlsPhysicalStanceOverride;
 use crate::als_camera::AlsCameraShakeRequest;
@@ -30,7 +30,9 @@ use crate::roll_drive::AlsRollDriveSet;
 
 pub const ALS_NOTIFY_MANIFEST_PATH: &str = "ALS/Animations/als_notify_manifest.json";
 
+#[cfg(test)]
 const SOURCE_ROLL_SEQUENCE: &str = "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll";
+#[cfg(test)]
 const SOURCE_ROLL_MONTAGE: &str = "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll";
 const SOURCE_SPRINT: &str = "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint";
 const SOURCE_SPRINT_ACCELERATION: &str =
@@ -43,6 +45,13 @@ pub struct AlsNotifyManifest {
     pub clips: Vec<AlsNotifyManifestClip>,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum NotifyManifestFile {
+    Index { version: u32, files: Vec<String> },
+    Inline(AlsNotifyManifest),
+}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct AlsNotifyManifestClip {
     pub source_asset: String,
@@ -51,6 +60,25 @@ pub struct AlsNotifyManifestClip {
     pub runtime_segments: Vec<AlsNotifyRuntimeSegment>,
     pub events: Vec<AlsNotifyManifestEvent>,
     pub sync_markers: Vec<AlsNotifyManifestMarker>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct AlsMontageAsset {
+    #[serde(flatten)]
+    pub(crate) source: AlsNotifyManifestClip,
+    pub(crate) playback: AlsMontagePlayback,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct AlsMontagePlayback {
+    pub(crate) source_sequence: String,
+    pub(crate) play_rate: f32,
+    pub(crate) blend_in_seconds: f32,
+    pub(crate) blend_out_seconds: f32,
+    pub(crate) blend_in_mode: crate::extensions::profile_blend::AlphaBlendMode,
+    pub(crate) blend_out_mode: crate::extensions::profile_blend::AlphaBlendMode,
+    #[serde(default)]
+    pub(crate) montage_curves: crate::extensions::AlsPoseCurves,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -131,11 +159,33 @@ impl AssetLoader for AlsNotifyManifestLoader {
         &self,
         reader: &mut dyn Reader,
         _settings: &Self::Settings,
-        _load_context: &mut LoadContext<'_>,
+        load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
-        Ok(serde_json::from_slice(&bytes)?)
+        match serde_json::from_slice(&bytes)? {
+            NotifyManifestFile::Inline(manifest) => Ok(manifest),
+            NotifyManifestFile::Index { version, files } => {
+                let mut clips = Vec::with_capacity(files.len());
+                for file in files {
+                    let path = load_context
+                        .path()
+                        .resolve_embed_str(&file)
+                        .map_err(|error| std::io::Error::other(format!("{file}: {error}")))?;
+                    let bytes = load_context
+                        .read_asset_bytes(path)
+                        .await
+                        .map_err(std::io::Error::other)?;
+                    clips.push(serde_json::from_slice(&bytes).map_err(|error| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("{file}: {error}"),
+                        )
+                    })?);
+                }
+                Ok(AlsNotifyManifest { version, clips })
+            }
+        }
     }
 
     fn extensions(&self) -> &[&str] {
@@ -311,10 +361,7 @@ fn applies_montage_slot_notifies(
             && (delta == 0.0
                 || delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS)
             && roll.is_some_and(|roll| {
-                roll.active
-                    && roll.time - delta
-                        < crate::als::roll::ROLL_DURATION_SECS
-                            - crate::als::roll::ROLL_WEIGHT_OUT_SECS
+                roll.active && roll.time - delta < crate::als::roll::roll_root_motion_end()
             }))
 }
 
@@ -868,7 +915,10 @@ fn refresh_animation_event_playbacks(
             ));
         }
         for (instance_id, time, previous, weight, interrupted) in roll_instances {
-            for source in [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE] {
+            for source in [
+                &ROLL_MONTAGE.playback.source_sequence,
+                &ROLL_MONTAGE.source.source_asset,
+            ] {
                 if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
                     push_playback(
                         &mut entries,
@@ -1086,6 +1136,20 @@ fn parameter_tag<'a>(parameters: &'a Value, key: &str) -> Option<&'a str> {
         .and_then(|value| value.get("__tagged__"))
         .and_then(|value| value.get("TagName"))
         .and_then(Value::as_str)
+}
+
+pub(crate) fn montage_action_notify<'a>(
+    montage: &'a AlsNotifyManifestClip,
+    action: &str,
+) -> &'a AlsNotifyManifestEvent {
+    montage
+        .events
+        .iter()
+        .find(|event| {
+            event.class_name == "AlsAnimNotifyState_SetLocomotionAction"
+                && parameter_tag(&event.parameters, "LocomotionAction") == Some(action)
+        })
+        .expect("action montage has a matching locomotion action notify")
 }
 
 pub(crate) fn early_blend_out_matches(
@@ -1513,6 +1577,25 @@ fn apply_grounded_entry_point_notifications(
 pub(crate) mod tests {
     use super::*;
 
+    fn installed_notify_manifest() -> AlsNotifyManifest {
+        let index = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join(ALS_NOTIFY_MANIFEST_PATH);
+        let directory = index.parent().unwrap();
+        let NotifyManifestFile::Index { version, files } =
+            serde_json::from_slice(&std::fs::read(&index).unwrap()).unwrap()
+        else {
+            panic!("installed notify catalog must be an index");
+        };
+        let clips = files
+            .iter()
+            .map(|file| {
+                serde_json::from_slice(&std::fs::read(directory.join(file)).unwrap()).unwrap()
+            })
+            .collect();
+        AlsNotifyManifest { version, clips }
+    }
+
     pub(crate) fn configure_root_scale_notifications(
         app: &mut App,
         actor: Entity,
@@ -1521,10 +1604,7 @@ pub(crate) mod tests {
         use bevy::ecs::system::RunSystemOnce;
         use bevy_animation_graph::core::edge_data::events::AnimationEvent;
         use bevy_animation_graph::core::event_track::{EventTrack, TrackItemValue};
-        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let mut manifest: AlsNotifyManifest = installed_notify_manifest();
         let template = manifest
             .clips
             .iter()
@@ -1648,10 +1728,7 @@ pub(crate) mod tests {
 
     #[test]
     fn notify_lod_filter_preserves_montage_branching_and_marker_paths() {
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         let mut clip = manifest
             .clips
             .iter()
@@ -1873,13 +1950,17 @@ pub(crate) mod tests {
             assert!(serde_json::from_value::<AlsNotifyManifestFilter>(value).is_err());
         }
         let scene = include_str!("../../../assets/ALS/Character/B_Als.animscn.ron");
-        assert!(scene.contains("ALS/Character/SKM_Als.gltf#Scene0"));
-        let mesh: Value = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Character/SKM_Als.gltf"
+        assert!(scene.contains("ALS/Character/SKM_Als.glb#Scene0"));
+        let model = bevy_gltf::gltf::Gltf::from_slice(include_bytes!(
+            "../../../assets/ALS/Character/SKM_Als.glb"
         ))
         .unwrap();
-        assert_eq!(mesh["meshes"].as_array().unwrap().len(), 1);
-        assert!(!mesh.to_string().contains("MSFT_lod"));
+        assert_eq!(model.meshes().len(), 1);
+        assert!(
+            !model
+                .extensions_used()
+                .any(|extension| extension == "MSFT_lod")
+        );
         assert_eq!(crate::character_assembly::ALS_RENDERED_MESH_LOD, 0);
     }
 
@@ -2089,10 +2170,7 @@ pub(crate) mod tests {
             edge_data::events::AnimationEvent,
             event_track::{EventTrack, TrackItemValue},
         };
-        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let mut manifest: AlsNotifyManifest = installed_notify_manifest();
         let source = manifest
             .clips
             .iter_mut()
@@ -3029,10 +3107,7 @@ pub(crate) mod tests {
     #[test]
     fn grounded_entry_point_notify_assigns_empty_and_custom_tags() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let mut manifest: AlsNotifyManifest = installed_notify_manifest();
         let source = manifest
             .clips
             .iter_mut()
@@ -3697,10 +3772,7 @@ pub(crate) mod tests {
                 assert_eq!(reverse_feet, [1, 1], "Reverse non-looping footsteps");
             }
         }
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         let source = manifest
             .clips
             .iter()
@@ -4833,10 +4905,7 @@ pub(crate) mod tests {
 
     #[test]
     fn source_zero_frame_footsteps_keep_their_trigger_offset() {
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         for side in ["Left", "Right"] {
             let source = manifest
                 .clips
@@ -4883,10 +4952,7 @@ pub(crate) mod tests {
                 .init_resource::<AlsNotifyGraphClipHandles>()
                 .add_message::<AlsAnimationEvent>()
                 .add_message::<AlsCameraShakeRequest>();
-            let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-                "../../../assets/ALS/Animations/als_notify_manifest.json"
-            ))
-            .unwrap();
+            let manifest: AlsNotifyManifest = installed_notify_manifest();
             let source = mantle_sources(MantleKind::Low).1;
             let graph_clip = graph_clip_for_source(&manifest, source).unwrap().to_owned();
             let handle = app
@@ -5079,10 +5145,7 @@ pub(crate) mod tests {
             .init_resource::<AlsNotifyGraphClipHandles>()
             .add_message::<AlsAnimationEvent>()
             .add_message::<AlsCameraShakeRequest>();
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         let handle = app
             .world_mut()
             .resource_mut::<Assets<AlsNotifyManifest>>()
@@ -5151,10 +5214,7 @@ pub(crate) mod tests {
     #[test]
     fn get_up_playbacks_use_the_existing_sequence_and_montage_event_streams() {
         use bevy::ecs::system::RunSystemOnce;
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()))
             .init_asset::<GraphClip>()
@@ -5214,10 +5274,7 @@ pub(crate) mod tests {
 
     #[test]
     fn source_paths_select_the_expected_mantle_variants() {
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/ALS/Animations/als_notify_manifest.json"
-        ))
-        .unwrap();
+        let manifest: AlsNotifyManifest = installed_notify_manifest();
         for kind in [
             MantleKind::High,
             MantleKind::InAir,

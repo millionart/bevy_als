@@ -1,0 +1,526 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotifyState_SetLocomotionAction",
+      "end_time": 1.1665666103363037,
+      "event_id": "als_notify:/als/als/animations/actions/getup/am_als_getup_back.am_als_getup_back:bd40db9b-4d0d5b96-857949ae-6a9aff61",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": true,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "BD40DB9B-4D0D5B96-857949AE-6A9AFF61",
+      "kind": "state",
+      "linked_montage": "AM_Als_GetUp_Back",
+      "linked_sequence": "None//ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back/A_Als_GetUp_Back",
+      "name": "BMNotifyStateMovementAction",
+      "parameters": {
+        "LocomotionAction": {
+          "__tagged__": {
+            "TagName": "Als.LocomotionAction.GettingUp"
+          }
+        }
+      },
+      "start_time": -9.999999747378752e-05,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": -9.999999747378752e-05,
+      "weight_threshold": 9.999999747378752e-06
+    }
+  ],
+  "playback": {
+    "blend_in_mode": "Linear",
+    "blend_in_seconds": 0.0,
+    "blend_out_mode": "Cubic",
+    "blend_out_seconds": 0.3,
+    "montage_curves": {
+      "FootLeftIk": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          1,
+          0
+        ],
+        "times": [
+          0.0,
+          0.46666666865348816
+        ],
+        "values": [
+          -2.9802322387695312e-08,
+          1.0
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "FootLeftLock": {
+        "arrive_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Linear",
+          "Linear",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0,
+          0
+        ],
+        "times": [
+          0.0,
+          1.399999976158142,
+          1.4333332777023315
+        ],
+        "values": [
+          -2.9802322387695312e-08,
+          8.789890593163818e-09,
+          1.0
+        ],
+        "weight_modes": [
+          0,
+          0,
+          0
+        ]
+      },
+      "FootRightIk": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          1,
+          0
+        ],
+        "times": [
+          0.6333333253860474,
+          1.0333333015441895
+        ],
+        "values": [
+          -2.9802322387695312e-08,
+          1.0
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "FootRightLock": {
+        "arrive_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Constant",
+          "Linear",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0,
+          0
+        ],
+        "times": [
+          0.0,
+          1.399999976158142,
+          1.4333332777023315
+        ],
+        "values": [
+          -2.9802322387695312e-08,
+          -7.5688415535069e-09,
+          1.0
+        ],
+        "weight_modes": [
+          0,
+          0,
+          0
+        ]
+      },
+      "LayerArmLeft": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.4333332777023315
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "LayerArmRight": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          1,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.399999976158142
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "LayerHead": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          1,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.4333332777023315
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "LayerLegs": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.4333332777023315
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "LayerPelvis": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.4333332777023315
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "LayerSpine": {
+        "arrive_tangents": [
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          0
+        ],
+        "times": [
+          0.8999999761581421,
+          1.4333332777023315
+        ],
+        "values": [
+          -1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0
+        ]
+      },
+      "ViewBlock": {
+        "arrive_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "arrive_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "interps": [
+          "Linear",
+          "Cubic",
+          "Linear"
+        ],
+        "leave_tangents": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "leave_weights": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "post_infinity": "Constant",
+        "pre_infinity": "Constant",
+        "tangent_modes": [
+          0,
+          1,
+          0
+        ],
+        "times": [
+          0.0,
+          1.0,
+          1.4666666984558105
+        ],
+        "values": [
+          1.0,
+          1.0,
+          -2.9802322387695312e-08
+        ],
+        "weight_modes": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "play_rate": 1.2,
+    "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back"
+  },
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.5,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": "PostLocomotion",
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.5,
+  "source_asset": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
+  "source_kind": "AnimMontage",
+  "sync_markers": []
+}

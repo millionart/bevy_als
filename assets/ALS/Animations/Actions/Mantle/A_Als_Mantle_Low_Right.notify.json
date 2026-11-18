@@ -1,0 +1,107 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.3333333432674408,
+      "event_id": "als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:cdd613eb-4d00e3e5-42bf1080-e4744898",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "CDD613EB-4D00E3E5-42BF1080-E4744898",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Mantle_Low_Right",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 1.5,
+        "SoundVolumeMultiplier": 0.30000001192092896
+      },
+      "start_time": 0.3333333432674408,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 9.999999747378752e-06
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.7333333492279053,
+      "event_id": "als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:0422dcbb-4f1f119e-4e2928b9-aad4d320",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "0422DCBB-4F1F119E-4E2928B9-AAD4D320",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Mantle_Low_Right",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 0.800000011920929,
+        "SoundVolumeMultiplier": 0.75
+      },
+      "start_time": 0.7333333492279053,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 9.999999747378752e-06
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 1.2666667699813843,
+      "event_id": "als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:b1845268-42a9a510-a352b98a-bab2c8ab",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "B1845268-42A9A510-A352B98A-BAB2C8AB",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Mantle_Low_Right",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 0.75,
+        "SoundVolumeMultiplier": 0.5
+      },
+      "start_time": 1.2666667699813843,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 9.999999747378752e-06
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.5,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.5,
+  "source_asset": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

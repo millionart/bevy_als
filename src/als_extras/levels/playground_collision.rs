@@ -608,12 +608,12 @@ mod tests {
             math::Pose as PhysicsPose,
             query::{ShapeCastOptions, cast_shapes},
         };
-        let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/Meshes/SM_Als_Arch_01.gltf"
+        let model = bevy_gltf::gltf::binary::Glb::from_slice(include_bytes!(
+            "../../../assets/ALSExtras/Environment/Meshes/SM_Als_Arch_01.glb"
         ))
         .unwrap();
-        let bytes =
-            include_bytes!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Arch_01.bin");
+        let data: serde_json::Value = serde_json::from_slice(&model.json).unwrap();
+        let bytes = model.bin.unwrap();
         let primitive = &data["meshes"][0]["primitives"][0];
         let accessor_bytes = |index: usize, width: usize| {
             let accessor = &data["accessors"][index];
@@ -761,11 +761,10 @@ mod tests {
         ] {
             let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("assets/ALSExtras/Environment/Meshes");
-            let data: serde_json::Value = serde_json::from_str(
-                &std::fs::read_to_string(folder.join(format!("{name}.gltf"))).unwrap(),
-            )
-            .unwrap();
-            let bytes = std::fs::read(folder.join(format!("{name}.bin"))).unwrap();
+            let model_bytes = std::fs::read(folder.join(format!("{name}.glb"))).unwrap();
+            let model = bevy_gltf::gltf::binary::Glb::from_slice(&model_bytes).unwrap();
+            let data: serde_json::Value = serde_json::from_slice(&model.json).unwrap();
+            let bytes = model.bin.unwrap();
             let primitive = &data["meshes"][0]["primitives"][0];
             let accessor = |index: usize, width: usize| {
                 let item = &data["accessors"][index];
@@ -1127,12 +1126,12 @@ mod tests {
 
     #[test]
     fn imported_stair_descent_exits_initial_contact_without_entering_the_stair() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.gltf"
+        let model = bevy_gltf::gltf::binary::Glb::from_slice(include_bytes!(
+            "../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.glb"
         ))
         .unwrap();
-        let bytes =
-            include_bytes!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.bin");
+        let data: serde_json::Value = serde_json::from_slice(&model.json).unwrap();
+        let bytes = model.bin.unwrap();
         let primitive = &data["meshes"][0]["primitives"][0];
         let accessor_bytes = |index: usize, width: usize| {
             let accessor = &data["accessors"][index];

@@ -23,7 +23,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
-include!("../../../../assets/ALS/Character/als_debug_canvas.runtime.rs");
+include!("als_debug_canvas.rs");
 const BODY_FONT_PX: f32 = HEADER_FONT_PX * 0.75;
 const ROOT_OFFSET_PX: f32 = 5.0;
 const COLUMN_WIDTH_PX: f32 = 200.0;
