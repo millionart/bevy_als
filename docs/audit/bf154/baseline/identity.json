@@ -1,0 +1,12 @@
+{
+  "code_commit": "eb65e7967dcaeec48f36f254a0a1731c6ba3cbbf",
+  "build_directory": "target",
+  "profile": "play",
+  "manual_binary_sha256": "1f2437df8794e4483b42d744578b5aed62b1ed4d0355955a8ec70293046ef3f9",
+  "cargo_lock_sha256": "67949e6246d74501b52066a135c2707355c6b48f30a3b96ebbe2380426814d86",
+  "platform": {
+    "os": "macos",
+    "arch": "aarch64",
+    "graphics": "Metal"
+  }
+}
