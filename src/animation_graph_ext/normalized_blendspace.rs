@@ -1834,7 +1834,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d213/normalized.replay.json"
+            "../tests/fixtures/graph/blend_space_normalization.json"
         ))
         .unwrap();
         let mut world = World::new();
@@ -2089,7 +2089,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d217/near_zero.replay.json"
+            "../tests/fixtures/graph/blend_space_near_zero.json"
         ))
         .unwrap();
         let mut world = World::new();
@@ -2982,7 +2982,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d210/filter.replay.json"
+            "../tests/fixtures/graph/blend_space_filter.json"
         ))
         .unwrap();
         for case in reference.cases {
@@ -3038,7 +3038,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d211/slots.replay.json"
+            "../tests/fixtures/graph/blend_space_samples.json"
         ))
         .unwrap();
         let blend_space = NormalizedBlendSpaceNode {
@@ -3217,9 +3217,9 @@ mod tests {
     fn player_clock_and_filtered_weights_match_native_blendspace_ticks() {
         let mut ablated_errors = 0;
         for source_json in [
-            include_str!("../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_tick.json"),
+            include_str!("../tests/fixtures/graph/walk_run_tick.json"),
             include_str!(
-                "../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_weights.json"
+                "../tests/fixtures/graph/walk_run_weights.json"
             ),
         ] {
             let source: serde_json::Value = serde_json::from_str(source_json).unwrap();

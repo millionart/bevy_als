@@ -372,7 +372,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d163c/layered.replay.json"
+            "../tests/fixtures/graph/layered_pose_blending.json"
         ))
         .unwrap();
         let (skeleton, root, child) = skeleton();

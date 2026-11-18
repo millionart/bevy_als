@@ -1158,19 +1158,19 @@ mod tests {
     fn get_up_to_roll_uses_both_current_samples_in_the_actual_slot() {
         let read = |file: &str| -> serde_json::Value {
             let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("docs/audit/bf144/d119")
+                .join("src/tests/fixtures/actions")
                 .join(file);
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
         };
-        let roll_native = read("roll.native.json");
-        for (facing_up, file) in [(false, "front.native.json"), (true, "back.native.json")] {
+        let roll_native = read("roll_overlap.json");
+        for (facing_up, file) in [(false, "get_up_front_overlap.json"), (true, "get_up_back_overlap.json")] {
             let get_up_native = read(file);
             for (case, (delta, prior_frames)) in
                 [(0.0625_f32, 16), (0.05, 20)].into_iter().enumerate()
             {
                 let get_up_frames =
-                    &get_up_native["montage_clock_probe"]["samples"][case]["frames"];
-                let roll_frames = &roll_native["montage_clock_probe"]["samples"][case]["frames"];
+                    &get_up_native["timeline"]["samples"][case]["frames"];
+                let roll_frames = &roll_native["timeline"]["samples"][case]["frames"];
                 let (mut app, character, avatar) =
                     crate::roll_drive::tests::loaded_roll_character();
                 app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
@@ -1261,15 +1261,15 @@ mod tests {
         for (facing_up, source) in [
             (
                 false,
-                include_str!("../../../../docs/audit/bf144/d122/front.native.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_front_curves.json"),
             ),
             (
                 true,
-                include_str!("../../../../docs/audit/bf144/d122/back.native.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_back_curves.json"),
             ),
         ] {
-            let native: serde_json::Value = serde_json::from_str(source).unwrap();
-            let samples = native["montage_clock_probe"]["samples"].as_array().unwrap();
+            let reference: serde_json::Value = serde_json::from_str(source).unwrap();
+            let samples = reference["timeline"]["samples"].as_array().unwrap();
             let settings = get_up_settings(facing_up);
             for sample in samples {
                 let frame = &sample["frames"][0];
@@ -1509,27 +1509,27 @@ mod tests {
         ))
         .unwrap();
         let terminal_request: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d120/clock.request.json"
+            "../../../tests/fixtures/actions/get_up_terminal_inputs.json"
         ))
         .unwrap();
         for (facing_up, settings, clock, notify, terminal) in [
             (
                 false,
                 settings.front,
-                include_str!("../../../../docs/audit/bf144/d118a/front.native.json"),
-                include_str!("../../../../docs/audit/bf144/d118a/front-notify.native.json"),
-                include_str!("../../../../docs/audit/bf144/d120/front.native.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_front_timeline.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_front_notifications.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_front_terminal.json"),
             ),
             (
                 true,
                 settings.back,
-                include_str!("../../../../docs/audit/bf144/d118a/back.native.json"),
-                include_str!("../../../../docs/audit/bf144/d118a/back-notify.native.json"),
-                include_str!("../../../../docs/audit/bf144/d120/back.native.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_back_timeline.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_back_notifications.json"),
+                include_str!("../../../tests/fixtures/actions/get_up_back_terminal.json"),
             ),
         ] {
             let notify: serde_json::Value = serde_json::from_str(notify).unwrap();
-            let mut ends = notify["notify_clock_probe"]["cases"]
+            let mut ends = notify["notifications"]["cases"]
                 .as_array()
                 .unwrap()
                 .iter()
@@ -1541,7 +1541,7 @@ mod tests {
 
             for (clock, request) in [(clock, None), (terminal, Some(&terminal_request))] {
                 let clock: serde_json::Value = serde_json::from_str(clock).unwrap();
-                for (sample_index, sample) in clock["montage_clock_probe"]["samples"]
+                for (sample_index, sample) in clock["timeline"]["samples"]
                     .as_array()
                     .unwrap()
                     .iter()

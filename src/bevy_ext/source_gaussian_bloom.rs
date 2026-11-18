@@ -438,7 +438,7 @@ mod tests {
         .unwrap();
         let settings: SourceGaussianBloom = serde_json::from_value(data["bloom"].clone()).unwrap();
         let source: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tools/fixtures/playground_bloom_source.json"
+            "../tests/fixtures/render/bloom_kernels.json"
         ))
         .unwrap();
         for row in source["kernels"].as_array().unwrap() {

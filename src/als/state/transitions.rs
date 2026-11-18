@@ -294,7 +294,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../docs/audit/bf144/d166/distance.replay.json"
+            "../../tests/fixtures/actions/transition_distance.json"
         ))
         .unwrap();
         let config = TransitionConfig::default();

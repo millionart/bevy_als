@@ -4101,7 +4101,7 @@ mod tests {
                 let expected = values[0].max(values[1]) * alpha.max(1.0 - alpha);
                 assert!(
                     (actual - expected).abs() < 1e-6,
-                    "MultiWay cache update differs from native weighted requests: alpha={alpha}, actual={actual}, expected={expected}"
+                    "MultiWay cache update differs from reference weighted requests: alpha={alpha}, actual={actual}, expected={expected}"
                 );
             }
         }
@@ -4308,7 +4308,7 @@ mod tests {
         }
         assert!(
             dot > 1.0 - 1e-5 && distance < 1e-5,
-            "Inactive cached MultiWay branch advanced before native activation: rotation_degrees={}, translation_meters={distance}",
+            "Inactive cached MultiWay branch advanced before reference activation: rotation_degrees={}, translation_meters={distance}",
             (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
         );
     }
@@ -4465,7 +4465,7 @@ mod tests {
         graph.add_node_parameter_edge(blend.id, "Pose", outer.id, "B");
         graph.add_output_data("Pose".into(), DataSpec::Pose);
         graph.add_output_data_edge(outer.id, "Pose", "Pose");
-        let native = graphs.add(native_graph);
+        let reference = graphs.add(native_graph);
         let root = graphs.add(graph);
         let mut world = World::new();
         world.insert_resource(graphs);
@@ -4481,7 +4481,7 @@ mod tests {
                 .unwrap(),
         );
         let actual = world.run_system_once_with(query, root).unwrap();
-        let expected = world.run_system_once_with(query, native).unwrap().remove(2);
+        let expected = world.run_system_once_with(query, reference).unwrap().remove(2);
         let mut dot = 1.0_f32;
         let mut distance = 0.0_f32;
         for bone in expected.paths.keys() {
@@ -4496,7 +4496,7 @@ mod tests {
         }
         assert!(
             dot > 1.0 - 1e-5 && distance < 1e-5,
-            "Inactive cached additive branch advanced before native activation: rotation_degrees={}, translation_meters={distance}",
+            "Inactive cached additive branch advanced before reference activation: rotation_degrees={}, translation_meters={distance}",
             (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
         );
     }
@@ -4654,7 +4654,7 @@ mod tests {
         graph.add_node_parameter_edge(blend.id, "Pose", outer.id, "B");
         graph.add_output_data("Pose".into(), DataSpec::Pose);
         graph.add_output_data_edge(outer.id, "Pose", "Pose");
-        let native = graphs.add(native_graph);
+        let reference = graphs.add(native_graph);
         let root = graphs.add(graph);
         let mut world = World::new();
         world.insert_resource(graphs);
@@ -4670,7 +4670,7 @@ mod tests {
                 .unwrap(),
         );
         let actual = world.run_system_once_with(query, root).unwrap();
-        let expected = world.run_system_once_with(query, native).unwrap().remove(2);
+        let expected = world.run_system_once_with(query, reference).unwrap().remove(2);
         let mut dot = 1.0_f32;
         let mut distance = 0.0_f32;
         for bone in expected.paths.keys() {
@@ -4685,7 +4685,7 @@ mod tests {
         }
         assert!(
             dot > 1.0 - 1e-5 && distance < 1e-5,
-            "Inactive cached mesh-space additive branch advanced before native activation: rotation_degrees={}, translation_meters={distance}",
+            "Inactive cached mesh-space additive branch advanced before reference activation: rotation_degrees={}, translation_meters={distance}",
             (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
         );
     }
@@ -5972,7 +5972,7 @@ mod tests {
                 .collect()
         }
         let source: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tools/animgraph_authoring/fixtures/ue_cached_pose_lifecycle.json"
+            "../tests/fixtures/graph/cached_pose_lifecycle.json"
         ))
         .unwrap();
         for (nested, reinitialize) in [(false, false), (true, false), (true, true)] {
@@ -7322,7 +7322,7 @@ mod tests {
                 conditions.last_mut().unwrap().gates.clear();
             }
             let fsm = AnimationNode::new(
-                "native reentry FSM",
+                "reference reentry FSM",
                 InterruptibleFsmNode {
                     fsm: machine.clone(),
                     source_transition_conditions: conditions,
@@ -7655,7 +7655,7 @@ mod tests {
                 conditions.last_mut().unwrap().gates.clear();
             }
             let fsm = AnimationNode::new(
-                "native reentry FSM",
+                "reference reentry FSM",
                 InterruptibleFsmNode {
                     fsm: machine.clone(),
                     source_transition_conditions: conditions,
@@ -7699,7 +7699,7 @@ mod tests {
             }
             assert!(
                 actual.0 == expected.0 && dot > 1.0 - 1e-5 && distance < 1e-5,
-                "Tiny positive native state weight changes reentry pose: actual_states={:?}, source_states={:?}, rotation_error_degrees={}, location_error={distance}",
+                "Tiny positive reference state weight changes reentry pose: actual_states={:?}, source_states={:?}, rotation_error_degrees={}, location_error={distance}",
                 actual.0,
                 expected.0,
                 (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
@@ -7977,7 +7977,7 @@ mod tests {
                 conditions.last_mut().unwrap().gates.clear();
             }
             let fsm = AnimationNode::new(
-                "native reentry FSM",
+                "reference reentry FSM",
                 InterruptibleFsmNode {
                     fsm: machine.clone(),
                     source_transition_conditions: conditions,
@@ -8254,7 +8254,7 @@ mod tests {
         let mut machines = Assets::<StateMachine>::default();
         let machine = machines.add(machine);
         let fsm = AnimationNode::new(
-            "native reentry FSM",
+            "reference reentry FSM",
             InterruptibleFsmNode {
                 fsm: machine.clone(),
                 source_transition_conditions: conditions,
@@ -8560,7 +8560,7 @@ mod tests {
                 conditions.last_mut().unwrap().gates.clear();
             }
             let fsm = AnimationNode::new(
-                "native reentry FSM",
+                "reference reentry FSM",
                 InterruptibleFsmNode {
                     fsm: machine.clone(),
                     source_transition_conditions: conditions,
@@ -8726,7 +8726,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d207/alias.replay.json"
+            "../tests/fixtures/graph/state_aliases.json"
         ))
         .unwrap();
         let states =
@@ -8986,7 +8986,7 @@ mod tests {
         }
 
         let mut reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d222/budget.replay.json"
+            "../tests/fixtures/graph/transition_budget.json"
         ))
         .unwrap();
         reference.cases.push(Case {
@@ -9476,7 +9476,7 @@ mod tests {
             .add(machine);
         for reset in [true, false] {
             let fsm = AnimationNode::new(
-                "Current native FSM",
+                "Current reference FSM",
                 InterruptibleFsmNode {
                     fsm: machine.clone(),
                     internal_time_key: "delta".into(),
@@ -9530,7 +9530,7 @@ mod tests {
                 }
                 assert!(
                     dot > 1.0 - 1e-5 && distance < 1e-5,
-                    "FSM reentry changes the native active sequence pose: reset={reset}, gap={gap}, rotation_error_degrees={}, location_error={distance}",
+                    "FSM reentry changes the reference active sequence pose: reset={reset}, gap={gap}, rotation_error_degrees={}, location_error={distance}",
                     (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
                 );
             }
@@ -9765,7 +9765,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
 
         let reference: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d198/clock.replay.json"
+            "../tests/fixtures/graph/transition_clock.json"
         ))
         .unwrap();
         let mut graphs = Assets::<AnimationGraph>::default();
@@ -9945,7 +9945,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d206/curve.replay.json"
+            "../tests/fixtures/graph/transition_curves.json"
         ))
         .unwrap();
         let custom_curve: Vec<_> = reference
@@ -10299,7 +10299,7 @@ mod tests {
         }
 
         let reference: Reference =
-            serde_json::from_str(include_str!("../../docs/audit/bf144/d204/tail.replay.json"))
+            serde_json::from_str(include_str!("../tests/fixtures/graph/state_tail.json"))
                 .unwrap();
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut clips = Assets::<GraphClip>::default();
@@ -10637,7 +10637,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d220/weights.replay.json"
+            "../tests/fixtures/graph/state_machine_interrupt_weights.json"
         ))
         .unwrap();
         let mut graphs = Assets::<AnimationGraph>::default();

@@ -2257,7 +2257,7 @@ mod tests {
             .resource::<Assets<AutoExposureCompensationCurve>>();
         let curve = curves
             .get(&exposure.compensation_curve)
-            .expect("Source compensation must reach its native asset");
+            .expect("Source compensation must reach its reference asset");
         let bevy::reflect::ReflectRef::Struct(fields) = curve.reflect_ref() else {
             panic!("Native compensation must be reflected")
         };
@@ -2298,7 +2298,7 @@ mod tests {
             app.world()
                 .get::<bevy::light::GeneratedEnvironmentMapLight>(camera)
                 .is_none(),
-            "Random native filtering would replace the source SH response"
+            "Random reference filtering would replace the source SH response"
         );
         assert_eq!(environment.intensity, 2.0);
         assert_eq!(environment.rotation, Quat::IDENTITY);
@@ -2379,7 +2379,7 @@ mod tests {
         ))
         .unwrap();
         let source: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../tools/fixtures/playground_light_source.json"
+            "../../tests/fixtures/render/directional_light.json"
         ))
         .unwrap();
         let mut app = App::new();

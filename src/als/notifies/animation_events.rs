@@ -2350,7 +2350,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .0,
             1.3,
-            "The native minimum CMC pose delta must re-enable autonomous slot dispatch"
+            "The reference minimum CMC pose delta must re-enable autonomous slot dispatch"
         );
     }
 
@@ -2378,7 +2378,7 @@ pub(crate) mod tests {
             assert_eq!(
                 weight >= 1e-5,
                 frame != 0,
-                "Actual Roll blend no longer covers the native threshold"
+                "Actual Roll blend no longer covers the reference threshold"
             );
             let expected = if frame == 0 { 1.0 } else { 1.3 };
             assert_eq!(
@@ -2387,7 +2387,7 @@ pub(crate) mod tests {
                     .unwrap()
                     .0,
                 expected,
-                "Queued RootScale ignored native montage NotifyWeight at frame {frame}: weight={weight}"
+                "Queued RootScale ignored reference montage NotifyWeight at frame {frame}: weight={weight}"
             );
             assert_eq!(
                 *app.world()
@@ -3726,7 +3726,7 @@ pub(crate) mod tests {
         ];
         for &(looping, periods, expected) in native_cases {
             let node = AnimationNode::new(
-                "native notify clock",
+                "reference notify clock",
                 crate::extensions::SourceSequencePlayerNode {
                     clip: clip.clone(),
                     start_position: clip_duration * 0.6,

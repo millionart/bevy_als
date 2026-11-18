@@ -1,6 +1,0 @@
-running 3 tests
-test playable_character::tests::playable_character_samples_air_velocity_and_refreshes_the_sensor_before_tnua ... ok
-test playable_character::tests::playable_character_animation_phases_initialize_with_the_real_physics_schedule ... ok
-test playable_character::tests::playable_character_rejects_physics_on_a_different_schedule - should panic ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2125 filtered out; finished in 0.10s

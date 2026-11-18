@@ -1,0 +1,12 @@
+(
+    nodes: [(id: "3ba63502-4cfd-4ef2-8a5a-780962678af9", name: "Move", inner: {
+        "bevy_animation_graph::builtin_nodes::ClipNode": (
+            clip: "animations/move.anim.ron", override_duration: None, override_interpolation: None,
+            root_motion_mode: Disabled, root_motion_bone: None,
+        ),
+    }, should_debug: false)],
+    edges_inverted: {OutputData("pose"): NodeData("3ba63502-4cfd-4ef2-8a5a-780962678af9", "pose"), OutputTime: NodeTime("3ba63502-4cfd-4ef2-8a5a-780962678af9")},
+    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: {"pose": Pose}, input_order: {}, output_order: {Data("pose"): 0}),
+    default_data: {},
+    editor_metadata: (node_positions: {"3ba63502-4cfd-4ef2-8a5a-780962678af9": (10.0, 20.0)}, input_position: (0.0, 0.0), output_position: (400.0, 20.0)),
+)

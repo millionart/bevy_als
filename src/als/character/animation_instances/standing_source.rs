@@ -163,13 +163,13 @@ pub(crate) mod tests {
     #[test]
     fn standing_yaw_offset_samples_native_key_order() {
         let cases: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/u07/standing-yaw-curve/source-cases.json",
+            "../../../tests/fixtures/actions/standing_yaw_curve.json",
         ))
         .unwrap();
         for row in cases.as_array().unwrap() {
-            let native = &row["native"];
-            let angle = native["view_space_degrees"].as_f64().unwrap() as f32;
-            let expected = native["curve"].as_f64().unwrap() as f32;
+            let reference = &row["reference"];
+            let angle = reference["view_space_degrees"].as_f64().unwrap() as f32;
+            let expected = reference["curve"].as_f64().unwrap() as f32;
             let left = row["left"].as_f64().unwrap() as f32;
             let right = row["right"].as_f64().unwrap() as f32;
             assert_eq!(
@@ -216,7 +216,7 @@ pub(crate) mod tests {
                 .filter(|name| sample_source_montage(name, 0.4, assets, clips, skeletons).is_some())
                 .count();
             if loaded != previous {
-                eprintln!("native montage assets loaded {loaded}/{}", MONTAGES.len());
+                eprintln!("reference montage assets loaded {loaded}/{}", MONTAGES.len());
                 previous = loaded;
             }
             if loaded == MONTAGES.len() {
@@ -224,7 +224,7 @@ pub(crate) mod tests {
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "native montage assets did not load within 30 seconds: {loaded}"
+                "reference montage assets did not load within 30 seconds: {loaded}"
             );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }

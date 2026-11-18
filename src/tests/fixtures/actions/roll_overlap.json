@@ -1,0 +1,65 @@
+{
+  "timeline": {
+    "samples": [
+      {
+        "name": "sixty_two_ms",
+        "frames": [
+          {
+            "delta_seconds": 0.0625,
+            "position": 0.08124999701976776,
+            "weight": 0.68359375,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          },
+          {
+            "delta_seconds": 0.0625,
+            "position": 0.16249999403953552,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          },
+          {
+            "delta_seconds": 0.0625,
+            "position": 0.24374999105930328,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          }
+        ]
+      },
+      {
+        "name": "fifty_ms",
+        "frames": [
+          {
+            "delta_seconds": 0.05000000074505806,
+            "position": 0.06499999761581421,
+            "weight": 0.5,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          },
+          {
+            "delta_seconds": 0.05000000074505806,
+            "position": 0.12999999523162842,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          },
+          {
+            "delta_seconds": 0.05000000074505806,
+            "position": 0.19499999284744263,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false
+          }
+        ]
+      }
+    ],
+    "montage_length": 1.5
+  }
+}

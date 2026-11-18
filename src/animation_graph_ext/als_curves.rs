@@ -762,7 +762,7 @@ mod tests {
         }
         let curves = parse_curves(
             &serde_json::from_str(include_str!(
-                "../../tools/animgraph_authoring/fixtures/ue_standing_walk_forward_curves.json"
+                "../tests/fixtures/graph/standing_walk_curves.json"
             ))
             .unwrap(),
         )

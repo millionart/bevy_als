@@ -670,7 +670,7 @@ mod tests {
         app.update();
         let actual = app.world().get::<Collider>(root).unwrap();
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../tools/fixtures/arch_source_simple_collision.json"
+            "../../tests/fixtures/physics/arch_convex_shapes.json"
         ))
         .unwrap();
         let source = Collider::compound(

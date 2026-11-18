@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn motion_snapshot_preserves_native_velocity_yaw_before_the_view_difference() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/u07/first-motion-yaw/source-cases.json",
+            "../../../tests/fixtures/actions/first_motion_yaw.json",
         ))
         .unwrap();
         let mut app = App::new();
@@ -248,7 +248,7 @@ mod tests {
             ))
             .id();
         for row in data.as_array().unwrap() {
-            if row["name"].as_str().unwrap().starts_with("actual-native") {
+            if row["name"].as_str().unwrap().starts_with("actual-reference") {
                 continue;
             }
             let velocity = row["velocity_cm_s"].as_array().unwrap();
@@ -260,14 +260,14 @@ mod tests {
             let motion = app.world().get::<AlsActualMotion>(actor).unwrap();
             let view = (-row["view_yaw_degrees"].as_f64().unwrap().to_radians()
                 - std::f64::consts::FRAC_PI_2) as f32;
-            let native = &row["native"];
+            let reference = &row["reference"];
             assert_eq!(
                 motion.source_velocity_yaw_degrees,
-                Some(native["world_degrees"].as_f64().unwrap() as f32),
+                Some(reference["world_degrees"].as_f64().unwrap() as f32),
                 "{}",
                 row["name"]
             );
-            let native_angle = native["view_space_degrees"].as_f64().unwrap() as f32;
+            let native_angle = reference["view_space_degrees"].as_f64().unwrap() as f32;
             let actual = crate::direction_layer::motion_view_space_direction_angle(motion, view);
             if row["name"].as_str().unwrap().starts_with("actual-target") {
                 assert_eq!(actual, native_angle, "{}", row["name"]);

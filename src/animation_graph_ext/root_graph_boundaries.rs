@@ -718,7 +718,7 @@ mod tests {
             .try_inner_downcast_ref::<ControlRigBoundaryNode>()
             .unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d232e/rig.centimeters.json"
+            "../tests/fixtures/rig/rig_program_centimeters.json"
         ))
         .unwrap();
         assert_eq!(node.definition.as_ref().unwrap().bones, definition.bones);
@@ -1792,7 +1792,7 @@ mod tests {
             })
             .unwrap();
         let centimeters: RigDefinition = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d232e/rig.centimeters.json"
+            "../tests/fixtures/rig/rig_program_centimeters.json"
         ))
         .unwrap();
         let cases = [

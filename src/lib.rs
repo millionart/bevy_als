@@ -23,7 +23,7 @@ pub mod air_jump_layer;
 #[path = "als_extras/ui/als_hud.rs"]
 pub mod als_hud;
 #[cfg(any(test, feature = "playground"))]
-#[path = "../tools/anim_probe.rs"]
+#[path = "tests/anim_probe.rs"]
 pub mod anim_probe;
 #[path = "als/character/animation_instances/animation_context_projection.rs"]
 pub mod animation_context_projection;
@@ -32,7 +32,7 @@ pub mod animation_events;
 #[path = "als/character/animation_instances/animation_visibility.rs"]
 pub mod animation_visibility;
 #[cfg(any(test, feature = "playground"))]
-#[path = "../tools/animation_visual_validation.rs"]
+#[path = "tests/animation_visual_validation.rs"]
 pub mod animation_visual_validation;
 #[path = "als_camera/camera_component.rs"]
 pub mod camera_component;
@@ -76,7 +76,7 @@ pub mod locomotion_lifecycle;
 #[path = "als/root_motion_sources/mantle_drive.rs"]
 pub mod mantle_drive;
 #[cfg(any(test, feature = "playground"))]
-#[path = "../tools/manual_playground_integration/mod.rs"]
+#[path = "tests/manual_playground_integration/mod.rs"]
 pub mod manual_playground_integration;
 #[path = "als/character/animation_instances/motion_graph_link.rs"]
 pub mod motion_graph_link;

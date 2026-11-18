@@ -635,7 +635,7 @@ mod tests {
     #[test]
     fn source_body_inertia_algorithm_matches_native_ue_samples() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tools/tests/fixtures/body_inertia_conditioning.native.json"
+            "../tests/fixtures/physics/body_inertia_conditioning.json"
         ))
         .unwrap();
         let settings: SourceInertiaConditioningSettings =
@@ -664,7 +664,7 @@ mod tests {
             );
             assert!(
                 actual.abs_diff_eq(vector(&sample["inverse_scale"]), 1e-6),
-                "native inertia sample {index}: {actual:?} != {:?}",
+                "reference inertia sample {index}: {actual:?} != {:?}",
                 vector(&sample["inverse_scale"])
             );
         }

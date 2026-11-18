@@ -343,7 +343,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../../docs/audit/bf144/d214/weights.replay.json"
+            "../../tests/fixtures/graph/tag_blend_weights.json"
         ))
         .unwrap();
         for probe in reference.probes {

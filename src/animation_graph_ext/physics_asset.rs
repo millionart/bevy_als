@@ -1862,7 +1862,7 @@ mod tests {
                     if reaches_wall {
                         assert!(
                             impulse > 0.0 && final_center.x < -0.1 && velocity < speed,
-                            "The wall must stop the native collision: dt={dt} substeps={substeps} center={final_center:?} velocity={velocity} impulse={impulse}"
+                            "The wall must stop the reference collision: dt={dt} substeps={substeps} center={final_center:?} velocity={velocity} impulse={impulse}"
                         );
                     } else {
                         assert_eq!(impulse, 0.0);
@@ -2264,7 +2264,7 @@ mod tests {
             definition::Ragdoll, spawning::spawn_ragdoll_avian,
         };
         let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../../docs/audit/bf144/d73/live.runtime.json"))
+            serde_json::from_str(include_str!("../tests/fixtures/physics/nonuniform_body_scale.json"))
                 .unwrap();
         let ragdoll: Ragdoll =
             ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
@@ -2374,7 +2374,7 @@ mod tests {
                         .unwrap()
                         .0
                         .abs_diff_eq(center, 1e-7),
-                    "scale={scale} body={label} center={:?} native={center:?}",
+                    "scale={scale} body={label} center={:?} reference={center:?}",
                     world.get::<CenterOfMass>(entity).unwrap().0
                 );
             }
@@ -2453,7 +2453,7 @@ mod tests {
                 let expected_mass = expected["mass_kg"].as_f64().unwrap() as f32;
                 assert!(
                     (mass - expected_mass).abs() < expected_mass * 1e-4,
-                    "scale={scale} body={label} mass={mass} native={expected_mass}"
+                    "scale={scale} body={label} mass={mass} reference={expected_mass}"
                 );
                 let vector = |key: &str| {
                     Vec3::new(
@@ -2481,30 +2481,30 @@ mod tests {
                     rotation[3].as_f64().unwrap() as f32,
                 );
                 let basis = Mat3::from_quat(frame);
-                let native =
+                let reference =
                     basis * Mat3::from_diagonal(vector("principal_kg_m2")) * basis.transpose();
                 let inertia = world.get::<AngularInertia>(body).unwrap();
                 let basis = Mat3::from_quat(inertia.local_frame);
                 let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
-                let largest = native
+                let largest = reference
                     .x_axis
                     .abs()
-                    .max(native.y_axis.abs())
-                    .max(native.z_axis.abs())
+                    .max(reference.y_axis.abs())
+                    .max(reference.z_axis.abs())
                     .max_element();
                 assert!(
-                    actual.abs_diff_eq(native, largest * 1e-4),
-                    "scale={scale} body={label} actual={actual:?} native={native:?}"
+                    actual.abs_diff_eq(reference, largest * 1e-4),
+                    "scale={scale} body={label} actual={actual:?} reference={reference:?}"
                 );
             }
         }
 
         let initial: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d72/initial.runtime.json"
+            "../tests/fixtures/physics/initial_body_scale.json"
         ))
         .unwrap();
         let live: serde_json::Value =
-            serde_json::from_str(include_str!("../../docs/audit/bf144/d72/live.runtime.json"))
+            serde_json::from_str(include_str!("../tests/fixtures/physics/live_body_scale.json"))
                 .unwrap();
         for starting_scale in [0.01_f32, 0.2, 1.0, 2.0] {
             let mut app = App::new();
@@ -2618,7 +2618,7 @@ mod tests {
             definition::Ragdoll, spawning::spawn_ragdoll_avian,
         };
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d71/body_probe.runtime.json"
+            "../tests/fixtures/physics/rigid_body_properties.json"
         ))
         .unwrap();
         for sample in fixture["samples"].as_array().unwrap() {
@@ -2707,30 +2707,30 @@ mod tests {
                     rotation[3].as_f64().unwrap() as f32,
                 );
                 let basis = Mat3::from_quat(frame);
-                let native =
+                let reference =
                     basis * Mat3::from_diagonal(vector("principal_kg_m2")) * basis.transpose();
                 let body = bodies.iter().find(|(name, _)| name == label).unwrap().1;
                 let inertia = world.get::<AngularInertia>(body).unwrap();
                 let basis = Mat3::from_quat(inertia.local_frame);
                 let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
-                let largest = native
+                let largest = reference
                     .x_axis
                     .abs()
-                    .max(native.y_axis.abs())
-                    .max(native.z_axis.abs())
+                    .max(reference.y_axis.abs())
+                    .max(reference.z_axis.abs())
                     .max_element();
                 assert!(
-                    actual.abs_diff_eq(native, largest * 1e-4),
-                    "scale={scale} body={label} actual={actual:?} native={native:?}"
+                    actual.abs_diff_eq(reference, largest * 1e-4),
+                    "scale={scale} body={label} actual={actual:?} reference={reference:?}"
                 );
                 if scale == 0.2 && label == "head" {
-                    let impulse = Vec3::X * native.x_axis.x;
-                    let expected_response = native.inverse() * impulse;
+                    let impulse = Vec3::X * reference.x_axis.x;
+                    let expected_response = reference.inverse() * impulse;
                     let actual_response = actual.inverse() * impulse;
                     assert!(expected_response.z.abs() > 0.1);
                     assert!(
                         (actual_response.z - expected_response.z).abs() < 3e-4,
-                        "actual={actual_response:?} native={expected_response:?}"
+                        "actual={actual_response:?} reference={expected_response:?}"
                     );
                 }
             }
@@ -3660,7 +3660,7 @@ mod tests {
                 assert!(
                     app.world().get::<Sleeping>(first).is_none()
                         && app.world().get::<Sleeping>(second).is_none(),
-                    "Source sleep must retain native member eligibility: disabled={disabled} step={step}"
+                    "Source sleep must retain reference member eligibility: disabled={disabled} step={step}"
                 );
             }
         }

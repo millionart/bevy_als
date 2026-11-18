@@ -1,5 +1,0 @@
-Audit scripts checked: 13 (9 Python, 4 PowerShell)
-Migrated dependency metadata available in target/play/deps
-Cargo metadata target: target; legacy directory absent
-PowerShell parser: 6 scripts passed
-Migrated Cargo depfile retains the historical target_game path.

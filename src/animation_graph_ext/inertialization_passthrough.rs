@@ -1969,7 +1969,7 @@ mod tests {
     #[test]
     fn raw_rotation_difference_matches_native_pose_samples() {
         let reference: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d195/rotation.replay.json"
+            "../tests/fixtures/graph/inertia_rotation.json"
         ))
         .unwrap();
         let bone = BoneId::default();
@@ -2008,7 +2008,7 @@ mod tests {
             let output = apply_source_inertialization(&pose, &state);
             let actual =
                 Vec4::from_array(output.get_bone(bone).unwrap().rotation.unwrap().to_array());
-            let expected = Vec4::from_array(quaternion("native_rotation").to_array());
+            let expected = Vec4::from_array(quaternion("reference_rotation").to_array());
             let error = (actual - expected)
                 .length()
                 .min((actual + expected).length());
@@ -2202,12 +2202,12 @@ mod tests {
                         if bone_pose {
                             let actual = output.get_bone(bone).unwrap().translation.unwrap().x;
                             assert!(
-                                (actual - scalar("native_m")).abs() < 8e-8,
+                                (actual - scalar("reference_m")).abs() < 8e-8,
                                 "{}: {actual}",
                                 case["name"]
                             );
                         }
-                        if let Some(expected) = frame["native_curve"].as_f64() {
+                        if let Some(expected) = frame["reference_curve"].as_f64() {
                             let actual = state
                                 .context
                                 .curves
@@ -2229,14 +2229,14 @@ mod tests {
     #[test]
     fn immediate_inertial_stop_clears_deficit_before_reentry() {
         assert_native_inertialization_replay(
-            include_str!("../../docs/audit/bf144/d193/deficit.replay.json"),
+            include_str!("../tests/fixtures/graph/inertia_deficit.json"),
             true,
         );
     }
 
     #[test]
     fn positive_short_requests_reach_the_source_bone_and_curve_decay() {
-        let reference = include_str!("../../docs/audit/bf144/d194/short-requests.replay.json");
+        let reference = include_str!("../tests/fixtures/graph/inertia_short_requests.json");
         assert_native_inertialization_replay(reference, true);
         assert_native_inertialization_replay(reference, false);
     }
@@ -2244,7 +2244,7 @@ mod tests {
     #[test]
     fn first_inertial_curve_history_supplies_both_snapshots() {
         assert_native_inertialization_replay(
-            include_str!("../../docs/audit/bf144/d196/curve-history.replay.json"),
+            include_str!("../tests/fixtures/graph/inertia_curve_history.json"),
             true,
         );
     }
@@ -2252,7 +2252,7 @@ mod tests {
     #[test]
     fn expired_inertialization_copies_pose_and_curve_presence() {
         assert_native_inertialization_replay(
-            include_str!("../../docs/audit/bf144/d240/terminal.replay.json"),
+            include_str!("../tests/fixtures/graph/inertia_terminal_frame.json"),
             true,
         );
     }
@@ -2262,11 +2262,11 @@ mod tests {
         use serde_json::Value;
 
         let request: Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d190/inertia.request.json"
+            "../tests/fixtures/graph/inertia_inputs.json"
         ))
         .unwrap();
         let reference: Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d190/thresholds.replay.json"
+            "../tests/fixtures/graph/inertia_thresholds.json"
         ))
         .unwrap();
         let bone = BoneId::default();
@@ -2332,7 +2332,7 @@ mod tests {
     #[test]
     fn translation_decay_matches_native_centimeter_samples() {
         let reference: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d191/translation.replay.json"
+            "../tests/fixtures/graph/inertia_translation.json"
         ))
         .unwrap();
         let bone = BoneId::default();
@@ -2373,7 +2373,7 @@ mod tests {
     #[test]
     fn translation_projection_preserves_native_float_narrowing() {
         let reference: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d192/projection.replay.json"
+            "../tests/fixtures/graph/inertia_projection.json"
         ))
         .unwrap();
         let bone = BoneId::default();
@@ -2417,7 +2417,7 @@ mod tests {
             let result = apply_source_inertialization(&pose, &state);
             let actual = result.get_bone(bone).unwrap().translation.unwrap();
             assert!(
-                actual.abs_diff_eq(vector("native_m"), 8e-10),
+                actual.abs_diff_eq(vector("reference_m"), 8e-10),
                 "{}: {actual:?}",
                 case["name"]
             );

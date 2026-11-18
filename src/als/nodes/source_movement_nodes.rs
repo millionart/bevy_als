@@ -793,7 +793,7 @@ mod tests {
             }
             assert!(
                 dot > 1.0 - 1e-5 && distance < 1e-5,
-                "Call counter changes the actual native Plant Foot pose: gap={gap}, expected_hips={expected_hips}, rotation_error_degrees={}, location_error={distance}",
+                "Call counter changes the actual reference Plant Foot pose: gap={gap}, expected_hips={expected_hips}, rotation_error_degrees={}, location_error={distance}",
                 (2.0 * dot.clamp(-1.0, 1.0).acos()).to_degrees()
             );
         }

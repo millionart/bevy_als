@@ -763,11 +763,11 @@ mod tests {
         let filter =
             SpatialQueryFilter::from_mask(crate::als::character::AlsCollisionLayer::Visibility)
                 .with_excluded_entities([owner]);
-        let (snapshot, native) = app
+        let (snapshot, reference) = app
             .world_mut()
             .run_system_cached_with(capture, filter.clone())
             .unwrap();
-        let native = native.unwrap();
+        let reference = reference.unwrap();
         let query = RigQueryContext {
             world: Arc::new(snapshot),
             filter,
@@ -783,8 +783,8 @@ mod tests {
             )
             .unwrap()
             .unwrap();
-        assert!((hit.0.y - (3.0 - native.distance) as f64).abs() < 1e-7);
-        assert_eq!(hit.1, native.normal.as_dvec3());
+        assert!((hit.0.y - (3.0 - reference.distance) as f64).abs() < 1e-7);
+        assert_eq!(hit.1, reference.normal.as_dvec3());
         assert!(hit.0.y.abs() < 1e-6);
         app.world_mut()
             .get_mut::<Transform>(floor)

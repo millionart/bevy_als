@@ -2746,16 +2746,22 @@ pub(crate) mod tests {
             let graph = schedule.graph();
             let dependencies = graph.dependency().graph();
             let hierarchy = graph.hierarchy().graph();
-            let find = |needle: &str| {
+            let find = |system_type, label| {
                 schedule
                     .systems()
                     .unwrap()
-                    .find(|(_, system)| system.name().contains(needle))
+                    .find(|(_, system)| system.system_type() == system_type)
                     .map(|(key, _)| NodeId::System(key))
-                    .unwrap_or_else(|| panic!("Missing system: {needle}"))
+                    .unwrap_or_else(|| panic!("Missing system: {label}"))
             };
-            let source = find("locomotion_drive_system");
-            let target = find("ragdoll_exit_route_system");
+            let source = find(
+                IntoSystem::into_system(crate::als::motion::locomotion_drive_system).system_type(),
+                "locomotion_drive_system",
+            );
+            let target = find(
+                IntoSystem::into_system(ragdoll_exit_route_system).system_type(),
+                "ragdoll_exit_route_system",
+            );
             let containing_sets = |system| {
                 let mut nodes = vec![system];
                 let mut index = 0;
@@ -6045,7 +6051,7 @@ pub(crate) mod tests {
         }
 
         let cases: Vec<RecoveryCase> = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d111/recovery-cases.json"
+            "../../../tests/fixtures/actions/recovery_orientation.json"
         ))
         .unwrap();
         assert_eq!(cases.len(), 7);

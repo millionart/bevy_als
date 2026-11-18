@@ -1,8 +1,0 @@
-{
-  "game_started": false,
-  "gate": "PASS_ACTUAL_VISUAL_RUNNER_ROUTING_WITHOUT_GAME_START",
-  "build_directory_rejected": true,
-  "existing_evidence_preserved": true,
-  "git_directory_accepted": true,
-  "environment_and_report_paths_relative": true
-}

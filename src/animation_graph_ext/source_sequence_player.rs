@@ -883,7 +883,7 @@ mod tests {
         use std::time::{Duration, Instant};
 
         let reference: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d199/timeline-compiler.json"
+            "../tests/fixtures/graph/sequence_timelines.json"
         ))
         .unwrap();
         let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
@@ -894,7 +894,7 @@ mod tests {
             .iter()
             .map(|case| {
                 let path = case["clip"].as_str().unwrap();
-                let duration = case["native_duration"].as_f64().unwrap() as f32;
+                let duration = case["reference_duration"].as_f64().unwrap() as f32;
                 (server.load::<GraphClip>(path.to_owned()), path, duration)
             })
             .collect::<Vec<_>>();
@@ -1496,17 +1496,17 @@ mod tests {
         let cases = [
             (
                 "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
-                "front.native.json",
+                "get_up_front_sampled_pose.json",
                 [3, 5],
             ),
             (
                 "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
-                "back.native.json",
+                "get_up_back_sampled_pose.json",
                 [3, 5],
             ),
             (
                 "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron",
-                "sprint.native.json",
+                "sprint_sampled_pose.json",
                 [6, 7],
             ),
         ];
@@ -1535,16 +1535,16 @@ mod tests {
         }
         let clips = app.world().resource::<Assets<GraphClip>>();
         let skeletons = app.world().resource::<Assets<Skeleton>>();
-        let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d124");
+        let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/fixtures/graph");
         for ((_, file, samples), handle) in cases.into_iter().zip(handles) {
             let clip = clips.get(&handle).unwrap();
             let skeleton = skeletons.get(&clip.skeleton).unwrap();
-            let native: serde_json::Value =
+            let reference: serde_json::Value =
                 serde_json::from_slice(&std::fs::read(evidence.join(file)).unwrap()).unwrap();
             let mut unbound = clip.clone();
             unbound.source = None;
             for index in samples {
-                let frame = &native["sequence_pose_probe"]["frames"][index];
+                let frame = &reference["pose_samples"]["frames"][index];
                 let time = frame["time"].as_f64().unwrap() as f32;
                 let baked = sample_pose(clip, time);
                 let unbound_baked = sample_pose(&unbound, time);

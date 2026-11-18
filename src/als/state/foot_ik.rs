@@ -1368,7 +1368,7 @@ mod tests {
     #[test]
     fn foot_thigh_constraint_matches_native_centimeter_angles() {
         let cases: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../docs/audit/bf144/u07/foot-thigh-angle/source-cases.json",
+            "../../tests/fixtures/rig/foot_thigh_angles.json",
         ))
         .unwrap();
         let location = |row: &serde_json::Value| {
@@ -1590,7 +1590,7 @@ mod tests {
     #[test]
     fn moving_foot_lock_matches_native_centimeter_cache() {
         let cases: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../docs/audit/bf144/u07/foot-target-precision/moving-base/source-cases.json",
+            "../../tests/fixtures/rig/moving_base_foot_targets.json",
         ))
         .unwrap();
         let position = |row: &serde_json::Value| {

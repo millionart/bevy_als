@@ -1,6 +1,0 @@
-{
-  "source_asset": "/ALS/ALS/Character/ALI_Overlay.ALI_Overlay",
-  "graphs": [
-    {"target": "ali_overlay.animgraph.ron", "source_suffix": "Overlay"}
-  ]
-}

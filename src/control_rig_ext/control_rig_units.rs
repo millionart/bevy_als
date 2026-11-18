@@ -465,7 +465,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d165b/foot-history.replay.json"
+            "../tests/fixtures/rig/foot_spring_history.json"
         ))
         .unwrap();
         let curves = HashMap::default();
@@ -1051,11 +1051,11 @@ mod tests {
             foot: [f64; 4],
             initial: [f64; 4],
             target: [f64; 4],
-            native_roll: f64,
+            reference_roll: f64,
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d163b/products.replay.json"
+            "../tests/fixtures/rig/quaternion_products.json"
         ))
         .unwrap();
         let transform = |rotation| RigTransform {
@@ -1085,7 +1085,7 @@ mod tests {
                     rig_normalize(expected)
                 );
             } else if case.name == "controlled_roll" {
-                assert_eq!(rig_euler(actual).x, fixture.foot.native_roll);
+                assert_eq!(rig_euler(actual).x, fixture.foot.reference_roll);
             }
         }
 
@@ -2165,7 +2165,7 @@ mod tests {
         use crate::extensions::control_rig_hierarchy::{RigHierarchy, RigSpace};
 
         let source: Vec<serde_json::Value> = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d242/native-cdo-bones.json"
+            "../tests/fixtures/rig/initial_bone_transforms.json"
         ))
         .unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
@@ -2250,7 +2250,7 @@ mod tests {
         ))
         .unwrap();
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d165c/pelvis-history.replay.json"
+            "../tests/fixtures/rig/pelvis_motion_history.json"
         ))
         .unwrap();
         let program = &definition.program;

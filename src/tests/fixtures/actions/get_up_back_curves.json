@@ -1,0 +1,566 @@
+{
+  "timeline": {
+    "samples": [
+      {
+        "name": "seek-0",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 0,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": -2.9802322387695312e-08,
+              "FootRightIk": -2.9802322387695312e-08,
+              "FootLeftLock": -2.9802322387695312e-08,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -1,
+              "LayerArmRight": -1,
+              "LayerHead": -1,
+              "LayerLegs": -1,
+              "LayerPelvis": -1,
+              "LayerSpine": -1,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-1",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 0.25,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 0.5534802675247192,
+              "FootRightIk": -2.9802322387695312e-08,
+              "FootLeftLock": -2.291085543504323e-08,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -1,
+              "LayerArmRight": -1,
+              "LayerHead": -1,
+              "LayerLegs": -1,
+              "LayerPelvis": -1,
+              "LayerSpine": -1,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-2",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 0.375,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 0.8994054794311523,
+              "FootRightIk": -2.9802322387695312e-08,
+              "FootLeftLock": -1.946512284689561e-08,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -1,
+              "LayerArmRight": -1,
+              "LayerHead": -1,
+              "LayerLegs": -1,
+              "LayerPelvis": -1,
+              "LayerSpine": -1,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-3",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 0.75,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 0.20558452606201172,
+              "FootLeftLock": -9.127923306095909e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -1,
+              "LayerArmRight": -1,
+              "LayerHead": -1,
+              "LayerLegs": -1,
+              "LayerPelvis": -1,
+              "LayerSpine": -1,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-4",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 0.8999999761581421,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 0.7407407760620117,
+              "FootLeftLock": -4.993044200318764e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -1,
+              "LayerArmRight": -1,
+              "LayerHead": -1,
+              "LayerLegs": -1,
+              "LayerPelvis": -1,
+              "LayerSpine": -1,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-5",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 0.9803241491317749,
+              "FootLeftLock": -2.2364563534438275e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.9077147841453552,
+              "LayerArmRight": -0.8959999680519104,
+              "LayerHead": -0.9077147841453552,
+              "LayerLegs": -0.9077147841453552,
+              "LayerPelvis": -0.9077147841453552,
+              "LayerSpine": -0.9077147841453552,
+              "ViewBlock": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-6",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.100000023841858,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 5.201314934311085e-10,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.6835935711860657,
+              "LayerArmRight": -0.6479998826980591,
+              "LayerHead": -0.6835935711860657,
+              "LayerLegs": -0.6835935711860657,
+              "LayerPelvis": -0.6835935711860657,
+              "LayerSpine": -0.6835935711860657,
+              "ViewBlock": 0.8819241523742676
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-7",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.2000000476837158,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 3.2767175639492052e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.4067380130290985,
+              "LayerArmRight": -0.35199981927871704,
+              "LayerHead": -0.4067380130290985,
+              "LayerLegs": -0.4067380130290985,
+              "LayerPelvis": -0.4067380130290985,
+              "LayerSpine": -0.4067380130290985,
+              "ViewBlock": 0.6064139604568481
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-8",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.215999960899353,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 3.7177692036038934e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.3628328740596771,
+              "LayerArmRight": -0.30660000443458557,
+              "LayerHead": -0.3628328740596771,
+              "LayerLegs": -0.3628328740596771,
+              "LayerPelvis": -0.3628328740596771,
+              "LayerSpine": -0.3628328740596771,
+              "ViewBlock": 0.5556119680404663
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-9",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.2300000190734863,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 4.103693385104634e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.32522398233413696,
+              "LayerArmRight": -0.2681919038295746,
+              "LayerHead": -0.32522398233413696,
+              "LayerLegs": -0.32522398233413696,
+              "LayerPelvis": -0.32522398233413696,
+              "LayerSpine": -0.32522398233413696,
+              "ViewBlock": 0.510713517665863
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-10",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.2333333492279053,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 4.19558077169313e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.31640610098838806,
+              "LayerArmRight": -0.2592591643333435,
+              "LayerHead": -0.31640610098838806,
+              "LayerLegs": -0.31640610098838806,
+              "LayerPelvis": -0.31640610098838806,
+              "LayerSpine": -0.31640610098838806,
+              "ViewBlock": 0.5
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-11",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.399899959564209,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 8.78713279917065e-09,
+              "FootRightLock": -2.9802322387695312e-08,
+              "LayerArmLeft": -0.011296495795249939,
+              "LayerArmRight": -1.4979741536080837e-07,
+              "LayerHead": -0.011296495795249939,
+              "LayerLegs": -0.011296495795249939,
+              "LayerPelvis": -0.011296495795249939,
+              "LayerSpine": -0.011296495795249939,
+              "ViewBlock": 0.05555121600627899
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-12",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.4333332777023315,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 1,
+              "FootRightLock": 1,
+              "LayerArmLeft": -2.9802322387695312e-08,
+              "LayerArmRight": -2.9802322387695312e-08,
+              "LayerHead": -2.9802322387695312e-08,
+              "LayerLegs": -2.9802322387695312e-08,
+              "LayerPelvis": -2.9802322387695312e-08,
+              "LayerSpine": -2.9802322387695312e-08,
+              "ViewBlock": 0.014577306807041168
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-13",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.4500000476837158,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 1,
+              "FootRightLock": 1,
+              "LayerArmLeft": -2.9802322387695312e-08,
+              "LayerArmRight": -2.9802322387695312e-08,
+              "LayerHead": -2.9802322387695312e-08,
+              "LayerLegs": -2.9802322387695312e-08,
+              "LayerPelvis": -2.9802322387695312e-08,
+              "LayerSpine": -2.9802322387695312e-08,
+              "ViewBlock": 0.0037353932857513428
+            }
+          }
+        ]
+      },
+      {
+        "name": "seek-14",
+        "frames": [
+          {
+            "delta_seconds": 0,
+            "position": 1.4999500513076782,
+            "weight": 1,
+            "valid": true,
+            "playing": true,
+            "stopped": false,
+            "curves": {
+              "FootLeftIk": 1,
+              "FootRightIk": 1,
+              "FootLeftLock": 1,
+              "FootRightLock": 1,
+              "LayerArmLeft": -2.9802322387695312e-08,
+              "LayerArmRight": -2.9802322387695312e-08,
+              "LayerHead": -2.9802322387695312e-08,
+              "LayerLegs": -2.9802322387695312e-08,
+              "LayerPelvis": -2.9802322387695312e-08,
+              "LayerSpine": -2.9802322387695312e-08,
+              "ViewBlock": -2.9802322387695312e-08
+            }
+          }
+        ]
+      }
+    ],
+    "montage_length": 1.5
+  },
+  "notifications": {
+    "duration": 1.5,
+    "cases": [
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -891,12 +891,12 @@ mod tests {
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "Grounded native lean fixture did not leave its landing state"
+                "Grounded reference lean fixture did not leave its landing state"
             );
         }
         assert_eq!(
             stable_frames, 3,
-            "Grounded native lean fixture did not update on three consecutive frames"
+            "Grounded reference lean fixture did not update on three consecutive frames"
         );
         {
             let mut fixture = app.world_mut().resource_mut::<Fixture>();

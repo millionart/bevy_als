@@ -286,11 +286,11 @@ mod tests {
 
     #[test]
     fn roll_uses_native_substeps_and_accumulated_blend_weights() {
-        let native: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d118b/roll.native.json"
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/actions/roll_timeline.json"
         ))
         .unwrap();
-        let samples = native["montage_clock_probe"]["samples"].as_array().unwrap();
+        let samples = reference["timeline"]["samples"].as_array().unwrap();
         assert_eq!(samples.len(), 14);
         for sample in samples {
             let name = sample["name"].as_str().unwrap();

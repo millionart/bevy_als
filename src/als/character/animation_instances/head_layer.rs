@@ -380,7 +380,7 @@ mod tests {
             let mut expected = head_state_from_player(player);
             assert!(
                 !expected.initialization_required,
-                "Head fixture must reach its native refresh before the base rotates"
+                "Head fixture must reach its reference refresh before the base rotates"
             );
             if time.is_paused() {
                 fixture.expected = Some(expected);
@@ -493,7 +493,7 @@ mod tests {
         );
         assert_eq!(
             paused, before_pause,
-            "Paused native head must not apply the previous movement-base delta again"
+            "Paused reference head must not apply the previous movement-base delta again"
         );
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         app.world_mut()

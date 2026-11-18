@@ -831,7 +831,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d223/cache.replay.json"
+            "../tests/fixtures/graph/cached_pose_order.json"
         ))
         .unwrap();
         let mut world = World::new();

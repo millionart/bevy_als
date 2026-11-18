@@ -458,7 +458,7 @@ pub(crate) fn native_weighted_rotation_cases() -> Vec<NativeWeightedRotationCase
         cases: Vec<NativeWeightedRotationCase>,
     }
     let fixture: Fixture = serde_json::from_str(include_str!(
-        "../../docs/audit/bf144/d177/weighted-rotations.replay.json"
+        "../tests/fixtures/graph/profile_rotation_weights.json"
     ))
     .unwrap();
     fixture.cases
@@ -863,7 +863,7 @@ mod tests {
         use serde_json::Value;
 
         let reference: Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d197/weights.replay.json"
+            "../tests/fixtures/graph/profile_weights.json"
         ))
         .unwrap();
         let (skeleton, foot) = skeleton();

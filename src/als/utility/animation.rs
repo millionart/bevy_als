@@ -173,10 +173,10 @@ mod tests {
         let rotation = Quat::from_xyzw(0.0, -0.40180978, 0.0, 0.9157232);
         assert_eq!(acceleration.dot(velocity), 0.0);
         let amount = acceleration_amount(acceleration, velocity, rotation, 20.0, 15.0);
-        let native = Vec2::new(-0.27081388, 0.29438046);
+        let reference = Vec2::new(-0.27081388, 0.29438046);
         assert!(
-            amount.abs_diff_eq(native, 1e-7),
-            "Native braking lean differs: {amount:?} != {native:?}"
+            amount.abs_diff_eq(reference, 1e-7),
+            "Native braking lean differs: {amount:?} != {reference:?}"
         );
         let positive = acceleration_amount(Vec3::X, Vec3::X, Quat::IDENTITY, 20.0, 15.0);
         let braking = acceleration_amount(-Vec3::X, Vec3::X, Quat::IDENTITY, 20.0, 15.0);

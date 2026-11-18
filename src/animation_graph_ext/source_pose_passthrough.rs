@@ -1298,7 +1298,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d218/order.replay.json"
+            "../tests/fixtures/graph/sync_submission_order.json"
         ))
         .unwrap();
         let mut world = World::new();
@@ -1656,7 +1656,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d221/weights.replay.json"
+            "../tests/fixtures/graph/pose_context_weights.json"
         ))
         .unwrap();
         let mut world = World::new();

@@ -658,6 +658,11 @@ fn sample_transition_stack(
     Some((pose, context, total.min(1.0)))
 }
 
+#[cfg(test)]
+pub(crate) fn transition_slot_bridge_type() -> std::any::TypeId {
+    IntoSystem::into_system(bridge_root_transition_slot_samples).system_type()
+}
+
 fn bridge_root_transition_slot_samples(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     montage_assets: Res<crate::standing_source::SourceMontageAssets>,
@@ -1668,33 +1673,33 @@ mod tests {
 
     #[test]
     fn transition_clock_matches_native_montage_frames() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d118c");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/fixtures/actions");
         let read = |name: &str| -> serde_json::Value {
             serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap()
         };
         let value = |v: &serde_json::Value, name: &str| v[name].as_f64().unwrap() as f32;
         for (report, request) in [
-            ("stop-left.native.json", "stop-clock.request.json"),
-            ("stop-right.native.json", "stop-clock.request.json"),
-            ("crouch-right.native.json", "stop-clock.request.json"),
-            ("crouch-step.native.json", "step-clock.request.json"),
-            ("crouch-quick.native.json", "quick-clock.request.json"),
+            ("stop_left_timeline.json", "stop_inputs.json"),
+            ("stop_right_timeline.json", "stop_inputs.json"),
+            ("crouch_right_timeline.json", "stop_inputs.json"),
+            ("crouch_step_timeline.json", "crouch_step_inputs.json"),
+            ("crouch_quick_timeline.json", "crouch_quick_inputs.json"),
         ] {
-            let native = read(report);
-            let native = &native["montage_clock_probe"];
+            let reference = read(report);
+            let reference = &reference["timeline"];
             let request = read(request);
             let options = &request["dynamic_montage"];
             let samples = request["samples"].as_array().unwrap();
-            let native_samples = native["samples"].as_array().unwrap();
+            let native_samples = reference["samples"].as_array().unwrap();
             assert_eq!(samples.len(), native_samples.len());
-            let duration = value(native, "montage_length");
+            let duration = value(reference, "montage_length");
             for (sample, expected) in samples.iter().zip(native_samples) {
                 assert_eq!(sample["name"], expected["name"]);
                 let name = sample["name"].as_str().unwrap();
                 let mut playback = match (report, name) {
-                    ("stop-left.native.json", "natural_stop") => AlsTransitionPlayback::stop(0.0),
-                    ("stop-right.native.json", "natural_stop") => AlsTransitionPlayback::stop(1.0),
-                    ("crouch-right.native.json", "crouching_right") => {
+                    ("stop_left_timeline.json", "natural_stop") => AlsTransitionPlayback::stop(0.0),
+                    ("stop_right_timeline.json", "natural_stop") => AlsTransitionPlayback::stop(1.0),
+                    ("crouch_right_timeline.json", "crouching_right") => {
                         AlsTransitionPlayback::crouching_stop_right()
                     }
                     (_, "step_window") => AlsTransitionPlayback::crouching_dynamic(0.0),
@@ -2045,7 +2050,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d174/yaw.replay.json"
+            "../../../tests/fixtures/actions/rotate_in_place.json"
         ))
         .unwrap();
         for case in fixture.cases {
@@ -2336,7 +2341,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d167/boundary.replay.json"
+            "../../../tests/fixtures/actions/transition_weight_boundary.json"
         ))
         .unwrap();
         for case in fixture.cases {

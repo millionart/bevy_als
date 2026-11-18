@@ -676,7 +676,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .rolling
                 .interrupt_when_in_air,
-            "The native default asset overrides the source constructor's interrupt switch"
+            "The reference default asset overrides the source constructor's interrupt switch"
         );
         app.world_mut()
             .entity_mut(actor)
@@ -2679,7 +2679,7 @@ pub(crate) mod tests {
         let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
         assert!(
             velocity.abs() < 0.02,
-            "Source native Jump rejects any nonempty action even when input reaches Input_OnJump: velocity={velocity}, action={:?}",
+            "Source reference Jump rejects any nonempty action even when input reaches Input_OnJump: velocity={velocity}, action={:?}",
             app.world().get::<AlsNotifyLocomotionAction>(character)
         );
         assert_eq!(
@@ -2706,7 +2706,7 @@ pub(crate) mod tests {
         app.update();
         assert!(
             app.world().get::<LinearVelocity>(character).unwrap().y > 3.0,
-            "Source empty action accepts a fresh native Jump after the loaded end notify"
+            "Source empty action accepts a fresh reference Jump after the loaded end notify"
         );
     }
 
@@ -3969,7 +3969,7 @@ pub(crate) mod tests {
             }
         }
         let source: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../tools/fixtures/roll_root_source_samples.json"
+            "../../../tests/fixtures/actions/roll_root_samples.json"
         ))
         .unwrap();
         let samples: Vec<[f32; 4]> = serde_json::from_value(source["samples"].clone()).unwrap();

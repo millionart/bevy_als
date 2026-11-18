@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "name": "standing_default",
+      "origin": "Standing",
+      "budget": 1,
+      "allowed": true,
+      "states": [
+        "Standing",
+        "Crouching",
+        "Crouching"
+      ],
+      "entry": true
+    },
+    {
+      "name": "standing_1",
+      "origin": "Standing",
+      "budget": 1,
+      "allowed": true,
+      "states": [
+        "Standing",
+        "Crouching",
+        "Crouching"
+      ],
+      "entry": true
+    },
+    {
+      "name": "standing_2",
+      "origin": "Standing",
+      "budget": 2,
+      "allowed": true,
+      "states": [
+        "Crouching",
+        "Crouching",
+        "Crouching"
+      ],
+      "entry": true
+    },
+    {
+      "name": "standing_same",
+      "origin": "Standing",
+      "budget": 1,
+      "allowed": false,
+      "states": [
+        "Standing",
+        "Standing",
+        "Standing"
+      ],
+      "entry": true
+    },
+    {
+      "name": "crouching_default",
+      "origin": "Crouching",
+      "budget": 1,
+      "allowed": true,
+      "states": [
+        "Crouching",
+        "Standing",
+        "Standing"
+      ],
+      "entry": true
+    },
+    {
+      "name": "crouching_1",
+      "origin": "Crouching",
+      "budget": 1,
+      "allowed": true,
+      "states": [
+        "Crouching",
+        "Standing",
+        "Standing"
+      ],
+      "entry": true
+    },
+    {
+      "name": "crouching_2",
+      "origin": "Crouching",
+      "budget": 2,
+      "allowed": true,
+      "states": [
+        "Standing",
+        "Standing",
+        "Standing"
+      ],
+      "entry": true
+    },
+    {
+      "name": "crouching_same",
+      "origin": "Crouching",
+      "budget": 1,
+      "allowed": false,
+      "states": [
+        "Crouching",
+        "Crouching",
+        "Crouching"
+      ],
+      "entry": true
+    }
+  ],
+  "reference_frames": 24,
+  "free_entry_ablation": 4
+}

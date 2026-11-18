@@ -2557,7 +2557,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d201/clock.replay.json"
+            "../tests/fixtures/graph/sequence_sync_clock.json"
         ))
         .unwrap();
         for trace in reference.cases {
@@ -2756,7 +2756,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d205/resync.replay.json"
+            "../tests/fixtures/graph/sync_resumption.json"
         ))
         .unwrap();
         let mut assets = Assets::<GraphClip>::default();
@@ -2848,7 +2848,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d208/marker.replay.json"
+            "../tests/fixtures/graph/marker_pause_resume.json"
         ))
         .unwrap();
         let canonical = &reference.players[0];
@@ -2993,7 +2993,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d209/marker.replay.json"
+            "../tests/fixtures/graph/marker_clearance.json"
         ))
         .unwrap();
         for case in reference.cases {
@@ -3077,7 +3077,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d212/leader.replay.json"
+            "../tests/fixtures/graph/sync_leader_selection.json"
         ))
         .unwrap();
         for case in reference.cases {
@@ -3871,7 +3871,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d202/order.replay.json"
+            "../tests/fixtures/graph/sync_update_order.json"
         ))
         .unwrap();
         let ids: Vec<NodeId> = (0..reference.players.len())

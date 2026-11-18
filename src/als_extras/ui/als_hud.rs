@@ -897,7 +897,7 @@ pub(crate) mod tests {
                     assert!(
                         (rectangle(app.world(), cell).1.x - available * source.0 / weights).abs()
                             <= 1.0,
-                        "Column width differs from the native slot allocation"
+                        "Column width differs from the reference slot allocation"
                     );
                 }
                 let mut previous_end = origin.x;

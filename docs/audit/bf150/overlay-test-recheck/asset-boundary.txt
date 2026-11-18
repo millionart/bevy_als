@@ -1,7 +1,0 @@
-{
-  "audit_only_graphs_rejected_from_runtime_assets": "PASS",
-  "runtime_reference_to_audit_graph_rejected": "PASS",
-  "retired_manual_overlay_and_reference_rejected": "PASS",
-  "source_module_assets_and_separate_validation_fixtures": "PASS",
-  "derived_als_assets_and_finder_metadata_classified": "PASS"
-}

@@ -1648,7 +1648,7 @@ pub(crate) mod tests {
         }
         assert!(
             maximum < 1e-6,
-            "Current Mantle slot used spherical instead of native weighted blending: error={maximum}"
+            "Current Mantle slot used spherical instead of reference weighted blending: error={maximum}"
         );
     }
 

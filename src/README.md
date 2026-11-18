@@ -35,18 +35,8 @@ src/
 
 角色四向速度混合位于动画实例的 `actual_motion`。角色、相机及 Overlay 道具的源材质槽接线位于 `als/character/overlay_materials.rs`。碰撞命中的物理表面位于 `SceneQuery` 所在模块，供脚步效果消费。
 
-## 关卡入口与自动场景
+## 构建入口
 
-`playground` feature 提供 `manual_playground` example、Playground 场景和 UI。`als_extras/levels/manual_playground.rs` 组装原地形、角色、相机、环境和 UI，由 `run_manual.ps1`（Windows 包装为 `run_manual.bat`）启动。
+`als_extras/levels/als_character.rs` 提供最小接入示例。启用 `playground` 后可从 `manual_playground` example 启动完整场景。保留的自动驱动、报告与回归均在 `src/tests/`，JSON 夹具位于 `src/tests/fixtures/`。
 
-`tools/manual_playground_integration/mod.rs` 提供移植过程中的自动驱动 `ManualPlaygroundIntegrationPlugin`。只有设置 `ALS_MANUAL_INTEGRATION_GATE` 才注册它；它驱动移动、蹲起、动作、镜头、UI 等场景，检查状态/姿态并发布覆盖率、失败与进展报告。公共 runner 的动态场景仍依赖它；它不是另一个 Playground。
-
-`tools/animation_visual_validation.rs` 收集公共视觉和数值报告，`tools/anim_probe.rs` 提供诊断。两者与自动驱动通过 `playground` feature 或库单元测试编译，可直接读取 crate 内遥测。角色输入和状态系统由 `AlsPlugin` 注册，供宿主独立使用。
-
-## Cargo 与资产身份
-
-项目使用单一 Cargo 包 `bevy_als`。`als/mod.rs`、`als_camera/mod.rs` 和 `extensions.rs` 是模块与类型注册入口。专项程序位于 `tools/examples`，集成测试位于 `tools/tests`，源码单元测试与被测代码同文件。Cargo.toml 声明 example 和 test 路径，以及依赖 Playground 的示例所需 feature。
-
-RigVM、层级、数学、IK 和已有的 UE 原生 Control Rig 单位来自锁定的 `bevy_control_rig` Git 依赖。`control_rig_ext` 按源标识执行 ALS 自定义单位。角色层提供 Rig 的查询上下文和单位接线，`animation_graph_ext` 的图节点负责传递当前帧的 Pose、曲线、调用时机和结果。PhysicsAsset 的骨骼刚体装配和动画关节目标也由 `animation_graph_ext` 管理。
-
-消费方从 `bevy_als` 根模块导入 `AlsPlugin`、角色生成和状态请求。RON 中已有的 `als_ext::NodeName` 是显式固定的反射类型名，用于资产兼容。
+`bevy_als` 作为单一 Cargo 库发布公开角色 API。RON 中的 `als_ext::NodeName` 是固定的反射类型标识。

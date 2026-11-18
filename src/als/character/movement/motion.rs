@@ -23972,7 +23972,7 @@ mod tests {
             assert_eq!(
                 *app.world().get::<LocomotionState>(character).unwrap(),
                 LocomotionState::Air,
-                "Actual native Jump must reach the source valid air mode before pause"
+                "Actual reference Jump must reach the source valid air mode before pause"
             );
             app.world_mut()
                 .get_mut::<AlsInputCommand>(character)
@@ -24130,7 +24130,7 @@ mod tests {
             assert_eq!(
                 flow.just_starting() == Some(AlsControlSchemeActionDiscriminant::Jump),
                 !ragdolling && !allows_mantle && !crouching,
-                "Actual native Jump must only run after earlier source branches return false"
+                "Actual reference Jump must only run after earlier source branches return false"
             );
         }
     }
@@ -24187,7 +24187,7 @@ mod tests {
                     .action_flow_status()
                     .ongoing()
                     .is_none(),
-                "Source entering Walking resets pending native Jump: hold={max_hold_time}"
+                "Source entering Walking resets pending reference Jump: hold={max_hold_time}"
             );
             assert_eq!(
                 app.world().get::<LocomotionState>(character),
@@ -24282,7 +24282,7 @@ mod tests {
         assert_eq!(
             controller.action_flow_status().just_starting(),
             None,
-            "Source nonempty GetUp action rejects the final native Jump even when its input event is dispatched"
+            "Source nonempty GetUp action rejects the final reference Jump even when its input event is dispatched"
         );
         let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
         assert!(

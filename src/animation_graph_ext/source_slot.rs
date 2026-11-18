@@ -67,7 +67,7 @@ pub(crate) fn montage_eligibility_cases() -> Vec<MontageEligibilityCase> {
         cases: Vec<MontageEligibilityCase>,
     }
     let fixture: Fixture = serde_json::from_str(include_str!(
-        "../../docs/audit/bf144/d168/eligibility.replay.json"
+        "../tests/fixtures/graph/slot_eligibility.json"
     ))
     .unwrap();
     fixture.cases
@@ -90,7 +90,7 @@ pub(crate) fn montage_normalization_cases(slot: &str) -> Vec<MontageNormalizatio
         cases: std::collections::HashMap<String, Vec<MontageNormalizationCase>>,
     }
     let mut fixture: Fixture = serde_json::from_str(include_str!(
-        "../../docs/audit/bf144/d169/normalization.replay.json"
+        "../tests/fixtures/graph/slot_normalization.json"
     ))
     .unwrap();
     fixture.cases.remove(slot).unwrap()

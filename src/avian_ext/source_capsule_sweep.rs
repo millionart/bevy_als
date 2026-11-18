@@ -374,7 +374,7 @@ mod tests {
     #[test]
     fn positive_capsule_box_sweeps_match_native_distance_normal_and_point() {
         let document: Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d125a/native-fixtures.json"
+            "../tests/fixtures/physics/capsule_sweeps.json"
         ))
         .unwrap();
         let samples = document["samples"].as_array().unwrap();

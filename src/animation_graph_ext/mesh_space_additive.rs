@@ -551,7 +551,7 @@ mod tests {
     fn mesh_space_additive_uses_source_reciprocal_for_actual_head_chain() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/docs/audit/bf144/d248b1/head-fixture.json"
+            "/src/tests/fixtures/graph/head_chain_rotation.json"
         )))
         .unwrap();
         let quaternion = |value: &serde_json::Value| {
@@ -600,7 +600,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d163c/layered.replay.json"
+            "../tests/fixtures/graph/layered_pose_blending.json"
         ))
         .unwrap();
         let (skeleton, root, child) = test_skeleton();
@@ -668,7 +668,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d170/additive.replay.json"
+            "../tests/fixtures/graph/additive_pose_blending.json"
         ))
         .unwrap();
         let (skeleton, root, _) = test_skeleton();
@@ -741,7 +741,7 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn head_mesh_output_drops_historical_component_normalization() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d241/head-product-fixture.json"
+            "../tests/fixtures/graph/head_local_rotation.json"
         ))
         .unwrap();
         let quaternion = |value: &serde_json::Value| {

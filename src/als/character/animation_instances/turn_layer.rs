@@ -1089,24 +1089,15 @@ mod tests {
             use bevy::ecs::schedule::NodeId;
             let graph = schedule.graph();
             let dependencies = graph.dependency().graph();
-            let find_set = |needle: &str| {
-                dependencies
-                    .nodes()
-                    .filter(|node| matches!(node, NodeId::Set(_)))
-                    .find(|node| graph.get_node_name(node).contains(needle))
-                    .unwrap_or_else(|| panic!("missing schedule set: {needle}"))
-            };
+            let transition_type = crate::stop_link::transition_slot_bridge_type();
             let transition = schedule
                 .systems()
                 .unwrap()
-                .find(|(_, system)| {
-                    system
-                        .name()
-                        .contains("bridge_root_transition_slot_samples")
-                })
+                .find(|(_, system)| system.system_type() == transition_type)
                 .map(|(key, _)| NodeId::System(key))
                 .expect("missing transition bridge system");
-            let evaluate = find_set("Evaluate");
+            let find_set = |set| NodeId::Set(graph.system_sets.get_key(set).unwrap());
+            let evaluate = find_set(PostPhysicsAnimationSet::Evaluate.intern());
             let reaches_evaluate = |start| {
                 let mut pending = vec![start];
                 let mut visited = std::collections::HashSet::new();
@@ -1121,7 +1112,7 @@ mod tests {
                 false
             };
             assert!(
-                reaches_evaluate(find_set("AlsTurnSlotBridgeSet")),
+                reaches_evaluate(find_set(AlsTurnSlotBridgeSet.intern())),
                 "turn bridge has no ordering path to late evaluate"
             );
             assert!(
@@ -1195,7 +1186,7 @@ mod tests {
             effective: Vec<f32>,
         }
         let fixture: CurveFixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d179/curve-accumulation.replay.json"
+            "../../../tests/fixtures/actions/turn_curve_accumulation.json"
         ))
         .unwrap();
         let yaw_speed = crate::extensions::SourceCurveName::from("RotationYawSpeed");
@@ -2245,7 +2236,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d171/replacement.replay.json"
+            "../../../tests/fixtures/actions/turn_replacement.json"
         ))
         .unwrap();
         let mut app = App::new();
@@ -2603,7 +2594,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d175/zero-delta.replay.json"
+            "../../../tests/fixtures/actions/turn_zero_delta.json"
         ))
         .unwrap();
         for case in fixture.cases {
@@ -2656,7 +2647,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../../docs/audit/bf144/d176/stop-window.replay.json"
+            "../../../tests/fixtures/actions/turn_stop_window.json"
         ))
         .unwrap();
         for case in fixture.cases {

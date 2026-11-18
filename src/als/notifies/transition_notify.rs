@@ -640,7 +640,7 @@ mod tests {
         }
 
         let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../../docs/audit/bf144/d173/landing.replay.json"
+            "../../tests/fixtures/actions/landing_notifications.json"
         ))
         .unwrap();
         for case in fixture.cases {

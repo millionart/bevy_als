@@ -1,17 +1,5 @@
-# 资源目录
+# Runtime assets
 
-资源与蓝图按源模块放在同一棵树中：
+The runtime reads `ALS/`, `ALSRuntime/`, and `ALSCamera/` from the Bevy asset root. The optional Playground also uses `ALSExtras/`. Keep each directory's relative paths intact.
 
-- `ALS/`：角色、动画蓝图、Control Rig、物理资产、动画、曲线、OverlayObjects 与脚步材质。
-- `ALSRuntime/`：从 ALS 源动画离线生成的运行时片段和采样数据，供角色和 Bow 道具使用。
-- `ALSCamera/`：相机模型、动画蓝图、组件设置和曲线。
-- `ALSExtras/`：Core/Environment/Levels/UI 的场景与逻辑定义、模型、材质、贴图和界面。
-- `ALS/Material/Footprint/` 包含脚印贴图与 shader；环境使用的默认网格贴图位于 `ALSExtras/Environment/Materials/`。
-- `Validation/`：旧手工图及测试场景，不属于正式运行资源闭包。
-- `docs/`：原始导出来源记录；目录迁移对应关系见 [资源归属说明](../docs/asset-layout.md)。
-
-正式目标路径不使用 `generated/` 前缀。动画蓝图转换器默认按源 package path 安装，安装清单标明源身份和文件所有权。
-
-资源保留原导出名及大小写；`MaterialLibrary` 按项目约定命名为 `Material`。角色、场景和道具的 shader/材质实现位置见 [材质说明](../docs/asset-layout.md#材质与-shader)。
-
-原始 glTF/bin、纹理及曲线源表保持原字节；只有目标描述、图及代码中的资源引用随布局更新。不提交商业源 uasset/umap/fbx。重新导出或增加资源必须先在当前清单登记，再使用仓库原生 source reader 与导入工具，并更新导出记录。
+This repository contains converted models, animations, textures, and descriptions from ALS-Refactored and Unreal Engine. The original asset licenses apply to those assets. The ALS-Refactored MIT notice is included in the repository [license](../LICENSE).

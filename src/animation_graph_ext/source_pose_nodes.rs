@@ -2496,7 +2496,7 @@ mod tests {
         }
 
         let reference: Reference =
-            serde_json::from_str(include_str!("../../docs/audit/bf144/d216/pose.replay.json"))
+            serde_json::from_str(include_str!("../tests/fixtures/graph/two_way_pose_blending.json"))
                 .unwrap();
         let inputs = [
             (
@@ -3713,7 +3713,7 @@ mod tests {
         }
 
         let reference: Reference = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d215/relevancy.replay.json"
+            "../tests/fixtures/graph/relevance_threshold.json"
         ))
         .unwrap();
         let mut graph = AnimationGraph::new();

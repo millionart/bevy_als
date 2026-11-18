@@ -280,7 +280,7 @@ mod tests {
             .map(|(name, mesh)| (name, Arc::new(mesh)))
             .collect();
         let cases: Cases = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d162b/cooked-ray-kernel.replay.json"
+            "../tests/fixtures/physics/mesh_raycasts.json"
         ))
         .unwrap();
         let entity = World::new().spawn_empty().id();
