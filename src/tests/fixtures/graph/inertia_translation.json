@@ -1,0 +1,146 @@
+{
+  "cases": [
+    {
+      "name": "centimeter_stop_window",
+      "magnitude_m": 1.000999986899842e-06,
+      "speed_mps": -6.0059996030759066e-05,
+      "duration_seconds": 0.20000000298023224,
+      "frames": [
+        {
+          "elapsed_seconds": 0.05000000074505806,
+          "translation_m": 1.0250369442132978e-08,
+          "legacy_m": -3.1672266231907997e-07
+        },
+        {
+          "elapsed_seconds": 0.06000000238418579,
+          "translation_m": 1.723165055089737e-09,
+          "legacy_m": -3.3647631880739937e-07
+        },
+        {
+          "elapsed_seconds": 0.07000000029802322,
+          "translation_m": 1.0513758613717172e-10,
+          "legacy_m": -3.2163268315343885e-07
+        },
+        {
+          "elapsed_seconds": 0.09000000357627869,
+          "translation_m": 0.0,
+          "legacy_m": -2.3815448457753519e-07
+        },
+        {
+          "elapsed_seconds": 0.10000000149011612,
+          "translation_m": 0.0,
+          "legacy_m": -1.8768776044453261e-07
+        }
+      ]
+    },
+    {
+      "name": "one_meter_tail",
+      "magnitude_m": 1.0,
+      "speed_mps": 0.0,
+      "duration_seconds": 0.20000000298023224,
+      "frames": [
+        {
+          "elapsed_seconds": 0.009999999776482582,
+          "translation_m": 0.9988418817520142,
+          "legacy_m": 0.9988418817520142
+        },
+        {
+          "elapsed_seconds": 0.019999999552965164,
+          "translation_m": 0.9914399981498718,
+          "legacy_m": 0.9914399981498718
+        },
+        {
+          "elapsed_seconds": 0.029999999329447746,
+          "translation_m": 0.973388135433197,
+          "legacy_m": 0.973388135433197
+        },
+        {
+          "elapsed_seconds": 0.03999999910593033,
+          "translation_m": 0.942080020904541,
+          "legacy_m": 0.942080020904541
+        },
+        {
+          "elapsed_seconds": 0.04999999701976776,
+          "translation_m": 0.896484375,
+          "legacy_m": 0.896484375
+        },
+        {
+          "elapsed_seconds": 0.059999994933605194,
+          "translation_m": 0.8369200229644775,
+          "legacy_m": 0.8369200229644775
+        },
+        {
+          "elapsed_seconds": 0.06999999284744263,
+          "translation_m": 0.7648307085037231,
+          "legacy_m": 0.7648307085037231
+        },
+        {
+          "elapsed_seconds": 0.07999999076128006,
+          "translation_m": 0.68256014585495,
+          "legacy_m": 0.6825600862503052
+        },
+        {
+          "elapsed_seconds": 0.08999998867511749,
+          "translation_m": 0.5931270122528076,
+          "legacy_m": 0.5931270122528076
+        },
+        {
+          "elapsed_seconds": 0.09999998658895493,
+          "translation_m": 0.5000001788139343,
+          "legacy_m": 0.5000001192092896
+        },
+        {
+          "elapsed_seconds": 0.10999998450279236,
+          "translation_m": 0.40687334537506104,
+          "legacy_m": 0.40687328577041626
+        },
+        {
+          "elapsed_seconds": 0.11999998241662979,
+          "translation_m": 0.3174401819705963,
+          "legacy_m": 0.3174402117729187
+        },
+        {
+          "elapsed_seconds": 0.12999998033046722,
+          "translation_m": 0.23516952991485596,
+          "legacy_m": 0.23516970872879028
+        },
+        {
+          "elapsed_seconds": 0.13999998569488525,
+          "translation_m": 0.16308028995990753,
+          "legacy_m": 0.16308027505874634
+        },
+        {
+          "elapsed_seconds": 0.14999999105930328,
+          "translation_m": 0.10351577401161194,
+          "legacy_m": 0.10351580381393433
+        },
+        {
+          "elapsed_seconds": 0.1599999964237213,
+          "translation_m": 0.05792030319571495,
+          "legacy_m": 0.05792033672332764
+        },
+        {
+          "elapsed_seconds": 0.17000000178813934,
+          "translation_m": 0.026612168177962303,
+          "legacy_m": 0.026611804962158203
+        },
+        {
+          "elapsed_seconds": 0.18000000715255737,
+          "translation_m": 0.008559875190258026,
+          "legacy_m": 0.008559882640838623
+        },
+        {
+          "elapsed_seconds": 0.1900000125169754,
+          "translation_m": 0.0011578368721529841,
+          "legacy_m": 0.0011587738990783691
+        },
+        {
+          "elapsed_seconds": 0.20000001788139343,
+          "translation_m": 0.0,
+          "legacy_m": 0.0
+        }
+      ]
+    }
+  ],
+  "meter_rounding_failures": 11
+}

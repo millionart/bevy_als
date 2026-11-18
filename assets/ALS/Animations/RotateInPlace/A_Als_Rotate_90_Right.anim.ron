@@ -1,0 +1,30 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.glb",
+        animation_name: "A_Als_Rotate_90_Right_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_right.a_als_rotate_90_right:0": (
+            name: "als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_right.a_als_rotate_90_right:0",
+            events: [
+                (
+                    id: "d9246367-5712-5795-96ef-eff82a402d94",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_right.a_als_rotate_90_right:c8c0f633-453b64b6-7090aaab-d34f5c94"),
+                        start_time: 0.5,
+                        end_time: 0.5,
+                    ),
+                ),
+                (
+                    id: "67bb6d80-2532-57c1-8728-459e459f448b",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_right.a_als_rotate_90_right:5008cd7a-49729ae6-d6ae9cae-82e7de35"),
+                        start_time: 0.9666666984558105,
+                        end_time: 0.9666666984558105,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

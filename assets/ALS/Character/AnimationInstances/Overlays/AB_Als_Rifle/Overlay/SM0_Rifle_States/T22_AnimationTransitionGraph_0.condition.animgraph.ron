@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "703a3664-4bb6-a189-ae22-34ae784e6665", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "rotation_mode", output: "Value", expected_tag: "Als.RotationMode.Aiming", source_property_path: "GetParent.RotationMode", source_properties: ["(\"GetParent\",\"RotationMode\")", "GetParent.RotationMode", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-656", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "703A36644BB6A189AE2234AE784E6665"]) }, should_debug: false),
+        (id: "f5628d18-4c33-116b-e7e8-31b2dd49646c", name: "Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.RotationMode.Aiming\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["EqualEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-352", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "F5628D184C33116BE7E831B2DD49646C"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("f5628d18-4c33-116b-e7e8-31b2dd49646c", "ReturnValue"),
+        NodeData("f5628d18-4c33-116b-e7e8-31b2dd49646c", "A"): NodeData("703a3664-4bb6-a189-ae22-34ae784e6665", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "703a3664-4bb6-a189-ae22-34ae784e6665": (-656.000, 0.000), "f5628d18-4c33-116b-e7e8-31b2dd49646c": (-352.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

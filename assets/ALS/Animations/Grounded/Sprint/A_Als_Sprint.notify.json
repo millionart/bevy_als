@@ -1,0 +1,154 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.06666667014360428,
+      "event_id": "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:031cf26c-4a563ef5-c01381a6-7e8aa957",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "031CF26C-4A563EF5-C01381A6-7E8AA957",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Sprint",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 1.2000000476837158,
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 1.5
+      },
+      "start_time": 0.06666667014360428,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_CameraShake",
+      "end_time": 0.06666667014360428,
+      "event_id": "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:660ea685-498cb8a0-ddbfc982-518d9d2b",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "660EA685-498CB8A0-DDBFC982-518D9D2B",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Sprint",
+      "name": "AlsCameraShake",
+      "parameters": {
+        "CameraShakeClass": "None//ALS/ALSCamera/Data/B_Als_CameraShake_Sprint/B_Als_CameraShake_Sprint_C",
+        "CameraShakeScale": 0.5
+      },
+      "start_time": 0.06666667014360428,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.36666667461395264,
+      "event_id": "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:2b6aea05-4f4340d8-3684ea97-21858ea7",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "2B6AEA05-4F4340D8-3684EA97-21858EA7",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Sprint",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundPitchMultiplier": 1.2000000476837158,
+        "SoundType": {
+          "enum": "EAlsFootstepSoundType",
+          "value": "EAlsFootstepSoundType::WalkRun"
+        },
+        "SoundVolumeMultiplier": 1.5
+      },
+      "start_time": 0.36666667461395264,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_CameraShake",
+      "end_time": 0.36666667461395264,
+      "event_id": "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:58c0c680-4f529dad-da0c28ba-6405e88b",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "58C0C680-4F529DAD-DA0C28BA-6405E88B",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Sprint",
+      "name": "AlsCameraShake",
+      "parameters": {
+        "CameraShakeClass": "None//ALS/ALSCamera/Data/B_Als_CameraShake_Sprint/B_Als_CameraShake_Sprint_C",
+        "CameraShakeScale": 0.5
+      },
+      "start_time": 0.36666667461395264,
+      "track": "2",
+      "track_index": 1,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.6000000238418579,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.6000000238418579,
+  "source_asset": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint",
+  "source_kind": "AnimSequence",
+  "sync_markers": [
+    {
+      "id": "75A4150D-4C7CCF2D-EB1F5F8D-91B52386",
+      "name": "Left",
+      "time": 0.01666666753590107,
+      "track_index": 2
+    },
+    {
+      "id": "6F68D779-486C4894-5553158F-DF3129B9",
+      "name": "Right",
+      "time": 0.31666669249534607,
+      "track_index": 2
+    }
+  ]
+}

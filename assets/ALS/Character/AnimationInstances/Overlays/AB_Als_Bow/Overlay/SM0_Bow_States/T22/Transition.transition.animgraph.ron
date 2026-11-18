@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "3a8f804f-7b29-5b80-8d12-04e006e20d0d", name: "Ready to Aiming", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: Custom, custom_curve: [(interpolation: Cubic, tangent_mode: Auto, tangent_weight_mode: None, t: 0.0, v: 0.0, arrive_tangent: 0.0, arrive_weight: 0.0, leave_tangent: 0.0, leave_weight: 0.0), (interpolation: Cubic, tangent_mode: User, tangent_weight_mode: None, t: 0.20000000298023224, v: 0.25, arrive_tangent: 2.523595094680786, arrive_weight: 0.9048326015472412, leave_tangent: 2.523595094680786, leave_weight: 0.9048367738723755), (interpolation: Linear, tangent_mode: Auto, tangent_weight_mode: None, t: 1.0, v: 1.0, arrive_tangent: 0.0, arrive_weight: 0.0, leave_tangent: 0.0, leave_weight: 0.0)]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("3a8f804f-7b29-5b80-8d12-04e006e20d0d", "pose"),
+        OutputTime: NodeTime("3a8f804f-7b29-5b80-8d12-04e006e20d0d"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "3a8f804f-7b29-5b80-8d12-04e006e20d0d": (522.000, -12.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

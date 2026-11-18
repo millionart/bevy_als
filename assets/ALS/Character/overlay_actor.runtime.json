@@ -1,0 +1,449 @@
+{
+  "Als.OverlayMode.Default": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": null
+  },
+  "Als.OverlayMode.Masculine": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine.AB_Als_Masculine",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": null
+  },
+  "Als.OverlayMode.Feminine": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine.AB_Als_Feminine",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": null
+  },
+  "Als.OverlayMode.Injured": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured.AB_Als_Injured",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": null
+  },
+  "Als.OverlayMode.HandsTied": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied.AB_Als_HandsTied",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": null
+  },
+  "Als.OverlayMode.Rifle": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle.AB_Als_Rifle",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Rifle/SKM_Als_Rifle.SKM_Als_Rifle",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": false,
+      "socket_name": "Rifle",
+      "socket_bone": "hand_r",
+      "socket_translation": [
+        -0.1014707,
+        -0.00669373,
+        0.05234151
+      ],
+      "socket_rotation": [
+        0.020362516271331045,
+        -0.6299378125513241,
+        0.029409082743012627,
+        0.7758213880149007
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            1.0,
+            0.68,
+            0.05,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Rifle/SKM_Als_Rifle.glb",
+      "kind": "Skeletal",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.PistolOneHanded": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded.AB_Als_PistolOneHanded",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": false,
+      "socket_name": "Pistol",
+      "socket_bone": "hand_r",
+      "socket_translation": [
+        -0.09007588,
+        0.00839997,
+        0.03988942
+      ],
+      "socket_rotation": [
+        0.04114642486207598,
+        -0.5907882553036562,
+        0.057565579577716935,
+        0.8037178691333254
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            1.0,
+            0.68,
+            0.05,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.glb",
+      "kind": "Skeletal",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.PistolTwoHanded": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded.AB_Als_PistolTwoHanded",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": false,
+      "socket_name": "Pistol",
+      "socket_bone": "hand_r",
+      "socket_translation": [
+        -0.09007588,
+        0.00839997,
+        0.03988942
+      ],
+      "socket_rotation": [
+        0.04114642486207598,
+        -0.5907882553036562,
+        0.057565579577716935,
+        0.8037178691333254
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            1.0,
+            0.68,
+            0.05,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Pistol/SKM_Als_Pistol.glb",
+      "kind": "Skeletal",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.Bow": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow.AB_Als_Bow",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow",
+      "source_animation": "/ALS/ALS/OverlayObjects/Bow/AB_Als_Bow.AB_Als_Bow",
+      "graph": "ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron",
+      "use_left_gun_bone": true,
+      "socket_name": "Bow",
+      "socket_bone": "hand_l",
+      "socket_translation": [
+        0.11129478000000001,
+        -0.0013622200000000001,
+        -0.056273989999999996
+      ],
+      "socket_rotation": [
+        -0.730004583832972,
+        -0.10781090262295341,
+        -0.6708451492541272,
+        0.07373535502512395
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            0.13,
+            0.07,
+            0.04,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        },
+        {
+          "linear_rgba": [
+            0.26,
+            0.15,
+            0.08,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        },
+        {
+          "linear_rgba": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.glb",
+      "kind": "Skeletal",
+      "scene": "ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron"
+    }
+  },
+  "Als.OverlayMode.Torch": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch.AB_Als_Torch",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Torch/SM_Als_Torch.SM_Als_Torch",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": true,
+      "socket_name": "Torch",
+      "socket_bone": "hand_l",
+      "socket_translation": [
+        0.09581688,
+        -0.00954782,
+        -0.04931816000000001
+      ],
+      "socket_rotation": [
+        -0.7656128572342092,
+        -0.13133538043203904,
+        -0.6088206265656977,
+        0.16101371169125053
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            0.26,
+            0.15,
+            0.08,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        },
+        {
+          "linear_rgba": [
+            0.86,
+            0.86,
+            0.86,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        },
+        {
+          "linear_rgba": [
+            0.1,
+            0.08,
+            0.03,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Torch/SM_Als_Torch.glb",
+      "kind": "Static",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.Binoculars": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars.AB_Als_Binoculars",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Binoculars/SM_Als_Binoculars.SM_Als_Binoculars",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": false,
+      "socket_name": "Binoculars",
+      "socket_bone": "hand_r",
+      "socket_translation": [
+        -0.15331554,
+        0.01091224,
+        0.14619777
+      ],
+      "socket_rotation": [
+        0.41249697202795915,
+        -0.401190012827392,
+        0.7621944031894314,
+        0.29656789007245654
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            0.015,
+            0.015,
+            0.015,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Binoculars/SM_Als_Binoculars.glb",
+      "kind": "Static",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.Box": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Box.AB_Als_Box",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Box/SM_Als_Box.SM_Als_Box",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": false,
+      "socket_name": "Box",
+      "socket_bone": "hand_r",
+      "socket_translation": [
+        -0.06314744,
+        -0.033164940000000004,
+        0.28029291
+      ],
+      "socket_rotation": [
+        -0.3716748357738916,
+        -0.49868664978167015,
+        -0.37596357131264335,
+        0.686892156621276
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            0.93,
+            0.29,
+            1.0,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Box/SM_Als_Box.glb",
+      "kind": "Static",
+      "scene": null
+    }
+  },
+  "Als.OverlayMode.Barrel": {
+    "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.AB_Als_Barrel",
+    "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
+    "object": {
+      "source_mesh": "/ALS/ALS/OverlayObjects/Barrel/SM_Als_Barrel.SM_Als_Barrel",
+      "source_animation": null,
+      "graph": null,
+      "use_left_gun_bone": true,
+      "socket_name": "Barrel",
+      "socket_bone": "hand_l",
+      "socket_translation": [
+        0.11606541000000001,
+        0.17824009000000002,
+        -0.24229429
+      ],
+      "socket_rotation": [
+        0.6634419010450793,
+        -0.17654941874669258,
+        0.7191687178317548,
+        0.10710509777842414
+      ],
+      "socket_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": [
+        {
+          "linear_rgba": [
+            0.93,
+            0.29,
+            1.0,
+            1.0
+          ],
+          "metallic": 0.0,
+          "roughness": 1.0,
+          "reflectance": 0.5
+        }
+      ],
+      "mesh": "ALS/OverlayObjects/Barrel/SM_Als_Barrel.glb",
+      "kind": "Static",
+      "scene": null
+    }
+  }
+}

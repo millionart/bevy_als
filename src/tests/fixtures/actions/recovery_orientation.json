@@ -1,0 +1,114 @@
+[
+  {
+    "name": "negative_roll",
+    "target_pelvis_xyzw": [
+      -0.20780707895755768,
+      0.47228971123695374,
+      0.30060529708862305,
+      0.8021191358566284
+    ],
+    "source_rotator_degrees": {
+      "pitch": 16.615776449642244,
+      "yaw": 22.918313955987287,
+      "roll": -40.1070451879908
+    },
+    "facing_up": true,
+    "actor_yaw_degrees": 157.0816860440127
+  },
+  {
+    "name": "positive_roll",
+    "target_pelvis_xyzw": [
+      0.3577997088432312,
+      0.5548823475837708,
+      -0.0743417739868164,
+      0.7473675608634949
+    ],
+    "source_rotator_degrees": {
+      "pitch": 16.615776006237702,
+      "yaw": 22.918314466361497,
+      "roll": 40.107046451907145
+    },
+    "facing_up": false,
+    "actor_yaw_degrees": -22.918314466361497
+  },
+  {
+    "name": "zero_roll",
+    "target_pelvis_xyzw": [
+      0,
+      0.8251107335090637,
+      0,
+      0.5649710297584534
+    ],
+    "source_rotator_degrees": {
+      "pitch": 0,
+      "yaw": -21.199440044592478,
+      "roll": 0
+    },
+    "facing_up": true,
+    "actor_yaw_degrees": 201.19944004459248
+  },
+  {
+    "name": "positive_pole",
+    "target_pelvis_xyzw": [
+      0.46380406618118286,
+      0.46380406618118286,
+      0.5337468981742859,
+      0.5337468981742859
+    ],
+    "source_rotator_degrees": {
+      "pitch": 90,
+      "yaw": 8.02140766551145,
+      "roll": 0
+    },
+    "facing_up": true,
+    "actor_yaw_degrees": 171.97859233448855
+  },
+  {
+    "name": "near_zero_positive_roll",
+    "target_pelvis_xyzw": [
+      -0.090337835252285,
+      0.6186470985412598,
+      -0.11277028918266296,
+      0.7722678780555725
+    ],
+    "source_rotator_degrees": {
+      "pitch": -16.615775945154088,
+      "yaw": 12.605073320923593,
+      "roll": 4.623270956953505e-07
+    },
+    "facing_up": false,
+    "actor_yaw_degrees": -12.605073320923593
+  },
+  {
+    "name": "near_negative_pole",
+    "target_pelvis_xyzw": [
+      -0.2850276827812195,
+      0.28568407893180847,
+      -0.6466010808944702,
+      0.6473413705825806
+    ],
+    "source_rotator_degrees": {
+      "pitch": -90,
+      "yaw": 42.3654792232464,
+      "roll": 0
+    },
+    "facing_up": true,
+    "actor_yaw_degrees": 137.6345207767536
+  },
+  {
+    "name": "near_positive_pole",
+    "target_pelvis_xyzw": [
+      0.46891844272613525,
+      0.46931785345077515,
+      0.5286293625831604,
+      0.5295349359512329
+    ],
+    "source_rotator_degrees": {
+      "pitch": 90,
+      "yaw": 6.842083537741828,
+      "roll": 0
+    },
+    "facing_up": true,
+    "actor_yaw_degrees": 173.15791646225819
+  }
+]

@@ -1,0 +1,36 @@
+(
+    nodes: [
+        (id: "1ee116a9-4a83-347a-15c1-aaa8c6eeb01a", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "rotation_mode", output: "Value", expected_tag: "", source_property_path: "RotationMode", source_properties: ["(\"RotationMode\")", "RotationMode", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-928", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "1EE116A94A83347A15C1AAA8C6EEB01A"]) }, should_debug: false),
+        (id: "f50882b9-455b-817a-1a29-41bf883dae84", name: "Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.RotationMode.VelocityDirection\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["EqualEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-592", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "F50882B9455B817A1A2941BF883DAE84"]) }, should_debug: false),
+        (id: "ec01ea26-49cd-4703-cd9f-69bab47c563b", name: "Is Gameplay Tag Valid", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "GameplayTag", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "gameplay_tag_valid", source_class: "/Script/BlueprintGraph.K2Node_CallFunction", source_properties: ["True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"IsGameplayTagValid\",MemberGuid=00000000000000000000000000000000)", "Unset", "-688", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "EC01EA2649CD4703CD9F69BAB47C563B"]) }, should_debug: false),
+        (id: "a885b5d2-4ecc-62b2-eae8-45b87c1e36a0", name: "NOT Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "not", source_class: "/Script/BlueprintGraph.K2Node_CallFunction", source_properties: ["True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Not_PreBool\",MemberGuid=00000000000000000000000000000000)", "Unset", "-400", "64", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "A885B5D24ECC62B2EAE845B87C1E36A0"]) }, should_debug: false),
+        (id: "651ad5a0-41a6-9ee2-192d-028ef4bf1359", name: "OR Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "or", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanOR\",MemberGuid=00000000000000000000000000000000)", "Unset", "-192", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "651AD5A041A69EE2192D028EF4BF1359"]) }, should_debug: false),
+        (id: "647151f5-4594-9179-6a97-37a98e641b73", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "rotation_mode", output: "Value", expected_tag: "Als.RotationMode.VelocityDirection", source_property_path: "RotationMode", source_properties: ["(\"RotationMode\")", "RotationMode", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-832", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "647151F5459491796A9737A98E641B73"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("a885b5d2-4ecc-62b2-eae8-45b87c1e36a0", "A"): NodeData("ec01ea26-49cd-4703-cd9f-69bab47c563b", "ReturnValue"),
+        NodeData("ec01ea26-49cd-4703-cd9f-69bab47c563b", "GameplayTag"): NodeData("1ee116a9-4a83-347a-15c1-aaa8c6eeb01a", "Value"),
+        NodeData("f50882b9-455b-817a-1a29-41bf883dae84", "A"): NodeData("647151f5-4594-9179-6a97-37a98e641b73", "Value"),
+        NodeData("651ad5a0-41a6-9ee2-192d-028ef4bf1359", "A"): NodeData("f50882b9-455b-817a-1a29-41bf883dae84", "ReturnValue"),
+        OutputData("bCanEnterTransition"): NodeData("651ad5a0-41a6-9ee2-192d-028ef4bf1359", "ReturnValue"),
+        NodeData("651ad5a0-41a6-9ee2-192d-028ef4bf1359", "B"): NodeData("a885b5d2-4ecc-62b2-eae8-45b87c1e36a0", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "1ee116a9-4a83-347a-15c1-aaa8c6eeb01a": (-928.000, 48.000), "f50882b9-455b-817a-1a29-41bf883dae84": (-592.000, -48.000), "ec01ea26-49cd-4703-cd9f-69bab47c563b": (-688.000, 48.000), "a885b5d2-4ecc-62b2-eae8-45b87c1e36a0": (-400.000, 64.000), "651ad5a0-41a6-9ee2-192d-028ef4bf1359": (-192.000, 0.000), "647151f5-4594-9179-6a97-37a98e641b73": (-832.000, -48.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

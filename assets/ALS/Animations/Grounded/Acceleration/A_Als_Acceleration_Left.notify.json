@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.0,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.0,
+  "source_asset": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.A_Als_Acceleration_Left",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

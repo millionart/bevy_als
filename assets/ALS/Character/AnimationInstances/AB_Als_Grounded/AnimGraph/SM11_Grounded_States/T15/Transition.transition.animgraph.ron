@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "753fc077-7dab-513a-9416-077a8ca33995", name: "Roll to Crouching", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("753fc077-7dab-513a-9416-077a8ca33995", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("753fc077-7dab-513a-9416-077a8ca33995", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("753fc077-7dab-513a-9416-077a8ca33995", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("753fc077-7dab-513a-9416-077a8ca33995", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("753fc077-7dab-513a-9416-077a8ca33995", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("753fc077-7dab-513a-9416-077a8ca33995", "pose"),
+        OutputTime: NodeTime("753fc077-7dab-513a-9416-077a8ca33995"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "753fc077-7dab-513a-9416-077a8ca33995": (484.000, 75.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

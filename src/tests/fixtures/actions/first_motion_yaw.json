@@ -1,0 +1,212 @@
+[
+  {
+    "name": "actual-target-20",
+    "velocity_cm_s": [
+      66.66666865348816,
+      -0.005091296407044865,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.004375646822154522,
+      "view_space_degrees": -0.004378151148557663,
+      "curve": -0.0043792724609375
+    }
+  },
+  {
+    "name": "actual-reference-20",
+    "velocity_cm_s": [
+      66.66666994919204,
+      -0.005091296293853434,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.004375646822154522,
+      "view_space_degrees": -0.004378151148557663,
+      "curve": -0.0043792724609375
+    }
+  },
+  {
+    "name": "actual-target-21",
+    "velocity_cm_s": [
+      133.33333730697632,
+      -0.007994439511094242,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.003435357240960002,
+      "view_space_degrees": -0.0034378618001937866,
+      "curve": -0.003437042236328125
+    }
+  },
+  {
+    "name": "actual-reference-21",
+    "velocity_cm_s": [
+      133.3333403029364,
+      -0.007994440037752456,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0034353574737906456,
+      "view_space_degrees": -0.0034378620330244303,
+      "curve": -0.003437042236328125
+    }
+  },
+  {
+    "name": "actual-target-22",
+    "velocity_cm_s": [
+      200,
+      -0.009381417476106435,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0026875780895352364,
+      "view_space_degrees": -0.002690082648769021,
+      "curve": -0.002689361572265625
+    }
+  },
+  {
+    "name": "actual-reference-22",
+    "velocity_cm_s": [
+      200.00001093876506,
+      -0.009381418135064412,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0026875780895352364,
+      "view_space_degrees": -0.002690082648769021,
+      "curve": -0.002689361572265625
+    }
+  },
+  {
+    "name": "actual-target-23",
+    "velocity_cm_s": [
+      266.66667461395264,
+      -0.009744056296767667,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0020935998763889074,
+      "view_space_degrees": -0.002096104435622692,
+      "curve": -0.002094268798828125
+    }
+  },
+  {
+    "name": "actual-reference-23",
+    "velocity_cm_s": [
+      266.6666817664198,
+      -0.009744057023214549,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0020935998763889074,
+      "view_space_degrees": -0.002096104435622692,
+      "curve": -0.002094268798828125
+    }
+  },
+  {
+    "name": "actual-target-24",
+    "velocity_cm_s": [
+      333.3333492279053,
+      -0.009565736399963498,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0016442289343103766,
+      "view_space_degrees": -0.0016467333771288395,
+      "curve": -0.00164794921875
+    }
+  },
+  {
+    "name": "actual-reference-24",
+    "velocity_cm_s": [
+      333.33335269624945,
+      -0.009565736885599457,
+      0
+    ],
+    "view_yaw_degrees": 2.5044781608585254e-06,
+    "reference": {
+      "world_degrees": -0.0016442289343103766,
+      "view_space_degrees": -0.0016467333771288395,
+      "curve": -0.00164794921875
+    }
+  },
+  {
+    "name": "east",
+    "velocity_cm_s": [
+      100,
+      0,
+      0
+    ],
+    "view_yaw_degrees": 0,
+    "reference": {
+      "world_degrees": 0,
+      "view_space_degrees": 0,
+      "curve": 0
+    }
+  },
+  {
+    "name": "small-positive",
+    "velocity_cm_s": [
+      100,
+      0.005,
+      0
+    ],
+    "view_yaw_degrees": 0,
+    "reference": {
+      "world_degrees": 0.0028647889848798513,
+      "view_space_degrees": 0.0028647889848798513,
+      "curve": 0.0028647889848798513
+    }
+  },
+  {
+    "name": "small-negative",
+    "velocity_cm_s": [
+      100,
+      -0.005,
+      0
+    ],
+    "view_yaw_degrees": 0,
+    "reference": {
+      "world_degrees": -0.0028647889848798513,
+      "view_space_degrees": -0.0028647889848798513,
+      "curve": -0.002864837646484375
+    }
+  },
+  {
+    "name": "positive-half-turn",
+    "velocity_cm_s": [
+      -100,
+      0,
+      0
+    ],
+    "view_yaw_degrees": 0,
+    "reference": {
+      "world_degrees": 180,
+      "view_space_degrees": 180,
+      "curve": 0
+    }
+  },
+  {
+    "name": "negative-half-turn",
+    "velocity_cm_s": [
+      100,
+      0,
+      0
+    ],
+    "view_yaw_degrees": 180,
+    "reference": {
+      "world_degrees": 0,
+      "view_space_degrees": -180,
+      "curve": 0
+    }
+  }
+]

@@ -1,0 +1,61 @@
+{
+  "source_mesh": "/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow",
+  "source_animation": "/ALS/ALS/OverlayObjects/Bow/AB_Als_Bow.AB_Als_Bow",
+  "graph": "ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron",
+  "use_left_gun_bone": true,
+  "socket_name": "Bow",
+  "socket_bone": "hand_l",
+  "socket_translation": [
+    0.11129478000000001,
+    -0.0013622200000000001,
+    -0.056273989999999996
+  ],
+  "socket_rotation": [
+    -0.730004583832972,
+    -0.10781090262295341,
+    -0.6708451492541272,
+    0.07373535502512395
+  ],
+  "socket_scale": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "materials": [
+    {
+      "linear_rgba": [
+        0.13,
+        0.07,
+        0.04,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 1.0,
+      "reflectance": 0.5
+    },
+    {
+      "linear_rgba": [
+        0.26,
+        0.15,
+        0.08,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 1.0,
+      "reflectance": 0.5
+    },
+    {
+      "linear_rgba": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 1.0,
+      "reflectance": 0.5
+    }
+  ],
+  "scene": "ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron",
+  "mesh": "ALS/OverlayObjects/Bow/SKM_Als_Bow.glb"
+}

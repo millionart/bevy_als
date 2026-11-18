@@ -1,0 +1,5021 @@
+{
+  "format": "ue_blendspace_tick_probe_v1",
+  "start_position": 0.2,
+  "looped": true,
+  "frames": [
+    {
+      "frame": 0,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.21470588445663452,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.28235289454460144,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.2266666740179062,
+          "time": 0.2433333396911621,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 1,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.229411780834198,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.3117646872997284,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.2433333396911621,
+          "time": 0.2600000202655792,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 2,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.24411767721176147,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.34117648005485535,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.2600000202655792,
+          "time": 0.27666670083999634,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 3,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.25882357358932495,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.3705882728099823,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.27666670083999634,
+          "time": 0.29333338141441345,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 4,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.2735294699668884,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.40000006556510925,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.29333338141441345,
+          "time": 0.31000006198883057,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 5,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.2882353663444519,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.4294118285179138,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.31000006198883057,
+          "time": 0.3266667425632477,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 6,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.3029412627220154,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.45882362127304077,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.3266667425632477,
+          "time": 0.3433334231376648,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 7,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.31764715909957886,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.4882354140281677,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.3433334231376648,
+          "time": 0.3600001037120819,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 8,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.33235305547714233,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5176472067832947,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.3600001037120819,
+          "time": 0.376666784286499,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 9,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.3470589518547058,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5470589995384216,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.376666784286499,
+          "time": 0.39333346486091614,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 10,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.3617648482322693,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5764707922935486,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.39333346486091614,
+          "time": 0.41000014543533325,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 11,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.37647074460983276,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6058825850486755,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.41000014543533325,
+          "time": 0.42666682600975037,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 12,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.39117664098739624,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6352943181991577,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.42666682600975037,
+          "time": 0.4433335065841675,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 13,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.40588250756263733,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6647061109542847,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.4433335065841675,
+          "time": 0.4600001871585846,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 14,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.4205884039402008,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6941179037094116,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.4600001871585846,
+          "time": 0.4766668677330017,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 15,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.4352943003177643,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7235296964645386,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.4766668677330017,
+          "time": 0.4933335483074188,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 16,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.45000019669532776,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7529414892196655,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.4933335483074188,
+          "time": 0.5100002288818359,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 17,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.46470606327056885,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7823532223701477,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5100002288818359,
+          "time": 0.5266668796539307,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 18,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.47941192984580994,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8117649555206299,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5266668796539307,
+          "time": 0.5433335304260254,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 19,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.494117796421051,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8411766886711121,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5433335304260254,
+          "time": 0.5600001811981201,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 20,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5088236927986145,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8705884218215942,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5600001811981201,
+          "time": 0.5766668319702148,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 21,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5235295295715332,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9000002145767212,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5766668319702148,
+          "time": 0.5933334827423096,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 22,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5382354259490967,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9294119477272034,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.5933334827423096,
+          "time": 0.6100001335144043,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 23,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5529412627220154,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9588236808776855,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.6100001335144043,
+          "time": 0.626666784286499,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 24,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5676471590995789,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9882354140281677,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.626666784286499,
+          "time": 0.6433334350585938,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 25,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5823530554771423,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.01764725334942341,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.6433334350585938,
+          "time": 0.6600001454353333,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 26,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.5970589518547058,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.047058988362550735,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.6600001454353333,
+          "time": 0.676666796207428,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 27,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.6117647886276245,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.07647072523832321,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.676666796207428,
+          "time": 0.6933334469795227,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 28,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.626470685005188,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.10588246583938599,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.6933334469795227,
+          "time": 0.7100000977516174,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 29,
+      "input": {
+        "x": 1,
+        "y": 0,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "normalized_time": 0.6411765217781067,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.13529419898986816,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 1,
+          "previous_time": 0.7100000977516174,
+          "time": 0.7266667485237122,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 30,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.05408453196287155,
+        "z": 0
+      },
+      "normalized_time": 0.6558824181556702,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.16470593214035034,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.9459154605865479,
+          "previous_time": 0.7266667485237122,
+          "time": 0.7433333992958069,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.05408453196287155,
+          "previous_time": 0.48745104670524597,
+          "time": 0.4992157220840454,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 31,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.10816516727209091,
+        "z": 0
+      },
+      "normalized_time": 0.6705882549285889,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.1941176801919937,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.8918348550796509,
+          "previous_time": 0.7433333992958069,
+          "time": 0.7600000500679016,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.10816516727209091,
+          "previous_time": 0.4992157220840454,
+          "time": 0.5109804272651672,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 32,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.1622183620929718,
+        "z": 0
+      },
+      "normalized_time": 0.6852941513061523,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.2235294133424759,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.8377816677093506,
+          "previous_time": 0.7600000500679016,
+          "time": 0.7766667008399963,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.1622183620929718,
+          "previous_time": 0.5109804272651672,
+          "time": 0.5227451324462891,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 33,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.21619725227355957,
+        "z": 0
+      },
+      "normalized_time": 0.7000000476837158,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.25294116139411926,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.7838027477264404,
+          "previous_time": 0.7766667008399963,
+          "time": 0.7933333516120911,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.21619725227355957,
+          "previous_time": 0.5227451324462891,
+          "time": 0.5345098376274109,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 34,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.27003130316734314,
+        "z": 0
+      },
+      "normalized_time": 0.7147058844566345,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.28235289454460144,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.7299686670303345,
+          "previous_time": 0.7933333516120911,
+          "time": 0.8100000023841858,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.27003130316734314,
+          "previous_time": 0.5345098376274109,
+          "time": 0.5462745428085327,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 35,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.3236267566680908,
+        "z": 0
+      },
+      "normalized_time": 0.729411780834198,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.3117646276950836,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.6763732433319092,
+          "previous_time": 0.8100000023841858,
+          "time": 0.8266666531562805,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3236267566680908,
+          "previous_time": 0.5462745428085327,
+          "time": 0.5580391883850098,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 36,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.3768661916255951,
+        "z": 0
+      },
+      "normalized_time": 0.7441176176071167,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.3411763608455658,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.6231337785720825,
+          "previous_time": 0.8266666531562805,
+          "time": 0.8433333039283752,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3768661916255951,
+          "previous_time": 0.5580391883850098,
+          "time": 0.5698038935661316,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 37,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.4296087920665741,
+        "z": 0
+      },
+      "normalized_time": 0.7588235139846802,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.370588093996048,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.5703911781311035,
+          "previous_time": 0.8433333039283752,
+          "time": 0.85999995470047,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.4296087920665741,
+          "previous_time": 0.5698038935661316,
+          "time": 0.5815685987472534,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 38,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.48169007897377014,
+        "z": 0
+      },
+      "normalized_time": 0.7735293507575989,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.39999982714653015,
+      "samples": [
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.5183099508285522,
+          "previous_time": 0.85999995470047,
+          "time": 0.8766666054725647,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.48169007897377014,
+          "previous_time": 0.5815685987472534,
+          "time": 0.5933333039283752,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 39,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.5329223871231079,
+        "z": 0
+      },
+      "normalized_time": 0.7624999284744263,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.44166645407676697,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.5329223871231079,
+          "previous_time": 0.5933333039283752,
+          "time": 0.60999995470047,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.4670776128768921,
+          "previous_time": 0.8766666054725647,
+          "time": 0.9002776741981506,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 40,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.5830945372581482,
+        "z": 0
+      },
+      "normalized_time": 0.7833332419395447,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.4833330810070038,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.5830945372581482,
+          "previous_time": 0.60999995470047,
+          "time": 0.6266666054725647,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.4169054627418518,
+          "previous_time": 0.9002776741981506,
+          "time": 0.9238887429237366,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 41,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.6319717168807983,
+        "z": 0
+      },
+      "normalized_time": 0.8041665554046631,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.524999737739563,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.6319717168807983,
+          "previous_time": 0.6266666054725647,
+          "time": 0.6433332562446594,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.36802828311920166,
+          "previous_time": 0.9238887429237366,
+          "time": 0.9474998712539673,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 42,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.6792955994606018,
+        "z": 0
+      },
+      "normalized_time": 0.8249998688697815,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.5666663646697998,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.6792955994606018,
+          "previous_time": 0.6433332562446594,
+          "time": 0.6599999070167542,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.3207044005393982,
+          "previous_time": 0.9474998712539673,
+          "time": 0.9711109399795532,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 43,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.7247845530509949,
+        "z": 0
+      },
+      "normalized_time": 0.8458331823348999,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6083329916000366,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.7247845530509949,
+          "previous_time": 0.6599999070167542,
+          "time": 0.6766665577888489,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.2752154469490051,
+          "previous_time": 0.9711109399795532,
+          "time": 0.9947220087051392,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 44,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.7681333422660828,
+        "z": 0
+      },
+      "normalized_time": 0.8666664958000183,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6499996185302734,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.7681333422660828,
+          "previous_time": 0.6766665577888489,
+          "time": 0.6933332085609436,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.23186665773391724,
+          "previous_time": 0.9947220087051392,
+          "time": 1.018333077430725,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 45,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.8090136051177979,
+        "z": 0
+      },
+      "normalized_time": 0.8874998092651367,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6916662454605103,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.8090136051177979,
+          "previous_time": 0.6933332085609436,
+          "time": 0.7099998593330383,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.19098639488220215,
+          "previous_time": 1.018333077430725,
+          "time": 1.0419442653656006,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 46,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.8470731377601624,
+        "z": 0
+      },
+      "normalized_time": 0.9083331227302551,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.7333328723907471,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.8470731377601624,
+          "previous_time": 0.7099998593330383,
+          "time": 0.7266665101051331,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.15292686223983765,
+          "previous_time": 1.0419442653656006,
+          "time": 1.0655553340911865,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 47,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.8819360733032227,
+        "z": 0
+      },
+      "normalized_time": 0.9291664361953735,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.7749994993209839,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.8819360733032227,
+          "previous_time": 0.7266665101051331,
+          "time": 0.7433331608772278,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.11806392669677734,
+          "previous_time": 1.0655553340911865,
+          "time": 1.0891664028167725,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 48,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.913203775882721,
+        "z": 0
+      },
+      "normalized_time": 0.9499997496604919,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8166661262512207,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.913203775882721,
+          "previous_time": 0.7433331608772278,
+          "time": 0.7599998116493225,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.08679622411727905,
+          "previous_time": 1.0891664028167725,
+          "time": 1.1127774715423584,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 49,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.9404534101486206,
+        "z": 0
+      },
+      "normalized_time": 0.9708330631256104,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8583327531814575,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.9404534101486206,
+          "previous_time": 0.7599998116493225,
+          "time": 0.7766664624214172,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.059546589851379395,
+          "previous_time": 1.1127774715423584,
+          "time": 0.0030552148818969727,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 50,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.9632389545440674,
+        "z": 0
+      },
+      "normalized_time": 0.9916663765907288,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8999993801116943,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.9632389545440674,
+          "previous_time": 0.7766664624214172,
+          "time": 0.793333113193512,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.03676104545593262,
+          "previous_time": 0.0030552148818969727,
+          "time": 0.02666628360748291,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 51,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.9810911417007446,
+        "z": 0
+      },
+      "normalized_time": 0.012499690055847168,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9416660666465759,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.9810911417007446,
+          "previous_time": 0.793333113193512,
+          "time": 0.009999752044677734,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.01890885829925537,
+          "previous_time": 0.02666628360748291,
+          "time": 0.05027741193771362,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 52,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.9935169219970703,
+        "z": 0
+      },
+      "normalized_time": 0.03333302214741707,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9833327531814575,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.9935169219970703,
+          "previous_time": 0.009999752044677734,
+          "time": 0.026666419580578804,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 0,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+          "weight": 0.0064830780029296875,
+          "previous_time": 0.05027741193771362,
+          "time": 0.07388854026794434,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 53,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 0.9999998211860657,
+        "z": 0
+      },
+      "normalized_time": 0.054166585206985474,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.02499983459711075,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.026666419580578804,
+          "time": 0.0433332696557045,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 54,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.07499992102384567,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.06666649132966995,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.0433332696557045,
+          "time": 0.05999993532896042,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 55,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.09583324939012527,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.10833315551280975,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.05999993532896042,
+          "time": 0.07666660100221634,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 56,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.11666658520698547,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.14999981224536896,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.07666660100221634,
+          "time": 0.09333326667547226,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 57,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.13749991357326508,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.19166646897792816,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.09333326667547226,
+          "time": 0.10999993234872818,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 58,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.15833325684070587,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.23333317041397095,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.10999993234872818,
+          "time": 0.1266666054725647,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 59,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.17916658520698547,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.27499982714653015,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.1266666054725647,
+          "time": 0.14333327114582062,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 60,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.19999991357326508,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.31666648387908936,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.14333327114582062,
+          "time": 0.15999993681907654,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 61,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.22083325684070587,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.35833314061164856,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.15999993681907654,
+          "time": 0.17666660249233246,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 62,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.24166658520698547,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.39999979734420776,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.17666660249233246,
+          "time": 0.19333326816558838,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 63,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.2624998986721039,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.44166645407676697,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.19333326816558838,
+          "time": 0.2099999338388443,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 64,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.2833332419395447,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.48333314061164856,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.2099999338388443,
+          "time": 0.22666659951210022,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 65,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.3041665852069855,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5249997973442078,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.22666659951210022,
+          "time": 0.24333326518535614,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 66,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.3249998986721039,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5666664242744446,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.24333326518535614,
+          "time": 0.25999993085861206,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 67,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.34583327174186707,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.608333170413971,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.25999993085861206,
+          "time": 0.2766666114330292,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 68,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.36666661500930786,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6499998569488525,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.2766666114330292,
+          "time": 0.2933332920074463,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 69,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.38749995827674866,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6916665434837341,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.2933332920074463,
+          "time": 0.3099999725818634,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 70,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.40833330154418945,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7333332300186157,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.3099999725818634,
+          "time": 0.3266666531562805,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 71,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.42916667461395264,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7749999165534973,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.3266666531562805,
+          "time": 0.34333333373069763,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 72,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.45000001788139343,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8166666626930237,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.34333333373069763,
+          "time": 0.36000001430511475,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 73,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.47083336114883423,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8583333492279053,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.36000001430511475,
+          "time": 0.37666669487953186,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 74,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.491666704416275,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9000000357627869,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.37666669487953186,
+          "time": 0.393333375453949,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 75,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5125000476837158,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9416667222976685,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.393333375453949,
+          "time": 0.4100000560283661,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 76,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.533333420753479,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.98333340883255,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.4100000560283661,
+          "time": 0.4266667366027832,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 77,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5541666746139526,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.02499997615814209,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.4266667366027832,
+          "time": 0.44333335757255554,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 78,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5750000476837158,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.06666667759418488,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.44333335757255554,
+          "time": 0.46000003814697266,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 79,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5958333611488342,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.10833337903022766,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.46000003814697266,
+          "time": 0.47666671872138977,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 80,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6166667342185974,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.15000008046627045,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.47666671872138977,
+          "time": 0.4933333992958069,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 81,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6375000476837158,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.19166670739650726,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.4933333992958069,
+          "time": 0.5100000500679016,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 82,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6583333611488342,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.23333333432674408,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5100000500679016,
+          "time": 0.5266667008399963,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 83,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6791666746139526,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.2749999463558197,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5266667008399963,
+          "time": 0.5433333516120911,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 84,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.699999988079071,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.3166665732860565,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5433333516120911,
+          "time": 0.5600000023841858,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 85,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7208333015441895,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.35833320021629333,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5600000023841858,
+          "time": 0.5766666531562805,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 86,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7416666150093079,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.39999982714653015,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5766666531562805,
+          "time": 0.5933333039283752,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 87,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7624999284744263,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.44166645407676697,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.5933333039283752,
+          "time": 0.60999995470047,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 88,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7833332419395447,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.4833330810070038,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.60999995470047,
+          "time": 0.6266666054725647,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 89,
+      "input": {
+        "x": 1,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8041665554046631,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.524999737739563,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 1,
+          "previous_time": 0.6266666054725647,
+          "time": 0.6433332562446594,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 90,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.9314286708831787,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8249998688697815,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.5666663646697998,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.9314286708831787,
+          "previous_time": 0.6433332562446594,
+          "time": 0.6599999070167542,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.06857132911682129,
+          "previous_time": 0.6433328986167908,
+          "time": 0.6599995493888855,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 91,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.8628969192504883,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8458331823348999,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6083329916000366,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.8628969192504883,
+          "previous_time": 0.6599999070167542,
+          "time": 0.6766665577888489,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.13710308074951172,
+          "previous_time": 0.6599995493888855,
+          "time": 0.6766662001609802,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 92,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.7946431040763855,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8666664958000183,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6499996185302734,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.7946431040763855,
+          "previous_time": 0.6766665577888489,
+          "time": 0.6933332085609436,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.2053568959236145,
+          "previous_time": 0.6766662001609802,
+          "time": 0.693332850933075,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 93,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.7271431088447571,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8874998092651367,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6916662454605103,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.7271431088447571,
+          "previous_time": 0.6933332085609436,
+          "time": 0.7099998593330383,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.2728568911552429,
+          "previous_time": 0.693332850933075,
+          "time": 0.7099995017051697,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 94,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.6611115336418152,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9083331227302551,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.7333328723907471,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.6611115336418152,
+          "previous_time": 0.7099998593330383,
+          "time": 0.7266665101051331,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.3388884663581848,
+          "previous_time": 0.7099995017051697,
+          "time": 0.7266661524772644,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 95,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.5975004434585571,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9291664361953735,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.7749994993209839,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.5975004434585571,
+          "previous_time": 0.7266665101051331,
+          "time": 0.7433331608772278,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.40249955654144287,
+          "previous_time": 0.7266661524772644,
+          "time": 0.7433328032493591,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 96,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.5375004410743713,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9499997496604919,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8166661262512207,
+      "samples": [
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.5375004410743713,
+          "previous_time": 0.7433331608772278,
+          "time": 0.7599998116493225,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.46249955892562866,
+          "previous_time": 0.7433328032493591,
+          "time": 0.7599994540214539,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 97,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.48254016041755676,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9708326458930969,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8583327531814575,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.5174598693847656,
+          "previous_time": 0.7599994540214539,
+          "time": 0.7766661047935486,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.48254016041755676,
+          "previous_time": 0.7599998116493225,
+          "time": 0.7766664624214172,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 98,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.4342861771583557,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9916659593582153,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8999993801116943,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.5657138228416443,
+          "previous_time": 0.7766661047935486,
+          "time": 0.7933327555656433,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.4342861771583557,
+          "previous_time": 0.7766664624214172,
+          "time": 0.7933330535888672,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 99,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.39464321732521057,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.012499243021011353,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9416660070419312,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6053568124771118,
+          "previous_time": 0.7933327555656433,
+          "time": 0.009999394416809082,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.39464321732521057,
+          "previous_time": 0.7933330535888672,
+          "time": 0.009999722242355347,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 100,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.36575424671173096,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.03333257511258125,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9833326935768127,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.634245753288269,
+          "previous_time": 0.009999394416809082,
+          "time": 0.02666606195271015,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.36575424671173096,
+          "previous_time": 0.009999722242355347,
+          "time": 0.02666640281677246,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 101,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.35000014305114746,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.05416596308350563,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.024999426677823067,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499998569488525,
+          "previous_time": 0.02666606195271015,
+          "time": 0.043332770466804504,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.35000014305114746,
+          "previous_time": 0.02666640281677246,
+          "time": 0.043333105742931366,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 102,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.07499929517507553,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.06666608899831772,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.043332770466804504,
+          "time": 0.059999436140060425,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.043333105742931366,
+          "time": 0.059999771416187286,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 103,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.09583262354135513,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.10833275318145752,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.059999436140060425,
+          "time": 0.07666610181331635,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.059999771416187286,
+          "time": 0.0766664445400238,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 104,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.11666595935821533,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.14999940991401672,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.07666610181331635,
+          "time": 0.09333276748657227,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.0766664445400238,
+          "time": 0.09333310276269913,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 105,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.13749928772449493,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.19166606664657593,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.09333276748657227,
+          "time": 0.10999943315982819,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.09333310276269913,
+          "time": 0.10999977588653564,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 106,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.15833261609077454,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.23333273828029633,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.10999943315982819,
+          "time": 0.1266660988330841,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.10999977588653564,
+          "time": 0.12666644155979156,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 107,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.17916595935821533,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.2749994099140167,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.1266660988330841,
+          "time": 0.14333276450634003,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.12666644155979156,
+          "time": 0.14333310723304749,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 108,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.19999928772449493,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.3166660666465759,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.14333276450634003,
+          "time": 0.15999943017959595,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.14333310723304749,
+          "time": 0.1599997729063034,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 109,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.22083261609077454,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.35833272337913513,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.15999943017959595,
+          "time": 0.17666609585285187,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.1599997729063034,
+          "time": 0.17666643857955933,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 110,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.24166594445705414,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.39999938011169434,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.17666609585285187,
+          "time": 0.1933327615261078,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.17666643857955933,
+          "time": 0.19333310425281525,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 111,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.26249927282333374,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.4416660666465759,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.1933327615261078,
+          "time": 0.2099994271993637,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.19333310425281525,
+          "time": 0.20999976992607117,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 112,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.28333261609077454,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.48333272337913513,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.2099994271993637,
+          "time": 0.22666609287261963,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.20999976992607117,
+          "time": 0.2266664355993271,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 113,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.30416592955589294,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5249993801116943,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.22666609287261963,
+          "time": 0.24333275854587555,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.2266664355993271,
+          "time": 0.243333101272583,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 114,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.32499927282333374,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.5666660666465759,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.24333275854587555,
+          "time": 0.25999942421913147,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.243333101272583,
+          "time": 0.2599997818470001,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 115,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.34583261609077454,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6083327531814575,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.25999942421913147,
+          "time": 0.2766661047935486,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.2599997818470001,
+          "time": 0.27666646242141724,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 116,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.3666659891605377,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6499994397163391,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.2766661047935486,
+          "time": 0.2933327853679657,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.27666646242141724,
+          "time": 0.29333314299583435,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 117,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.3874993324279785,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.6916661262512207,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.2933327853679657,
+          "time": 0.3099994659423828,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.29333314299583435,
+          "time": 0.3099997937679291,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 118,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.4083326756954193,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7333328723907471,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.3099994659423828,
+          "time": 0.3266661465167999,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.3099997937679291,
+          "time": 0.3266665041446686,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 119,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.4291660189628601,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.7749995589256287,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.3266661465167999,
+          "time": 0.34333282709121704,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.3266665041446686,
+          "time": 0.3433331847190857,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 120,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.4499993920326233,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8166662454605103,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.34333282709121704,
+          "time": 0.35999950766563416,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.3433331847190857,
+          "time": 0.3599998652935028,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 121,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.4708327353000641,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8583329319953918,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.35999950766563416,
+          "time": 0.37666618824005127,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.3599998652935028,
+          "time": 0.3766665458679199,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 122,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.4916660785675049,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.8999996781349182,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.37666618824005127,
+          "time": 0.3933328688144684,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.3766665458679199,
+          "time": 0.39333322644233704,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 123,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5124994516372681,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9416663646697998,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.3933328688144684,
+          "time": 0.4099995493888855,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.39333322644233704,
+          "time": 0.40999990701675415,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 124,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5333327651023865,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.9833330512046814,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.4099995493888855,
+          "time": 0.4266662299633026,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.40999990701675415,
+          "time": 0.42666658759117126,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 125,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5541660785675049,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.024999678134918213,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.4266662299633026,
+          "time": 0.44333288073539734,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.42666658759117126,
+          "time": 0.443333238363266,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 126,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5749994516372681,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.066666379570961,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.44333288073539734,
+          "time": 0.45999956130981445,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.443333238363266,
+          "time": 0.4599999189376831,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 127,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.5958327651023865,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.10833308100700378,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.45999956130981445,
+          "time": 0.47666624188423157,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.4599999189376831,
+          "time": 0.4766665995121002,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 128,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6166661381721497,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.14999978244304657,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.47666624188423157,
+          "time": 0.4933329224586487,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.4766665995121002,
+          "time": 0.49333328008651733,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 129,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6374994516372681,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.1916664093732834,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.4933329224586487,
+          "time": 0.5099995732307434,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.49333328008651733,
+          "time": 0.5099999308586121,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 130,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6583327651023865,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.2333330363035202,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.5099995732307434,
+          "time": 0.5266662240028381,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.5099999308586121,
+          "time": 0.5266665816307068,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 131,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6791660785675049,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.2749996483325958,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.5266662240028381,
+          "time": 0.5433328747749329,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.5266665816307068,
+          "time": 0.5433332324028015,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 132,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.6999993920326233,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.31666627526283264,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.5433328747749329,
+          "time": 0.5599995255470276,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.5433332324028015,
+          "time": 0.5599998831748962,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 133,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7208327054977417,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.35833290219306946,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.5599995255470276,
+          "time": 0.5766661763191223,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.5599998831748962,
+          "time": 0.576666533946991,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 134,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7416660189628601,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.3999995291233063,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.5766661763191223,
+          "time": 0.593332827091217,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.576666533946991,
+          "time": 0.5933331847190857,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 135,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7624993324279785,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.4416661560535431,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.593332827091217,
+          "time": 0.6099994778633118,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.5933331847190857,
+          "time": 0.6099998354911804,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 136,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.7833326458930969,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.4833327829837799,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.6099994778633118,
+          "time": 0.6266661286354065,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.6099998354911804,
+          "time": 0.6266664862632751,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 137,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8041659593582153,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.5249994397163391,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.6266661286354065,
+          "time": 0.6433327794075012,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.6266664862632751,
+          "time": 0.6433331370353699,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 138,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8249992728233337,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.5666660666465759,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.6433327794075012,
+          "time": 0.659999430179596,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.6433331370353699,
+          "time": 0.6599997878074646,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 139,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8458325862884521,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6083326935768127,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.659999430179596,
+          "time": 0.6766660809516907,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.6599997878074646,
+          "time": 0.6766664385795593,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 140,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.8666658997535706,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6499993205070496,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.6766660809516907,
+          "time": 0.6933327317237854,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.6766664385795593,
+          "time": 0.693333089351654,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 141,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.887499213218689,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.6916659474372864,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.6933327317237854,
+          "time": 0.7099993824958801,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.693333089351654,
+          "time": 0.7099997401237488,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 142,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9083325266838074,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.7333325743675232,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.7099993824958801,
+          "time": 0.7266660332679749,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.7099997401237488,
+          "time": 0.7266663908958435,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 143,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.3499999940395355,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9291658401489258,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.77499920129776,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6499999761581421,
+          "previous_time": 0.7266660332679749,
+          "time": 0.7433326840400696,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.3499999940395355,
+          "previous_time": 0.7266663908958435,
+          "time": 0.7433330416679382,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 144,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9499991536140442,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8166658282279968,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.7433326840400696,
+          "time": 0.7599993348121643,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.7433330416679382,
+          "time": 0.759999692440033,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 145,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.9708324670791626,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8583324551582336,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.7599993348121643,
+          "time": 0.776665985584259,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.759999692440033,
+          "time": 0.7766663432121277,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 146,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999993443489075,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.991665780544281,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.8999990820884705,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000953674316,
+          "previous_time": 0.776665985584259,
+          "time": 0.7933326363563538,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999993443489075,
+          "previous_time": 0.7766663432121277,
+          "time": 0.7933329343795776,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 147,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.012499094009399414,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9416657090187073,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.7933326363563538,
+          "time": 0.009999275207519531,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.7933329343795776,
+          "time": 0.009999603033065796,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 148,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.033332426100969315,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Right",
+      "next_marker": "Left",
+      "marker_alpha": 0.9833323955535889,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.009999275207519531,
+          "time": 0.0266659427434206,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.009999603033065796,
+          "time": 0.02666628360748291,
+          "play_rate": 1
+        }
+      ]
+    },
+    {
+      "frame": 149,
+      "input": {
+        "x": 0.35,
+        "y": 1,
+        "delta_seconds": 0.016666666666666666,
+        "play_rate": 1
+      },
+      "filtered_position": {
+        "x": 0.34999996423721313,
+        "y": 1,
+        "z": 0
+      },
+      "normalized_time": 0.05416620522737503,
+      "leader_delta": 0.01666666753590107,
+      "previous_marker": "Left",
+      "next_marker": "Right",
+      "marker_alpha": 0.024999910965561867,
+      "samples": [
+        {
+          "sample_index": 3,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+          "weight": 0.6500000357627869,
+          "previous_time": 0.0266659427434206,
+          "time": 0.043332964181900024,
+          "play_rate": 1
+        },
+        {
+          "sample_index": 2,
+          "animation": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+          "weight": 0.34999996423721313,
+          "previous_time": 0.02666628360748291,
+          "time": 0.043333299458026886,
+          "play_rate": 1
+        }
+      ]
+    }
+  ]
+}

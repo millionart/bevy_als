@@ -1,0 +1,80 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.8000000715255737,
+      "event_id": "als_notify:/als/als/animations/actions/getup/a_als_getup_front.a_als_getup_front:7cc0b159-40773595-5ddab098-aaefd8d7",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "7CC0B159-40773595-5DDAB098-AAEFD8D7",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_GetUp_Front",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355,
+        "bSpawnDecal": false,
+        "bSpawnParticleSystem": false,
+        "bSpawnSound": false
+      },
+      "start_time": 0.8000000715255737,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 1.2333333492279053,
+      "event_id": "als_notify:/als/als/animations/actions/getup/a_als_getup_front.a_als_getup_front:baba299c-40896e96-08699bbd-e622ce78",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "BABA299C-40896E96-08699BBD-E622CE78",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_GetUp_Front",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355
+      },
+      "start_time": 1.2333333492279053,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.5,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.5,
+  "source_asset": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

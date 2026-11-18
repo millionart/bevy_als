@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.glb",
+        animation_name: "A_Als_Torch_Poses_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+)

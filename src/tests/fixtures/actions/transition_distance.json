@@ -1,0 +1,282 @@
+{
+  "cases": [
+    {
+      "name": "standing_rank",
+      "stance": "standing",
+      "scale": 1.0,
+      "amounts": [
+        1.0,
+        1.0
+      ],
+      "targets": [
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ],
+        [
+          0.10000000149011612,
+          0.0,
+          9.999999974752427e-07
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        100.00000298023227,
+        100.00000299023226
+      ],
+      "expected": "right",
+      "original": "left"
+    },
+    {
+      "name": "crouching_rank",
+      "stance": "crouching",
+      "scale": 1.0,
+      "amounts": [
+        1.0,
+        1.0
+      ],
+      "targets": [
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ],
+        [
+          0.10000000149011612,
+          0.0,
+          9.999999974752427e-07
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        100.00000298023227,
+        100.00000299023226
+      ],
+      "expected": "right",
+      "original": "left"
+    },
+    {
+      "name": "equal",
+      "stance": "standing",
+      "scale": 1.0,
+      "amounts": [
+        1.0,
+        1.0
+      ],
+      "targets": [
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ],
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        100.00000298023227,
+        100.00000298023227
+      ],
+      "expected": "left",
+      "original": "left"
+    },
+    {
+      "name": "30_degrees_below",
+      "stance": "standing",
+      "scale": 1.0,
+      "amounts": [
+        1.0,
+        0.0
+      ],
+      "targets": [
+        [
+          0.06928203254938126,
+          0.0,
+          0.03999999910593033
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        63.99999962647951,
+        0.0
+      ],
+      "expected": null,
+      "original": "left"
+    },
+    {
+      "name": "10_degrees_above",
+      "stance": "crouching",
+      "scale": 1.0,
+      "amounts": [
+        0.0,
+        1.0
+      ],
+      "targets": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.07878462225198746,
+          0.0,
+          0.01389185432344675
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        0.0,
+        64.00000319932224
+      ],
+      "expected": "right",
+      "original": "right"
+    },
+    {
+      "name": "scale_blocks",
+      "stance": "standing",
+      "scale": 1.5,
+      "amounts": [
+        1.0,
+        1.0
+      ],
+      "targets": [
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ],
+        [
+          0.10000000149011612,
+          0.0,
+          9.999999974752427e-07
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        100.00000298023227,
+        100.00000299023226
+      ],
+      "expected": null,
+      "original": null
+    },
+    {
+      "name": "source_weight_boundary",
+      "stance": "crouching",
+      "scale": 1.0,
+      "amounts": [
+        1.0,
+        9.999999747378752e-06
+      ],
+      "targets": [
+        [
+          0.10000000149011612,
+          0.0,
+          0.0
+        ],
+        [
+          0.10000000149011612,
+          0.0,
+          9.999999974752427e-07
+        ]
+      ],
+      "locks": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "source_distances_squared_cm": [
+        100.00000298023227,
+        100.00000299023226
+      ],
+      "expected": "left",
+      "original": "left"
+    }
+  ],
+  "original_failures": [
+    "standing_rank",
+    "crouching_rank",
+    "30_degrees_below"
+  ]
+}

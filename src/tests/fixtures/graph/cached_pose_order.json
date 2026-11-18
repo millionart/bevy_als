@@ -1,0 +1,57 @@
+{
+  "cases": [
+    {
+      "requests": [
+        0.9999999403953552,
+        1
+      ],
+      "child_update_weights": [
+        1
+      ]
+    },
+    {
+      "requests": [
+        1,
+        0.9999999403953552
+      ],
+      "child_update_weights": [
+        1
+      ]
+    },
+    {
+      "requests": [
+        0.20000000298023224,
+        0.800000011920929
+      ],
+      "child_update_weights": [
+        0.800000011920929
+      ]
+    },
+    {
+      "requests": [
+        0
+      ],
+      "child_update_weights": [
+        0
+      ]
+    },
+    {
+      "requests": [],
+      "child_update_weights": []
+    }
+  ],
+  "ranks": {
+    "Legs": 0,
+    "Pelvis": 1,
+    "Spine": 2,
+    "Head": 3,
+    "Locomotion Additive Mesh Space": 4,
+    "Arm Left": 5,
+    "Arm Right": 6,
+    "Locomotion Additive Local Space": 7,
+    "Base Poses": 8,
+    "Locomotion": 9,
+    "Overlay": 10
+  },
+  "first_request_ablation": 2
+}

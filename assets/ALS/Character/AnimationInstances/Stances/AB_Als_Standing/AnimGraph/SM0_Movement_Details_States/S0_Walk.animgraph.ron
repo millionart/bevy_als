@@ -1,0 +1,13 @@
+(
+    nodes: [
+        (id: "5cf1d083-4540-6974-e301-4c9319b89923", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
+        (id: "ec98c44c-4e2f-0ec8-ff45-d68a3b4a7aa5", name: "Use cached pose 'Movement'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Movement'", cache_key: "ue-cache:4c8173dc-177d-57da-8a11-7159d7d14496", context_defaults: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("5cf1d083-4540-6974-e301-4c9319b89923", "Source"): NodeData("ec98c44c-4e2f-0ec8-ff45-d68a3b4a7aa5", "Pose"),
+        OutputData("Result"): NodeData("5cf1d083-4540-6974-e301-4c9319b89923", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "5cf1d083-4540-6974-e301-4c9319b89923": (0.000, 0.000), "ec98c44c-4e2f-0ec8-ff45-d68a3b4a7aa5": (-272.000, 0.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

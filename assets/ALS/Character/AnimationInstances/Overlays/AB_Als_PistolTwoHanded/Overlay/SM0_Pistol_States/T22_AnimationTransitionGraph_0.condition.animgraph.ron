@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "2daad439-4ef1-bb1a-27fa-a5908570c911", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "rotation_mode", output: "Value", expected_tag: "Als.RotationMode.Aiming", source_property_path: "GetParent.RotationMode", source_properties: ["(\"GetParent\",\"RotationMode\")", "GetParent.RotationMode", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-656", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "2DAAD4394EF1BB1A27FAA5908570C911"]) }, should_debug: false),
+        (id: "db2420b3-4f1e-58ab-23f1-6ca50c42c9b5", name: "Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.RotationMode.Aiming\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["EqualEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-352", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "DB2420B34F1E58AB23F16CA50C42C9B5"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("db2420b3-4f1e-58ab-23f1-6ca50c42c9b5", "A"): NodeData("2daad439-4ef1-bb1a-27fa-a5908570c911", "Value"),
+        OutputData("bCanEnterTransition"): NodeData("db2420b3-4f1e-58ab-23f1-6ca50c42c9b5", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "2daad439-4ef1-bb1a-27fa-a5908570c911": (-656.000, 0.000), "db2420b3-4f1e-58ab-23f1-6ca50c42c9b5": (-352.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

@@ -1,0 +1,31 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.6000000238418579,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.6000000238418579,
+  "source_asset": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.A_Als_Rifle_Sprint_Arms",
+  "source_kind": "AnimSequence",
+  "sync_markers": [
+    {
+      "id": "65FF6237-46AC4533-C7061BB1-94E6E30F",
+      "name": "Left",
+      "time": 0.05379299819469452,
+      "track_index": 0
+    },
+    {
+      "id": "B52B3088-4FC04F5B-B08BBDA8-439E6E2D",
+      "name": "Right",
+      "time": 0.3539760112762451,
+      "track_index": 0
+    }
+  ]
+}

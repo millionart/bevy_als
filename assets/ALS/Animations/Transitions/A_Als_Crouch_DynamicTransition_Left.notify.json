@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.5666666626930237,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_crouch_dynamictransition_left.a_als_crouch_dynamictransition_left:e8eda29f-4ad2f76e-d93b5dba-32c3df15",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "E8EDA29F-4AD2F76E-D93B5DBA-32C3DF15",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Crouch_DynamicTransition_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.5666666626930237,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.5333333015441895,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.5333333015441895,
+  "source_asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

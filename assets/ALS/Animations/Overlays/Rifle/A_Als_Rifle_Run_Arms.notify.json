@@ -1,0 +1,31 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 0.800000011920929,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 0.800000011920929,
+  "source_asset": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.A_Als_Rifle_Run_Arms",
+  "source_kind": "AnimSequence",
+  "sync_markers": [
+    {
+      "id": "3FC0D022-4DB46D83-2DCC3A9C-0FEAEDA8",
+      "name": "Left",
+      "time": 0.0334010012447834,
+      "track_index": 0
+    },
+    {
+      "id": "BEC717A3-48E4E568-D10B87BA-9895D17B",
+      "name": "Right",
+      "time": 0.43303799629211426,
+      "track_index": 0
+    }
+  ]
+}

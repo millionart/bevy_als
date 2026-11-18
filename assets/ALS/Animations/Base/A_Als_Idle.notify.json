@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "runtime_segments": [
+    {
+      "animation_end_time": 2.6666667461395264,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Base/A_Als_Idle.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 2.6666667461395264,
+  "source_asset": "/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

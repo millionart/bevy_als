@@ -1,0 +1,95 @@
+{
+  "format": "ue_cached_pose_lifecycle_probe_v1",
+  "frames": [
+    {
+      "frame": 0,
+      "active": true,
+      "initialize_request": true,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 1,
+      "child_position": 0.30000001192092896
+    },
+    {
+      "frame": 1,
+      "active": true,
+      "initialize_request": false,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 2,
+      "child_position": 0.4000000059604645
+    },
+    {
+      "frame": 2,
+      "active": true,
+      "initialize_request": true,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 3,
+      "child_position": 0.5
+    },
+    {
+      "frame": 3,
+      "active": true,
+      "initialize_request": false,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 4,
+      "child_position": 0.6000000238418579
+    },
+    {
+      "frame": 4,
+      "active": false,
+      "initialize_request": false,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 4,
+      "child_position": 0.6000000238418579
+    },
+    {
+      "frame": 5,
+      "active": false,
+      "initialize_request": false,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 4,
+      "child_position": 0.6000000238418579
+    },
+    {
+      "frame": 6,
+      "active": true,
+      "initialize_request": true,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 5,
+      "child_position": 0.7000000476837158
+    },
+    {
+      "frame": 7,
+      "active": true,
+      "initialize_request": true,
+      "instance_reinitialize": false,
+      "cache_update_counter_valid": false,
+      "child_initializations": 1,
+      "child_updates": 6,
+      "child_position": 0.8000000715255737
+    },
+    {
+      "frame": 8,
+      "active": true,
+      "initialize_request": true,
+      "instance_reinitialize": true,
+      "cache_update_counter_valid": false,
+      "child_initializations": 2,
+      "child_updates": 7,
+      "child_position": 0.30000001192092896
+    }
+  ]
+}

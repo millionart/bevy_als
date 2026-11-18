@@ -1,0 +1,243 @@
+{
+  "players": [
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "duration": 1.1666666269302368,
+      "rate": 1.0,
+      "looped": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+      "duration": 1.1666666269302368,
+      "rate": 1.75,
+      "looped": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "duration": 1.1666666269302368,
+      "rate": 1.0,
+      "looped": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "duration": 1.1666666269302368,
+      "rate": 1.0,
+      "looped": true
+    }
+  ],
+  "cases": [
+    {
+      "name": "same_identity_early",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.75,
+          "delta": 0.15000000596046448,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.15000000596046448
+          ],
+          "ratio": 0.12857143580913544
+        },
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.15000000596046448,
+            0.17500001192092896
+          ],
+          "ratio": 0.15000002086162567
+        }
+      ]
+    },
+    {
+      "name": "same_identity_equal",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.17499999701976776,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.17499999701976776
+          ],
+          "ratio": 0.15000000596046448
+        },
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.17499999701976776,
+            0.20000000298023224
+          ],
+          "ratio": 0.17142857611179352
+        }
+      ]
+    },
+    {
+      "name": "different_identity_same_asset",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.75,
+          "delta": 0.17499999701976776,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.17499999701976776
+          ],
+          "ratio": 0.15000000596046448
+        },
+        {
+          "player": 2,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.17499999701976776,
+            0.20000000298023224
+          ],
+          "ratio": 0.17142857611179352
+        }
+      ]
+    },
+    {
+      "name": "different_asset",
+      "frames": [
+        {
+          "player": 1,
+          "weight": 0.75,
+          "delta": 0.17499999701976776,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.3062500059604645
+          ],
+          "ratio": 0.26250001788139343
+        },
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.3062500059604645,
+            0.33125001192092896
+          ],
+          "ratio": 0.28392860293388367
+        }
+      ]
+    },
+    {
+      "name": "higher_score",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.17499999701976776,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.17499999701976776
+          ],
+          "ratio": 0.15000000596046448
+        },
+        {
+          "player": 0,
+          "weight": 0.75,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.0,
+            0.02500000037252903
+          ],
+          "ratio": 0.02142857201397419
+        }
+      ]
+    },
+    {
+      "name": "no_inertial_request",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.75,
+          "delta": 0.17499999701976776,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.17499999701976776
+          ],
+          "ratio": 0.15000000596046448
+        },
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": false,
+          "clock": [
+            0.0,
+            0.02500000037252903
+          ],
+          "ratio": 0.02142857201397419
+        }
+      ]
+    },
+    {
+      "name": "loop_endpoint",
+      "frames": [
+        {
+          "player": 3,
+          "weight": 0.75,
+          "delta": 1.1666666269302368,
+          "inertial": false,
+          "clock": [
+            0.0,
+            1.1666666269302368
+          ],
+          "ratio": 1
+        },
+        {
+          "player": 3,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            1.1666666269302368,
+            0.02499997615814209
+          ],
+          "ratio": 0.021428551524877548
+        }
+      ]
+    },
+    {
+      "name": "no_history",
+      "frames": [
+        {
+          "player": 0,
+          "weight": 0.5,
+          "delta": 0.02500000037252903,
+          "inertial": true,
+          "clock": [
+            0.0,
+            0.02500000037252903
+          ],
+          "ratio": 0.02142857201397419
+        }
+      ]
+    }
+  ],
+  "local_time_ablation": [
+    "same_identity_early",
+    "same_identity_equal",
+    "loop_endpoint"
+  ],
+  "wrapped_ratio_ablation": [
+    "loop_endpoint"
+  ]
+}

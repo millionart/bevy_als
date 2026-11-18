@@ -1,0 +1,38 @@
+{
+  "CameraOffsetZ": [
+    "CameraOffsetX",
+    -100.0
+  ],
+  "CameraOffsetX": [
+    "CameraOffsetY",
+    100.0
+  ],
+  "CameraOffsetY": [
+    "CameraOffsetZ",
+    100.0
+  ],
+  "LocationLagZ": [
+    "LocationLagX",
+    1.0
+  ],
+  "LocationLagX": [
+    "LocationLagY",
+    1.0
+  ],
+  "LocationLagY": [
+    "LocationLagZ",
+    1.0
+  ],
+  "PivotOffsetX": [
+    "PivotOffsetX",
+    100.0
+  ],
+  "PivotOffsetZ": [
+    "PivotOffsetY",
+    100.0
+  ],
+  "PivotOffsetY": [
+    "PivotOffsetZ",
+    100.0
+  ]
+}

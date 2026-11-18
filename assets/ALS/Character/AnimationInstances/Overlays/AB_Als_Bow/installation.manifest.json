@@ -1,0 +1,29 @@
+{
+  "format": "ue_animgraph_installation_manifest_v1",
+  "source": {
+    "uasset_name": "AB_Als_Bow.uasset",
+    "package_path": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow.AB_Als_Bow"
+  },
+  "namespace": "",
+  "root_graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+  "files": [
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States.fsm.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron"
+  ]
+}

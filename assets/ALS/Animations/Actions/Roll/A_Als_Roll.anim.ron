@@ -1,0 +1,98 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Actions/Roll/A_Als_Roll.glb",
+        animation_name: "A_Als_Roll_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:0": (
+            name: "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:0",
+            events: [
+                (
+                    id: "523f279d-910e-5d0c-8a61-ddbaeeb682f7",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:dc67d23a-40c84f64-0545e484-c7b4e6e6"),
+                        start_time: 0.9333333373069763,
+                        end_time: 0.9333333373069763,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:1": (
+            name: "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:1",
+            events: [
+                (
+                    id: "e5eaa63d-4201-5427-a9db-2b0db7e32191",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:decc527d-454b1467-02c76397-aa1bfb95"),
+                        start_time: 9.999999747378752e-05,
+                        end_time: 1.500100016593933,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:2": (
+            name: "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:2",
+            events: [
+                (
+                    id: "05c8c949-679b-543c-a0ae-e0aa4fa4fdf8",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:f713b8b2-4d1be636-30f782a6-1680d57a"),
+                        start_time: 0.9333333969116211,
+                        end_time: 0.9333333969116211,
+                    ),
+                ),
+                (
+                    id: "c7756be6-78a2-5777-ad3f-58a2d4bb27e8",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:5596aea5-420c2cc2-09408194-8c645e52"),
+                        start_time: 1.0,
+                        end_time: 1.0,
+                    ),
+                ),
+                (
+                    id: "841b0a1a-f3a9-5140-b2ad-5516e642e842",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:fb904dc5-49ee4408-0ca0d28d-a321b5f8"),
+                        start_time: 1.2333333492279053,
+                        end_time: 1.2333333492279053,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:3": (
+            name: "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:3",
+            events: [
+                (
+                    id: "3382a1eb-c127-51a8-b24e-7091832a2f29",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:b9e2bd85-40978ab9-277e1a94-a3ee4e3c"),
+                        start_time: 0.10000000894069672,
+                        end_time: 0.10000000894069672,
+                    ),
+                ),
+                (
+                    id: "0824838e-f889-5133-9ff6-3a02151222b9",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:b1554e67-4e0661b3-040b67a3-c1b84c3d"),
+                        start_time: 0.46666669845581055,
+                        end_time: 0.46666669845581055,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/roll/am_als_roll.am_als_roll:0": (
+            name: "als_notify:/als/als/animations/actions/roll/am_als_roll.am_als_roll:0",
+            events: [
+                (
+                    id: "c08a1651-adaf-523c-a1be-58328f46eac3",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/roll/am_als_roll.am_als_roll:c6413b98-45284e13-5711a6aa-d480c79a"),
+                        start_time: 9.999999747378752e-05,
+                        end_time: 0.9334329962730408,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

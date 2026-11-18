@@ -1,0 +1,410 @@
+{
+  "stride_walk": {
+    "times": [
+      0.0,
+      0.5829999923706055,
+      1.5
+    ],
+    "values": [
+      0.20000000298023224,
+      0.5499999523162842,
+      1.0
+    ],
+    "interps": [
+      "Cubic",
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      1,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      1.2879322282969952,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      1.2879322282969952,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  },
+  "stride_run": {
+    "times": [
+      0.0,
+      1.6689999389648438,
+      3.5
+    ],
+    "values": [
+      0.20000000298023224,
+      0.45000001788139343,
+      1.0
+    ],
+    "interps": [
+      "Cubic",
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      1,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      0.3365721320733428,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      0.3365721320733428,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  },
+  "yaw_forward_backward": {
+    "times": [
+      -180.0,
+      -120.0,
+      -90.0,
+      -60.0,
+      0.0,
+      60.0,
+      90.0,
+      120.0,
+      180.0
+    ],
+    "values": [
+      0.0,
+      60.0,
+      0.0,
+      -60.0,
+      0.0,
+      60.0,
+      0.0,
+      -60.0,
+      0.0
+    ],
+    "interps": [
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "CycleWithOffset",
+    "post_infinity": "CycleWithOffset"
+  },
+  "yaw_left": {
+    "times": [
+      -180.0,
+      -135.0,
+      -90.0,
+      -45.0,
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "values": [
+      0.0,
+      -45.0,
+      0.0,
+      0.0,
+      0.0,
+      -45.0,
+      0.0,
+      45.0,
+      0.0
+    ],
+    "interps": [
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "CycleWithOffset",
+    "post_infinity": "CycleWithOffset"
+  },
+  "yaw_right": {
+    "times": [
+      -180.0,
+      -135.0,
+      -90.0,
+      -45.0,
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "values": [
+      0.0,
+      -45.0,
+      0.0,
+      45.0,
+      0.0,
+      0.0,
+      0.0,
+      45.0,
+      0.0
+    ],
+    "interps": [
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "CycleWithOffset",
+    "post_infinity": "CycleWithOffset"
+  },
+  "velocity_blend_interpolation_half_life": 0.1
+}

@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "85fa3c51-8a09-5335-ba35-8c194fdb5c13", name: "Set Hips Left", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [(bone: "thigh_l", scale: 2.0), (bone: "calf_l", scale: 2.0), (bone: "calf_twist_01_l", scale: 2.0), (bone: "foot_l", scale: 2.0), (bone: "ball_l", scale: 2.0), (bone: "thigh_twist_01_l", scale: 2.0), (bone: "thigh_r", scale: 2.0), (bone: "calf_r", scale: 2.0), (bone: "calf_twist_01_r", scale: 2.0), (bone: "foot_r", scale: 2.0), (bone: "ball_r", scale: 2.0), (bone: "thigh_twist_01_r", scale: 2.0), (bone: "ik_foot_root", scale: 2.0), (bone: "ik_foot_l", scale: 2.0), (bone: "ik_foot_r", scale: 2.0), (bone: "VB foot_root", scale: 2.0), (bone: "VB foot_l", scale: 2.0), (bone: "VB foot_r", scale: 2.0)], profile_mode: WeightFactor, alpha_blend_mode: QuadraticInOut, custom_curve: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("85fa3c51-8a09-5335-ba35-8c194fdb5c13", "pose"),
+        OutputTime: NodeTime("85fa3c51-8a09-5335-ba35-8c194fdb5c13"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "85fa3c51-8a09-5335-ba35-8c194fdb5c13": (-250.000, 372.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

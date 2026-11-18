@@ -1,0 +1,22 @@
+(
+    source: GltfNamed(
+        path: "ALSRuntime/Animations/Air/Jump/A_Als_Jump_Walk_Left.glb",
+        animation_name: "A_Als_Jump_Walk_Left_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/air/jump/a_als_jump_walk_left.a_als_jump_walk_left:0": (
+            name: "als_notify:/als/als/animations/air/jump/a_als_jump_walk_left.a_als_jump_walk_left:0",
+            events: [
+                (
+                    id: "8563ab80-11cf-54e7-8d6a-f385b28b8f85",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/jump/a_als_jump_walk_left.a_als_jump_walk_left:f57f005f-4994f4c5-0fc2898b-456d5fc7"),
+                        start_time: 0.13333332538604736,
+                        end_time: 0.13333332538604736,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

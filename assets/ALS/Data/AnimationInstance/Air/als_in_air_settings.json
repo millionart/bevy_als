@@ -1,0 +1,120 @@
+{
+  "lean_interpolation_half_life": 0.2,
+  "prediction_trace_layer": "Visibility",
+  "jump_reference_speed": 6.0,
+  "jump_min_play_rate": 1.2,
+  "jump_max_play_rate": 1.5,
+  "lean_reference_speed": 3.5,
+  "prediction_velocity_threshold": -2.0,
+  "prediction_min_velocity": -40.0,
+  "prediction_max_velocity": -2.0,
+  "prediction_min_distance": 1.5,
+  "prediction_max_distance": 20.0,
+  "lean": {
+    "times": [
+      -40.0,
+      -32.7768310546875,
+      -22.51930908203125,
+      -12.47548828125,
+      0.0
+    ],
+    "values": [
+      0.0,
+      -0.12285149097442627,
+      -0.9322402477264404,
+      -0.7941915988922119,
+      1.0
+    ],
+    "interps": [
+      "Cubic",
+      "Cubic",
+      "Cubic",
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      -0.053329713409766555,
+      -0.04659098631236702,
+      0.08580370922572911,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      -0.053329713409766555,
+      -0.04663115832954645,
+      0.08580370922572911,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  },
+  "ground_prediction": {
+    "times": [
+      0.0,
+      1.0
+    ],
+    "values": [
+      1.0,
+      0.0
+    ],
+    "interps": [
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      1,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      -2.066087007522583,
+      0.0
+    ],
+    "leave_tangents": [
+      -2.0660884380340576,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  }
+}

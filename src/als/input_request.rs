@@ -1,0 +1,729 @@
+use bevy::prelude::*;
+
+use crate::als::aim::AlsLastFreeRotationMode;
+use crate::als::character::AlsCharacter;
+use crate::als::input::AlsInputCommand;
+use crate::als::motion::AlsInputOverride;
+use crate::als::state::{AlsNotifyLocomotionAction, Gait, RotationMode, Stance};
+use crate::als::transition::{AlsDesiredStance, AlsStateRequest, state_transition_system};
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsFirstPersonView;
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCameraLeftShoulder;
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsSprintPrev(pub bool);
+
+pub fn input_state_request_system(
+    mut commands: Commands,
+    mut q: Query<
+        (
+            Entity,
+            &Stance,
+            Option<&AlsDesiredStance>,
+            &mut crate::als::gait::AlsDesiredGait,
+            Option<&AlsNotifyLocomotionAction>,
+            &RotationMode,
+            Option<&mut AlsLastFreeRotationMode>,
+            Has<AlsFirstPersonView>,
+            Has<AlsCameraLeftShoulder>,
+            Option<&mut AlsSprintPrev>,
+            &AlsInputCommand,
+            Option<&AlsInputOverride>,
+            &mut AlsStateRequest,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (
+        entity,
+        stance,
+        desired_stance,
+        mut desired_gait,
+        action,
+        rotation_mode,
+        mut last_free,
+        first_person,
+        left_shoulder,
+        sprint_prev,
+        cmd,
+        ovr,
+        mut request,
+    ) in &mut q
+    {
+        let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
+
+        if effective.crouch_pressed {
+            match desired_stance.map(|desired| desired.0).unwrap_or(*stance) {
+                Stance::Standing => request.stance = Some(Stance::Crouching),
+                Stance::Crouching => request.stance = Some(Stance::Standing),
+                _ => {}
+            }
+        }
+
+        let sprint_now = effective.sprint_held;
+        let sprint_was = sprint_prev.as_deref().map(|s| s.0).unwrap_or(false);
+        if sprint_now && !sprint_was {
+            desired_gait.0 = Gait::Sprinting;
+        } else if !sprint_now && sprint_was {
+            desired_gait.0 = Gait::Running;
+        }
+        match sprint_prev {
+            Some(mut sp) => sp.0 = sprint_now,
+            None => {
+                commands.entity(entity).insert(AlsSprintPrev(sprint_now));
+            }
+        }
+
+        if effective.walk_pressed {
+            match desired_gait.0 {
+                Gait::Walking => desired_gait.0 = Gait::Running,
+                Gait::Running => desired_gait.0 = Gait::Walking,
+                _ => {}
+            }
+        }
+
+        if effective.ragdoll_pressed {
+            request.ragdoll_exit = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
+            request.ragdoll_start = !request.ragdoll_exit;
+        }
+
+        if effective.rotation_mode_pressed {
+            let stored = last_free
+                .as_deref()
+                .map(|lf| lf.0)
+                .unwrap_or(*rotation_mode);
+            let free = if stored == RotationMode::VelocityDirection {
+                RotationMode::ViewDirection
+            } else {
+                RotationMode::VelocityDirection
+            };
+            match last_free.as_deref_mut() {
+                Some(lf) => lf.0 = free,
+                None => {
+                    commands
+                        .entity(entity)
+                        .insert(AlsLastFreeRotationMode(free));
+                }
+            }
+            if *rotation_mode != RotationMode::Aiming {
+                request.rotation_mode = Some(free);
+            }
+        }
+
+        if effective.view_mode_pressed {
+            if first_person {
+                commands.entity(entity).remove::<AlsFirstPersonView>();
+            } else {
+                commands.entity(entity).insert(AlsFirstPersonView);
+            }
+        }
+
+        if effective.switch_shoulder_pressed {
+            if left_shoulder {
+                commands.entity(entity).remove::<AlsCameraLeftShoulder>();
+            } else {
+                commands.entity(entity).insert(AlsCameraLeftShoulder);
+            }
+        }
+    }
+}
+
+pub struct AlsInputRequestPlugin;
+
+impl Plugin for AlsInputRequestPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            input_state_request_system
+                .before(crate::als::aim::aim_rotation_mode_system)
+                .before(state_transition_system),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::als::state::{LocomotionState, OverlayState, RotationMode};
+    use crate::als::transition::AlsStateTransitionPlugin;
+    use bevy::MinimalPlugins;
+    use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn walk_input_preserves_sprinting_and_custom_desired_gaits() {
+        for gait in [
+            Gait::Sprinting,
+            Gait::new("Als.Gait.Custom").unwrap(),
+            Gait::new("").unwrap(),
+        ] {
+            let mut app = app_with_plugins();
+            let held = gait == Gait::Sprinting;
+            let character = spawn_character(
+                &mut app,
+                Stance::Standing,
+                gait,
+                AlsInputCommand {
+                    walk_pressed: true,
+                    sprint_held: held,
+                    ..default()
+                },
+            );
+            app.world_mut()
+                .entity_mut(character)
+                .insert(AlsSprintPrev(held));
+            app.world_mut()
+                .run_system_once(input_state_request_system)
+                .unwrap();
+            assert_eq!(
+                app.world()
+                    .get::<crate::als::gait::AlsDesiredGait>(character)
+                    .unwrap()
+                    .0,
+                gait
+            );
+            assert!(
+                app.world()
+                    .get::<AlsStateRequest>(character)
+                    .unwrap()
+                    .gait
+                    .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn crouch_input_preserves_custom_desired_stance_and_pending_requests() {
+        for desired in [
+            Stance::new("Als.Stance.Prone").unwrap(),
+            Stance::new("").unwrap(),
+        ] {
+            for pending in [None, Some(Stance::Crouching)] {
+                let mut app = app_with_plugins();
+                let character = spawn_character(
+                    &mut app,
+                    Stance::Standing,
+                    Gait::Running,
+                    AlsInputCommand {
+                        crouch_pressed: true,
+                        ..default()
+                    },
+                );
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsDesiredStance(desired));
+                app.world_mut()
+                    .get_mut::<AlsStateRequest>(character)
+                    .unwrap()
+                    .stance = pending;
+                app.world_mut()
+                    .run_system_once(input_state_request_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world().get::<AlsDesiredStance>(character).unwrap().0,
+                    desired
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<AlsStateRequest>(character)
+                        .unwrap()
+                        .stance,
+                    pending
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rotation_input_uses_source_fallback_for_custom_saved_modes() {
+        for stored in [
+            RotationMode::new("Als.RotationMode.Custom").unwrap(),
+            RotationMode::new("").unwrap(),
+        ] {
+            for aiming in [false, true] {
+                let mut app = app_with_plugins();
+                let character = spawn_character(
+                    &mut app,
+                    Stance::Standing,
+                    Gait::Running,
+                    AlsInputCommand {
+                        rotation_mode_pressed: true,
+                        ..default()
+                    },
+                );
+                *app.world_mut().get_mut::<RotationMode>(character).unwrap() =
+                    if aiming { RotationMode::Aiming } else { stored };
+                app.world_mut()
+                    .entity_mut(character)
+                    .insert(AlsLastFreeRotationMode(stored));
+                app.world_mut()
+                    .run_system_once(input_state_request_system)
+                    .unwrap();
+                assert_eq!(
+                    app.world()
+                        .get::<AlsLastFreeRotationMode>(character)
+                        .unwrap()
+                        .0,
+                    RotationMode::VelocityDirection
+                );
+                assert_eq!(
+                    app.world()
+                        .get::<AlsStateRequest>(character)
+                        .unwrap()
+                        .rotation_mode,
+                    (!aiming).then_some(RotationMode::VelocityDirection)
+                );
+            }
+        }
+    }
+
+    type AppBuilder = App;
+
+    fn spawn_character(app: &mut App, stance: Stance, gait: Gait, cmd: AlsInputCommand) -> Entity {
+        app.world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Grounded,
+                stance,
+                gait,
+                crate::als::gait::AlsDesiredGait(gait),
+                RotationMode::VelocityDirection,
+                OverlayState::Default,
+                AlsStateRequest::default(),
+                cmd,
+            ))
+            .id()
+    }
+
+    fn app_with_plugins() -> AppBuilder {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AlsStateTransitionPlugin,
+            AlsInputRequestPlugin,
+        ));
+        app
+    }
+
+    #[test]
+    fn crouch_edge_toggles_desired_stance_once_per_press() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Walking,
+            AlsInputCommand {
+                crouch_pressed: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
+        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Standing);
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().stance, None);
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .crouch_pressed = false;
+        app.update();
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching,
+            "released edge must not toggle again"
+        );
+    }
+
+    #[test]
+    fn second_crouch_press_returns_to_standing() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Walking,
+            AlsInputCommand::default(),
+        );
+
+        for press in [true, false] {
+            app.world_mut()
+                .get_mut::<AlsInputCommand>(e)
+                .unwrap()
+                .crouch_pressed = press;
+            app.update();
+        }
+
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
+
+        for press in [true, false] {
+            app.world_mut()
+                .get_mut::<AlsInputCommand>(e)
+                .unwrap()
+                .crouch_pressed = press;
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Standing
+        );
+    }
+
+    #[test]
+    fn sprint_hold_updates_desired_gait_and_release_restores_running() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                sprint_held: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Sprinting
+        );
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .sprint_held = false;
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Running
+        );
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
+    }
+
+    #[test]
+    fn sprint_desired_gait_is_idempotent_while_held() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                sprint_held: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        app.update();
+
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Sprinting
+        );
+        assert_eq!(
+            app.world().get::<AlsStateRequest>(e).unwrap().gait,
+            None,
+            "held sprint only changes desired gait on its press edge"
+        );
+    }
+
+    #[test]
+    fn override_takes_precedence_over_real_input() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Walking,
+            AlsInputCommand {
+                crouch_pressed: false,
+                sprint_held: false,
+                ..Default::default()
+            },
+        );
+        app.world_mut()
+            .entity_mut(e)
+            .insert(AlsInputOverride(AlsInputCommand {
+                crouch_pressed: true,
+                sprint_held: true,
+                ..Default::default()
+            }));
+
+        app.update();
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Sprinting
+        );
+    }
+
+    #[test]
+    fn airborne_sprint_updates_desired_gait_without_changing_actual_gait() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                sprint_held: true,
+                ..Default::default()
+            },
+        );
+        *app.world_mut().get_mut::<LocomotionState>(e).unwrap() = LocomotionState::Air;
+
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Sprinting
+        );
+        assert_eq!(
+            *app.world().get::<Gait>(e).unwrap(),
+            Gait::Running,
+            "actual gait changes only in the grounded gait refresh"
+        );
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .sprint_held = false;
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Running
+        );
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
+
+        *app.world_mut().get_mut::<LocomotionState>(e).unwrap() = LocomotionState::Grounded;
+        app.update();
+        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Running);
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
+    }
+
+    #[test]
+    fn walk_toggle_switches_between_walking_and_running() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                walk_pressed: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Walking
+        );
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .walk_pressed = false;
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Walking
+        );
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .walk_pressed = true;
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<crate::als::gait::AlsDesiredGait>(e)
+                .unwrap()
+                .0,
+            Gait::Running
+        );
+    }
+
+    #[test]
+    fn ragdoll_toggle_requests_enter_and_exit() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                ragdoll_pressed: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert_eq!(
+            *app.world().get::<LocomotionState>(e).unwrap(),
+            LocomotionState::Grounded
+        );
+        app.world_mut()
+            .entity_mut(e)
+            .insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .ragdoll_pressed = false;
+        app.update();
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .ragdoll_pressed = true;
+        app.update();
+        assert_eq!(
+            *app.world().get::<LocomotionState>(e).unwrap(),
+            LocomotionState::None,
+            "recovery waits for the ragdoll ground trace"
+        );
+        assert!(
+            app.world().get::<AlsStateRequest>(e).unwrap().ragdoll_exit,
+            "ragdoll recovery carries the route intent"
+        );
+    }
+
+    #[test]
+    fn rotation_mode_toggle_flips_free_mode_and_updates_last_free() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                rotation_mode_pressed: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert_eq!(
+            *app.world().get::<RotationMode>(e).unwrap(),
+            RotationMode::ViewDirection
+        );
+        assert_eq!(
+            app.world().get::<AlsLastFreeRotationMode>(e).unwrap().0,
+            RotationMode::ViewDirection
+        );
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .rotation_mode_pressed = false;
+        app.update();
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .rotation_mode_pressed = true;
+        app.update();
+        assert_eq!(
+            *app.world().get::<RotationMode>(e).unwrap(),
+            RotationMode::VelocityDirection
+        );
+    }
+
+    #[test]
+    fn rotation_mode_toggle_while_aiming_only_updates_last_free() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                rotation_mode_pressed: true,
+                ..Default::default()
+            },
+        );
+        *app.world_mut().get_mut::<RotationMode>(e).unwrap() = RotationMode::Aiming;
+
+        app.update();
+        assert_eq!(
+            *app.world().get::<RotationMode>(e).unwrap(),
+            RotationMode::Aiming,
+            "aiming rotation must not be interrupted by the free-mode toggle"
+        );
+        assert_eq!(
+            app.world().get::<AlsLastFreeRotationMode>(e).unwrap().0,
+            RotationMode::VelocityDirection,
+            "stored free mode still flips for later aim release"
+        );
+    }
+
+    #[test]
+    fn view_mode_and_shoulder_toggles_flip_components() {
+        let mut app = app_with_plugins();
+        let e = spawn_character(
+            &mut app,
+            Stance::Standing,
+            Gait::Running,
+            AlsInputCommand {
+                view_mode_pressed: true,
+                switch_shoulder_pressed: true,
+                ..Default::default()
+            },
+        );
+
+        app.update();
+        assert!(app.world().get::<AlsFirstPersonView>(e).is_some());
+        assert!(app.world().get::<AlsCameraLeftShoulder>(e).is_some());
+
+        for field in ["view_mode_pressed", "switch_shoulder_pressed"] {
+            let mut cmd = app.world_mut().get_mut::<AlsInputCommand>(e).unwrap();
+            if field == "view_mode_pressed" {
+                cmd.view_mode_pressed = false;
+            } else {
+                cmd.switch_shoulder_pressed = false;
+            }
+        }
+        app.update();
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .view_mode_pressed = true;
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .switch_shoulder_pressed = true;
+        app.update();
+        assert!(app.world().get::<AlsFirstPersonView>(e).is_none());
+        assert!(app.world().get::<AlsCameraLeftShoulder>(e).is_none());
+    }
+}

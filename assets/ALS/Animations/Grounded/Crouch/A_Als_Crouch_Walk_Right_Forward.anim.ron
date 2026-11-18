@@ -1,0 +1,30 @@
+(
+    source: GltfNamed(
+        path: "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.glb",
+        animation_name: "A_Als_Crouch_Walk_Right_Forward_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_forward.a_als_crouch_walk_right_forward:0": (
+            name: "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_forward.a_als_crouch_walk_right_forward:0",
+            events: [
+                (
+                    id: "dc0c9be0-915a-5a91-a49b-33f7343765d1",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_forward.a_als_crouch_walk_right_forward:ddd754bc-4fcfece4-382e3d80-22bc8669"),
+                        start_time: 0.13333332538604736,
+                        end_time: 0.13333332538604736,
+                    ),
+                ),
+                (
+                    id: "c2933d84-f700-5bd1-8744-d02f771872ba",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_forward.a_als_crouch_walk_right_forward:f8697716-471780c9-a09e0e9f-3056712e"),
+                        start_time: 0.6999999284744263,
+                        end_time: 0.6999999284744263,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

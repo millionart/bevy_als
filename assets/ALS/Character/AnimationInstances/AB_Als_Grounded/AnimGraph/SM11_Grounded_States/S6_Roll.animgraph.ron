@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "72b09c4e-4d27-50d7-bcb2-0c8476d4bee5", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "PlayRollToGroundedTransitionAnimation", call_site: "OnStateExit", synchronize_groups: false) }, should_debug: false),
+        (id: "c4cdec9f-41a4-98d8-4a56-60bcc11e13ed", name: "A_Als_Roll\nSequence Evaluator (by frame)", inner: { "als_ext::SourceSequenceEvaluatorNode": (clip: "ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron", curves: ({"PoseStanding": (times: [0.0], values: [1.0], tangent_modes: [0], weight_modes: [0], arrive_tangents: [0], leave_tangents: [0], arrive_weights: [0], leave_weights: [0], interps: [Linear], pre_infinity: Constant, post_infinity: Constant), "PoseGrounded": (times: [0.6333333253860474, 0.9333333373069763], values: [1.3499441564590597e-08, 0.9999999403953552], tangent_modes: [0, 0], weight_modes: [0, 0], arrive_tangents: [0.0, 0.0], leave_tangents: [0.0, 0.0], arrive_weights: [0.0, 0.0], leave_weights: [0.0, 0.0], interps: [Cubic, Cubic], pre_infinity: Constant, post_infinity: Constant)}), additive_reference: None, additive_reference_position: 0.0, use_explicit_frame: true, explicit_value: 45.0, explicit_value_key: "", explicit_value_pin: "ExplicitFrame", expose_explicit_value_pin: true, frames_per_second: 30.0, step_interpolation: false, should_loop: true, teleport_to_explicit_time: true, reinitialization_behavior: "ExplicitTime", root_lock: Some(RefPose)) }, should_debug: false),
+        (id: "b4354689-47f1-0544-010b-7eb4cc3a09ad", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (source_pose_pin: "SourcePose", curve_name: "", curve_names: ["FootLeftLock", "FootRightLock"], value: 0.0, pin_default: 0.0, pin_defaults: [1.0, 1.0], value_pin_names: ["CurveValues_0", "CurveValues_1"], value_key: "", value_keys: ["", ""], source_value_path: "", source_value_paths: ["", ""], alpha: 1.0, alpha_key: "", alpha_pin: "Alpha", expose_alpha_pin: false, apply_mode: "Blend") }, should_debug: false),
+        (id: "a403aab5-4384-5a3d-eb2b-c18f7be24f30", name: "ResetGroundedEntryMode\r\nOn Become Relevant", inner: { "als_ext::SourcePropertyWriteNode": (assignments: [(property: "grounded_entry_mode.reset_requested", value: Bool(true))], on_become_relevant: true) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("b4354689-47f1-0544-010b-7eb4cc3a09ad", "SourcePose"): NodeData("c4cdec9f-41a4-98d8-4a56-60bcc11e13ed", "Pose"),
+        NodeData("a403aab5-4384-5a3d-eb2b-c18f7be24f30", "Source"): NodeData("b4354689-47f1-0544-010b-7eb4cc3a09ad", "Pose"),
+        NodeData("72b09c4e-4d27-50d7-bcb2-0c8476d4bee5", "Source"): NodeData("a403aab5-4384-5a3d-eb2b-c18f7be24f30", "Pose"),
+        OutputData("Result"): NodeData("72b09c4e-4d27-50d7-bcb2-0c8476d4bee5", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "72b09c4e-4d27-50d7-bcb2-0c8476d4bee5": (0.000, 0.000), "c4cdec9f-41a4-98d8-4a56-60bcc11e13ed": (-816.000, -16.000), "b4354689-47f1-0544-010b-7eb4cc3a09ad": (-528.000, 0.000), "a403aab5-4384-5a3d-eb2b-c18f7be24f30": (-256.000, -16.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

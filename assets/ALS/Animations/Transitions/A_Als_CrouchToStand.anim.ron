@@ -1,0 +1,30 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Transitions/A_Als_CrouchToStand.glb",
+        animation_name: "A_Als_CrouchToStand_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:0": (
+            name: "als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:0",
+            events: [
+                (
+                    id: "ff000bf7-1b2f-5f80-82e4-61d4120089e9",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:369b92b3-49c36221-6e6569b0-6e8757ee"),
+                        start_time: 0.6000000238418579,
+                        end_time: 0.6000000238418579,
+                    ),
+                ),
+                (
+                    id: "47a47f7d-df71-5e22-bead-801c8a790b59",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:842ed4b3-4cffc503-bc2ee59b-17392a78"),
+                        start_time: 0.9000000357627869,
+                        end_time: 0.9000000357627869,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

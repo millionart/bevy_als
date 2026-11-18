@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "d25949db-4b14-fe01-5891-979d31f9ad1c", name: "State Weight (Stop)", inner: { "als_ext::SourceAnimationStateGetterNode": (source_function: "GetInstanceStateWeight", fsm_node: "8fad4481-4fb4-8cb8-3a00-c9a0ed54da4b", state_id: "aff6f223-43f1-720f-85ed-b58fb4cf82bd", output: "ReturnValue") }, should_debug: false),
+        (id: "24f7e60c-4b25-471a-5132-239cba233232", name: "float >= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 1.0, bool_default: false, source_default: "1.000000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "greater_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["GreaterEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"GreaterEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-224", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "24F7E60C4B25471A5132239CBA233232"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("24f7e60c-4b25-471a-5132-239cba233232", "ReturnValue"),
+        NodeData("24f7e60c-4b25-471a-5132-239cba233232", "A"): NodeData("d25949db-4b14-fe01-5891-979d31f9ad1c", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "d25949db-4b14-fe01-5891-979d31f9ad1c": (-464.000, 0.000), "24f7e60c-4b25-471a-5132-239cba233232": (-224.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

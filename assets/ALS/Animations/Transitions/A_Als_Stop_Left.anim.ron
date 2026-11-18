@@ -1,0 +1,30 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Transitions/A_Als_Stop_Left.glb",
+        animation_name: "A_Als_Stop_Left_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:0": (
+            name: "als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:0",
+            events: [
+                (
+                    id: "b320daa7-f93f-5f67-bd09-ea8adb688a54",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:8af447c8-463409aa-34ffa2a9-294d00b2"),
+                        start_time: 0.8333332538604736,
+                        end_time: 0.8333332538604736,
+                    ),
+                ),
+                (
+                    id: "d35a2b08-cfc8-5fde-8d28-587f15b32776",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:e53ba579-4998920c-9c3b4aae-a09e4b08"),
+                        start_time: 1.366666555404663,
+                        end_time: 1.366666555404663,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

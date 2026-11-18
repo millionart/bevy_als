@@ -1,0 +1,114 @@
+[
+  {
+    "tag_name": "Als.Gait.Running",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Gait.Sprinting",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Gait.Walking",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.GroundedEntryMode.FromRoll",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.GettingUp",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Mantling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Ragdolling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Rolling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionMode.Grounded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionMode.InAir",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Barrel",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Binoculars",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Bow",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Box",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Default",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Feminine",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.HandsTied",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Injured",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Masculine",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.PistolOneHanded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.PistolTwoHanded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Rifle",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Torch",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.Aiming",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.VelocityDirection",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.ViewDirection",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Stance.Crouching",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Stance.Standing",
+    "description": "ALS source gameplay tag"
+  }
+]

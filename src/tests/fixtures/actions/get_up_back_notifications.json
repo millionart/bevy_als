@@ -1,0 +1,171 @@
+{
+  "notifications": {
+    "duration": 1.5,
+    "cases": [
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": false,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -0.30000001192092896,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -1.8000000715255737,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": 3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      },
+      {
+        "looping": true,
+        "start_time": 0.9000000357627869,
+        "delta_seconds": -3.8999998569488525,
+        "events": [
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          },
+          {
+            "event_index": 0,
+            "trigger_time": -9.999999747378752e-05,
+            "end_trigger_time": 1.1665666103363037
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+(
+    source: Gltf(source: "ALS/Character/SKM_Als.glb", label: "Scene0"),
+)

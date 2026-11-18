@@ -1,0 +1,296 @@
+{
+  "normal": {
+    "acceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -36.423720703125,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 7.5,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        }
+      ]
+    },
+    "braking_deceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 15.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 15.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -2.5,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 12.5,
+          "arrive_tangent": -2.5,
+          "leave_tangent": -7.5,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 3.0,
+          "value": 5.0,
+          "arrive_tangent": -7.5,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        }
+      ]
+    },
+    "ground_friction": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -1.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 4.0,
+          "arrive_tangent": -1.0,
+          "leave_tangent": -3.5,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 3.0,
+          "value": 0.5,
+          "arrive_tangent": -3.5,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        }
+      ]
+    }
+  },
+  "responsive": {
+    "acceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 25.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 25.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 25.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -58.6339404296875,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    },
+    "braking_deceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 20.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -27.15640380859375,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 8.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    },
+    "ground_friction": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 10.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 10.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 10.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    }
+  },
+  "sluggish": {
+    "acceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 2.0,
+          "value": 5.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": -8.434028930664063,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 2.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    },
+    "braking_deceleration": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 10.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 10.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 2.0,
+          "value": 7.5,
+          "arrive_tangent": -5.853721313476562,
+          "leave_tangent": -5.853721313476562,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 3.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    },
+    "ground_friction": {
+      "keys": [
+        {
+          "time": 0.0,
+          "value": 4.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Linear"
+        },
+        {
+          "time": 1.0,
+          "value": 4.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 2.0,
+          "value": 3.0,
+          "arrive_tangent": -2.1250131130218506,
+          "leave_tangent": -2.1250131130218506,
+          "interpolation": "Cubic"
+        },
+        {
+          "time": 3.0,
+          "value": 1.0,
+          "arrive_tangent": 0.0,
+          "leave_tangent": 0.0,
+          "interpolation": "Cubic"
+        }
+      ]
+    }
+  }
+}

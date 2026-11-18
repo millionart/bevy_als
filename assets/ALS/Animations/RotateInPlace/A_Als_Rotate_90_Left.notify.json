@@ -1,0 +1,77 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.5,
+      "event_id": "als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_left.a_als_rotate_90_left:a359ee8c-4a24e540-e28599ad-cafb99ac",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "A359EE8C-4A24E540-E28599AD-CAFB99AC",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Rotate_90_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355
+      },
+      "start_time": 0.5,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.9666666984558105,
+      "event_id": "als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_left.a_als_rotate_90_left:8eea98f2-4c6abcd4-4861fe98-f187800f",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "8EEA98F2-4C6ABCD4-4861FE98-F187800F",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Rotate_90_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355
+      },
+      "start_time": 0.9666666984558105,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.5
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.0,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.0,
+  "source_asset": "/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.A_Als_Rotate_90_Left",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Air/Jump/A_Als_Jump_Loop.glb",
+        animation_name: "A_Als_Jump_Loop_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+)

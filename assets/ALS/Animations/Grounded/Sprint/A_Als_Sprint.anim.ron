@@ -1,0 +1,51 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Grounded/Sprint/A_Als_Sprint.glb",
+        animation_name: "A_Als_Sprint_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:0": (
+            name: "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:0",
+            events: [
+                (
+                    id: "4c4e5354-a8c1-55ed-80dd-f075a0d0465c",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:031cf26c-4a563ef5-c01381a6-7e8aa957"),
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
+                    ),
+                ),
+                (
+                    id: "46e568c9-fa9a-53a6-847e-0a35c3f2cc51",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:2b6aea05-4f4340d8-3684ea97-21858ea7"),
+                        start_time: 0.36666667461395264,
+                        end_time: 0.36666667461395264,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:1": (
+            name: "als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:1",
+            events: [
+                (
+                    id: "e93084ae-2851-5ab6-b94c-1080070801e1",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:660ea685-498cb8a0-ddbfc982-518d9d2b"),
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
+                    ),
+                ),
+                (
+                    id: "c64b67b1-e700-56ce-bfc7-a9bb1636fa7c",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint.a_als_sprint:58c0c680-4f529dad-da0c28ba-6405e88b"),
+                        start_time: 0.36666667461395264,
+                        end_time: 0.36666667461395264,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

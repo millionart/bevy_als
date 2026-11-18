@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "a5a2a167-1439-5722-af32-3d2b73ef3217", name: "Standing To Crouching to Crouching", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("a5a2a167-1439-5722-af32-3d2b73ef3217", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("a5a2a167-1439-5722-af32-3d2b73ef3217", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("a5a2a167-1439-5722-af32-3d2b73ef3217", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("a5a2a167-1439-5722-af32-3d2b73ef3217", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("a5a2a167-1439-5722-af32-3d2b73ef3217", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("a5a2a167-1439-5722-af32-3d2b73ef3217", "pose"),
+        OutputTime: NodeTime("a5a2a167-1439-5722-af32-3d2b73ef3217"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "a5a2a167-1439-5722-af32-3d2b73ef3217": (470.000, 203.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

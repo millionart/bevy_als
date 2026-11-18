@@ -1,0 +1,79 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.8333332538604736,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:8af447c8-463409aa-34ffa2a9-294d00b2",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "8AF447C8-463409AA-34FFA2A9-294D00B2",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Stop_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.8333332538604736,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 1.366666555404663,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_stop_left.a_als_stop_left:e53ba579-4998920c-9c3b4aae-a09e4b08",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "E53BA579-4998920C-9C3B4AAE-A09E4B08",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_Stop_Left",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.3499999940395355,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 1.366666555404663,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 2.3333332538604736,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Transitions/A_Als_Stop_Left.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 2.3333332538604736,
+  "source_asset": "/ALS/ALS/Animations/Transitions/A_Als_Stop_Left.A_Als_Stop_Left",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

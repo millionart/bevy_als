@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "ALS/OverlayObjects/Bow/A_Als_Bow_Draw.glb",
+        animation_name: "A_Als_Bow_Draw_0",
+    ),
+    skeleton: "ALS/OverlayObjects/Bow/SKM_Als_Bow.skn.ron",
+)

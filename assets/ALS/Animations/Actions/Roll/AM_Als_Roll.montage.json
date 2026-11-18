@@ -1,0 +1,57 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotifyState_SetLocomotionAction",
+      "end_time": 0.9334329962730408,
+      "event_id": "als_notify:/als/als/animations/actions/roll/am_als_roll.am_als_roll:c6413b98-45284e13-5711a6aa-d480c79a",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": true,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "C6413B98-45284E13-5711A6AA-D480C79A",
+      "kind": "state",
+      "linked_montage": "AM_Als_Roll",
+      "linked_sequence": "None//ALS/ALS/Animations/Actions/Roll/A_Als_Roll/A_Als_Roll",
+      "name": "BMNotifyStateMovementAction",
+      "parameters": {
+        "LocomotionAction": {
+          "__tagged__": {
+            "TagName": "Als.LocomotionAction.Rolling"
+          }
+        }
+      },
+      "start_time": 9.999999747378752e-05,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 9.999999747378752e-05,
+      "weight_threshold": 9.999999747378752e-06
+    }
+  ],
+  "playback": {
+    "blend_in_mode": "HermiteCubic",
+    "blend_in_seconds": 0.1,
+    "blend_out_mode": "HermiteCubic",
+    "blend_out_seconds": 0.3,
+    "play_rate": 1.0,
+    "source_sequence": "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+  },
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.5,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": "PostLocomotion",
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.5,
+  "source_asset": "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll",
+  "source_kind": "AnimMontage",
+  "sync_markers": []
+}

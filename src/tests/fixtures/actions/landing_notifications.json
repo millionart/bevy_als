@@ -1,0 +1,29 @@
+{
+  "profile": {
+    "blend_in": 0.1,
+    "blend_out": 0.2,
+    "play_rate": 1.4,
+    "start": 0.0
+  },
+  "cases": [
+    {
+      "crouching": false,
+      "sequence": "A_Als_Stand_Transition_Right",
+      "duration": 2.3333332538604736,
+      "first_position": 0.07000000029802322,
+      "first_weight": 0.5,
+      "replaced_weight": 0.5
+    },
+    {
+      "crouching": true,
+      "sequence": "A_Als_Crouch_Transition_Right",
+      "duration": 2.3333332538604736,
+      "first_position": 0.07000000029802322,
+      "first_weight": 0.5,
+      "replaced_weight": 0.5
+    }
+  ],
+  "old_first_position": 0.2750000059604645,
+  "old_first_weight": 0.15625,
+  "old_replaced_weight": 0.84375
+}

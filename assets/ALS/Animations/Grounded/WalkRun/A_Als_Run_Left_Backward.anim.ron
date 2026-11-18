@@ -1,0 +1,51 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.glb",
+        animation_name: "A_Als_Run_Left_Backward_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:0": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:0",
+            events: [
+                (
+                    id: "a31b2d6b-d8af-55db-baf0-bb5803564da0",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:f4b11f37-4baeeb5e-061b348d-253ce350"),
+                        start_time: 0.1666666716337204,
+                        end_time: 0.1666666716337204,
+                    ),
+                ),
+                (
+                    id: "d8a31a59-005f-582f-a0be-72e5fda1dca8",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:230f8e26-47b00392-c9480d97-8044ae9e"),
+                        start_time: 0.5,
+                        end_time: 0.5,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:1": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:1",
+            events: [
+                (
+                    id: "8164108b-bafe-5dcd-91cf-b7dddf3832e9",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:b89af44a-48d1b6a3-e4b7d9b2-1331be44"),
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
+                    ),
+                ),
+                (
+                    id: "11f8c743-f16e-5751-99bf-6ffc30a9f5a3",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_backward.a_als_run_left_backward:da3fbc1a-4e6d6996-c951f589-b204b59e"),
+                        start_time: 0.40000003576278687,
+                        end_time: 0.40000003576278687,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

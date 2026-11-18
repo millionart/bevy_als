@@ -1,0 +1,290 @@
+[
+  {
+    "name": "reverse-collinear",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -20,
+      0,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 0,
+      "angle_degrees": 0,
+      "limited": false,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "location_cm": {
+        "x": -20,
+        "y": 0,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "reverse-near-collinear",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -20,
+      4.465722e-14,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 2.2328610111582194e-15,
+      "angle_degrees": 179.99998474121094,
+      "limited": true,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -0.7071066498756409,
+        "w": 0.70710688829422
+      },
+      "location_cm": {
+        "x": -7.62939453125e-06,
+        "y": 19.999998092651367,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "forward-collinear",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      20,
+      0,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 0,
+      "angle_degrees": 0,
+      "limited": false,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "location_cm": {
+        "x": 20,
+        "y": 0,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "side",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -10,
+      17.320508,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 0.8660253882408142,
+      "angle_degrees": 120,
+      "limited": true,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -0.258819043636322,
+        "w": 0.9659258127212524
+      },
+      "location_cm": {
+        "x": -4.76837158203125e-07,
+        "y": 20,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "small-above-source-normalize-boundary",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -0.0002,
+      0.00034641016,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 0.8660253882408142,
+      "angle_degrees": 120,
+      "limited": true,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -0.258819043636322,
+        "w": 0.9659258127212524
+      },
+      "location_cm": {
+        "x": -3.637978807091713e-12,
+        "y": 0.00039999998989515007,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "above-source-normalize-boundary",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -0.002,
+      0.0034641016,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": 0.8660253286361694,
+      "angle_degrees": 120,
+      "limited": true,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -0.258819043636322,
+        "w": 0.9659258127212524
+      },
+      "location_cm": {
+        "x": -1.1641532182693481e-10,
+        "y": 0.003999999724328518,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "signed-negative",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -10,
+      -17.320508,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": true,
+      "cross": -0.8660253882408142,
+      "angle_degrees": -120,
+      "limited": true,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0.258819043636322,
+        "w": 0.9659258127212524
+      },
+      "location_cm": {
+        "x": -4.76837158203125e-07,
+        "y": -20,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "below-source-normalize-boundary",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -2e-05,
+      3.4641016e-05,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": false,
+      "cross": 0,
+      "angle_degrees": 0,
+      "limited": false,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "location_cm": {
+        "x": -1.9999999494757503e-05,
+        "y": 3.4641016100067645e-05,
+        "z": -80
+      }
+    }
+  },
+  {
+    "name": "centimeter-threshold-rounding",
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "location_cm": [
+      -5.2335957813022536e-06,
+      9.9862956471346e-05,
+      -80
+    ],
+    "limit_degrees": 90,
+    "source": {
+      "axis_normalized": true,
+      "location_normalized": false,
+      "cross": 0,
+      "angle_degrees": 0,
+      "limited": false,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "location_cm": {
+        "x": -5.233595857134787e-06,
+        "y": 9.986295481212437e-05,
+        "z": -80
+      }
+    }
+  }
+]

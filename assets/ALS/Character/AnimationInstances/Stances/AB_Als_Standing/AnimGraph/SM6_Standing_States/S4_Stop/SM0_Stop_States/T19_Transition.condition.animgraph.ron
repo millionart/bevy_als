@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "0823b2cb-4880-76bc-4011-2fab77586290", name: "float <= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: -0.5, bool_default: false, source_default: "-0.500000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "less_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["LessEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"LessEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-224", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "0823B2CB488076BC40112FAB77586290"]) }, should_debug: false),
+        (id: "5c1f7962-4da0-b79a-74b8-18b172c8d961", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "feet_state.foot_planted_amount")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"FeetState\",\"FootPlantedAmount\")", "GetParent.FeetState.FootPlantedAmount", "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-592", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "5C1F79624DA0B79A74B818B172C8D961"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("0823b2cb-4880-76bc-4011-2fab77586290", "ReturnValue"),
+        NodeData("0823b2cb-4880-76bc-4011-2fab77586290", "A"): NodeData("5c1f7962-4da0-b79a-74b8-18b172c8d961", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "0823b2cb-4880-76bc-4011-2fab77586290": (-224.000, 0.000), "5c1f7962-4da0-b79a-74b8-18b172c8d961": (-592.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

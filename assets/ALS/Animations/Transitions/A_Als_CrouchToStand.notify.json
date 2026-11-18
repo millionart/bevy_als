@@ -1,0 +1,79 @@
+{
+  "events": [
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.6000000238418579,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:369b92b3-49c36221-6e6569b0-6e8757ee",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "369B92B3-49C36221-6E6569B0-6E8757EE",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_CrouchToStand",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootBone": {
+          "enum": "EAlsFootBone",
+          "value": "EAlsFootBone::Right"
+        },
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.5,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.6000000238418579,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    },
+    {
+      "class": "AlsAnimNotify_FootstepEffects",
+      "end_time": 0.9000000357627869,
+      "event_id": "als_notify:/als/als/animations/transitions/a_als_crouchtostand.a_als_crouchtostand:842ed4b3-4cffc503-bc2ee59b-17392a78",
+      "filter": {
+        "lod": 0,
+        "montage_tick_type": "EMontageNotifyTickType::Queued",
+        "trigger_chance": 1.0,
+        "trigger_on_dedicated_server": false,
+        "trigger_on_follower": false,
+        "type": "ENotifyFilterType::NoFiltering"
+      },
+      "id": "842ED4B3-4CFFC503-BC2EE59B-17392A78",
+      "kind": "point",
+      "linked_montage": null,
+      "linked_sequence": "A_Als_CrouchToStand",
+      "name": "BMAnimNotifyFootstep",
+      "parameters": {
+        "FootstepEffectsSettings": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
+        "SoundVolumeMultiplier": 0.5,
+        "bIgnoreFootstepSoundBlockCurve": true
+      },
+      "start_time": 0.9000000357627869,
+      "track": "1",
+      "track_index": 0,
+      "trigger_time_offset": 0.0,
+      "weight_threshold": 0.30000001192092896
+    }
+  ],
+  "runtime_segments": [
+    {
+      "animation_end_time": 1.0,
+      "animation_start_time": 0.0,
+      "graph_clip": "ALS/Animations/Transitions/A_Als_CrouchToStand.anim.ron",
+      "loop_count": 1,
+      "play_rate": 1.0,
+      "slot": null,
+      "start_position": 0.0
+    }
+  ],
+  "sequence_length": 1.0,
+  "source_asset": "/ALS/ALS/Animations/Transitions/A_Als_CrouchToStand.A_Als_CrouchToStand",
+  "source_kind": "AnimSequence",
+  "sync_markers": []
+}

@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "b113030b-0000-4000-8000-000000000001", name: "AB_Als", inner: { "als_ext::LayeredGraphNode": (graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron", input_aliases: [], output_aliases: [], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true) }, should_debug: false),
+        (id: "b113030b-0000-4000-8000-000000000002", name: "Ragdoll Dynamic", inner: { "als_ext::GlobalBoolInputNode": (key: "als_ragdolling_dynamic") }, should_debug: false),
+        (id: "b113030b-0000-4000-8000-000000000003", name: "Ragdoll Readback", inner: { "als_ext::GlobalBoolInputNode": (key: "als_ragdolling_readback") }, should_debug: false),
+        (id: "b113030b-0000-4000-8000-000000000004", name: "Ragdoll Config", inner: { "als_ext::RagdollConfigNode": () }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("b113030b-0000-4000-8000-000000000004", "dynamic"): NodeData("b113030b-0000-4000-8000-000000000002", "als_ragdolling_dynamic"),
+        NodeData("b113030b-0000-4000-8000-000000000004", "readback"): NodeData("b113030b-0000-4000-8000-000000000003", "als_ragdolling_readback"),
+        OutputData("pose"): NodeData("b113030b-0000-4000-8000-000000000001", "pose"),
+        OutputData("ragdoll_config"): NodeData("b113030b-0000-4000-8000-000000000004", "ragdoll_config"),
+    },
+    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "pose": Pose, "ragdoll_config": RagdollConfig }, input_order: {}, output_order: { Data("pose"): 0, Data("ragdoll_config"): 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "b113030b-0000-4000-8000-000000000001": (-480.0, 0.0), "b113030b-0000-4000-8000-000000000002": (-480.0, 160.0), "b113030b-0000-4000-8000-000000000003": (-480.0, 240.0), "b113030b-0000-4000-8000-000000000004": (-224.0, 192.0) }, input_position: (-704.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

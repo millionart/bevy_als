@@ -1,0 +1,13 @@
+{
+  "format": "ue_animgraph_installation_manifest_v1",
+  "source": {
+    "uasset_name": "AB_Als_Box.uasset",
+    "package_path": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Box.AB_Als_Box"
+  },
+  "namespace": "",
+  "root_graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
+  "files": [
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
+    "ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron"
+  ]
+}
