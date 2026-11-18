@@ -40,21 +40,59 @@ class PlatformToolsTest(unittest.TestCase):
         )
 
     def test_manual_launcher_keeps_target_profile_jobs_and_exit(self):
-        for jobs, status in [("", 0), ("3", 17)]:
-            with self.subTest(jobs=jobs, status=status):
+        for jobs, status, target in [("", 0, ""), ("3", 17, "unrelated-target")]:
+            with self.subTest(jobs=jobs, status=status, target=target):
                 result = self.run_script(
                     "function global:cargo { "
                     "@{argv=@($args);target=$env:CARGO_TARGET_DIR} | ConvertTo-Json -Compress | Set-Content call.json; "
                     "$global:LASTEXITCODE=[int]$env:FIXTURE_STATUS }; "
                     "& ./run_manual.ps1; exit $LASTEXITCODE",
                     CARGO_BUILD_JOBS=jobs,
-                    CARGO_TARGET_DIR="unrelated-target",
+                    CARGO_TARGET_DIR=target,
                     FIXTURE_STATUS=str(status),
                 )
                 self.assertEqual(result.returncode, status, result.stderr)
                 call = json.loads((self.root / "call.json").read_text(encoding="utf-8-sig"))
                 self.assertEqual(call["argv"], ["run", "--jobs", jobs or "2", "--profile", "play", "--example", "manual_playground"])
-                self.assertEqual(Path(call["target"]), self.root / "target_game")
+                self.assertEqual(call["target"] or "", target)
+
+    def test_manual_launcher_uses_cargo_target_configuration(self):
+        (self.root / "Cargo.toml").write_text(
+            '[package]\nname = "launcher_fixture"\nversion = "0.1.0"\nedition = "2021"\n'
+            '[profile.play]\ninherits = "dev"\n'
+            '[[example]]\nname = "manual_playground"\npath = "main.rs"\n',
+            encoding="utf-8",
+        )
+        (self.root / "main.rs").write_text("fn main() {}\n", encoding="utf-8")
+        binary = "manual_playground.exe" if os.name == "nt" else "manual_playground"
+        for setting, target in [("default", "target"), ("environment", "custom-target"), ("config", "configured-target")]:
+            with self.subTest(setting=setting):
+                if setting == "config":
+                    (self.root / ".cargo").mkdir()
+                    (self.root / ".cargo/config.toml").write_text('[build]\ntarget-dir = "configured-target"\n', encoding="utf-8")
+                result = self.run_script(
+                    ("Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue; " if setting != "environment" else "") +
+                    "& ./run_manual.ps1; exit $LASTEXITCODE",
+                    CARGO_TARGET_DIR="custom-target" if setting == "environment" else "",
+                    CARGO_HOME=str(self.root / "cargo-home"),
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue((self.root / target / "play/examples" / binary).is_file(), result.stderr)
+                self.assertFalse((self.root / "target_game").exists())
+
+    def test_manual_launcher_preserves_windows_debug_symbols(self):
+        symbols = self.root / "target/play/deps/keep.pdb"
+        symbols.parent.mkdir(parents=True)
+        symbols.write_text("symbols", encoding="utf-8")
+        result = self.run_script(
+            "Set-Variable IsWindows -Force -Value $true; "
+            "function global:cargo { $global:LASTEXITCODE=0 }; "
+            "& ./run_manual.ps1; exit $LASTEXITCODE",
+            CARGO_TARGET_DIR=str(self.root / "target"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(symbols.is_file())
+        self.assertEqual(symbols.read_text(encoding="utf-8"), "symbols")
 
     def test_visual_runner_checks_report_even_when_manual_fails(self):
         (self.root / "run_manual.ps1").write_text(
@@ -69,7 +107,7 @@ class PlatformToolsTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((self.root / "validator.txt").is_file(), result.stderr)
-        report = json.loads((self.root / "target/animation_visual/base/runner.json").read_text(encoding="utf-8-sig"))
+        report = json.loads((self.root / "docs/audit/animation_visual/base/runner.json").read_text(encoding="utf-8-sig"))
         self.assertEqual(report["manual_exit_code"], 17)
         self.assertEqual(report["validation_exit_code"], 0)
 
@@ -245,7 +283,7 @@ class PlatformToolsTest(unittest.TestCase):
         os.utime(self.root / "tracked.txt", (time.time() - 3600, time.time() - 3600))
         git("add", "tracked.txt")
         git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture")
-        for path in ["target/debug/deps/keep", "target/debug/incremental/drop", "target_game/play/deps/keep", "target_game/play/deps/drop.pdb"]:
+        for path in ["target/debug/deps/keep", "target/debug/incremental/drop", "target/play/deps/keep", "target/play/deps/keep.pdb", "target_game/play/deps/old"]:
             target = self.root / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("cache", encoding="utf-8")
@@ -253,9 +291,9 @@ class PlatformToolsTest(unittest.TestCase):
         result = self.run_script("& ./tools/new-worktree.ps1 -Name '" + self.root.name + "/new worktree' -Branch codex/fixture")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((destination / "tracked.txt").stat().st_mtime_ns, (self.root / "tracked.txt").stat().st_mtime_ns)
-        for path in ["target/debug/deps/keep", "target_game/play/deps/keep"]:
+        for path in ["target/debug/deps/keep", "target/play/deps/keep", "target/play/deps/keep.pdb"]:
             self.assertEqual((destination / path).read_text(), "cache")
-        for path in ["target/debug/incremental/drop", "target_game/play/deps/drop.pdb"]:
+        for path in ["target/debug/incremental/drop", "target_game/play/deps/old"]:
             self.assertFalse((destination / path).exists())
 
 

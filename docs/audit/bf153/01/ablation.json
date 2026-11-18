@@ -1,0 +1,26 @@
+{
+  "controls": [
+    {
+      "control": "target_override",
+      "test": "test_manual_launcher_keeps_target_profile_jobs_and_exit",
+      "expected_failures": 2,
+      "control_failed": true,
+      "original_passed": true
+    },
+    {
+      "control": "symbol_cleanup",
+      "test": "test_manual_launcher_preserves_windows_debug_symbols",
+      "expected_failures": 1,
+      "control_failed": true,
+      "original_passed": true
+    },
+    {
+      "control": "second_cache",
+      "test": "test_worktree_copies_caches_and_mtimes_without_incremental",
+      "expected_failures": 1,
+      "control_failed": true,
+      "original_passed": true
+    }
+  ],
+  "source_bytes_unchanged": true
+}

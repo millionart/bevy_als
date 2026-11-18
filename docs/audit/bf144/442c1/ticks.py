@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 r = Path(__file__).resolve().parent
-depfile = next(Path("target_game/play/deps").glob("bevy_ecs-*.d"))
+depfile = next(Path("target/play/deps").glob("bevy_ecs-*.d"))
 tokens = depfile.read_text().split()
 facts = []
 for suffix, ranges in (("change_detection/traits.rs", [(27, 30), (362, 368)]), ("change_detection/params.rs", [(15, 23)])):

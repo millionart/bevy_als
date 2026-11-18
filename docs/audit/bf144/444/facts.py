@@ -12,7 +12,7 @@ for name, ranges in [('AlsCharacter.cpp',[(266,300),(1372,1438)]),('AlsAnimation
 for name, ranges in [('character/animation_instances/actual_motion.rs',[(26,43),(49,64),(91,140)]),('character/animation_instances/ab_als_provider.rs',[(70,86),(301,339),(403,422)]),('character/character_runtime.rs',[(66,104)]),('character/movement/motion.rs',[(2571,2583),(2673,2694)])]:
     units.append((Path('src/als')/name, 'src/als/'+name, ranges))
 units.append((Path('src/animation_graph_ext/post_physics_animation.rs'),'src/animation_graph_ext/post_physics_animation.rs',[(44,60),(182,212)]))
-dep = next(Path('target_game/play/deps').glob('bevy_animation_graph_core-*.d')).read_text().split()
+dep = next(Path('target/play/deps').glob('bevy_animation_graph_core-*.d')).read_text().split()
 for name,ranges in [('animation_graph_player.rs',[(193,235),(339,351)]),('context/graph_context_arena.rs',[(56,66)]),('systems.rs',[(171,202)])]:
     p=Path(next(v for v in dep if v.endswith('/'+name)))
     units.append((p,'dependency:bevy_animation_graph/'+name,ranges))

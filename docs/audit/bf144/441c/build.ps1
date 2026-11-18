@@ -1,6 +1,5 @@
 $ErrorActionPreference = "Stop"
 . ./tools/run_ue_source_reader.ps1 -FunctionsOnly
-$env:CARGO_TARGET_DIR = Join-Path (Get-Location) "target_game"
 $root = Join-Path (Get-Location) "docs/audit/bf144/441c"
 $logs = Join-Path (Get-Location) "tools/tmp/bf144/441c"
 $null = New-Item -ItemType Directory -Force -Path $logs

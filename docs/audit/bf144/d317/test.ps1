@@ -2,7 +2,6 @@ param([string]$Attempt = "edge-support")
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "../../../..")).Path
-$env:CARGO_TARGET_DIR = Join-Path $root "target_game"
 . (Join-Path $root "tools/run_ue_source_reader.ps1") -FunctionsOnly
 
 $stdout = Join-Path $PSScriptRoot "$Attempt.stdout.log"

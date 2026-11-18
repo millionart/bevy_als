@@ -96,9 +96,9 @@ for shape in ('full','short'):
         half_height=half,length=row[f'{shape}_limit']))
 (root/'inputs.json').write_text(json.dumps(cases,indent=2)+'\n')
 args=['--edition=2024','--crate-name','bf144_phase579',str(scratch/'gjk_probe.rs'),'-C','opt-level=1','-L',
-      'dependency=target_game/play/deps','-o',str(scratch/'playground_observed')]
+      'dependency=target/play/deps','-o',str(scratch/'playground_observed')]
 for crate in ('parry3d','approx','serde_json','num_traits'):
-    library,=Path('target_game/play/deps').glob(f'lib{crate}-*.rlib')
+    library,=Path('target/play/deps').glob(f'lib{crate}-*.rlib')
     args.extend(('--extern',f'{crate}={library}'))
 (root/'observer-rustc-args.json').write_text(json.dumps(args,indent=2)+'\n')
 print('Prepared instrumented locked GJK kernel and eight archived actual inputs',flush=True)

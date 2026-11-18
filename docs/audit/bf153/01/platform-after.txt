@@ -1,0 +1,20 @@
+test_export_keeps_spaced_arguments_and_failure_code (__main__.PlatformToolsTest) ... ok
+test_graph_editor_validates_before_launch (__main__.PlatformToolsTest) ... ok
+test_integration_stops_at_first_failed_case (__main__.PlatformToolsTest) ... ok
+test_manual_launcher_keeps_target_profile_jobs_and_exit (__main__.PlatformToolsTest) ... ok
+test_manual_launcher_preserves_windows_debug_symbols (__main__.PlatformToolsTest) ... ok
+test_manual_launcher_uses_cargo_target_configuration (__main__.PlatformToolsTest) ... ok
+test_python_prefers_worktree_venv (__main__.PlatformToolsTest) ... ok
+test_reader_build_uses_native_uat_and_propagates_failure (__main__.PlatformToolsTest) ... ok
+test_reader_rejects_other_platform_cache (__main__.PlatformToolsTest) ... ok
+test_visual_runner_checks_report_even_when_manual_fails (__main__.PlatformToolsTest) ... ok
+test_visual_runner_rejects_outside_directory_without_deleting_it (__main__.PlatformToolsTest) ... ok
+test_watchdog_bounds_inherited_output_after_parent_exit (__main__.PlatformToolsTest) ... ok
+test_watchdog_waits_for_redirected_output_after_parent_exit (__main__.PlatformToolsTest) ... ok
+test_windows_build_command_on_any_host (__main__.PlatformToolsTest) ... ok
+test_worktree_copies_caches_and_mtimes_without_incremental (__main__.PlatformToolsTest) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 13.681s
+
+OK

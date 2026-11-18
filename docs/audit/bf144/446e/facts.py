@@ -4,7 +4,7 @@ from pathlib import Path
 
 r=Path(__file__).resolve().parent
 units=[(Path('src/als/character/animation_instances/animation_context_projection.rs'),'src/als/character/animation_instances/animation_context_projection.rs',[(21,34),(40,51),(77,110)]),(Path('src/als/character/animation_instances/ab_als_provider.rs'),'src/als/character/animation_instances/ab_als_provider.rs',[(139,155),(417,424)]),(Path('src/animation_graph_ext/source_instance.rs'),'src/animation_graph_ext/source_instance.rs',[(141,170),(180,198)])]
-dep=next(Path('target_game/play/deps').glob('bevy_diagnostic-*.d')).read_text().split()
+dep=next(Path('target/play/deps').glob('bevy_diagnostic-*.d')).read_text().split()
 p=Path(next(v for v in dep if v.endswith('/frame_count.rs')))
 units.append((p,'dependency:bevy_diagnostic/frame_count.rs',[(10,39)]))
 result=[]

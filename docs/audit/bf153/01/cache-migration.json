@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "from": "target_game/.DS_Store",
+      "to": "target/legacy-target-game-metadata/.DS_Store",
+      "inode_preserved": true,
+      "size": 6148,
+      "sha256": "f7974da19312c60a94a90e5b57e25fc85600ad5531bf822000de7fe2c73cc43e"
+    },
+    {
+      "from": "target_game/.rustc_info.json",
+      "to": "target/legacy-target-game-metadata/.rustc_info.json",
+      "inode_preserved": true,
+      "size": 1963,
+      "sha256": "b47c85a809a3583c20d709f20b9d1d23008fd3757e8b6bbb22f30c089db33876"
+    },
+    {
+      "from": "target_game/CACHEDIR.TAG",
+      "to": "target/CACHEDIR.TAG",
+      "inode_preserved": true,
+      "size": 177,
+      "sha256": "6d9d1d216e0f83abc5e5662ca62c92b4f23009466b54fa27321a69acdb778bb2"
+    },
+    {
+      "from": "target_game/.future-incompat-report.json",
+      "to": "target/.future-incompat-report.json",
+      "inode_preserved": true,
+      "size": 2005,
+      "sha256": "d0ee2554b638382cd598d2b167539fccee7ce34d01d0fbd91a913cbb6f932e81"
+    },
+    {
+      "from": "target_game/play",
+      "to": "target/play",
+      "inode_preserved": true,
+      "size": 384,
+      "sha256": null
+    },
+    {
+      "from": "target_game/tmp",
+      "to": "target/tmp",
+      "inode_preserved": true,
+      "size": 64,
+      "sha256": null
+    },
+    {
+      "from": "target_game/debug",
+      "to": "target/debug",
+      "inode_preserved": true,
+      "size": 288,
+      "sha256": null
+    }
+  ],
+  "old_directory_removed": true
+}

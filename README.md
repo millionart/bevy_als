@@ -68,7 +68,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -Fu
 pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -FunctionalOnly
 ```
 
-- Windows 仍可双击原有 `.bat`；它们调用同名 `.ps1`，两边都使用工作区内的 `target_game` 与默认2个构建任务。
+- Windows 仍可双击原有 `.bat`；它们调用同名 `.ps1`，两边默认使用工作区内的 `target` 与 2 个构建任务。Cargo 的 `CARGO_TARGET_DIR` 和 `build.target-dir` 配置仍可覆盖目录。
 - 工具回归：`pwsh tools/run_ue_source_reader.ps1 -SelfTest`，以及 `& (./tools/python.ps1) -B tools/tests/test_platform_tools.py -v`。
 - `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
 - 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::root_graph_boundaries::tests`。全量回归使用 `cargo test --jobs 2`。独立的 Rig 算法测试可在插件仓库运行。 [Bevy Control Rig](https://github.com/millionart/bevy_control_rig)
