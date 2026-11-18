@@ -4,7 +4,6 @@ use crate::extensions::animation_context::{
 };
 use crate::extensions::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
 use crate::extensions::mesh_space_layered_blend::blend_layered_source_poses;
-use crate::extensions::source_compression::prepared_reference_pose;
 use crate::extensions::source_pose_nodes::{blend_list_pose_and_context, read_blend_list_child};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -546,21 +545,9 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     {
                         return None;
                     }
-                    let reference = overlays
+                    let layers = precise_overlays
                         .iter()
-                        .any(Option::is_none)
-                        .then(|| prepared_reference_pose(&base.skeleton))
-                        .flatten();
-                    let layers = overlays
-                        .iter()
-                        .zip(&precise_overlays)
-                        .map(|(overlay, precise)| {
-                            if overlay.is_some() {
-                                precise.as_deref()
-                            } else {
-                                reference.as_ref()
-                            }
-                        })
+                        .map(Option::as_deref)
                         .collect::<Option<Vec<_>>>()?;
                     blend_layered_source_poses(
                         source,

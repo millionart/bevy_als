@@ -13,9 +13,8 @@ use bevy_animation_graph::core::{
 };
 
 use super::mesh_space_additive::{hierarchy_order, local_rotation};
-use crate::extensions::{
-    raw_sequence_sampling::normalize_source_rotation,
-    source_compression::source_quaternion_product, source_pose::SourcePose,
+use crate::extensions::source_pose::{
+    SourcePose, normalize_source_rotation, source_quaternion_product,
 };
 
 pub(crate) fn source_pose_difference(

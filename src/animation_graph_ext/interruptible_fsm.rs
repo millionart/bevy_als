@@ -4292,8 +4292,7 @@ mod tests {
                 .unwrap(),
             0.1,
             world.resource::<Assets<Skeleton>>(),
-        )
-        .unwrap();
+        );
         let mut dot = 1.0_f32;
         let mut distance = 0.0_f32;
         for bone in expected.paths.keys() {

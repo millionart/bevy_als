@@ -1,8 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use bevy::asset::{Asset, LoadContext};
+use bevy::asset::{Asset, AssetPath, LoadContext};
 use bevy::prelude::*;
+use bevy_animation_graph::core::animation_clip::{GraphClip, loader::GraphClipSource};
 use bevy_gltf::extensions::{
     ErasedGltfExtensionHandler, GltfExtensionHandler, GltfExtensionHandlers,
 };
@@ -107,6 +108,25 @@ impl AlsAnimCurves {
 
     pub fn first(&self) -> Option<&AlsPoseCurves> {
         self.0.values().next()
+    }
+}
+
+#[derive(Clone, Default, Resource)]
+pub(crate) struct ClipCurves(Arc<RwLock<HashMap<AssetPath<'static>, AlsAnimCurves>>>);
+
+impl ClipCurves {
+    pub(crate) fn sample(&self, clip: &GraphClip, time: f32) -> Option<SourceCurveValues> {
+        let GraphClipSource::GltfNamed {
+            path,
+            animation_name,
+        } = clip.source.as_ref()?;
+        let assets = self.0.read().unwrap();
+        let model = assets.get(path)?;
+        Some(
+            model
+                .get(animation_name)
+                .map_or_else(SourceCurveValues::default, |curves| curves.sample_all(time)),
+        )
     }
 }
 
@@ -540,6 +560,7 @@ fn quadratic_roots(quadratic: f64, linear: f64, constant: f64) -> Vec<f64> {
 #[derive(Default, Clone)]
 pub struct AlsCurvesHandler {
     pending: Vec<(String, AlsPoseCurves)>,
+    clip_curves: ClipCurves,
 }
 
 impl AlsCurvesHandler {
@@ -551,8 +572,13 @@ impl AlsCurvesHandler {
         {
             app.init_resource::<GltfExtensionHandlers>();
         }
-        let handlers = app.world_mut().resource_mut::<GltfExtensionHandlers>();
-        handlers.0.write_blocking().push(Box::new(Self::default()));
+        app.init_resource::<ClipCurves>();
+        let clip_curves = app.world().resource::<ClipCurves>().clone();
+        let handlers = app.world().resource::<GltfExtensionHandlers>();
+        handlers.0.write_blocking().push(Box::new(Self {
+            clip_curves,
+            ..default()
+        }));
     }
 }
 
@@ -587,27 +613,190 @@ impl GltfExtensionHandler for AlsCurvesHandler {
     fn on_animations_collected(
         &mut self,
         load_context: &mut LoadContext<'_>,
-        _animations: &[Handle<bevy::animation::AnimationClip>],
+        animations: &[Handle<bevy::animation::AnimationClip>],
         _named_animations: &bevy::platform::collections::HashMap<
             Box<str>,
             Handle<bevy::animation::AnimationClip>,
         >,
         _animation_roots: &bevy::platform::collections::HashSet<usize>,
     ) {
-        if self.pending.is_empty() {
+        if animations.is_empty() {
             return;
         }
         let mut map = HashMap::new();
         for (name, curves) in self.pending.drain(..) {
             map.insert(name.into_boxed_str(), curves);
         }
-        load_context.add_labeled_asset(ALS_CURVES_LABEL.to_string(), AlsAnimCurves(map));
+        let asset = AlsAnimCurves(map);
+        // The same glTF load produces the pose and the curves, including an empty curve set.
+        self.clip_curves
+            .0
+            .write()
+            .unwrap()
+            .insert(load_context.path().clone(), asset.clone());
+        load_context.add_labeled_asset(ALS_CURVES_LABEL.to_string(), asset);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gltf_reload_and_new_clips_supply_their_own_pose_and_ik_curves() {
+        use bevy::asset::io::{
+            AssetSourceBuilder, AssetSourceEvent, AssetSourceId, AssetWatcher,
+            memory::{Dir, MemoryAssetReader},
+        };
+        use bevy_animation_graph::core::{
+            animation_clip::loader::GraphClipLoader,
+            skeleton::{Skeleton, loader::SkeletonLoader},
+        };
+        use std::{
+            path::Path,
+            sync::OnceLock,
+            time::{Duration, Instant},
+        };
+
+        use crate::extensions::{
+            SourceAnimationInputs, SourceAnimationInputsPlugin,
+            source_gameplay_tag_input::sample_graph_clip_curves,
+            source_sequence_player::sample_source_clip_pose,
+        };
+
+        fn put_clip(dir: &Dir, name: &str, x: f32, ik: Option<f32>) {
+            let mut animation = serde_json::json!({
+                "name": "Pose",
+                "samplers": [{"input": 0, "output": 1, "interpolation": "LINEAR"}],
+                "channels": [{"sampler": 0, "target": {"node": 0, "path": "translation"}}]
+            });
+            if let Some(ik) = ik {
+                animation["extensions"] = serde_json::json!({
+                    "ALS_float_curves": {"curves": [{
+                        "name": "HandLeftIk", "times": [0.0, 1.0],
+                        "values": [ik, ik], "interps": ["LINEAR", "LINEAR"]
+                    }]}
+                });
+            }
+            let model = serde_json::json!({
+                "asset": {"version": "2.0"},
+                "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "root"}],
+                "buffers": [{"uri": format!("{name}.bin"), "byteLength": 32}],
+                "bufferViews": [
+                    {"buffer": 0, "byteLength": 8},
+                    {"buffer": 0, "byteOffset": 8, "byteLength": 24}
+                ],
+                "accessors": [
+                    {"bufferView": 0, "componentType": 5126, "count": 2,
+                     "type": "SCALAR", "min": [0.0], "max": [1.0]},
+                    {"bufferView": 1, "componentType": 5126, "count": 2, "type": "VEC3"}
+                ],
+                "animations": [animation]
+            });
+            let data: Vec<_> = [0.0_f32, 1.0, x, 0.0, 0.0, x, 0.0, 0.0]
+                .into_iter()
+                .flat_map(f32::to_le_bytes)
+                .collect();
+            dir.insert_asset(Path::new(&format!("{name}.bin")), data);
+            dir.insert_asset_text(Path::new(&format!("{name}.gltf")), &model.to_string());
+            dir.insert_asset_text(
+                Path::new(&format!("{name}.anim.ron")),
+                &format!(r#"(source: GltfNamed(path: "{name}.gltf", animation_name: "Pose"), skeleton: "rig.skn.ron")"#),
+            );
+        }
+
+        let dir = Dir::default();
+        put_clip(&dir, "editable", 1.0, Some(0.25));
+        dir.insert_asset_text(
+            Path::new("rig.skn.ron"),
+            r#"(source: Gltf(source: "editable.gltf", label: "Scene0"))"#,
+        );
+        struct TestWatcher;
+        impl AssetWatcher for TestWatcher {}
+        type Notify = Box<dyn Fn(AssetSourceEvent) + Send + Sync>;
+        let changes = Arc::new(OnceLock::<Notify>::new());
+        let watcher = changes.clone();
+        let root = dir.clone();
+        let mut app = App::new();
+        app.register_asset_source(
+            AssetSourceId::Default,
+            AssetSourceBuilder::new(move || Box::new(MemoryAssetReader { root: root.clone() }))
+                .with_watcher(move |sender| {
+                    assert!(
+                        watcher
+                            .set(Box::new(move |event| sender.try_send(event).unwrap()))
+                            .is_ok()
+                    );
+                    Some(Box::new(TestWatcher))
+                }),
+        )
+        .add_plugins((
+            MinimalPlugins,
+            AssetPlugin {
+                watch_for_changes_override: Some(true),
+                ..default()
+            },
+            bevy::gltf::GltfPlugin::default(),
+            bevy::animation::AnimationPlugin,
+            bevy::world_serialization::WorldSerializationPlugin,
+            TransformPlugin,
+            SourceAnimationInputsPlugin,
+        ))
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .init_asset::<StandardMaterial>()
+        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .init_asset::<GraphClip>()
+        .init_asset::<Skeleton>()
+        .init_asset::<AlsAnimCurves>()
+        .init_asset_loader::<GraphClipLoader>()
+        .init_asset_loader::<SkeletonLoader>();
+        AlsCurvesHandler::register(&mut app);
+        app.finish();
+        app.cleanup();
+        let entity = app.world_mut().spawn(SourceAnimationInputs::default()).id();
+        let fallback = parse_curves(&serde_json::json!({"curves": [{
+            "name": "HandLeftIk", "times": [0.0], "values": [1.0]
+        }]}))
+        .unwrap();
+        let server = app.world().resource::<AssetServer>().clone();
+        let editable = server.load::<GraphClip>("editable.anim.ron");
+        let sample = |app: &mut App, handle: &Handle<GraphClip>, x: f32, ik: Option<f32>| {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                app.update();
+                let world = app.world();
+                if let Some(clip) = world.resource::<Assets<GraphClip>>().get(handle) {
+                    let pose =
+                        sample_source_clip_pose(clip, 0.5, world.resource::<Assets<Skeleton>>());
+                    if pose.bones.first().and_then(|bone| bone.translation) == Some(Vec3::X * x) {
+                        let inputs = world.get::<SourceAnimationInputs>(entity).unwrap();
+                        let curves = inputs.evaluate(entity, || {
+                            sample_graph_clip_curves(entity, Some(clip), &fallback, 0.5)
+                        });
+                        assert_eq!(
+                            curves.get(&SourceCurveName::from("HandLeftIk")).copied(),
+                            ik
+                        );
+                        break;
+                    }
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "{handle:?} did not reach translation {x}: {:?}",
+                    server.load_state(handle.id())
+                );
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        };
+        sample(&mut app, &editable, 1.0, Some(0.25));
+        put_clip(&dir, "editable", 2.0, Some(0.75));
+        changes.get().unwrap()(AssetSourceEvent::ModifiedAsset("editable.gltf".into()));
+        sample(&mut app, &editable, 2.0, Some(0.75));
+
+        put_clip(&dir, "new", 3.0, None);
+        sample(&mut app, &server.load("new.anim.ron"), 3.0, None);
+    }
 
     #[test]
     fn source_curve_name_keeps_spelling_and_ascii_comparison() {

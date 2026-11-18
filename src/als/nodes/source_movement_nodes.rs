@@ -14,7 +14,7 @@ use crate::extensions::animation_context::{
     AnimationContextState, optional_data_back, pose_input_context_state,
 };
 use crate::extensions::global_f32_input::global_f32_or_root_default;
-use crate::extensions::source_compression::prepared_reference_pose;
+use crate::extensions::source_pose::SourcePose;
 use crate::extensions::source_pose_nodes::{
     accumulate_source_poses, blend_animation_contexts, blend_precise_poses,
     normalize_source_pose_rotations,
@@ -148,14 +148,10 @@ impl NodeLike for SourceMultiWayBlendNode {
                 timestamp,
                 ..default()
             };
-            let source_pose = prepared_reference_pose(&self.reference_skeleton).map(Arc::new);
-            if let Some(source) = &source_pose {
-                source.project_into(&mut pose);
-            } else {
-                crate::extensions::mesh_space_additive::materialize_missing_reference_bones(
-                    &mut pose, skeleton,
-                );
-            }
+            crate::extensions::mesh_space_additive::materialize_missing_reference_bones(
+                &mut pose, skeleton,
+            );
+            let source_pose = SourcePose::from_complete_pose(&pose, skeleton).map(Arc::new);
             (
                 pose,
                 AnimationContextState {

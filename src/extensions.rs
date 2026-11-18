@@ -116,10 +116,6 @@ pub mod ragdoll_angular_drive;
 pub mod ragdoll_config_node;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]
 pub mod ragdolling_tag_blend;
-#[path = "animation_graph_ext/raw_curve_sampling.rs"]
-pub(crate) mod raw_curve_sampling;
-#[path = "animation_graph_ext/raw_sequence_sampling.rs"]
-pub(crate) mod raw_sequence_sampling;
 #[path = "animation_graph_ext/reference_local_difference.rs"]
 pub mod reference_local_difference;
 #[path = "animation_graph_ext/reference_mesh_difference.rs"]
@@ -150,8 +146,6 @@ pub mod source_body_dynamics;
 pub mod source_cached_pose;
 #[path = "avian_ext/source_capsule_sweep.rs"]
 pub(crate) mod source_capsule_sweep;
-#[path = "animation_graph_ext/source_compression.rs"]
-pub(crate) mod source_compression;
 #[path = "animation_graph_ext/source_gameplay_tag_input.rs"]
 pub mod source_gameplay_tag_input;
 #[path = "animation_graph_ext/source_instance.rs"]

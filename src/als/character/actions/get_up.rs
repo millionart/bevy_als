@@ -1,3 +1,4 @@
+use crate::extensions::als_curves::ClipCurves;
 use std::sync::LazyLock;
 
 use crate::als::{character::AlsCharacter, motion::AlsMovementInputBlocked, roll::AlsRollState};
@@ -282,9 +283,12 @@ pub(crate) fn sampled_curve_context(
     clip: Option<&GraphClip>,
     curves: &crate::extensions::AlsPoseCurves,
     time: f32,
+    clip_curves: Option<&ClipCurves>,
 ) -> AnimationContextState {
     AnimationContextState {
-        curves: crate::extensions::source_compression::sample_source_curves(clip, curves, time),
+        curves: clip
+            .and_then(|clip| clip_curves?.sample(clip, time))
+            .unwrap_or_else(|| curves.sample_all(time)),
         relevant_asset: None,
         curves_are_authoritative: true,
         ..default()
@@ -299,6 +303,7 @@ fn update_get_up_pose(
     clips: Res<Assets<GraphClip>>,
     skeletons: Res<Assets<Skeleton>>,
     curves: Res<Assets<AlsAnimCurves>>,
+    clip_curves: Option<Res<ClipCurves>>,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut characters: Query<
         (
@@ -345,24 +350,22 @@ fn update_get_up_pose(
             continue;
         }
         let index = usize::from(state.facing_up);
-        let (Some(clip), Some(curves)) = (
-            clips.get(&assets.clips[index]),
-            curves
-                .get(&assets.curves[index])
-                .and_then(AlsAnimCurves::first),
-        ) else {
+        let Some(clip) = clips.get(&assets.clips[index]) else {
             state.pose_ready = false;
             continue;
         };
-        let Some(pose) = crate::extensions::source_sequence_player::sample_source_clip_pose(
+        let empty = AlsPoseCurves::default();
+        let curves = curves
+            .get(&assets.curves[index])
+            .and_then(AlsAnimCurves::first)
+            .unwrap_or(&empty);
+        let pose = crate::extensions::source_sequence_player::sample_source_clip_pose(
             clip,
             state.clip_time,
             &skeletons,
-        ) else {
-            state.pose_ready = false;
-            continue;
-        };
-        let mut context = sampled_curve_context(Some(clip), curves, state.clip_time);
+        );
+        let mut context =
+            sampled_curve_context(Some(clip), curves, state.clip_time, clip_curves.as_deref());
         context
             .curves
             .extend(settings.montage_curves.sample_all(state.clip_time));
@@ -925,7 +928,12 @@ mod tests {
                 .unwrap()
                 .first()
                 .unwrap();
-            let context = sampled_curve_context(Some(clip), curves, 0.25);
+            let context = sampled_curve_context(
+                Some(clip),
+                curves,
+                0.25,
+                app.world().get_resource::<ClipCurves>(),
+            );
             assert!(context.curves_are_authoritative && !context.curves.is_empty());
             let roll = AlsRollState {
                 active: true,
@@ -1163,7 +1171,10 @@ mod tests {
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
         };
         let roll_native = read("roll_overlap.json");
-        for (facing_up, file) in [(false, "get_up_front_overlap.json"), (true, "get_up_back_overlap.json")] {
+        for (facing_up, file) in [
+            (false, "get_up_front_overlap.json"),
+            (true, "get_up_back_overlap.json"),
+        ] {
             let get_up_native = read(file);
             for (case, (delta, prior_frames)) in
                 [(0.0625_f32, 16), (0.05, 20)].into_iter().enumerate()
@@ -1328,7 +1339,14 @@ mod tests {
                     .world()
                     .resource::<Assets<GraphClip>>()
                     .get(&assets.clips[usize::from(facing_up)]);
-                for (name, value) in sampled_curve_context(clip, sequence, time).curves {
+                for (name, value) in sampled_curve_context(
+                    clip,
+                    sequence,
+                    time,
+                    app.world().get_resource::<ClipCurves>(),
+                )
+                .curves
+                {
                     assert_eq!(context.curves[&name], value);
                 }
             }
@@ -1402,8 +1420,7 @@ mod tests {
                 clip,
                 state.clip_time,
                 app.world().resource::<Assets<Skeleton>>(),
-            )
-            .unwrap();
+            );
             let base = crate::mantle_drive::tests::current_post_locomotion_base(&app, target);
             let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[
                 (get_up.clone(), state.weight),

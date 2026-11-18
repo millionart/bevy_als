@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
+    animation_clip::GraphClip,
     animation_graph::AnimationGraph,
     animation_graph_player::AnimationGraphPlayer,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -10,6 +11,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 use bevy_gameplay_tag::GameplayTag;
+
+use crate::extensions::als_curves::{AlsPoseCurves, ClipCurves, SourceCurveValues};
 
 #[derive(Clone, Default)]
 struct SourceInputValues {
@@ -29,7 +32,7 @@ pub struct LinkedGraphInput {
 }
 
 #[derive(Component, Clone, Default)]
-pub struct SourceAnimationInputs(Arc<SourceInputValues>);
+pub struct SourceAnimationInputs(Arc<SourceInputValues>, Option<ClipCurves>);
 
 thread_local! {
     static EVALUATING: RefCell<Option<(Entity, SourceAnimationInputs)>> = const { RefCell::new(None) };
@@ -123,12 +126,22 @@ pub struct SourceAnimationInputsPlugin;
 
 impl Plugin for SourceAnimationInputsPlugin {
     fn build(&self, app: &mut App) {
-        app.register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
+        app.init_resource::<ClipCurves>()
+            .register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
+            .add_observer(
+                |event: On<Add<SourceAnimationInputs>>,
+                 curves: Res<ClipCurves>,
+                 mut inputs: Query<&mut SourceAnimationInputs>| {
+                    if let Ok(mut inputs) = inputs.get_mut(event.entity) {
+                        inputs.1 = Some(curves.clone());
+                    }
+                },
+            )
             .add_observer(
                 |event: On<Discard<AnimationGraphPlayer>>,
                  mut inputs: Query<&mut SourceAnimationInputs>| {
                     if let Ok(mut inputs) = inputs.get_mut(event.entity) {
-                        *inputs = default();
+                        inputs.0 = default();
                     }
                 },
             );
@@ -142,6 +155,16 @@ fn current_inputs(entity: Entity) -> Option<SourceAnimationInputs> {
             .filter(|(root, _)| *root == entity)
             .map(|(_, inputs)| inputs.clone())
     })
+}
+
+pub(crate) fn sample_graph_clip_curves(
+    entity: Entity,
+    clip: Option<&GraphClip>,
+    fallback: &AlsPoseCurves,
+    time: f32,
+) -> SourceCurveValues {
+    clip.and_then(|clip| current_inputs(entity)?.1?.sample(clip, time))
+        .unwrap_or_else(|| fallback.sample_all(time))
 }
 
 pub(crate) fn active_gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTag> {

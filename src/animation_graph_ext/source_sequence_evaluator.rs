@@ -9,7 +9,7 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::global_f32_input::root_defaults_enabled;
-use crate::extensions::source_compression::{has_prepared_pose, sample_source_curves};
+use crate::extensions::source_gameplay_tag_input::sample_graph_clip_curves;
 use crate::extensions::source_instance::source_input_data;
 use crate::extensions::source_sequence_player::sample_source_pose;
 
@@ -18,11 +18,27 @@ fn frame_to_time(frame: f32, frames_per_second: f64) -> f32 {
 }
 
 fn step_sample_time(time: f32, frames_per_second: f64, duration: f32) -> f32 {
-    let intervals = (duration as f64 * frames_per_second).round().max(1.0) as f32;
-    let frame = (time * frames_per_second as f32)
-        .floor()
-        .clamp(0.0, intervals);
-    (frame * (duration / intervals)).min(duration)
+    if time >= duration || time <= 0.0 {
+        return time;
+    }
+    let fps = frames_per_second.max(f64::EPSILON);
+    let position = f64::from(time) * fps;
+    let nearest = position.round();
+    let frame = if (nearest / fps) as f32 == time {
+        nearest
+    } else {
+        position.floor()
+    };
+    if frame == 0.0 {
+        return 0.0;
+    }
+    // Uniform STEP tracks can be exported with either the nominal or the rounded clip interval.
+    let mut sample = ((frame / fps) as f32).next_up();
+    let intervals = (f64::from(duration) * fps).round().max(1.0);
+    if (intervals / fps) as f32 == duration {
+        sample = sample.max(frame as f32 * (duration / intervals as f32));
+    }
+    sample.min(duration)
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -108,7 +124,7 @@ impl NodeLike for SourceSequenceEvaluatorNode {
             value
         }
         .clamp(0.0, clip.duration().max(0.0));
-        let sample_time = if self.step_interpolation && !has_prepared_pose(clip) {
+        let sample_time = if self.step_interpolation {
             step_sample_time(time, self.frames_per_second, clip.duration())
         } else {
             time
@@ -125,7 +141,12 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         pose.timestamp = time;
         *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =
             crate::extensions::AnimationContextState {
-                curves: sample_source_curves(Some(clip), &self.curves, time),
+                curves: sample_graph_clip_curves(
+                    ctx.graph_context.root_entity,
+                    Some(clip),
+                    &self.curves,
+                    time,
+                ),
                 curves_are_authoritative: true,
                 source_pose,
                 ..default()
@@ -146,6 +167,24 @@ impl NodeLike for SourceSequenceEvaluatorNode {
     fn display_name(&self) -> String {
         "ALS Source Sequence Evaluator".to_owned()
     }
+}
+
+#[cfg(test)]
+#[test]
+fn stepped_sampling_selects_the_exported_key_at_a_nominal_frame() {
+    use bevy::animation::gltf_curves::SteppedKeyframeCurve;
+
+    let nominal = 6.0_f32 / 30.0;
+    let curve =
+        SteppedKeyframeCurve::new([(0.0, 0.0), (nominal.next_up(), 1.0), (0.3, 2.0)]).unwrap();
+    assert_eq!(
+        curve.sample_clamped(step_sample_time(nominal, 30.0, 0.3)),
+        1.0
+    );
+    assert_eq!(
+        curve.sample_clamped(step_sample_time(nominal.next_down(), 30.0, 0.3)),
+        0.0
+    );
 }
 
 #[cfg(test)]
@@ -268,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn step_sampling_matches_native_acl_frame_selection() {
+    fn step_sampling_resolves_logical_frames_on_exported_tracks() {
         use bevy::animation::gltf_curves::SteppedKeyframeCurve;
         for (frames_per_second, intervals) in [
             (30.0_f64, 11),
@@ -284,28 +323,16 @@ mod tests {
             )
             .unwrap();
             for frame in 0..=intervals {
-                let native_time = ((frame as f64 / frames_per_second) as f32).clamp(0.0, duration);
-                let native_frame = (native_time * frames_per_second as f32)
-                    .floor()
-                    .min(intervals as f32) as i32;
                 let time = frame_to_time(frame as f32, frames_per_second).clamp(0.0, duration);
-                assert_eq!(time, native_time);
-                assert_eq!(
-                    curve.sample_clamped(step_sample_time(time, frames_per_second, duration)),
-                    native_frame,
-                    "rate={frames_per_second}, intervals={intervals}, frame={frame}, time={time:?}"
-                );
-                for time in [
-                    time.next_down().max(0.0),
-                    time,
-                    time.next_up().min(duration),
+                for (time, expected) in [
+                    (time.next_down().max(0.0), (frame - 1).max(0)),
+                    (time, frame),
+                    (time.next_up().min(duration), frame),
                 ] {
-                    let native_frame = (time * frames_per_second as f32)
-                        .floor()
-                        .min(intervals as f32) as i32;
                     assert_eq!(
                         curve.sample_clamped(step_sample_time(time, frames_per_second, duration)),
-                        native_frame
+                        expected,
+                        "rate={frames_per_second}, intervals={intervals}, frame={frame}, time={time:?}"
                     );
                 }
             }

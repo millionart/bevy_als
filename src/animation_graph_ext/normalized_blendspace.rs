@@ -15,13 +15,12 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
-use crate::extensions::source_compression::{
-    PreparedPoseKind, sample_prepared_source_pose, sample_source_curves,
-};
-use crate::extensions::source_pose::blend_source_poses;
+use crate::extensions::source_gameplay_tag_input::sample_graph_clip_curves;
+use crate::extensions::source_pose::{SourcePose, blend_source_poses};
 use crate::extensions::source_pose_nodes::{
     accumulate_source_poses, normalize_source_pose_rotations,
 };
+use crate::extensions::source_sequence_player::sample_source_clip_pose;
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick,
     blend_space_nearly_zero_delta, marker_phase_sample_time_continuous,
@@ -1137,78 +1136,43 @@ impl NodeLike for NormalizedBlendSpaceNode {
             sample_times[index] = Some(time);
             previous_sample_times[index] = Some(previous_time);
             ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));
-            let binding = direct_clips[index]
-                .map(|(handle, eligible)| (handle, eligible, None))
-                .or_else(|| {
-                    let node = sample_nodes[index]?;
-                    let kind = if node
-                        .try_inner_downcast_ref::<crate::extensions::ReferenceLocalDifferenceNode>()
-                        .is_some()
-                    {
-                        PreparedPoseKind::LocalAdditive
-                    } else if node
-                        .try_inner_downcast_ref::<crate::extensions::ReferenceMeshDifferenceNode>()
-                        .is_some()
-                    {
-                        PreparedPoseKind::MeshAdditive
-                    } else {
-                        return None;
-                    };
-                    let target = pose_input_node(
-                        graph,
-                        node.id,
-                        crate::extensions::reference_local_difference::TARGET_POSE.to_owned(),
-                    )?;
-                    let (handle, eligible) = clip_binding(target)?;
-                    Some((handle, eligible, Some(kind)))
-                });
-            let prepared = if preview {
-                None
-            } else {
-                binding
-                    .filter(|(_, eligible, _)| *eligible)
-                    .and_then(|(handle, _, expected)| {
-                        let clip = ctx.graph_context.resources.graph_clip_assets.get(handle)?;
-                        let (pose, actual) = sample_prepared_source_pose(clip, time)?;
-                        expected
-                            .is_none_or(|expected| expected == actual)
-                            .then_some((pose, clip.skeleton.clone()))
-                    })
-            };
             let clip = sample_clips[index]
                 .as_ref()
                 .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));
-            let (pose, source) = match prepared {
-                _ if let Some(clip) = clip.filter(|_| preview) => (
+            let (pose, source) = if let Some(clip) = clip.filter(|_| preview) {
+                (
                     Pose {
                         timestamp: time,
                         skeleton: clip.skeleton.clone(),
                         ..default()
                     },
                     None,
-                ),
-                Some((source, skeleton)) => (
-                    Pose {
-                        timestamp: time,
-                        skeleton,
-                        ..Pose::default()
-                    },
-                    Some(Arc::new(source)),
-                ),
-                None => {
-                    let pin = Self::pose_pin(&point.id);
-                    let pose = ctx.data_back(&pin)?.into_pose()?;
-                    let source =
-                        crate::extensions::animation_context::pose_input_context_state(&ctx, &pin)
-                            .and_then(|state| state.source_pose)
-                            .filter(|source| source.matches_projection(&pose));
-                    (pose, source)
-                }
+                )
+            } else if let Some(clip) =
+                clip.filter(|_| direct_clips[index].is_some_and(|(_, eligible)| eligible))
+            {
+                let skeletons = &ctx.graph_context.resources.skeleton_assets;
+                let pose = sample_source_clip_pose(clip, time, skeletons);
+                let source = skeletons
+                    .get(&pose.skeleton)
+                    .and_then(|skeleton| SourcePose::from_complete_pose(&pose, skeleton))
+                    .map(Arc::new);
+                (pose, source)
+            } else {
+                let pin = Self::pose_pin(&point.id);
+                let pose = ctx.data_back(&pin)?.into_pose()?;
+                let source =
+                    crate::extensions::animation_context::pose_input_context_state(&ctx, &pin)
+                        .and_then(|state| state.source_pose)
+                        .filter(|source| source.matches_projection(&pose));
+                (pose, source)
             };
             poses.push((pose, weight));
             source_poses.push(source);
             pose_indices.push(index);
-            for (name, value) in sample_source_curves(clip, &point.curves, time) {
+            for (name, value) in
+                sample_graph_clip_curves(ctx.graph_context.root_entity, clip, &point.curves, time)
+            {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
         }

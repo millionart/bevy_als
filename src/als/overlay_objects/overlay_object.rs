@@ -831,8 +831,7 @@ pub(crate) mod tests {
                     .unwrap(),
                 amount,
                 app.world().resource::<Assets<Skeleton>>(),
-            )
-            .unwrap();
+            );
             assert_eq!(pose.bones.len(), 24);
             for (id, index) in &expected.paths {
                 let actual = pose.get_bone(*id).unwrap();

@@ -1,5 +1,10 @@
 use crate::extensions::AnimationContextState;
-use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose};
+use crate::extensions::{
+    als_curves::ClipCurves,
+    mesh_space_difference::{make_mesh_space_difference, source_pose_difference},
+    source_pose::SourcePose,
+    source_sequence_player::sample_source_clip_pose,
+};
 use bevy::prelude::*;
 use serde::Deserialize;
 use std::sync::{Arc, LazyLock};
@@ -29,9 +34,14 @@ pub(crate) struct SourceMontageAssets(
             Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
         ),
     >,
+    Option<ClipCurves>,
 );
 
-pub(crate) fn load_source_montage_assets(mut commands: Commands, server: Res<AssetServer>) {
+pub(crate) fn load_source_montage_assets(
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    clip_curves: Option<Res<ClipCurves>>,
+) {
     commands.insert_resource(SourceMontageAssets(
         MONTAGES
             .iter()
@@ -48,6 +58,7 @@ pub(crate) fn load_source_montage_assets(mut commands: Commands, server: Res<Ass
                 )
             })
             .collect(),
+        clip_curves.as_deref().cloned(),
     ));
 }
 
@@ -65,40 +76,29 @@ pub(crate) fn sample_source_montage(
     let (clip, reference) = assets.0.get(name)?;
     let time = time.min(settings.duration);
     let sequence = clips.get(clip)?;
-    let (mut pose, baked_additive, mut source_pose) =
-        match sample_prepared_source_pose(sequence, time) {
-            Some((source, kind)) => {
-                let mut pose = bevy_animation_graph::core::pose::Pose {
-                    skeleton: sequence.skeleton.clone(),
-                    timestamp: time,
-                    ..default()
-                };
-                source.project_into(&mut pose);
-                (
-                    pose,
-                    kind != PreparedPoseKind::Absolute,
-                    Some(Arc::new(source)),
-                )
-            }
-            None => (
-                crate::extensions::source_sequence_player::sample_pose(sequence, time),
-                false,
-                None,
-            ),
-        };
-    if let Some(reference) = reference.as_ref().filter(|_| !baked_additive) {
-        source_pose = None;
-        let reference =
-            crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);
-        pose = crate::extensions::mesh_space_difference::make_mesh_space_difference(
-            &reference,
-            &pose,
-            skeletons.get(&pose.skeleton)?,
-        );
+    let mut pose = sample_source_clip_pose(sequence, time, skeletons);
+    let skeleton = skeletons.get(&pose.skeleton);
+    let mut source_pose =
+        skeleton.and_then(|skeleton| SourcePose::from_complete_pose(&pose, skeleton));
+    if let Some(reference) = reference {
+        let reference = sample_source_clip_pose(clips.get(reference)?, 0.0, skeletons);
+        let skeleton = skeleton?;
+        source_pose = SourcePose::from_complete_pose(&reference, skeleton)
+            .zip(source_pose)
+            .and_then(|(base, target)| source_pose_difference(&base, &target, skeleton, true));
+        pose = make_mesh_space_difference(&reference, &pose, skeleton);
+        if let Some(source) = &source_pose {
+            source.project_into(&mut pose);
+        }
         pose.timestamp = time;
     }
-    let mut context = crate::get_up::sampled_curve_context(Some(sequence), &settings.curves, time);
-    context.source_pose = source_pose;
+    let mut context = crate::get_up::sampled_curve_context(
+        Some(sequence),
+        &settings.curves,
+        time,
+        assets.1.as_ref(),
+    );
+    context.source_pose = source_pose.map(Arc::new);
     context
         .asset_samples
         .push(crate::extensions::animation_context::SourceAssetSample {

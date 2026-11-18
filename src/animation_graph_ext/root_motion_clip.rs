@@ -17,8 +17,9 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::root_motion_defaults::derive_default_root_bone;
-use crate::extensions::source_compression::{sample_prepared_pose, sample_prepared_root};
-use crate::extensions::source_sequence_player::{CurveSample, sample_curve, sample_pose};
+use crate::extensions::source_sequence_player::{
+    CurveSample, sample_curve, sample_source_clip_pose,
+};
 
 pub const IN_TIME: &str = "time";
 pub const OUT_POSE: &str = "pose";
@@ -34,7 +35,7 @@ fn sample_root(curves: &[VariableCurve], t: f32) -> (Vec3, Quat) {
     let mut tr = Vec3::ZERO;
     let mut rot = Quat::IDENTITY;
     for curve in curves {
-        match sample_curve(curve, t, None) {
+        match sample_curve(curve, t) {
             Some(CurveSample::Translation(v)) => tr = v,
             Some(CurveSample::Rotation(v)) => rot = v,
             _ => {}
@@ -106,8 +107,11 @@ impl NodeLike for RootMotionClipNode {
         let events =
             EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
 
-        let mut out_pose = sample_prepared_pose(clip, current_time)
-            .map_or_else(|| sample_pose(clip, current_time), |(pose, _)| pose);
+        let mut out_pose = sample_source_clip_pose(
+            clip,
+            current_time,
+            &ctx.graph_context.resources.skeleton_assets,
+        );
 
         if self.root_motion_mode != RootMotionMode::Disabled {
             let Some(skeleton) = ctx
@@ -149,12 +153,7 @@ impl NodeLike for RootMotionClipNode {
                     );
                 }
                 let root_curves = clip.curves.get(&target_id).map_or(&[][..], Vec::as_slice);
-                let root_at = |time| {
-                    sample_prepared_root(clip, root_bone_id, time).map_or_else(
-                        || sample_root(root_curves, time),
-                        |root| (root.translation, root.rotation),
-                    )
-                };
+                let root_at = |time| sample_root(root_curves, time);
                 let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
                 let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
                 let rest_rotation = rest_local.map(|t| t.rotation).unwrap_or(Quat::IDENTITY);

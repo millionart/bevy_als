@@ -1,9 +1,4 @@
 {
-  "raw_gltf_paths": [
-    "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.gltf",
-    "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf",
-    "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf"
-  ],
   "virtual_bones": [
     {
       "source_bone": "root",

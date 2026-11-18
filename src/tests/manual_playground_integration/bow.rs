@@ -99,10 +99,11 @@ pub(super) fn observe_object(
             )?;
         let clip = motion.clips.get(&clip)?;
         let amount = context.map_or(0.0, |context| context.f32("PoseAiming").unwrap_or(0.0));
-        let (expected, _) = crate::extensions::source_compression::sample_prepared_pose(
+        let expected = crate::extensions::source_sequence_player::sample_source_clip_pose(
             clip,
             amount.clamp(0.0, clip.duration()),
-        )?;
+            &motion.skeletons,
+        );
         sample.pose_error = default_overlay_pose_error(pose, &expected);
         let skeleton = motion.skeletons.get(&pose.skeleton)?;
         let string = skeleton.iter_paths().find(|path| {
@@ -286,9 +287,17 @@ fn sample(
             sample
                 .frames
                 .push((sequence.explicit_value, actual.timestamp, time));
-            let pose_error =
-                crate::extensions::source_compression::sample_prepared_pose(clip, time)
-                    .and_then(|(expected, _)| default_overlay_pose_error(&actual, &expected));
+            let at = if sequence.step_interpolation && time > 0.0 {
+                time.next_up().min(clip.duration())
+            } else {
+                time
+            };
+            let expected = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                clip,
+                at,
+                &probe.skeletons,
+            );
+            let pose_error = default_overlay_pose_error(&actual, &expected);
             if actual.timestamp != time || pose_error.is_none_or(|error| error > 2e-5) {
                 sample.frame_errors.push(format!(
                     "frame {} sampled {} instead of {} with pose error {pose_error:?}",

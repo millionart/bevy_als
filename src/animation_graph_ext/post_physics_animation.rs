@@ -674,7 +674,7 @@ fn apply_animation_to_visible_targets(
             let exact = context.and_then(|context| context.source_pose.as_ref()).and_then(|source| {
                 let (_, value) = source.bones.iter().find(|(bone, _)| *bone == id)?;
                 let mut projection = bevy_animation_graph::core::pose::BonePose::default();
-                crate::extensions::source_compression::project_bone_transform(&mut projection, *value, source.length_scale);
+                crate::extensions::source_pose::project_bone_transform(&mut projection, *value, source.length_scale);
                 Some((RigTransform {
                     translation: bevy::math::DVec3::new(value.translation.x, value.translation.z, value.translation.y)
                         * (source.length_scale * 100.0),

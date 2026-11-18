@@ -18,9 +18,8 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::{
-    raw_sequence_sampling::interpolate_rotation,
-    source_compression::source_quaternion_product,
     source_pose::{SourcePose, weighted_add},
+    source_pose::{interpolate_rotation, source_quaternion_product},
 };
 
 const ALPHA_THRESHOLD: f32 = 1e-6;

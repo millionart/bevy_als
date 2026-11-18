@@ -1698,7 +1698,9 @@ mod tests {
                 let name = sample["name"].as_str().unwrap();
                 let mut playback = match (report, name) {
                     ("stop_left_timeline.json", "natural_stop") => AlsTransitionPlayback::stop(0.0),
-                    ("stop_right_timeline.json", "natural_stop") => AlsTransitionPlayback::stop(1.0),
+                    ("stop_right_timeline.json", "natural_stop") => {
+                        AlsTransitionPlayback::stop(1.0)
+                    }
                     ("crouch_right_timeline.json", "crouching_right") => {
                         AlsTransitionPlayback::crouching_stop_right()
                     }
@@ -1993,6 +1995,8 @@ mod tests {
                 clips.get(&sample.clip),
                 &settings.curves,
                 entry.clip_time,
+                app.world()
+                    .get_resource::<crate::extensions::als_curves::ClipCurves>(),
             )
             .curves
             {

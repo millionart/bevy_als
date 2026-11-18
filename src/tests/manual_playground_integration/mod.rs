@@ -1685,8 +1685,6 @@ fn head_graph_sample(
     previous: Option<&(u64, AlsHeadState, bool, f32)>,
 ) -> HeadGraphSample {
     use crate::als::head::{AlsHeadSettings, AlsHeadUpdateInput, update_head_state};
-    use crate::extensions::normalized_blendspace::NormalizedBlendSpaceNode;
-    use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose};
     let scalar = |key| graph_global_f32(player, key).unwrap_or(0.0);
     let boolean = |key| {
         player
@@ -1830,14 +1828,6 @@ fn head_graph_sample(
                 .errors
                 .push("Head callback relevance differs from additive alpha".into());
         }
-        let look = graph
-            .nodes
-            .values()
-            .find(|node| node.name == HEAD_BOUNDARIES[0].1)
-            .and_then(|node| {
-                node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>()
-                    .map(|space| (node.id, space))
-            });
         let mut expected_samples: [Option<Pose>; 3] = default();
         let mut source_samples = Vec::new();
         for index in 0..3 {
@@ -1858,40 +1848,6 @@ fn head_graph_sample(
                 .and_then(|field| field.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
                 .and_then(|handle| probe.clips.get(handle)) else { continue; };
             let time = state.yaw_amount.clamp(0.0, 1.0) * clip.duration;
-            if let Some((id, space)) = look
-                && let Some(point) = space.points.get(index)
-                && let Some((source, PreparedPoseKind::MeshAdditive)) =
-                    sample_prepared_source_pose(clip, time)
-            {
-                sample.times[index] = context
-                    .node_caches
-                    .get_input_time_update(
-                        id,
-                        StateKey::Default,
-                        NormalizedBlendSpaceNode::time_pin(&point.id),
-                    )
-                    .ok()
-                    .and_then(|update| match update {
-                        bevy_animation_graph::core::animation_graph::TimeUpdate::Absolute(
-                            value,
-                        ) => Some(value),
-                        _ => None,
-                    });
-                if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) {
-                    sample
-                        .errors
-                        .push(format!("Look sample {index}: incorrect normalized time"));
-                }
-                let mut prepared = Pose {
-                    skeleton: clip.skeleton.clone(),
-                    timestamp: time,
-                    ..default()
-                };
-                source.project_into(&mut prepared);
-                expected_samples[index] = Some(prepared);
-                source_samples.push((source, sample.weights[index]));
-                continue;
-            }
             let clip_pose = pose(&name, "pose");
             sample.times[index] = clip_pose.as_ref().map(|pose| pose.timestamp);
             if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) {
@@ -1920,9 +1876,18 @@ fn head_graph_sample(
                     _ => None,
                 })
                 .and_then(|value| value.into_pose().ok());
-            if let Some(reference) = reference
+            if let Some(mut reference) = reference
                 && let Some(skeleton) = probe.skeletons.get(&clip.skeleton)
             {
+                let mut expected = expected;
+                crate::extensions::source_sequence_player::rebuild_virtual_bones(
+                    &mut reference,
+                    skeleton,
+                );
+                crate::extensions::source_sequence_player::rebuild_virtual_bones(
+                    &mut expected,
+                    skeleton,
+                );
                 if reference.timestamp.abs() > 1e-5 {
                     sample
                         .errors
@@ -1933,6 +1898,24 @@ fn head_graph_sample(
                         &reference, &expected, skeleton,
                     ),
                 );
+                if let Some(source) =
+                    crate::extensions::source_pose::SourcePose::from_complete_pose(
+                        &reference, skeleton,
+                    )
+                    .zip(
+                        crate::extensions::source_pose::SourcePose::from_complete_pose(
+                            &expected, skeleton,
+                        ),
+                    )
+                    .and_then(|(base, target)| {
+                        crate::extensions::mesh_space_difference::source_pose_difference(
+                            &base, &target, skeleton, true,
+                        )
+                    })
+                {
+                    source.project_into(expected_samples[index].as_mut().unwrap());
+                    source_samples.push((source, sample.weights[index]));
+                }
                 check(
                     &mut sample.errors,
                     &difference_name,
@@ -2326,12 +2309,13 @@ fn layering_graph_sample(
                     let time = ((sequence.explicit_value as f64 / sequence.frames_per_second)
                         as f32)
                         .clamp(0.0, clip.duration);
-                    let error = crate::extensions::source_sequence_player::sample_source_clip_pose(
-                        clip,
-                        time,
-                        &probe.skeletons,
-                    )
-                    .and_then(|expected| default_overlay_pose_error(&actual, &expected));
+                    let expected =
+                        crate::extensions::source_sequence_player::sample_source_clip_pose(
+                            clip,
+                            time,
+                            &probe.skeletons,
+                        );
+                    let error = default_overlay_pose_error(&actual, &expected);
                     if (actual.timestamp - time).abs() > 1e-5
                         || error.is_none_or(|error| error > 2e-5)
                     {
@@ -2613,12 +2597,12 @@ fn default_overlay_graph_sample(
                         .errors
                         .push(format!("evaluator_{index}: sample time mismatch"));
                 }
-                let error = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                let expected = crate::extensions::source_sequence_player::sample_source_clip_pose(
                     clip,
                     expected_time,
                     &probe.skeletons,
-                )
-                .and_then(|expected| default_overlay_pose_error(&actual, &expected));
+                );
+                let error = default_overlay_pose_error(&actual, &expected);
                 if error.is_none_or(|error| error > 2e-5) {
                     sample.errors.push(format!(
                         "{}: pose mismatch",
@@ -2640,20 +2624,22 @@ fn default_overlay_graph_sample(
                 let alpha = state.blend_alpha;
                 let raw = state.input_alpha;
                 let expected_alpha = if blend.mapping.interpolate_result {
-                    let expected = default_overlay_prediction_alpha(
-                        previous_prediction,
-                        raw,
-                        scalar("animation.delta_seconds").unwrap_or(0.0),
-                        &blend.mapping,
-                    );
+                    let expected = previous_prediction.map(|previous| {
+                        default_overlay_prediction_alpha(
+                            Some(previous),
+                            raw,
+                            scalar("animation.delta_seconds").unwrap_or(0.0),
+                            &blend.mapping,
+                        )
+                    });
                     sample.prediction_input = Some(raw);
                     sample.prediction_alpha = Some(alpha);
-                    sample.prediction_expected = Some(expected);
+                    sample.prediction_expected = expected;
                     expected
                 } else {
-                    raw.clamp(0.0, 1.0)
+                    Some(raw.clamp(0.0, 1.0))
                 };
-                if (alpha - expected_alpha).abs() > 1e-4 {
+                if expected_alpha.is_some_and(|expected| (alpha - expected).abs() > 1e-4) {
                     sample
                         .errors
                         .push(format!("{}: source alpha mismatch", blend.alpha_key));
@@ -2724,17 +2710,25 @@ fn default_overlay_graph_sample(
                 {
                     sample.errors.push("idle: sync time mismatch".into());
                 }
-                let prepared = probe.clips.get(&sequence.clip).and_then(|clip| {
-                    crate::extensions::source_compression::sample_prepared_pose(
-                        clip,
-                        actual.timestamp,
-                    )
+                let expected = probe.clips.get(&sequence.clip).and_then(|target| {
+                    let base = probe.clips.get(sequence.additive_reference.as_ref()?)?;
+                    let skeleton = probe.skeletons.get(&target.skeleton)?;
+                    let sample = crate::extensions::source_sequence_player::sample_source_clip_pose;
+                    let target = sample(target, actual.timestamp, &probe.skeletons);
+                    let base = sample(base, sequence.additive_reference_position, &probe.skeletons);
+                    let mut expected =
+                        crate::extensions::make_local_difference(&base, &target, skeleton);
+                    for (id, &index) in &expected.paths {
+                        let bone = &mut expected.bones[index];
+                        if bone.scale.is_none()
+                            && actual.get_bone(*id).and_then(|bone| bone.scale) == Some(Vec3::ZERO)
+                        {
+                            bone.scale = Some(Vec3::ZERO);
+                        }
+                    }
+                    Some(expected)
                 });
-                if let Some((
-                    expected,
-                    crate::extensions::source_compression::PreparedPoseKind::LocalAdditive,
-                )) = prepared
-                {
+                if let Some(expected) = expected {
                     check(
                         &mut sample.errors,
                         "idle additive sequence",
@@ -2742,9 +2736,9 @@ fn default_overlay_graph_sample(
                         &expected,
                     );
                 } else {
-                    sample.errors.push(
-                        "idle additive sequence: prepared local additive pose missing".into(),
-                    );
+                    sample
+                        .errors
+                        .push("idle additive sequence: reference asset missing".into());
                 }
             }
             if let Some(additive) =
@@ -13232,64 +13226,64 @@ fn observe_manual_integration(
                 let expected_y = fixture.locomotion_start.y - 0.92
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
-                let (colliders_scaled, joint_frames_preserved) =
-                    player
-                        .get_spawned_ragdoll()
-                        .map_or((false, false), |spawned| {
-                            let colliders_scaled = ragdoll_probe
-                                .profiles
-                                .get(instance.player_entity())
-                                .is_ok_and(|(_, profile)| {
-                                    spawned.colliders.values().all(|entity| {
-                                        ragdoll_probe.colliders.get(*entity).is_ok_and(
-                                            |(collider, label)| {
-                                                profile
-                                                    .colliders
-                                                    .iter()
-                                                    .find(|source| source.label == label.0)
-                                                    .is_some_and(|source| {
-                                                        let base = source
-                                                            .shape
-                                                            .avian_collider()
-                                                            .shape()
-                                                            .compute_local_aabb()
-                                                            .half_extents();
-                                                        collider
-                                                            .shape_scaled()
-                                                            .compute_local_aabb()
-                                                            .half_extents()
-                                                            .abs_diff_eq(base * 2.0, 1e-5)
-                                                    })
-                                            },
-                                        )
-                                    })
-                                });
-                            let joint_frames_preserved = ragdoll_probe
-                                .profiles
-                                .get(instance.player_entity())
-                                .ok()
-                                .and_then(|(_, profile)| {
-                                    profile.joints.iter().find(|joint| joint.label == "foot_l")
+                let (colliders_scaled, joint_frames_preserved) = player
+                    .get_spawned_ragdoll()
+                    .map_or((false, false), |spawned| {
+                        let colliders_scaled = ragdoll_probe
+                            .profiles
+                            .get(instance.player_entity())
+                            .is_ok_and(|(_, profile)| {
+                                spawned.colliders.values().all(|entity| {
+                                    ragdoll_probe.colliders.get(*entity).is_ok_and(
+                                        |(collider, label)| {
+                                            profile
+                                                .colliders
+                                                .iter()
+                                                .find(|source| source.label == label.0)
+                                                .is_some_and(|source| {
+                                                    let base = source
+                                                        .shape
+                                                        .avian_collider()
+                                                        .shape()
+                                                        .compute_local_aabb()
+                                                        .half_extents();
+                                                    collider
+                                                        .shape_scaled()
+                                                        .compute_local_aabb()
+                                                        .half_extents()
+                                                        .abs_diff_eq(base * 2.0, 1e-5)
+                                                })
+                                        },
+                                    )
                                 })
-                                .is_some_and(|source| {
-                                    spawned.joints.values().any(|entity| {
-                                        ragdoll_probe.joints.get(*entity).is_ok_and(
-                                            |(joint, label)| {
-                                                label.0 == source.label
-                                                    && joint.parent_frame.translation.abs_diff_eq(
-                                                        source.definition.parent_frame.translation,
-                                                        1e-4,
-                                                    )
-                                                    && joint.child_frame.translation.abs_diff_eq(
-                                                        source.definition.child_frame.translation,
-                                                        1e-4,
-                                                    )
-                                            },
-                                        )
-                                    })
-                                });
-                            (colliders_scaled, joint_frames_preserved)
-                        });
+                            });
+                        let joint_frames_preserved = ragdoll_probe
+                            .profiles
+                            .get(instance.player_entity())
+                            .ok()
+                            .and_then(|(_, profile)| {
+                                profile.joints.iter().find(|joint| joint.label == "foot_l")
+                            })
+                            .is_some_and(|source| {
+                                spawned.joints.values().any(|entity| {
+                                    ragdoll_probe
+                                        .joints
+                                        .get(*entity)
+                                        .is_ok_and(|(joint, label)| {
+                                            label.0 == source.label
+                                                && joint.parent_frame.translation.abs_diff_eq(
+                                                    source.definition.parent_frame.translation,
+                                                    1e-4,
+                                                )
+                                                && joint.child_frame.translation.abs_diff_eq(
+                                                    source.definition.child_frame.translation,
+                                                    1e-4,
+                                                )
+                                        })
+                                })
+                            });
+                        (colliders_scaled, joint_frames_preserved)
+                    });
                 let scaled = transform.scale == Vec3::splat(2.0)
                     && (follow.target.y - expected_y).abs() < 0.12
                     && (transform.translation.y - follow.target.y).abs() < 0.02
@@ -16315,7 +16309,7 @@ mod tests {
     }
 
     #[test]
-    fn default_overlay_observers_compare_the_loaded_prepared_sequence_poses() {
+    fn default_overlay_observers_compare_the_loaded_animation_poses() {
         use bevy::ecs::system::RunSystemOnce;
 
         fn observe(

@@ -18,9 +18,8 @@ use super::mesh_space_additive::{
 };
 use crate::extensions::{
     control_rig_hierarchy::RigTransform,
-    raw_sequence_sampling::{interpolate_rotation, normalize_source_rotation},
-    source_compression::source_quaternion_product,
     source_pose::{SourcePose, weighted_add},
+    source_pose::{interpolate_rotation, normalize_source_rotation, source_quaternion_product},
 };
 
 const WEIGHT_THRESHOLD: f32 = 1e-6;

@@ -1,4 +1,7 @@
-use bevy::{math::DVec3, platform::collections::HashMap};
+use bevy::{
+    math::{DQuat, DVec3, Quat, Vec3},
+    platform::collections::HashMap,
+};
 use bevy_animation_graph::core::{
     id::BoneId,
     pose::{BonePose, Pose},
@@ -6,10 +9,54 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::{
-    control_rig_hierarchy::RigTransform,
-    raw_sequence_sampling::normalize_source_rotation,
-    source_compression::{project_bone_transform, source_quaternion_product},
+    control_rig_hierarchy::{RigTransform, rig_normalize},
+    control_rig_math::rotation_basis,
 };
+
+fn project_translation([x, y, z]: [f64; 3], scale: f64) -> Vec3 {
+    Vec3::new((x * scale) as f32, (z * scale) as f32, (y * scale) as f32)
+}
+
+fn project_rotation([x, y, z, w]: [f64; 4]) -> Quat {
+    Quat::from_xyzw(-x as f32, -z as f32, -y as f32, w as f32)
+}
+
+fn project_scale([x, y, z]: [f64; 3]) -> Vec3 {
+    Vec3::new(x as f32, z as f32, y as f32)
+}
+
+pub(crate) fn project_bone_transform(bone: &mut BonePose, source: RigTransform, unit_scale: f64) {
+    bone.translation = Some(project_translation(
+        source.translation.to_array(),
+        unit_scale,
+    ));
+    bone.rotation = Some(project_rotation(source.rotation.to_array()));
+    bone.scale = Some(project_scale(source.scale.to_array()));
+}
+
+pub(crate) fn source_quaternion_product(a: DQuat, b: DQuat) -> DQuat {
+    DQuat::from_xyzw(
+        a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+        a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+        a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+        a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    )
+}
+
+pub(crate) fn interpolate_rotation(start: DQuat, end: DQuat, alpha: f32) -> DQuat {
+    let alpha = f64::from(alpha);
+    let dot = start.z.mul_add(end.z, start.x * end.x) + start.w.mul_add(end.w, start.y * end.y);
+    let bias = if dot < 0.0 { -1.0 } else { 1.0 };
+    let left = start.to_array();
+    let right = end.to_array();
+    normalize_source_rotation(DQuat::from_array(std::array::from_fn(|axis| {
+        (left[axis] * bias).mul_add(1.0 - alpha, right[axis] * alpha)
+    })))
+}
+
+pub(crate) fn normalize_source_rotation(rotation: DQuat) -> DQuat {
+    rotation_basis(rig_normalize(rotation_basis(rotation)))
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct SourcePose {
@@ -18,6 +65,43 @@ pub(crate) struct SourcePose {
 }
 
 impl SourcePose {
+    pub(crate) fn from_complete_pose(pose: &Pose, skeleton: &Skeleton) -> Option<Self> {
+        const UNIT_SCALE: f64 = 0.01;
+        let mut bones = pose
+            .paths
+            .iter()
+            .map(|(&id, &index)| {
+                let bone = &pose.bones[index];
+                if bone.weights.is_some() {
+                    return None;
+                }
+                let [x, y, z] = bone.translation?.as_dvec3().to_array();
+                let [sx, sy, sz] = bone.scale?.as_dvec3().to_array();
+                let depth = skeleton.id_to_path(id)?.parts.len();
+                Some((
+                    depth,
+                    id,
+                    RigTransform {
+                        translation: DVec3::new(x, z, y) / UNIT_SCALE,
+                        rotation: rotation_basis(bone.rotation?.as_dquat()),
+                        scale: DVec3::new(sx, sz, sy),
+                    },
+                ))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        if bones.is_empty() {
+            return None;
+        }
+        bones.sort_unstable_by_key(|(depth, id, _)| (*depth, id.animation_target_id().0));
+        Some(Self {
+            bones: bones
+                .into_iter()
+                .map(|(_, id, transform)| (id, transform))
+                .collect(),
+            length_scale: UNIT_SCALE,
+        })
+    }
+
     pub(crate) fn project_into(&self, pose: &mut Pose) {
         let additional = self.bones.len().saturating_sub(pose.paths.len());
         pose.bones.reserve(additional);
@@ -172,52 +256,4 @@ pub(crate) fn blend_source_poses<'a>(
     }
     output.normalize_rotations(normalization_passes);
     Some(output)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::math::Vec3;
-    use bevy_animation_graph::core::animation_clip::{
-        EntityPath, GraphClip, loader::GraphClipSource,
-    };
-
-    fn source(path: &'static str, animation: &str, time: f32) -> SourcePose {
-        let clip = GraphClip {
-            source: Some(GraphClipSource::GltfNamed {
-                path: path.into(),
-                animation_name: animation.to_owned(),
-            }),
-            ..Default::default()
-        };
-        crate::extensions::source_compression::sample_prepared_source_pose(&clip, time)
-            .unwrap()
-            .0
-    }
-
-    #[test]
-    fn prepared_walk_run_blend_projects_only_after_source_accumulation() {
-        let walk = source(
-            "ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf",
-            "A_Als_Walk_Forward_0",
-            0.24333334,
-        );
-        let run = source(
-            "ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.gltf",
-            "A_Als_Run_Forward_0",
-            0.14627451,
-        );
-        let blend = blend_source_poses([(&walk, 0.63), (&run, 0.37)], 2).unwrap();
-        let mut projected = Pose::default();
-        blend.project_into(&mut projected);
-        let pelvis = EntityPath::from_slashed_string("GltfNode0/root/pelvis".to_owned()).id();
-        assert_eq!(
-            projected.get_bone(pelvis).unwrap().translation,
-            Some(Vec3::new(0.012820745, 0.8939557, -0.03335212))
-        );
-        assert!(blend.matches_projection(&projected));
-        let index = projected.paths[&pelvis];
-        projected.bones[index].translation = Some(Vec3::ZERO);
-        assert!(!blend.matches_projection(&projected));
-    }
 }

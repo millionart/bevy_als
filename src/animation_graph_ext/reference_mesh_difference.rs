@@ -7,6 +7,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::mesh_space_difference::make_mesh_space_difference;
+use crate::extensions::source_sequence_player::rebuild_virtual_bones;
 use crate::extensions::{
     AnimationContextState, reference_local_difference::precise_reference_difference,
 };
@@ -37,7 +38,7 @@ impl NodeLike for ReferenceMeshDifferenceNode {
         ctx.set_time_update_back(REFERENCE_TIME, update.clone());
         ctx.set_time_update_back(TARGET_TIME, update);
         let mut reference = ctx.data_back(REFERENCE_POSE)?.into_pose()?;
-        let target = ctx.data_back(TARGET_POSE)?.into_pose()?;
+        let mut target = ctx.data_back(TARGET_POSE)?.into_pose()?;
         if ctx
             .graph_context
             .resources
@@ -53,8 +54,9 @@ impl NodeLike for ReferenceMeshDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let source_pose =
-            precise_reference_difference(&ctx, &mut reference, &target, skeleton, true);
+        rebuild_virtual_bones(&mut reference, skeleton);
+        rebuild_virtual_bones(&mut target, skeleton);
+        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, true);
         let mut difference = make_mesh_space_difference(&reference, &target, skeleton);
         if let Some(source) = &source_pose {
             source.project_into(&mut difference);

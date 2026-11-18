@@ -1,6 +1,5 @@
 use std::{
     any::TypeId,
-    path::Path,
     sync::{Arc, LazyLock},
 };
 
@@ -12,7 +11,7 @@ use bevy::{
     reflect::prelude::*,
 };
 use bevy_animation_graph::core::{
-    animation_clip::{GraphClip, loader::GraphClipSource},
+    animation_clip::GraphClip,
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
@@ -27,11 +26,7 @@ use serde::Deserialize;
 use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
-use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
-use crate::extensions::source_compression::{
-    PreparedPoseKind, sample_prepared_pose, sample_prepared_root, sample_prepared_source_pose,
-    sample_raw_additive_reference, sample_source_curves, write_raw_control_pose,
-};
+use crate::extensions::source_gameplay_tag_input::sample_graph_clip_curves;
 use crate::extensions::source_pose::SourcePose;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
@@ -66,11 +61,7 @@ pub(crate) enum CurveSample {
     BoneWeights(Vec<f32>),
 }
 
-pub(crate) fn sample_curve(
-    curve: &VariableCurve,
-    time: f32,
-    rotation_interval: Option<RawRotationInterval>,
-) -> Option<CurveSample> {
+pub(crate) fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSample> {
     let evaluator_id = curve.0.evaluator_id();
     let translation_id = Hashed::new((TypeId::of::<Transform>(), 0));
     let rotation_id = Hashed::new((TypeId::of::<Transform>(), 1));
@@ -82,9 +73,6 @@ pub(crate) fn sample_curve(
                     *curve.0.sample_clamped(time).downcast_ref()?,
                 ))
             } else if id == &rotation_id {
-                if let Some(interval) = rotation_interval {
-                    return interval.sample(curve).map(CurveSample::Rotation);
-                }
                 Some(CurveSample::Rotation(
                     *curve.0.sample_clamped(time).downcast_ref()?,
                 ))
@@ -113,19 +101,22 @@ pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
         skeleton: clip.skeleton.clone(),
         ..Pose::default()
     };
-    let rotation_interval = raw_rotation_interval(clip, time);
     for (bone_id, curves) in &clip.curves {
-        let mut bone_pose = BonePose::default();
-        for curve in curves {
-            match sample_curve(curve, time, rotation_interval) {
-                Some(CurveSample::Translation(value)) => bone_pose.translation = Some(value),
-                Some(CurveSample::Rotation(value)) => bone_pose.rotation = Some(value),
-                Some(CurveSample::Scale(value)) => bone_pose.scale = Some(value),
-                Some(CurveSample::BoneWeights(value)) => bone_pose.weights = Some(value),
-                None => {}
-            }
+        pose.add_bone(sample_bone_pose(curves, time), BoneId::from(*bone_id));
+    }
+    pose
+}
+
+pub(crate) fn sample_bone_pose(curves: &[VariableCurve], time: f32) -> BonePose {
+    let mut pose = BonePose::default();
+    for curve in curves {
+        match sample_curve(curve, time) {
+            Some(CurveSample::Translation(value)) => pose.translation = Some(value),
+            Some(CurveSample::Rotation(value)) => pose.rotation = Some(value),
+            Some(CurveSample::Scale(value)) => pose.scale = Some(value),
+            Some(CurveSample::BoneWeights(value)) => pose.weights = Some(value),
+            None => {}
         }
-        pose.add_bone(bone_pose, BoneId::from(*bone_id));
     }
     pose
 }
@@ -138,12 +129,11 @@ struct VirtualBoneBinding {
 }
 
 #[derive(Deserialize)]
-struct RawVirtualBones {
-    raw_gltf_paths: Vec<String>,
+struct VirtualBones {
     virtual_bones: Vec<VirtualBoneBinding>,
 }
 
-static RAW_VIRTUAL_BONES: LazyLock<RawVirtualBones> = LazyLock::new(|| {
+static VIRTUAL_BONES: LazyLock<VirtualBones> = LazyLock::new(|| {
     serde_json::from_str(include_str!(
         "../../assets/ALS/Data/AnimationInstance/als_raw_virtual_bones.json"
     ))
@@ -178,41 +168,29 @@ fn source_component_transform(
     Some(component)
 }
 
-fn sample_raw_source_clip_pose(
-    clip: &GraphClip,
-    time: f32,
-    skeletons: &Assets<Skeleton>,
-) -> Option<Pose> {
-    let mut pose = sample_pose(clip, time);
-    let Some(GraphClipSource::GltfNamed { path, .. }) = &clip.source else {
-        return Some(pose);
-    };
-    write_raw_control_pose(clip, time, &mut pose);
-    if !RAW_VIRTUAL_BONES
-        .raw_gltf_paths
-        .iter()
-        .any(|source| Path::new(source) == path.path())
-    {
-        return Some(pose);
-    }
-    let skeleton = skeletons.get(&clip.skeleton)?;
+pub(crate) fn rebuild_virtual_bones(pose: &mut Pose, skeleton: &Skeleton) {
     let bones: HashMap<_, _> = skeleton
-        .iter_bones()
-        .filter_map(|bone| {
-            let name = skeleton.id_to_path(bone)?.parts.into_iter().last()?;
-            Some((name.as_str().to_owned(), bone))
-        })
+        .iter_paths()
+        .filter_map(|path| Some((path.parts.last()?.as_str(), path.id())))
         .collect();
     let mut components = HashMap::new();
-    for binding in &RAW_VIRTUAL_BONES.virtual_bones {
-        let source = *bones.get(&binding.source_bone)?;
-        let target = *bones.get(&binding.target_bone)?;
-        let virtual_bone = *bones.get(&binding.virtual_bone)?;
+    for binding in &VIRTUAL_BONES.virtual_bones {
+        let (Some(&source), Some(&target), Some(&virtual_bone)) = (
+            bones.get(binding.source_bone.as_str()),
+            bones.get(binding.target_bone.as_str()),
+            bones.get(binding.virtual_bone.as_str()),
+        ) else {
+            continue;
+        };
         if skeleton.parent(&virtual_bone) != Some(source) {
-            return None;
+            continue;
         }
-        let source = source_component_transform(&pose, skeleton, source, &mut components)?;
-        let target = source_component_transform(&pose, skeleton, target, &mut components)?;
+        let (Some(source), Some(target)) = (
+            source_component_transform(pose, skeleton, source, &mut components),
+            source_component_transform(pose, skeleton, target, &mut components),
+        ) else {
+            continue;
+        };
         let local = target.relative(source);
         components.insert(virtual_bone, local.global(source));
         let transform = Transform {
@@ -221,25 +199,23 @@ fn sample_raw_source_clip_pose(
             scale: local.scale.as_vec3(),
         };
         if let Some(index) = pose.paths.get(&virtual_bone).copied() {
-            let bone = &mut pose.bones[index];
-            bone.translation = Some(transform.translation);
-            bone.rotation = Some(transform.rotation);
-            bone.scale = Some(transform.scale);
+            pose.bones[index] = BonePose::from_transform(transform);
         } else {
             pose.add_bone(BonePose::from_transform(transform), virtual_bone);
         }
     }
-    Some(pose)
 }
 
 pub(crate) fn sample_source_clip_pose(
     clip: &GraphClip,
     time: f32,
     skeletons: &Assets<Skeleton>,
-) -> Option<Pose> {
-    sample_prepared_pose(clip, time)
-        .map(|(pose, _)| pose)
-        .or_else(|| sample_raw_source_clip_pose(clip, time, skeletons))
+) -> Pose {
+    let mut pose = sample_pose(clip, time);
+    if let Some(skeleton) = skeletons.get(&clip.skeleton) {
+        rebuild_virtual_bones(&mut pose, skeleton);
+    }
+    pose
 }
 
 pub(crate) fn sample_source_pose(
@@ -262,81 +238,42 @@ pub(crate) fn sample_source_pose(
         ));
     }
     let skeletons = &ctx.graph_context.resources.skeleton_assets;
-    let (target, baked_additive, mut source_pose) = match sample_prepared_source_pose(clip, time) {
-        Some((source, kind)) => {
-            let mut pose = Pose {
-                skeleton: clip.skeleton.clone(),
-                ..Default::default()
-            };
-            source.project_into(&mut pose);
-            (pose, kind != PreparedPoseKind::Absolute, Some(source))
-        }
-        None => (
-            sample_raw_source_clip_pose(clip, time, skeletons)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?,
-            false,
-            None,
-        ),
-    };
-    let mut pose = if let Some(reference_handle) = additive_reference.filter(|_| !baked_additive) {
+    let mut pose = sample_source_clip_pose(clip, time, skeletons);
+    let mut source = skeletons
+        .get(&pose.skeleton)
+        .and_then(|skeleton| SourcePose::from_complete_pose(&pose, skeleton));
+    if let Some(reference_handle) = additive_reference {
         let reference_clip = ctx
             .graph_context
             .resources
             .graph_clip_assets
             .get(reference_handle)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let time = reference_position.max(0.0);
-        let raw = sample_raw_additive_reference(reference_clip, time);
-        let reference = if let Some(raw) = &raw {
-            let mut reference = Pose {
-                timestamp: time,
-                skeleton: reference_clip.skeleton.clone(),
-                ..Default::default()
-            };
-            raw.project_into(&mut reference);
-            reference
-        } else {
-            sample_raw_source_clip_pose(reference_clip, time, skeletons)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?
-        };
-        let skeleton = ctx
-            .graph_context
-            .resources
-            .skeleton_assets
+        let reference =
+            sample_source_clip_pose(reference_clip, reference_position.max(0.0), skeletons);
+        let skeleton = skeletons
             .get(&reference.skeleton)
-            .or_else(|| {
-                ctx.graph_context
-                    .resources
-                    .skeleton_assets
-                    .get(&target.skeleton)
-            })
+            .or_else(|| skeletons.get(&pose.skeleton))
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let mut difference = if mesh_space {
-            make_mesh_space_difference(&reference, &target, skeleton)
-        } else {
-            make_local_difference(&reference, &target, skeleton)
-        };
-        source_pose = raw
-            .as_ref()
-            .zip(source_pose.as_ref())
-            .and_then(|(reference, target)| {
+        source = SourcePose::from_complete_pose(&reference, skeleton)
+            .zip(source)
+            .and_then(|(base, target)| {
                 crate::extensions::mesh_space_difference::source_pose_difference(
-                    reference, target, skeleton, mesh_space,
+                    &base, &target, skeleton, mesh_space,
                 )
             });
-        if let Some(source) = &source_pose {
-            source.project_into(&mut difference);
+        pose = if mesh_space {
+            make_mesh_space_difference(&reference, &pose, skeleton)
+        } else {
+            make_local_difference(&reference, &pose, skeleton)
+        };
+        if let Some(source) = &source {
+            source.project_into(&mut pose);
         }
-        difference
-    } else {
-        target
-    };
+    }
     pose.timestamp = time;
     if let Some(mode) = root_lock {
-        let skeleton = ctx
-            .graph_context
-            .resources
-            .skeleton_assets
+        let skeleton = skeletons
             .get(&pose.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         apply_source_root_lock(
@@ -344,12 +281,12 @@ pub(crate) fn sample_source_pose(
             clip,
             skeleton,
             mode,
-            baked_additive || additive_reference.is_some(),
+            additive_reference.is_some(),
         )
         .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        source_pose = source_pose.filter(|source| source.matches_projection(&pose));
+        source = source.filter(|source| source.matches_projection(&pose));
     }
-    Ok((pose, source_pose.map(Arc::new)))
+    Ok((pose, source.map(Arc::new)))
 }
 
 pub(crate) fn bound_source_sample_time(position: f32, duration: f32, looped: bool) -> f32 {
@@ -542,12 +479,8 @@ pub fn apply_source_root_lock(
         crate::extensions::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
     let reference = skeleton.default_transforms(root)?.local;
     let transform = source_root_lock_transform(mode, reference, additive, || {
-        if let Some(first) = sample_prepared_root(clip, root, 0.0) {
-            Some(first)
-        } else {
-            let first = sample_pose(clip, 0.0);
-            Some(first.get_bone(root)?.to_transform_with_base(reference))
-        }
+        let curves = clip.curves.get(&root.animation_target_id())?;
+        Some(sample_bone_pose(curves, 0.0).to_transform_with_base(reference))
     })?;
     let index = *pose.paths.get(&root)?;
     pose.bones[index].translation = Some(transform.translation);
@@ -809,7 +742,12 @@ impl NodeLike for SourceSequencePlayerNode {
             weight: 1.0,
         };
         let mut context = AnimationContextState {
-            curves: sample_source_curves(Some(clip), &self.curves, position),
+            curves: sample_graph_clip_curves(
+                ctx.graph_context.root_entity,
+                Some(clip),
+                &self.curves,
+                position,
+            ),
             relevant_asset: (!self.ignore_for_relevancy_test).then_some(clock.clone()),
             curves_are_authoritative: true,
             sync_players,
@@ -877,6 +815,86 @@ impl NodeLike for SourceSequencePlayerNode {
 mod tests {
     use super::*;
     use bevy::prelude::*;
+    use bevy_animation_graph::core::animation_clip::loader::GraphClipSource;
+    use std::path::Path;
+
+    #[test]
+    fn installed_clip_name_uses_the_current_animation_channels() {
+        use bevy::animation::animated_field;
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+
+        let root = EntityPath::from_slashed_string("GltfNode0/root".into()).id();
+        let mut animation = AnimationClip::default();
+        animation.add_curve_to_target(
+            root.animation_target_id(),
+            AnimatableCurve::new(
+                animated_field!(Transform::translation),
+                ConstantCurve::new(Interval::UNIT, Vec3::new(0.0, 0.25, 0.0)),
+            ),
+        );
+        let clip = GraphClip::from_bevy_clip(
+            animation,
+            default(),
+            default(),
+            Some(GraphClipSource::GltfNamed {
+                path: "ALSRuntime/Animations/Base/A_Als_Stand_Pose.gltf".into(),
+                animation_name: "A_Als_Stand_Pose_0".into(),
+            }),
+        );
+
+        let pose = sample_source_clip_pose(&clip, 0.0, &Assets::default());
+        assert_eq!(
+            pose.get_bone(root).unwrap().translation,
+            Some(Vec3::Y * 0.25)
+        );
+    }
+
+    #[test]
+    fn virtual_foot_follows_the_sampled_foot_on_a_new_clip() {
+        use bevy::animation::animated_field;
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+
+        let root = EntityPath::default().child("root");
+        let foot = root.child("foot_l");
+        let virtual_root = root.child("VB foot_root");
+        let virtual_foot = virtual_root.child("VB foot_l");
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        for path in [root, foot.clone(), virtual_root, virtual_foot.clone()] {
+            skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        }
+        let mut skeletons = Assets::default();
+        let skeleton = skeletons.add(skeleton);
+        let mut animation = AnimationClip::default();
+        animation.add_curve_to_target(
+            foot.id().animation_target_id(),
+            AnimatableCurve::new(
+                animated_field!(Transform::translation),
+                UnevenSampleAutoCurve::new([(0.0, Vec3::X), (1.0, Vec3::X * 3.0)]).unwrap(),
+            ),
+        );
+        animation.add_curve_to_target(
+            virtual_foot.id().animation_target_id(),
+            AnimatableCurve::new(
+                animated_field!(Transform::translation),
+                ConstantCurve::new(Interval::UNIT, Vec3::NEG_X),
+            ),
+        );
+        let clip = GraphClip::from_bevy_clip(
+            animation,
+            skeleton,
+            default(),
+            Some(GraphClipSource::GltfNamed {
+                path: "new_animation.gltf".into(),
+                animation_name: "New".into(),
+            }),
+        );
+        let pose = sample_source_clip_pose(&clip, 0.5, &skeletons);
+        assert_eq!(
+            pose.get_bone(virtual_foot.id()).unwrap().translation,
+            Some(Vec3::X * 2.0)
+        );
+    }
 
     #[test]
     fn installed_clip_durations_use_the_native_timeline_endpoints() {
@@ -1548,11 +1566,11 @@ mod tests {
                 let time = frame["time"].as_f64().unwrap() as f32;
                 let baked = sample_pose(clip, time);
                 let unbound_baked = sample_pose(&unbound, time);
-                let reconstructed = sample_raw_source_clip_pose(clip, time, skeletons).unwrap();
-                let control = sample_raw_source_clip_pose(&unbound, time, skeletons).unwrap();
+                let reconstructed = sample_source_clip_pose(clip, time, skeletons);
+                let control = sample_pose(&unbound, time);
                 let native_bones = frame["bones"].as_array().unwrap();
                 let mut baked_error = 0.0_f32;
-                for binding in &RAW_VIRTUAL_BONES.virtual_bones {
+                for binding in &VIRTUAL_BONES.virtual_bones {
                     let name = binding.virtual_bone.as_str();
                     let id = skeleton
                         .iter_bones()
