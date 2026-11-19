@@ -11,7 +11,7 @@
 
 If the host installs Avian itself, register `AlsPlugin::physics_plugins()` before `AlsPlugin` to use the matching physics schedule and collision hooks. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
 
-The companion `bevy_als_playground` project contains the integration guide and a minimal application with WASD, mouse look, and jump. Its full scene uses an Enhanced Input adapter owned by the Playground.
+Run `cargo run --example als_character` from the companion `bevy_als_playground` project to exercise ALS with WASD, mouse look, and jump. The core crate is a library. The full Playground scene owns its Enhanced Input adapter.
 
 ## Assets and conversion
 

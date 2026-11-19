@@ -28,9 +28,7 @@ use crate::extensions::sync_group_phase::{
     resolved_source_sync_phase, resolved_source_sync_sample_time,
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
-use crate::extensions::{
-    SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time,
-};
+use crate::extensions::{SyncMarker, phase_to_time};
 use crate::extensions::{
     animation_context::context_time_update, sync_group_phase::normalize_phase,
 };
@@ -1334,6 +1332,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::{follower_sample_time, marker_phase_sample_time};
 
     #[test]
     fn per_bone_ease_preserves_rate_and_normalizes_each_bone() {

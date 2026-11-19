@@ -45,7 +45,7 @@ use crate::als::movement_constants::{
     PULLBACK_PROPORTION, PULLBACK_TIME_BIAS, STAND_UP_MIN_FLOOR_DISTANCE, STAND_UP_SWEEP_INFLATION,
     SWEEP_EDGE_MIN_RADIUS,
 };
-use crate::als::orientation::{world_forward_to_yaw, yaw_to_world_forward};
+use crate::als::orientation::world_forward_to_yaw;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::als::transition::{

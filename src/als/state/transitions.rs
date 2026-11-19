@@ -1,5 +1,3 @@
-use bevy::math::Vec3;
-
 use crate::als::{
     foot_ik::is_relevant_animation_weight,
     state::{RotationMode, Stance},
@@ -226,6 +224,7 @@ pub fn select_dynamic_transition(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::math::Vec3;
 
     #[test]
     fn source_config_matches_animation_instance_settings() {
