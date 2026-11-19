@@ -34,9 +34,10 @@ pub struct GroundedLayerPlugin;
 
 impl Plugin for GroundedLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         crate::builtin_assets::install(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsGroundedLayerSet.after(AlsCrouchingLayerSet).before(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),

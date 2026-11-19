@@ -80,8 +80,9 @@ pub struct AbAlsProviderPlugin;
 
 impl Plugin for AbAlsProviderPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AbAlsProviderSet
                 .after(AlsRootGraphSet)
                 .after(AlsRagdollingLayerSet)
@@ -90,7 +91,7 @@ impl Plugin for AbAlsProviderPlugin {
                     crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
                 ),
         )
-        .add_systems(PostUpdate, ab_als_input_writer.in_set(AbAlsProviderSet));
+        .add_systems(outer, ab_als_input_writer.in_set(AbAlsProviderSet));
     }
 }
 

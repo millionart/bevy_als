@@ -18,8 +18,9 @@ pub struct AirJumpLayerPlugin;
 
 impl Plugin for AirJumpLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.add_systems(
-            PostUpdate,
+            outer,
             capture_jump_variant.after(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),

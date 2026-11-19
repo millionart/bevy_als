@@ -111,12 +111,13 @@ pub struct AlsActualMotionPlugin;
 
 impl Plugin for AlsActualMotionPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsActualMotionSet.before(crate::gait_layer::AlsGaitLayerSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             snapshot_actual_motion_system.in_set(AlsActualMotionSet),
         );
     }

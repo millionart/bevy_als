@@ -17,8 +17,9 @@ pub struct LocomotionLifecyclePlugin;
 
 impl Plugin for LocomotionLifecyclePlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.add_systems(
-            PostUpdate,
+            outer,
             stop_transition_and_turn_on_locomotion_exit
                 .after(AlsLocomotionLayerSet)
                 .before(

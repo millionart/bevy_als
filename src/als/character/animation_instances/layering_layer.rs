@@ -71,14 +71,15 @@ pub struct LayeringLayerPlugin;
 
 impl Plugin for LayeringLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsLayeringLayerSet.before(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             layering_layer_writer.in_set(AlsLayeringLayerSet),
         );
     }

@@ -69,12 +69,16 @@ pub struct ControlRigApplyPlugin;
 
 impl Plugin for ControlRigApplyPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        app.configure_sets(
+            outer,
+            AlsControlRigInputSet.after(AlsHeadLayerSet).before(
+                crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+            ),
+        );
         app.configure_sets(
             PostUpdate,
             (
-                AlsControlRigInputSet.after(AlsHeadLayerSet).before(
-                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
-                ),
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Readback
                     .after(FootIkApplySet::Telemetry),
                 AlsControlRigPropagationSet.after(
@@ -83,7 +87,7 @@ impl Plugin for ControlRigApplyPlugin {
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 initialize_control_rig_input
                     .before(FootIkApplySet::UpdateInputs)
@@ -91,14 +95,17 @@ impl Plugin for ControlRigApplyPlugin {
                 (refresh_control_rig_input, publish_control_rig_inputs)
                     .chain()
                     .in_set(AlsControlRigInputSet),
-                (
-                    transform_systems::mark_dirty_trees,
-                    transform_systems::propagate_parent_transforms,
-                    transform_systems::sync_simple_transforms,
-                )
-                    .chain()
-                    .in_set(AlsControlRigPropagationSet),
             ),
+        )
+        .add_systems(
+            PostUpdate,
+            (
+                transform_systems::mark_dirty_trees,
+                transform_systems::propagate_parent_transforms,
+                transform_systems::sync_simple_transforms,
+            )
+                .chain()
+                .in_set(AlsControlRigPropagationSet),
         );
     }
 }

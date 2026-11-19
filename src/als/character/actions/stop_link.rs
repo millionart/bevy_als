@@ -435,20 +435,22 @@ pub struct AlsStopLinkPlugin;
 
 impl Plugin for AlsStopLinkPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         app.add_message::<AlsQuickStopNotify>()
             .add_observer(discard_transition_target)
             .add_systems(
-                Update,
+                prepare,
                 (
                     quick_stop_notify_system,
                     transition_playback_system.after(quick_stop_notify_system),
                     ensure_root_transition_slot_samplers
                         .before(quick_stop_notify_system)
                         .before(transition_playback_system),
-                ),
+                ).in_set(crate::playable_character::AlsPhysicsPrepareSet),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 bridge_root_transition_slot_samples
                     .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),

@@ -155,21 +155,24 @@ pub enum FootIkApplySet {
 
 impl Plugin for FootIkApplyPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(PostUpdate, AnimationGraphSet::Final.before(TransformSystems::Propagate))
             .init_resource::<AlsFootIkTelemetryEnabled>()
             .init_resource::<AlsFootIkWeightOverride>()
             .init_resource::<CrAlsRuntimeProfileTemplate>()
             .add_message::<AlsFootLockTeleported>()
-            .configure_sets(PostUpdate, (
+            .configure_sets(outer,
                 FootIkApplySet::UpdateInputs
                     .after(crate::crouching_layer::AlsCrouchingLayerSet)
                     .after(crate::character_assembly::sync_avatar_stance_offset)
                     .before(crate::ab_als_provider::AbAlsProviderSet)
                     .after(crate::als::motion::AlsRotationResponseSet)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            )
+            .configure_sets(PostUpdate,
                 FootIkApplySet::Telemetry.after(AnimationGraphSet::Final)
                     .after(AlsRootAnimationContextSet).after(TransformSystems::Propagate),
-            )).add_systems(PostUpdate, (
+            ).add_systems(outer, (
                 refresh_current_foot_bones.before(ensure_foot_lock_components).before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_components.before(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_lifecycle_state.before(FootIkApplySet::UpdateInputs),
@@ -177,8 +180,7 @@ impl Plugin for FootIkApplyPlugin {
                 invalidate_missing_foot_bones.before(FootIkApplySet::UpdateInputs),
                 (detect_foot_lock_teleports, record_foot_lock_teleports, refresh_foot_lock_inputs)
                     .chain().in_set(FootIkApplySet::UpdateInputs),
-                observe_rig_results.in_set(FootIkApplySet::Telemetry),
-            ));
+            )).add_systems(PostUpdate, observe_rig_results.in_set(FootIkApplySet::Telemetry));
     }
 }
 

@@ -92,30 +92,37 @@ pub struct PostPhysicsAnimationPlugin;
 
 impl Plugin for PostPhysicsAnimationPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() {
             app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
         }
         app.configure_sets(
-            PostUpdate,
+            outer,
             (
                 PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),
                 PostPhysicsAnimationSet::Evaluate
                     .after(PostPhysicsAnimationSet::Inputs)
                     .before(AnimationGraphSet::PostPhysics),
+            ),
+        )
+        .configure_sets(
+            PostUpdate,
+            (
+                AnimationGraphSet::Final.before(TransformSystems::Propagate),
                 PostPhysicsAnimationSet::Readback
                     .after(AnimationGraphSet::Final)
                     .after(TransformSystems::Propagate),
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             evaluate_players::<Without<PostPhysicsAnimation>>
                 .after(spawn_missing_ragdolls_avian)
                 .before(extract_root_motion)
                 .in_set(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 evaluate_players::<With<PostPhysicsAnimation>>,
                 extract_late_root_motion,
@@ -126,8 +133,9 @@ impl Plugin for PostPhysicsAnimationPlugin {
     }
 
     fn finish(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.world_mut()
-            .schedule_scope(PostUpdate, |world, schedule| {
+            .schedule_scope(outer, |world, schedule| {
                 let count = schedule
                     .remove_systems_in_set(
                         animation_player,
@@ -138,17 +146,6 @@ impl Plugin for PostPhysicsAnimationPlugin {
                 assert_eq!(
                     count, 1,
                     "animation evaluation must replace exactly one default player system"
-                );
-                let count = schedule
-                    .remove_systems_in_set(
-                        bevy_animation_graph::core::systems::apply_animation_to_targets,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("bone refresh schedule must initialize");
-                assert_eq!(
-                    count, 1,
-                    "bone refresh must replace exactly one default player system"
                 );
                 let count = schedule
                     .remove_systems_in_set(
@@ -173,8 +170,19 @@ impl Plugin for PostPhysicsAnimationPlugin {
                     "kinematic velocity update must replace exactly one default system"
                 );
             });
+        app.world_mut()
+            .schedule_scope(PostUpdate, |world, schedule| {
+                let count = schedule
+                    .remove_systems_in_set(
+                        bevy_animation_graph::core::systems::apply_animation_to_targets,
+                        world,
+                        ScheduleCleanupPolicy::RemoveSystemsOnly,
+                    )
+                    .expect("bone refresh schedule must initialize");
+                assert_eq!(count, 1, "bone refresh must replace exactly one default player system");
+            });
         app.add_systems(
-            PostUpdate,
+            outer,
             update_relative_kinematic_target_velocities
                 .after(update_ragdolls_avian)
                 .before(update_relative_kinematic_body_velocities)
@@ -214,6 +222,8 @@ pub(crate) fn source_kinematic_angular_velocity(start: Quat, target: Quat, delta
 
 pub(crate) fn update_relative_kinematic_target_velocities(
     time: Res<Time>,
+    schedule: Option<Res<crate::AlsPhysicsSchedule>>,
+    legacy_clock: Option<Res<crate::source_physics_timing::SourcePhysicsClockRestore>>,
     mut bodies: Query<(
         &RelativeKinematicBodyPositionBased,
         &Position,
@@ -224,7 +234,11 @@ pub(crate) fn update_relative_kinematic_target_velocities(
     references: Query<(&Position, &Rotation), Without<RelativeKinematicBodyPositionBased>>,
 ) {
     let world_delta = time.delta_secs();
-    let physics_delta = source_physics_delta(time.delta()).as_secs_f32();
+    let physics_delta = if schedule.is_none() || legacy_clock.is_some() {
+        source_physics_delta(time.delta()).as_secs_f32()
+    } else {
+        world_delta
+    };
     for (target, position, rotation, mut body, use_source) in &mut bodies {
         let world = Isometry3d::new(position.0, rotation.0);
         let current = target

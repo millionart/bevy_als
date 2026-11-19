@@ -30,7 +30,7 @@ use crate::als::control_scheme::{
 };
 use crate::als::dynamics::AlsComponentVelocity;
 use crate::als::gait::AlsMaxAllowedGait;
-use crate::als::input::AlsInputCommand;
+use crate::als::input::{AlsInputCommand, AlsStepInput};
 use crate::als::mantle::{
     AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleState, AlsMantleTargetBase,
     AlsMantleTargetPermission, MantleDetectionInput, auto_mantle_start_allowed,
@@ -4713,6 +4713,10 @@ pub struct AlsLocomotionUpdateSet;
 
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        let controller = crate::AlsPhysicsSchedule::controller(app);
+        let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         app.add_message::<StateTransitionEvent>()
             .add_message::<SourceCharacterImpact>()
             .add_plugins((
@@ -4721,23 +4725,30 @@ impl Plugin for AlsMotionPlugin {
                 crate::als::dynamics::AlsGroundedDynamicsPlugin,
             ))
             .add_systems(
-                Update,
+                prepare,
                 (
                     initialize_spawn_movement_mode
                         .in_set(AlsLocomotionUpdateSet)
                         .before(locomotion_drive_system)
                         .before(TnuaPipelineSystems::Sensors),
-                    tnua_config_sync_system
-                        .after(crate::als::transition::state_transition_system)
-                        .after(capsule_reshape_system)
-                        .before(TnuaPipelineSystems::Sensors),
                     locomotion_drive_system
                         .in_set(AlsLocomotionUpdateSet)
                         .after(crate::als::view::AlsViewInputSet)
                         .before(crate::als::transition::state_transition_system),
+                    capsule_reshape_system.after(crate::als::transition::state_transition_system),
+                ).in_set(crate::playable_character::AlsPhysicsPrepareSet),
+            )
+            .add_systems(
+                controller,
+                (
+                    tnua_config_sync_system
+                        .after(crate::als::transition::state_transition_system)
+                        .after(capsule_reshape_system)
+                        .before(TnuaPipelineSystems::Sensors),
                     crouch_controller_transaction_system
                         .after(locomotion_drive_system)
                         .after(capsule_reshape_system)
+                        .after(tnua_config_sync_system)
                         .before(TnuaPipelineSystems::Logic),
                     accepted_jump_state_system
                         .after(TnuaPipelineSystems::Logic)
@@ -4755,11 +4766,13 @@ impl Plugin for AlsMotionPlugin {
                         .after(resolve_stationary_floor_state)
                         .before(TnuaPipelineSystems::Motors),
                     apply_character_impact_forces
-                        .after(cmc_movement_transaction_system)
+                        .after(apply_standing_downward_force)
                         .before(TnuaPipelineSystems::Motors),
                     (|| MovementBaseFollowPhase::BeforeSensors)
                         .pipe(follow_movement_base_system)
                         .after(capsule_reshape_system)
+                        .before(tnua_config_sync_system)
+                        .before(crate::als::character::character_sensor_shape_sync_system)
                         .before(TnuaPipelineSystems::Sensors),
                     (|| MovementBaseFollowPhase::AfterJump)
                         .pipe(follow_movement_base_system)
@@ -4768,24 +4781,20 @@ impl Plugin for AlsMotionPlugin {
                     refine_ground_sensor_system
                         .after(TnuaPipelineSystems::Sensors)
                         .before(TnuaPipelineSystems::Logic),
-                    capsule_reshape_system.after(crate::als::transition::state_transition_system),
-                ),
-            )
-            .add_systems(
-                Update,
-                sync_effective_gravity_system
-                    .after(TnuaPipelineSystems::Sensors)
-                    .before(TnuaPipelineSystems::Logic),
+                    sync_effective_gravity_system
+                        .after(TnuaPipelineSystems::Sensors)
+                        .before(TnuaPipelineSystems::Logic),
+                ).before(PhysicsStepSystems::First),
             )
             .configure_sets(
-                PostUpdate,
+                outer,
                 (
                     AlsActualVelocitySet.after(PhysicsSystems::Last),
                     AlsRotationResponseSet.after(AlsActualVelocitySet),
                 ),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 (
                     (|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system),
                     release_custom_movement_physics,
@@ -4796,7 +4805,7 @@ impl Plugin for AlsMotionPlugin {
                     .in_set(AlsActualVelocitySet),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 apply_character_overlap_impulses
                     .after(locomotion_state_sync_system)
                     .before(snapshot_actual_velocity_system)
@@ -4811,14 +4820,16 @@ impl Plugin for AlsMotionPlugin {
                     .before(crate::extensions::source_body_dynamics::capture_source_sleep_wakes),
             )
             .add_systems(
-                PostUpdate,
+                root_motion,
                 prepare_subminimum_custom_physics
                     .after(crate::roll_drive::AlsRollDriveSet)
                     .after(crate::mantle_drive::AlsMantleDriveSet)
+                    .before(PhysicsSystems::First)
+                    .before(PhysicsStepSystems::First)
                     .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 (
                     crate::als::gait::refresh_gait_system
                         .after(crate::actual_motion::AlsActualMotionSet)
@@ -4838,7 +4849,7 @@ impl Plugin for AlsMotionPlugin {
 }
 
 fn prepare_subminimum_custom_physics(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     mut commands: Commands,
     characters: Query<
         (
@@ -4966,7 +4977,7 @@ fn accepted_jump_state_system(
 }
 
 pub(crate) fn snapshot_actual_velocity_system(
-    frame_time: Res<Time<Virtual>>,
+    frame_time: crate::playable_character::AlsStepTime,
     physics_time: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<
         (
@@ -6856,8 +6867,7 @@ type DriveQueryItem<'a> = (
     &'a LocomotionState,
     Option<&'a crate::actual_motion::AlsActualMotion>,
     Option<&'a mut crate::als::mantle::AlsMantleState>,
-    Option<&'a AlsInputOverride>,
-    &'a AlsInputCommand,
+    (Option<&'a AlsInputOverride>, &'a AlsInputCommand, Option<&'a AlsStepInput>),
     &'a Stance,
     &'a OverlayState,
     &'a AlsMovementParamsHandle,
@@ -6871,7 +6881,7 @@ type DriveQueryItem<'a> = (
 
 #[allow(clippy::type_complexity)]
 pub(crate) fn locomotion_drive_system(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     spatial: SceneQuery,
@@ -6909,8 +6919,7 @@ pub(crate) fn locomotion_drive_system(
         loco,
         motion,
         mut mantle,
-        override_cmd,
-        cmd,
+        (override_cmd, cmd, step_input),
         stance,
         overlay,
         params_handle,
@@ -6936,7 +6945,7 @@ pub(crate) fn locomotion_drive_system(
         }
         let input_blocked = blocked.contains(entity);
         let effective =
-            movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
+            movement_input_for_action(AlsStepInput::command(cmd, override_cmd, step_input), input_blocked);
 
         let movement_yaw = player_view.map_or_else(
             || {
@@ -6963,7 +6972,7 @@ pub(crate) fn locomotion_drive_system(
 
         let jump_now = effective.jump_pressed;
         let jump_was = jump_prev.as_deref().map(|j| j.0).unwrap_or(false);
-        let jump_edge = jump_now && !jump_was;
+        let jump_edge = jump_now && (step_input.is_some() || !jump_was);
         match jump_prev {
             Some(mut jp) => jp.0 = jump_now,
             None => {
@@ -7088,7 +7097,7 @@ pub(crate) fn locomotion_drive_system(
     }
 }
 
-fn auto_mantle_after_movement(
+pub(crate) fn auto_mantle_after_movement(
     mut commands: Commands,
     spatial: SceneQuery,
     velocities: Query<
@@ -9469,7 +9478,7 @@ fn source_repulsion_response(
 }
 
 fn apply_character_repulsion(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     collisions: Collisions,
     sensors: Query<Has<Sensor>>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -9756,7 +9765,7 @@ fn apply_standing_downward_force(
 }
 
 fn resolve_stationary_floor_state(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     spatial: SceneQuery,
@@ -10167,7 +10176,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     spatial: SceneQuery,

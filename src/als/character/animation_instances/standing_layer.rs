@@ -808,10 +808,11 @@ pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         crate::builtin_assets::install(app);
         app.add_systems(Startup, crate::standing_source::load_source_montage_assets);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsStandingLayerSet
                 .after(crate::gait_layer::AlsGaitLayerSet)
                 .before(
@@ -821,7 +822,7 @@ impl Plugin for StandingLayerPlugin {
         .add_message::<AlsPivotNotify>()
         .add_systems(Startup, load_standing_curve_assets)
         .add_systems(
-            PostUpdate,
+            outer,
             (pivot_notify_system, standing_layer_writer)
                 .chain()
                 .in_set(AlsStandingLayerSet),

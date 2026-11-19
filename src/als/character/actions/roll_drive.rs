@@ -1,5 +1,5 @@
 use crate::als::air::AlsAirState;
-use crate::als::input::AlsInputCommand;
+use crate::als::input::{AlsInputCommand, AlsStepInput};
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 use crate::als::roll::{
     AlsRollState, ROLL_MONTAGE, ROLL_ROTATION_HALF_LIFE_SECS, advance_roll_clip,
@@ -4952,35 +4952,47 @@ pub struct AlsRollDriveSet;
 
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         crate::builtin_assets::install(app);
         app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(Startup, load_roll_slot_curve_asset)
             .add_observer(discard_roll_target)
-            .add_systems(Update, (ensure_roll_state, start_roll_input).chain()
+            .add_systems(prepare, (ensure_roll_state, start_roll_input).chain()
+                .in_set(crate::playable_character::AlsPhysicsPrepareSet)
                 .after(crate::als::motion::locomotion_drive_system)
-                .before(crate::als::transition::state_transition_system))
-            .add_systems(PostUpdate, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
+                .before(crate::als::transition::state_transition_system));
+        if prepare != outer {
+            app.add_systems(outer, ensure_roll_state);
+        }
+        app
+            .add_systems(outer, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
             .configure_sets(
-                PostUpdate,
-                AlsRollDriveSet.after(AnimationGraphSet::PrePhysics),
+                root_motion,
+                AlsRollDriveSet
+                    .after(AnimationGraphSet::PrePhysics)
+                    .before(avian3d::prelude::PhysicsSystems::First),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 (
                     advance_rolls.after(ensure_roll_state).after(crate::animation_visibility::AlsAnimationVisibilitySet)
                         .before(prepare_roll_slot_samples),
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
-                    ensure_roll_state,
                     bridge_roll_slot_samples
                         .after(AnimationGraphSet::PrePhysics)
                         .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
                         .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
-                    roll_drive_system
-                        .after(ensure_roll_state)
-                        .after(bridge_roll_slot_samples)
-                        .after(AnimationGraphSet::PrePhysics)
-                        .in_set(AlsRollDriveSet),
                 ),
+            )
+            .add_systems(
+                root_motion,
+                roll_drive_system
+                    .after(ensure_roll_state)
+                    .after(bridge_roll_slot_samples)
+                    .after(AnimationGraphSet::PrePhysics)
+                    .in_set(AlsRollDriveSet),
             );
     }
 }
@@ -5028,15 +5040,16 @@ fn start_roll_input(
             Option<&crate::als::view::AlsPlayerViewYaw>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&AlsStepInput>,
             Option<&crate::actual_motion::AlsActualMotion>,
         ),
         With<crate::als::character::AlsCharacter>,
     >,
 ) {
-    for (character, mut roll, locomotion, stance, view, player_view, cmd, override_input, motion) in
+    for (character, mut roll, locomotion, stance, view, player_view, cmd, override_input, step_input, motion) in
         &mut characters
     {
-        let input = *override_input.map(|value| &value.0).unwrap_or(cmd);
+        let input = AlsStepInput::command(cmd, override_input, step_input);
         if !input.roll_pressed {
             continue;
         }
@@ -5505,6 +5518,7 @@ fn advance_rolls(
             Option<&AlsAirState>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&AlsStepInput>,
             Option<&crate::actual_motion::AlsActualMotion>,
             Has<AlsRollInputHandled>,
         ),
@@ -5544,6 +5558,7 @@ fn advance_rolls(
         air,
         cmd,
         ovr,
+        step_input,
         motion,
         input_handled,
     ) in &mut q
@@ -5564,7 +5579,7 @@ fn advance_rolls(
             )
         });
         let mut effective = crate::als::motion::movement_input_for_action(
-            *ovr.map(|o| &o.0).unwrap_or(cmd),
+            AlsStepInput::command(cmd, ovr, step_input),
             blocked.contains(character) || action_blocked,
         );
         if input_handled {

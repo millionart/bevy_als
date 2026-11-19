@@ -382,9 +382,11 @@ pub struct AlsGaitPlugin;
 
 impl Plugin for AlsGaitPlugin {
     fn build(&self, app: &mut App) {
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         app.add_message::<StateTransitionEvent>().add_systems(
-            Update,
+            prepare,
             gait_request_system
+                .in_set(crate::playable_character::AlsPhysicsPrepareSet)
                 .after(crate::als::input_request::input_state_request_system)
                 .before(state_transition_system),
         );

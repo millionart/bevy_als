@@ -406,18 +406,20 @@ pub struct TurnLayerPlugin;
 
 impl Plugin for TurnLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         crate::builtin_assets::install(app);
         app.add_systems(
-            Update,
+            prepare,
             (
                 ensure_turn_drive,
                 ensure_turn_montage_stack,
                 turn_pin_driver,
             )
-                .chain(),
+                .chain().in_set(crate::playable_character::AlsPhysicsPrepareSet),
         )
         .configure_sets(
-            PostUpdate,
+            outer,
             AlsTurnSlotBridgeSet
                 .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)
                 .before(
@@ -425,7 +427,7 @@ impl Plugin for TurnLayerPlugin {
                 ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             bridge_turn_slot_samples.in_set(AlsTurnSlotBridgeSet),
         );
     }

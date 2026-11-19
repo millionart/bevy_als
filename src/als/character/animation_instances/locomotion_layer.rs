@@ -74,20 +74,21 @@ pub struct LocomotionLayerPlugin;
 
 impl Plugin for LocomotionLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsLocomotionLayerSet.after(AbAlsProviderSet).before(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             locomotion_input_writer.in_set(AlsLocomotionLayerSet),
         )
         .add_systems(
             PostUpdate,
             project_in_air_state
-                .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
+                .after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final)
                 .before(AlsRootAnimationContextSet),
         );
     }

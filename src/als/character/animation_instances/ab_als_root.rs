@@ -28,19 +28,20 @@ const OVERLAY_LAYER_BINDING: &str = "/ALS/ALS/Character/ALI_Overlay.ALI_Overlay_
 
 impl Plugin for AlsRootGraphPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         if !app.is_plugin_added::<crate::overlay_object::OverlayLibraryPlugin>() {
             app.add_plugins(crate::overlay_object::OverlayLibraryPlugin);
         }
         app.add_plugins(crate::animation_context_projection::AlsRootAnimationContextPlugin)
             .configure_sets(
-                PostUpdate,
+                outer,
                 AlsRootGraphSet
                     .after(AlsGaitLayerSet)
                     .after(AlsStandingLayerSet)
                     .before(AlsLocomotionLayerSet)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             )
-            .add_systems(PostUpdate, root_graph_writer.in_set(AlsRootGraphSet))
+            .add_systems(outer, root_graph_writer.in_set(AlsRootGraphSet))
             .add_systems(
                 PostUpdate,
                 root_pose_invariant.after(AnimationGraphSet::Final),

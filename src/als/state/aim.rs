@@ -111,10 +111,11 @@ pub struct AlsAimPlugin;
 
 impl Plugin for AlsAimPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.add_message::<AimStateChanged>()
             .add_message::<StateTransitionEvent>()
             .add_systems(
-                PostUpdate,
+                outer,
                 aim_rotation_mode_system
                     .after(crate::als::gait::refresh_gait_system)
                     .before(crate::als::motion::AlsRotationResponseSet)

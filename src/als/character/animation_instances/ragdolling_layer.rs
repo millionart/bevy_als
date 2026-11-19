@@ -36,21 +36,22 @@ pub struct RagdollingLayerPlugin;
 
 impl Plugin for RagdollingLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsRagdollingLayerSet.before(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             sample_ragdolling_flail_state
                 .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics)
                 .before(avian3d::prelude::PhysicsSystems::First)
                 .before(AlsRagdollingLayerSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             ragdolling_layer_writer.in_set(AlsRagdollingLayerSet),
         );
     }

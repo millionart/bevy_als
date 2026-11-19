@@ -271,19 +271,23 @@ pub struct AlsMantleDriveSet;
 
 impl Plugin for AlsMantleDrivePlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         crate::builtin_assets::install(app);
         app.add_message::<StateTransitionEvent>()
             .add_systems(Startup, load_mantle_assets)
-            .add_systems(Update, ensure_mantle_state);
+            .add_systems(prepare, ensure_mantle_state.in_set(crate::playable_character::AlsPhysicsPrepareSet));
         app.configure_sets(
-            PostUpdate,
+            root_motion,
             AlsMantleDriveSet
                 .after(AnimationGraphSet::PrePhysics)
+                .before(PhysicsSystems::First)
                 .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp)
                 .before(crate::animation_events::AlsAnimationEventSet::Refresh),
         )
         .add_systems(
-            PostUpdate,
+            root_motion,
             (
                 prepare_mantle_montages,
                 mantle_drive_system,
@@ -294,7 +298,7 @@ impl Plugin for AlsMantleDrivePlugin {
                 .in_set(AlsMantleDriveSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 release_mantle_physics
                     .after(PhysicsSystems::Last)
@@ -645,7 +649,7 @@ fn ensure_mantle_state(
 }
 
 fn mantle_pose_system(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     ragdoll_eligibility: crate::ragdoll_link::AlsRagdollStartEligibility,

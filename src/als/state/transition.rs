@@ -450,9 +450,13 @@ pub struct AlsStateTransitionPlugin;
 
 impl Plugin for AlsStateTransitionPlugin {
     fn build(&self, app: &mut App) {
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         app.add_message::<StateTransitionEvent>()
             .add_message::<StateTransitionRejectedEvent>()
-            .add_systems(Update, state_transition_system);
+            .add_systems(
+                prepare,
+                state_transition_system.in_set(crate::playable_character::AlsPhysicsPrepareSet),
+            );
     }
 }
 

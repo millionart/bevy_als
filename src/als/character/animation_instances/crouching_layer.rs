@@ -65,9 +65,10 @@ pub struct CrouchingLayerPlugin;
 
 impl Plugin for CrouchingLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         crate::builtin_assets::install(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsCrouchingLayerSet
                 .after(crate::standing_layer::AlsStandingLayerSet)
                 .before(AlsRotationResponseSet)
@@ -88,7 +89,7 @@ impl Plugin for CrouchingLayerPlugin {
             },
         )
         .add_systems(
-            PostUpdate,
+            outer,
             crouching_layer_writer.in_set(AlsCrouchingLayerSet),
         )
         .add_systems(

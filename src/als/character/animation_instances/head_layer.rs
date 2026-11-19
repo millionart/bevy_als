@@ -15,7 +15,7 @@ use crate::als_camera::AlsCameraCustomTimeDilation;
 use crate::extensions::post_physics_animation::InitialAnimation;
 use crate::extensions::source_instance::source_player_property;
 use bevy::prelude::*;
-use bevy::time::{Real, Virtual};
+use bevy::time::Real;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
@@ -31,8 +31,9 @@ pub struct HeadLayerPlugin;
 
 impl Plugin for HeadLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
                 .after(AbAlsProviderSet)
@@ -40,11 +41,11 @@ impl Plugin for HeadLayerPlugin {
                     crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
                 ),
         )
-        .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
+        .add_systems(outer, head_layer_writer.in_set(AlsHeadLayerSet))
         .add_systems(
             PostUpdate,
             project_head_state
-                .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
+                .after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final)
                 .before(AlsRootAnimationContextSet),
         );
     }
@@ -167,7 +168,7 @@ fn write_head_inputs(
 #[allow(clippy::type_complexity)]
 fn head_layer_writer(
     source_inputs: Query<&crate::extensions::SourceAnimationInputs>,
-    virtual_time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     real_time: Res<Time<Real>>,
     transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
@@ -203,12 +204,12 @@ fn head_layer_writer(
         let scaled_delta = if initial.is_some() {
             0.0
         } else {
-            virtual_time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)
+            time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)
         };
-        let unscaled = if initial.is_some() || virtual_time.is_paused() {
+        let unscaled = if initial.is_some() {
             0.0
         } else {
-            real_time.delta_secs()
+            time.unscaled_delta_secs(&real_time)
         };
         let action_active = source_inputs
             .get(instance.player_entity())

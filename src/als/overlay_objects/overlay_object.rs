@@ -192,6 +192,7 @@ pub struct OverlayObjectPlugin;
 
 impl Plugin for OverlayObjectPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         if !app.is_plugin_added::<OverlayLibraryPlugin>() {
             app.add_plugins(OverlayLibraryPlugin);
         }
@@ -200,14 +201,15 @@ impl Plugin for OverlayObjectPlugin {
             (ensure_overlay_object_state, sync_overlay_object).chain(),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             initialize_object_players.before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
             PostUpdate,
             update_object_animation
                 .after(PostPhysicsAnimationSet::Evaluate)
-                .before(AnimationGraphSet::PostPhysics),
+                .before(AnimationGraphSet::PostPhysics)
+                .before(AnimationGraphSet::Final),
         );
     }
 }

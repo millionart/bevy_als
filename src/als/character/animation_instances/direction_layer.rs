@@ -48,7 +48,8 @@ pub struct DirectionLayerPlugin;
 
 impl Plugin for DirectionLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, direction_angle_driver);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        app.add_systems(prepare, direction_angle_driver.in_set(crate::playable_character::AlsPhysicsPrepareSet));
     }
 }
 

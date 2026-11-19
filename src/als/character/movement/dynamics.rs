@@ -899,8 +899,10 @@ pub struct AlsGroundedDynamicsPlugin;
 
 impl Plugin for AlsGroundedDynamicsPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let controller = crate::AlsPhysicsSchedule::controller(app);
         app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(
-            Update,
+            controller,
             (
                 advance_landing_braking_timer_system
                     .before(grounded_dynamics_motor_system),
@@ -909,7 +911,7 @@ impl Plugin for AlsGroundedDynamicsPlugin {
                     .before(TnuaPipelineSystems::Motors),
             ),
         )
-        .add_systems(PostUpdate, (
+        .add_systems(outer, (
             landing_braking_friction_system
                 .after(crate::als::motion::AlsActualVelocitySet)
                 .before(crate::actual_motion::AlsActualMotionSet),

@@ -134,10 +134,11 @@ fn grounded_entry_reset_requested(source: &SourceInstanceProperties, frame: u64)
 
 impl Plugin for TransitionNotifyPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.init_resource::<TransitionNotifyCursor>()
             .add_systems(PreUpdate, ensure_transition_notify_telemetry)
             .add_systems(
-                PostUpdate,
+                outer,
                 dispatch_transition_notifications
                     .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                     .before(AnimationGraphSet::PostPhysics),

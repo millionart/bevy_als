@@ -80,7 +80,15 @@ pub struct AlsViewInputPlugin;
 
 impl Plugin for AlsViewInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, apply_view_input_system.in_set(AlsViewInputSet));
+        let view = apply_view_input_system.in_set(AlsViewInputSet);
+        if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+            app.add_systems(
+                RunFixedMainLoop,
+                view.in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop),
+            );
+        } else {
+            app.add_systems(Update, view);
+        }
     }
 }
 

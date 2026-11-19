@@ -10,7 +10,8 @@ pub struct ViewLayerPlugin;
 
 impl Plugin for ViewLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (view_input_integrator, view_pin_writer).chain());
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        app.add_systems(prepare, (view_input_integrator, view_pin_writer).chain().in_set(crate::playable_character::AlsPhysicsPrepareSet));
     }
 }
 

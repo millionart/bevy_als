@@ -65,8 +65,10 @@ pub struct StanceLayerPlugin;
 
 impl Plugin for StanceLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, stance_blend_driver).add_systems(
-            PostUpdate,
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        app.add_systems(prepare, stance_blend_driver.in_set(crate::playable_character::AlsPhysicsPrepareSet)).add_systems(
+            outer,
             crate::character_assembly::sync_avatar_stance_offset
                 .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics)
                 .before(bevy::transform::TransformSystems::Propagate),

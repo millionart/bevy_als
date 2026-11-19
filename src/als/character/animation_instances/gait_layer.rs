@@ -20,13 +20,14 @@ pub struct AlsGaitLayerSet;
 
 impl Plugin for GaitLayerPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsGaitLayerSet.before(
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),
         )
-        .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
+        .add_systems(outer, gait_blend_driver.in_set(AlsGaitLayerSet));
     }
 }
 

@@ -245,6 +245,9 @@ pub struct AlsCharacterPlugin;
 
 impl Plugin for AlsCharacterPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let controller = crate::AlsPhysicsSchedule::controller(app);
+        let standalone = !crate::AlsPhysicsSchedule::uses_physics_steps(app);
         app.init_asset::<AlsMovementParams>()
             .init_asset::<AlsControlSchemeConfig>()
             .init_resource::<crate::als::dynamics::AlsDefaultPhysicsVolume>()
@@ -253,27 +256,29 @@ impl Plugin for AlsCharacterPlugin {
                     .after(avian3d::dynamics::integrator::IntegrationSystems::Velocity)
                     .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::WarmStart))
             .add_systems(
-                PostUpdate,
+                outer,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),
             )
-            .add_systems(Update, sync_physical_capsules
-                .after(crate::als::motion::capsule_reshape_system)
-                .before(crate::als::motion::cmc_movement_transaction_system)
-                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
-                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
-            .add_systems(PostUpdate, sync_physical_capsules
+            .add_systems(outer, sync_physical_capsules
                 .in_set(PhysicsSystems::Prepare)
                 .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
                 .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
-            .add_systems(FixedPostUpdate, sync_physical_capsules
-                .in_set(PhysicsSystems::Prepare)
-                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
-                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
-            .add_systems(Update, character_sensor_shape_sync_system.before(TnuaPipelineSystems::Sensors))
+            .add_systems(controller, character_sensor_shape_sync_system.before(TnuaPipelineSystems::Sensors))
             .add_systems(PhysicsSchedule, character_contacts_system
                 .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Finalize));
+        if standalone {
+            app.add_systems(Update, sync_physical_capsules
+                .after(crate::als::motion::capsule_reshape_system)
+                .before(crate::als::motion::cmc_movement_transaction_system)
+                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
+                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
+                .add_systems(FixedPostUpdate, sync_physical_capsules
+                    .in_set(PhysicsSystems::Prepare)
+                    .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
+                    .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation));
+        }
     }
 }
 
@@ -484,7 +489,7 @@ fn character_crush_recovery_system(
     }
 }
 
-fn character_sensor_shape_sync_system(
+pub(crate) fn character_sensor_shape_sync_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<
         (

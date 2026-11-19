@@ -29,13 +29,14 @@ pub(crate) struct AlsAnimationVisibilitySet;
 
 impl Plugin for AlsAnimationVisibilityPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             AlsAnimationVisibilitySet
                 .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             refresh_mesh_animation_visibility.in_set(AlsAnimationVisibilitySet),
         )
         .add_observer(

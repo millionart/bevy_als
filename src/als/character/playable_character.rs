@@ -1,8 +1,11 @@
 use avian3d::prelude::{
-    Collider, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedulePlugin, PhysicsSystems,
+    Collider, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedule, PhysicsSchedulePlugin,
+    PhysicsStepSystems, PhysicsSystems,
 };
+use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
+use bevy_animation_graph::{AnimationGraphPlugin, core::plugin::AnimationGraphSet};
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
@@ -24,29 +27,175 @@ pub use crate::character_assembly::{
 
 pub struct AlsPlayableCharacterPlugin;
 
+/// Schedule that drives Avian and the ALS systems surrounding each physics step.
+/// Insert this resource before adding `AlsPlugin` to override `FixedPostUpdate`.
+#[derive(Resource, Debug, Clone, Copy)]
+pub enum AlsPhysicsSchedule {
+    /// Run ALS on the host's Avian physics schedule.
+    Avian(InternedScheduleLabel),
+    /// Use the original per-frame controller and capped world physics step.
+    SourceFrameTiming,
+}
+
+impl Default for AlsPhysicsSchedule {
+    fn default() -> Self {
+        Self::new(FixedPostUpdate)
+    }
+}
+
+impl AlsPhysicsSchedule {
+    /// Selects the schedule that the host runs to advance Avian.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self::Avian(schedule.intern())
+    }
+
+    /// Returns the label used for the physics preparation and writeback systems.
+    pub fn label(&self) -> InternedScheduleLabel {
+        match self {
+            Self::Avian(schedule) => *schedule,
+            Self::SourceFrameTiming => PostUpdate.intern(),
+        }
+    }
+
+    pub(crate) fn uses_physics_steps(app: &App) -> bool {
+        matches!(app.world().get_resource::<Self>(), Some(Self::Avian(_)))
+    }
+
+    pub(crate) fn outer(app: &App) -> InternedScheduleLabel {
+        app.world()
+            .get_resource::<Self>()
+            .map_or_else(|| PostUpdate.intern(), Self::label)
+    }
+
+    pub(crate) fn prepare(app: &App) -> InternedScheduleLabel {
+        if Self::uses_physics_steps(app) {
+            Self::outer(app)
+        } else {
+            Update.intern()
+        }
+    }
+
+    pub(crate) fn controller(app: &App) -> InternedScheduleLabel {
+        if Self::uses_physics_steps(app) {
+            PhysicsSchedule.intern()
+        } else {
+            Update.intern()
+        }
+    }
+
+    pub(crate) fn root_motion(app: &App) -> InternedScheduleLabel {
+        if Self::uses_physics_steps(app) {
+            PhysicsSchedule.intern()
+        } else {
+            PostUpdate.intern()
+        }
+    }
+}
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct AlsPhysicsPrepareSet;
+
+#[derive(SystemParam)]
+pub(crate) struct AlsStepTime<'w> {
+    time: Option<Res<'w, Time>>,
+    virtual_time: Res<'w, Time<Virtual>>,
+    schedule: Option<Res<'w, AlsPhysicsSchedule>>,
+}
+
+impl AlsStepTime<'_> {
+    pub(crate) fn delta_secs(&self) -> f32 {
+        if let (Some(AlsPhysicsSchedule::Avian(_)), Some(time)) =
+            (self.schedule.as_deref(), &self.time)
+        {
+            time.delta_secs()
+        } else {
+            self.virtual_time.delta_secs()
+        }
+    }
+
+    pub(crate) fn is_paused(&self) -> bool {
+        self.virtual_time.is_paused()
+    }
+
+    pub(crate) fn unscaled_delta_secs(&self, real_time: &Time<Real>) -> f32 {
+        if self.is_paused() {
+            0.0
+        } else if matches!(self.schedule.as_deref(), Some(AlsPhysicsSchedule::Avian(_))) {
+            let speed = self.virtual_time.relative_speed();
+            if speed > 0.0 {
+                self.delta_secs() / speed
+            } else {
+                0.0
+            }
+        } else {
+            real_time.delta_secs()
+        }
+    }
+}
+
 impl AlsPlayableCharacterPlugin {
+    /// Creates the default fixed-step Avian plugin group with ALS collision hooks.
     pub fn physics_plugins() -> impl PluginGroup {
-        PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>()
+        Self::physics_plugins_in(FixedPostUpdate)
+    }
+
+    /// Creates the Avian plugin group for a host-selected schedule.
+    pub fn physics_plugins_in(schedule: impl ScheduleLabel) -> impl PluginGroup {
+        PhysicsPlugins::new(schedule).with_collision_hooks::<RagdollCollisionHooks>()
     }
 }
 
 impl Plugin for AlsPlayableCharacterPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<AlsPhysicsSchedule>();
+        let schedule = app.world().resource::<AlsPhysicsSchedule>().label();
         if app.is_plugin_added::<PhysicsSchedulePlugin>() {
             assert!(
                 app.is_plugin_added::<NarrowPhasePlugin<Collider, RagdollCollisionHooks>>()
-                    && app.get_schedule(PostUpdate).is_some_and(|schedule| schedule
+                    && app.get_schedule(schedule).is_some_and(|schedule| schedule
                         .graph()
                         .system_sets
                         .contains(PhysicsSystems::StepSimulation)),
-                "Register Avian with AlsPlugin::physics_plugins() before adding AlsPlugin"
+                "Register Avian with ALS collision hooks and the schedule selected by AlsPhysicsSchedule ({schedule:?})"
             );
         } else {
-            app.add_plugins(Self::physics_plugins());
+            app.add_plugins(Self::physics_plugins_in(schedule));
         }
+        if AlsPhysicsSchedule::uses_physics_steps(app) {
+            app.configure_sets(
+                schedule,
+                AlsPhysicsPrepareSet
+                    .before(AnimationGraphSet::PrePhysics)
+                    .before(PhysicsSystems::First),
+            )
+            .register_required_components::<crate::AlsCharacter, crate::als::input::AlsStepInput>()
+            .add_systems(
+                RunFixedMainLoop,
+                crate::als::input::buffer_input
+                    .in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop),
+            )
+            .add_systems(
+                schedule,
+                crate::als::input::begin_input_step.before(AlsPhysicsPrepareSet),
+            );
+            app.configure_sets(
+                PhysicsSchedule,
+                (
+                    crate::mantle_drive::AlsMantleDriveSet,
+                    crate::animation_events::AlsAnimationEventSet::Refresh,
+                    crate::animation_events::AlsAnimationEventSet::Dispatch,
+                    crate::roll_drive::AlsRollDriveSet,
+                )
+                    .chain()
+                    .after(bevy_tnua::TnuaPipelineSystems::Motors)
+                    .after(crate::als::motion::auto_mantle_after_movement)
+                    .before(PhysicsStepSystems::First),
+            );
+        }
+        let controller = AlsPhysicsSchedule::controller(app);
         app.add_plugins((
-            TnuaAvian3dPlugin::new(Update),
-            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            TnuaAvian3dPlugin::new(controller),
+            TnuaControllerPlugin::<AlsControlScheme>::new(controller),
         ));
         app.add_plugins((
             AlsInputRequestPlugin,
@@ -55,7 +204,7 @@ impl Plugin for AlsPlayableCharacterPlugin {
             AlsCharacterPlugin,
             AlsMotionPlugin,
             crate::als::air::AlsAirPlugin,
-            AnimationGraphPlugin::from_physics_schedule(PostUpdate),
+            AnimationGraphPlugin::from_physics_schedule(schedule),
             AlsExtPlugin,
             AlsCharacterRuntimePlugin,
             AlsCameraPlugin,
@@ -87,35 +236,36 @@ mod tests {
         .add_plugins(crate::AlsPlugin);
         app.finish();
         app.cleanup();
-        app.world_mut().schedule_scope(Update, |world, schedule| {
-            let mut settings = schedule.get_build_settings();
-            settings.ambiguity_detection = LogLevel::Warn;
-            schedule.set_build_settings(settings);
-            schedule.initialize(world).unwrap();
-            let systems: std::collections::HashMap<_, _> = schedule
-                .systems()
-                .unwrap()
-                .map(|(id, system)| (id, system.name().to_string()))
-                .collect();
-            let shape = world.component_id::<TnuaAvian3dSensorShape>().unwrap();
-            let impact = world
-                .component_id::<crate::als::air::AlsPreImpactVelocity>()
-                .unwrap();
-            let conflicts: Vec<_> = schedule
-                .graph()
-                .conflicting_systems()
-                .0
-                .iter()
-                .filter(|(_, _, components)| {
-                    components.contains(&shape) || components.contains(&impact)
-                })
-                .map(|(a, b, _)| (&systems[a], &systems[b]))
-                .collect();
-            assert!(
-                conflicts.is_empty(),
-                "Unordered sensor shape or pre-impact accesses: {conflicts:?}"
-            );
-        });
+        app.world_mut()
+            .schedule_scope(PhysicsSchedule, |world, schedule| {
+                let mut settings = schedule.get_build_settings();
+                settings.ambiguity_detection = LogLevel::Warn;
+                schedule.set_build_settings(settings);
+                schedule.initialize(world).unwrap();
+                let systems: std::collections::HashMap<_, _> = schedule
+                    .systems()
+                    .unwrap()
+                    .map(|(id, system)| (id, system.name().to_string()))
+                    .collect();
+                let shape = world.component_id::<TnuaAvian3dSensorShape>().unwrap();
+                let impact = world
+                    .component_id::<crate::als::air::AlsPreImpactVelocity>()
+                    .unwrap();
+                let conflicts: Vec<_> = schedule
+                    .graph()
+                    .conflicting_systems()
+                    .0
+                    .iter()
+                    .filter(|(_, _, components)| {
+                        components.contains(&shape) || components.contains(&impact)
+                    })
+                    .map(|(a, b, _)| (&systems[a], &systems[b]))
+                    .collect();
+                assert!(
+                    conflicts.is_empty(),
+                    "Unordered sensor shape or pre-impact accesses: {conflicts:?}"
+                );
+            });
     }
 
     #[test]
@@ -136,7 +286,7 @@ mod tests {
         app.finish();
         app.cleanup();
         app.world_mut()
-            .schedule_scope(PostUpdate, |world, schedule| {
+            .schedule_scope(FixedPostUpdate, |world, schedule| {
                 schedule
                     .initialize(world)
                     .expect("playable character animation phases must initialize");
@@ -144,14 +294,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Register Avian with AlsPlugin::physics_plugins()")]
+    #[should_panic(expected = "the schedule selected by AlsPhysicsSchedule")]
     fn playable_character_rejects_physics_on_a_different_schedule() {
         App::new()
             .add_plugins((
                 MinimalPlugins,
                 AssetPlugin::default(),
                 TransformPlugin,
-                PhysicsPlugins::default().with_collision_hooks::<RagdollCollisionHooks>(),
+                PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
             ))
             .add_plugins(crate::AlsPlugin);
     }
