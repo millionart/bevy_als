@@ -1,9 +1,9 @@
 use avian3d::prelude::{
-    Collider, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedule, PhysicsSchedulePlugin,
-    PhysicsStepSystems, PhysicsSystems,
+    Collider, CollisionHooks, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedule,
+    PhysicsSchedulePlugin, PhysicsStepSystems, PhysicsSystems,
 };
 use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
-use bevy::ecs::system::SystemParam;
+use bevy::ecs::system::{SystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy_animation_graph::{AnimationGraphPlugin, core::plugin::AnimationGraphSet};
 use bevy_tnua::TnuaControllerPlugin;
@@ -143,23 +143,33 @@ impl AlsPlayableCharacterPlugin {
     pub fn physics_plugins_in(schedule: impl ScheduleLabel) -> impl PluginGroup {
         PhysicsPlugins::new(schedule).with_collision_hooks::<RagdollCollisionHooks>()
     }
-}
 
-impl Plugin for AlsPlayableCharacterPlugin {
-    fn build(&self, app: &mut App) {
+    /// Selects the host's Avian collision hooks. Delegate to `RagdollCollisionHooks`
+    /// in the host filter to keep ALS pawn and ragdoll exclusions.
+    pub fn with_collision_hooks<H: CollisionHooks + 'static>() -> impl Plugin
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
+        Self::build_with_hooks::<H>
+    }
+
+    fn build_with_hooks<H: CollisionHooks + 'static>(app: &mut App)
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
         app.init_resource::<AlsPhysicsSchedule>();
         let schedule = app.world().resource::<AlsPhysicsSchedule>().label();
         if app.is_plugin_added::<PhysicsSchedulePlugin>() {
             assert!(
-                app.is_plugin_added::<NarrowPhasePlugin<Collider, RagdollCollisionHooks>>()
+                app.is_plugin_added::<NarrowPhasePlugin<Collider, H>>()
                     && app.get_schedule(schedule).is_some_and(|schedule| schedule
                         .graph()
                         .system_sets
                         .contains(PhysicsSystems::StepSimulation)),
-                "Register Avian with ALS collision hooks and the schedule selected by AlsPhysicsSchedule ({schedule:?})"
+                "Register Avian with the configured collision hooks and the schedule selected by AlsPhysicsSchedule ({schedule:?})"
             );
         } else {
-            app.add_plugins(Self::physics_plugins_in(schedule));
+            app.add_plugins(PhysicsPlugins::new(schedule).with_collision_hooks::<H>());
         }
         if AlsPhysicsSchedule::uses_physics_steps(app) {
             app.configure_sets(
@@ -210,6 +220,12 @@ impl Plugin for AlsPlayableCharacterPlugin {
             AlsCameraPlugin,
         ))
         .add_plugins(crate::extensions::post_physics_animation::PostPhysicsAnimationPlugin);
+    }
+}
+
+impl Plugin for AlsPlayableCharacterPlugin {
+    fn build(&self, app: &mut App) {
+        Self::build_with_hooks::<RagdollCollisionHooks>(app);
     }
 }
 
@@ -291,6 +307,25 @@ mod tests {
                     .initialize(world)
                     .expect("playable character animation phases must initialize");
             });
+    }
+
+    #[test]
+    fn selected_host_hooks_can_share_preinstalled_fixed_step_physics() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            bevy::input::InputPlugin,
+            bevy::gizmos::GizmoPlugin,
+        ))
+        .init_asset::<bevy::world_serialization::WorldAsset>()
+        .init_asset::<Mesh>()
+        .init_asset::<Image>()
+        .add_plugins(PhysicsPlugins::new(FixedPostUpdate).with_collision_hooks::<()>())
+        .add_plugins(crate::AlsPlugin::with_collision_hooks::<()>());
+        assert!(app.is_plugin_added::<NarrowPhasePlugin<Collider, ()>>());
+        assert!(app.is_plugin_added::<AlsCharacterRuntimePlugin>());
     }
 
     #[test]
