@@ -16,6 +16,8 @@ To select a different physics schedule, insert `AlsPhysicsSchedule::new(schedule
 
 Insert `AlsPhysicsSchedule::SourceFrameTiming` before adding `AlsPlugin` to opt in to the original Unreal-style frame timing and world timestep cap. This mode drives Avian in `PostUpdate`. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
 
+Hosts with their own Avian contact rules can install `AlsPlugin::with_collision_hooks::<HostHooks>()`. Compose the host's filter with `bevy_als::extensions::RagdollCollisionHooks` to retain ALS ragdoll and pawn exclusions. If Avian is already installed, use the same hook type and schedule in both plugins.
+
 Run `cargo run --example als_character` from the companion `bevy_als_playground` project to exercise ALS with WASD, mouse look, and jump. The core crate is a library. The full Playground scene owns its Enhanced Input adapter.
 
 ## Assets and conversion
