@@ -557,7 +557,7 @@ fn dispatch_graph_footsteps(
             let Some(path) = server.get_path(sample.clip.id()) else {
                 continue;
             };
-            let path = path.to_string();
+            let path = path.path().to_string_lossy().into_owned();
             let Some(source) = manifest.clips.iter().find(|source| {
                 source.source_kind == "AnimSequence"
                     && source
@@ -721,6 +721,7 @@ pub struct AlsAnimationEventPlugin;
 
 impl Plugin for AlsAnimationEventPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.init_asset::<AlsNotifyManifest>()
             .register_asset_loader(AlsNotifyManifestLoader)
             .add_message::<AlsAnimationEvent>()
@@ -778,7 +779,7 @@ impl Plugin for AlsAnimationEventPlugin {
 
 fn load_notify_manifest(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(AlsNotifyManifestHandle(
-        assets.load(ALS_NOTIFY_MANIFEST_PATH),
+        assets.load(crate::als_asset_path(ALS_NOTIFY_MANIFEST_PATH)),
     ));
 }
 
@@ -1060,7 +1061,7 @@ fn graph_clip_handle(
     cache
         .0
         .entry(graph_clip.into())
-        .or_insert_with(|| assets.load(graph_clip.to_string()))
+        .or_insert_with(|| assets.load(crate::als_asset_path(graph_clip)))
         .clone()
 }
 
@@ -2489,7 +2490,7 @@ pub(crate) mod tests {
         let graph = app
             .world()
             .resource::<AssetServer>()
-            .load::<AnimationGraph>("ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+            .load::<AnimationGraph>(crate::als_asset_path("ALS/Character/AB_Als/AnimGraph.animgraph.ron"));
         {
             let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
             let mut graph = graphs.get_mut(&graph).unwrap();

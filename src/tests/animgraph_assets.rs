@@ -17,6 +17,24 @@ use bevy_animation_graph::{
     },
 };
 
+fn empty_asset_source(app: &mut App) {
+    use bevy::asset::{
+        AssetApp,
+        io::{
+            AssetSourceBuilder, AssetSourceId,
+            memory::{Dir, MemoryAssetReader},
+        },
+    };
+    app.register_asset_source(
+        AssetSourceId::Default,
+        AssetSourceBuilder::new(|| {
+            Box::new(MemoryAssetReader {
+                root: Dir::default(),
+            })
+        }),
+    );
+}
+
 fn assets_root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("assets")
 }
@@ -98,12 +116,8 @@ fn generated_animation_graph_closure_and_ragdoll_wrapper_load() {
     );
 
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_plugins(AssetPlugin {
-            file_path: "assets".into(),
-            ..default()
-        })
-        .add_plugins(AlsExtPlugin)
+    empty_asset_source(&mut app);
+    app.add_plugins((MinimalPlugins, AssetPlugin::default(), AlsExtPlugin))
         .register_type::<ClipNode>()
         .init_asset::<GraphClip>()
         .init_asset::<Skeleton>()
@@ -116,11 +130,11 @@ fn generated_animation_graph_closure_and_ragdoll_wrapper_load() {
         (
             graph_paths
                 .iter()
-                .map(|path| server.load::<AnimationGraph>(path.clone()))
+                .map(|path| server.load::<AnimationGraph>(bevy_als::als_asset_path(path)))
                 .collect::<Vec<_>>(),
             fsm_paths
                 .iter()
-                .map(|path| server.load::<StateMachine>(path.clone()))
+                .map(|path| server.load::<StateMachine>(bevy_als::als_asset_path(path)))
                 .collect::<Vec<_>>(),
         )
     };
@@ -289,6 +303,7 @@ fn explicit_inertial_profile_graph_loads_with_its_bone_scale() {
             assert_eq!(profile.bone_scales[0].scale, 0.5);
             return;
         }
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
     panic!("explicit inertial profile graph did not load");
 }
@@ -319,4 +334,115 @@ fn single_clip_graph_loads_with_a_pose_and_clock() {
         }
     }
     panic!("single clip graph did not load");
+}
+
+#[test]
+fn default_character_uses_bundled_assets_in_an_empty_host() {
+    use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+    use bevy_als::{
+        AlsCharacterBlueprint, AlsControlSchemeConfig, AlsMovementParams, AlsPlugin,
+        als_asset_path,
+        animation_events::{ALS_NOTIFY_MANIFEST_PATH, AlsNotifyManifest},
+        als_camera::{AlsCameraViewInfo, AlsCameraViewSource},
+        character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar},
+        footprint::FootprintLibrary,
+        spawn_als_character,
+    };
+    use bevy_animation_graph::core::{
+        animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
+    };
+    use bevy_gameplay_tag::{GameplayTag, GameplayTagsManager};
+    use std::time::{Duration, Instant};
+
+    let mut app = App::new();
+    empty_asset_source(&mut app);
+    app.register_required_components::<
+        AlsCharacterAvatar,
+        bevy_als::animation_visibility::AlsAnimationTickOption,
+    >();
+    app.add_plugins((
+        MinimalPlugins,
+        AssetPlugin::default(),
+        bevy::image::ImagePlugin::default(),
+        bevy::gltf::GltfPlugin::default(),
+        bevy::world_serialization::WorldSerializationPlugin,
+        TransformPlugin,
+        bevy::input::InputPlugin,
+        bevy::gizmos::GizmoPlugin,
+        bevy::animation::AnimationPlugin,
+    ))
+    .init_asset::<bevy::world_serialization::WorldAsset>()
+    .init_asset::<Mesh>()
+    .init_asset::<StandardMaterial>()
+    .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+    .register_asset_loader(bevy::image::ImageLoader::new(
+        bevy::image::CompressedImageFormats::NONE,
+    ))
+    .add_plugins(AlsPlugin)
+    .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        16,
+    )));
+
+    app.finish();
+    app.cleanup();
+    assert!(
+        app.world()
+            .resource::<GameplayTagsManager>()
+            .tag_map
+            .contains_key(&GameplayTag::new("Als.Gait.Walking"))
+    );
+    let server = app.world().resource::<AssetServer>();
+    let footprint = server.load::<FootprintLibrary>(
+        als_asset_path("ALS/Data/Footstep/footprint.runtime.json"),
+    );
+    let notifications = server.load::<AlsNotifyManifest>(als_asset_path(ALS_NOTIFY_MANIFEST_PATH));
+    let actor = app
+        .world_mut()
+        .run_system_once(
+            |mut commands: Commands,
+             assets: Res<AssetServer>,
+             mut params: ResMut<Assets<AlsMovementParams>>,
+             mut configs: ResMut<Assets<AlsControlSchemeConfig>>| {
+                spawn_als_character(
+                    &mut commands,
+                    &assets,
+                    &mut params,
+                    &mut configs,
+                    AlsCharacterBlueprint {
+                        spawn_camera: true,
+                        ..AlsCharacterBlueprint::new(Transform::IDENTITY)
+                    },
+                )
+            },
+        )
+        .unwrap();
+    let assembly = *app.world().get::<AlsCharacterAssembly>(actor).unwrap();
+    let camera = app
+        .world()
+        .get::<AlsCameraViewSource>(assembly.camera.unwrap())
+        .unwrap()
+        .0;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        app.update();
+        let world = app.world();
+        let pose_ready = world
+            .get::<AnimatedSceneInstance>(assembly.avatar)
+            .and_then(|scene| world.get::<AnimationGraphPlayer>(scene.player_entity()))
+            .is_some_and(|player| player.get_default_output_pose().is_some());
+        let camera_ready = world
+            .get::<AlsCameraViewInfo>(camera)
+            .is_some_and(|view| view.valid);
+        let server = world.resource::<AssetServer>();
+        let footprint_ready = server.is_loaded_with_dependencies(footprint.id());
+        let notifications_ready = server.is_loaded_with_dependencies(notifications.id());
+        if pose_ready && camera_ready && footprint_ready && notifications_ready {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Bundled assets did not become ready: pose={pose_ready}, camera={camera_ready}, footprint={footprint_ready}, notifications={notifications_ready}",
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
 }

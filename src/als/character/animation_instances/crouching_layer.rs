@@ -65,6 +65,7 @@ pub struct CrouchingLayerPlugin;
 
 impl Plugin for CrouchingLayerPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.configure_sets(
             PostUpdate,
             AlsCrouchingLayerSet
@@ -83,7 +84,7 @@ impl Plugin for CrouchingLayerPlugin {
         .add_systems(
             Startup,
             |mut commands: Commands, assets: Res<AssetServer>| {
-                commands.insert_resource(CrouchingGraphHandle(assets.load(OUTER_RUNTIME_GRAPH)));
+                commands.insert_resource(CrouchingGraphHandle(assets.load(crate::als_asset_path(OUTER_RUNTIME_GRAPH))));
             },
         )
         .add_systems(

@@ -107,13 +107,14 @@ impl bevy::asset::AssetLoader for FootprintLibraryLoader {
                 ));
             }
             for material in definition.materials.values_mut() {
+                let texture = crate::builtin_assets::dependency_path(context, &material.texture);
                 material.image = context
                     .load_builder()
                     .with_settings(|settings: &mut bevy::image::ImageLoaderSettings| {
                         settings.is_srgb = false;
                         settings.sampler = bevy::image::ImageSampler::linear();
                     })
-                    .load(material.texture.clone());
+                    .load(texture);
             }
         }
         Ok(library)
@@ -172,6 +173,7 @@ pub struct FootprintPlugin;
 
 impl Plugin for FootprintPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() {
             app.add_plugins(crate::debug_target::AlsDebugTargetPlugin);
         }
@@ -184,7 +186,7 @@ impl Plugin for FootprintPlugin {
             .init_asset_loader::<FootprintLibraryLoader>()
             .add_systems(Startup, move |mut commands: Commands, server: Res<AssetServer>| {
                 commands.insert_resource(FootprintAssets {
-                    library: server.load("ALS/Data/Footstep/footprint.runtime.json"),
+                    library: server.load(crate::als_asset_path("ALS/Data/Footstep/footprint.runtime.json")),
                     render,
                 });
             })

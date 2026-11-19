@@ -4952,6 +4952,7 @@ pub struct AlsRollDriveSet;
 
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(Startup, load_roll_slot_curve_asset)
             .add_observer(discard_roll_target)
             .add_systems(Update, (ensure_roll_state, start_roll_input).chain()
@@ -4990,8 +4991,8 @@ fn load_roll_slot_curve_asset(mut commands: Commands, assets: Res<AssetServer>) 
         .strip_suffix(".anim.ron")
         .expect("roll graph clip suffix");
     commands.insert_resource(RollSlotCurveHandle(
-        assets.load(format!("{sequence_path}.glb#AlsCurves")),
-        assets.load(clip),
+        assets.load(crate::als_asset_path(&format!("{sequence_path}.glb#AlsCurves"))),
+        assets.load(crate::als_asset_path(clip)),
     ));
 }
 
@@ -5181,7 +5182,7 @@ fn ensure_roll_slot_samplers(
             Children::default(),
             ChildOf(character),
             AnimationGraphPlayer::new(player.skeleton().clone())
-                .with_graph(asset_server.load(ROLL_SLOT_GRAPH)),
+                .with_graph(asset_server.load(crate::als_asset_path(ROLL_SLOT_GRAPH))),
             RootMotionOutput::default(),
             AlsRollSlotSampler {
                 character,

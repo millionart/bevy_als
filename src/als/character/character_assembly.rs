@@ -115,7 +115,7 @@ pub fn attach_avatar(
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(crate::als_asset_path(scene))),
             AlsCharacterAvatar { character },
             avatar_transform(),
         ))
@@ -144,7 +144,7 @@ pub fn attach_avatar_with_material(
         .collect();
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(crate::als_asset_path(scene))),
             AvatarMaterialOverride(handles),
             AlsCharacterAvatar { character },
             avatar_transform(),
@@ -203,7 +203,7 @@ pub fn attach_als_character_avatar(
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(crate::als_asset_path(scene))),
             AvatarMaterialOverride(als_character_material_slots(body_material, main_material)),
             AlsCharacterAvatar { character },
             avatar_transform(),
@@ -299,7 +299,7 @@ fn spawn_als_character_internal(
             },
             AlsCameraTarget,
             crate::als_camera::AlsCameraDefinitionHandle(
-                assets.load("ALSCamera/Data/als_camera.camera_component.ron"),
+                assets.load(crate::als_asset_path("ALSCamera/Data/als_camera.camera_component.ron")),
             ),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,
@@ -329,7 +329,7 @@ fn spawn_als_character_internal(
         AlsCameraSocketLocations::default(),
     ));
     let mut component = commands.spawn((
-        AnimatedSceneHandle::new(assets.load("ALSCamera/AB_Als_Camera.static.animscn.ron")),
+        AnimatedSceneHandle::new(assets.load(crate::als_asset_path("ALSCamera/AB_Als_Camera.static.animscn.ron"))),
         crate::camera_component::AlsSourceCameraComponent::default(),
         AlsCharacterCamera { character },
         Name::new("Camera"),

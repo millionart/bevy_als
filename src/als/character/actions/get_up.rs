@@ -208,12 +208,12 @@ struct GetUpAssets {
 fn load_get_up_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GetUpAssets {
         clips: [
-            assets.load(&RAGDOLL_SETTINGS.front.clip),
-            assets.load(&RAGDOLL_SETTINGS.back.clip),
+            assets.load(crate::als_asset_path(&RAGDOLL_SETTINGS.front.clip)),
+            assets.load(crate::als_asset_path(&RAGDOLL_SETTINGS.back.clip)),
         ],
         curves: [
-            assets.load(&RAGDOLL_SETTINGS.front.curves),
-            assets.load(&RAGDOLL_SETTINGS.back.curves),
+            assets.load(crate::als_asset_path(&RAGDOLL_SETTINGS.front.curves)),
+            assets.load(crate::als_asset_path(&RAGDOLL_SETTINGS.back.curves)),
         ],
     });
 }
@@ -456,6 +456,7 @@ pub struct AlsGetUpPlugin;
 
 impl Plugin for AlsGetUpPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.add_systems(Startup, load_get_up_assets)
             .add_observer(discard_get_up_target)
             .add_systems(

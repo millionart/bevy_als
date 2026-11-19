@@ -1,8 +1,7 @@
 use crate::als::character::AlsCharacter;
 use crate::als::start_stop::{StartStopState, start_stop_detector_system};
-use bevy::asset::io::file::FileAssetReader;
 use bevy::prelude::*;
-use bevy_gameplay_tag::GameplayTagsPlugin;
+use bevy_gameplay_tag::{GameplayTagsManager, GameplayTagsSettings};
 
 use crate::ab_als_provider::AbAlsProviderPlugin;
 use crate::ab_als_root::AlsRootGraphPlugin;
@@ -36,17 +35,16 @@ pub struct AlsCharacterRuntimePlugin;
 
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
-        let asset_plugins = app.get_added_plugins::<AssetPlugin>();
-        let asset_plugin = asset_plugins
-            .first()
-            .expect("Install AssetPlugin before ALS");
-        let tags = FileAssetReader::get_base_path()
-            .join(&asset_plugin.file_path)
-            .join("ALS/Data/als_gameplay_tags.json");
-        app.add_plugins((
-            GameplayTagsPlugin::with_data_path(tags.to_string_lossy()),
-            AlsActualMotionPlugin,
-        ))
+        if !app.world().contains_resource::<GameplayTagsManager>() {
+            let tags = crate::als_asset_bytes("ALS/Data/als_gameplay_tags.json")
+                .expect("ALS gameplay tags must be packaged");
+            app.insert_resource(GameplayTagsSettings {
+                json_data: std::str::from_utf8(tags).expect("ALS gameplay tags must be UTF-8").into(),
+                data_path: None,
+            })
+            .init_resource::<GameplayTagsManager>();
+        }
+        app.add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
         .add_plugins(crate::footprint::FootprintPlugin)

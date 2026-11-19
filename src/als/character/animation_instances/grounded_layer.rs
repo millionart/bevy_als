@@ -34,6 +34,7 @@ pub struct GroundedLayerPlugin;
 
 impl Plugin for GroundedLayerPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.configure_sets(
             PostUpdate,
             AlsGroundedLayerSet.after(AlsCrouchingLayerSet).before(
@@ -49,7 +50,7 @@ impl Plugin for GroundedLayerPlugin {
 }
 
 fn load_grounded_graph(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(GroundedGraphHandle(assets.load(GROUNDED_GRAPH)));
+    commands.insert_resource(GroundedGraphHandle(assets.load(crate::als_asset_path(GROUNDED_GRAPH))));
 }
 
 fn grounded_state_index(label: &str) -> Option<u8> {

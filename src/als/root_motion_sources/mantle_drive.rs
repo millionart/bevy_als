@@ -206,7 +206,7 @@ fn load_mantle_assets(
     commands.insert_resource(MantleAssets(
         MANTLE_MONTAGES
             .iter()
-            .map(|settings| assets.load(&settings.clip))
+            .map(|settings| assets.load(crate::als_asset_path(&settings.clip)))
             .collect(),
         clip_curves.as_deref().cloned(),
     ));
@@ -271,6 +271,7 @@ pub struct AlsMantleDriveSet;
 
 impl Plugin for AlsMantleDrivePlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.add_message::<StateTransitionEvent>()
             .add_systems(Startup, load_mantle_assets)
             .add_systems(Update, ensure_mantle_state);

@@ -808,6 +808,7 @@ pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.add_systems(Startup, crate::standing_source::load_source_montage_assets);
         app.configure_sets(
             PostUpdate,
@@ -842,15 +843,15 @@ fn pivot_notify_system(mut commands: Commands, mut notices: MessageReader<AlsPiv
 
 fn load_standing_curve_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(StandingCurveHandles {
-        rotate_left: assets.load(ROTATE_LEFT_CURVE_ASSET),
-        rotate_right: assets.load(ROTATE_RIGHT_CURVE_ASSET),
-        turn_left_90: assets.load(TURN_LEFT_90_CURVE_ASSET),
-        turn_right_90: assets.load(TURN_RIGHT_90_CURVE_ASSET),
-        turn_left_180: assets.load(TURN_LEFT_180_CURVE_ASSET),
-        turn_right_180: assets.load(TURN_RIGHT_180_CURVE_ASSET),
-        quick_stop_left: assets.load(QUICK_STOP_LEFT_CURVE_ASSET),
-        quick_stop_right: assets.load(QUICK_STOP_RIGHT_CURVE_ASSET),
-        skeleton: assets.load(STANDING_SKELETON),
+        rotate_left: assets.load(crate::als_asset_path(ROTATE_LEFT_CURVE_ASSET)),
+        rotate_right: assets.load(crate::als_asset_path(ROTATE_RIGHT_CURVE_ASSET)),
+        turn_left_90: assets.load(crate::als_asset_path(TURN_LEFT_90_CURVE_ASSET)),
+        turn_right_90: assets.load(crate::als_asset_path(TURN_RIGHT_90_CURVE_ASSET)),
+        turn_left_180: assets.load(crate::als_asset_path(TURN_LEFT_180_CURVE_ASSET)),
+        turn_right_180: assets.load(crate::als_asset_path(TURN_RIGHT_180_CURVE_ASSET)),
+        quick_stop_left: assets.load(crate::als_asset_path(QUICK_STOP_LEFT_CURVE_ASSET)),
+        quick_stop_right: assets.load(crate::als_asset_path(QUICK_STOP_RIGHT_CURVE_ASSET)),
+        skeleton: assets.load(crate::als_asset_path(STANDING_SKELETON)),
         stop_left_leg_mask: None,
         stop_right_leg_mask: None,
     });
@@ -3151,7 +3152,7 @@ mod tests {
             let locomotion: Handle<AnimationGraph> = app
                 .world()
                 .resource::<AssetServer>()
-                .load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron");
+                .load(crate::als_asset_path("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron"));
             let machine = {
                 let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
                 let mut graph = graphs.get_mut(&locomotion).unwrap();
@@ -3187,7 +3188,7 @@ mod tests {
                 machine.update_low_level_fsm();
             }
             if alpha == 1.0 {
-                let land: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron");
+                let land: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load(crate::als_asset_path("ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron"));
                 let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
                 let mut graph = graphs.get_mut(&land).unwrap();
                 let node = graph

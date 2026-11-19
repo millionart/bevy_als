@@ -51,11 +51,11 @@ pub(crate) fn load_source_montage_assets(
                 (
                     name.clone(),
                     (
-                        server.load(&settings.clip),
+                        server.load(crate::als_asset_path(&settings.clip)),
                         settings
                             .reference_clip
                             .as_ref()
-                            .map(|path| server.load(path)),
+                            .map(|path| server.load(crate::als_asset_path(path))),
                     ),
                 )
             })

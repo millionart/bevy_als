@@ -66,7 +66,7 @@ impl FromWorld for OverlayLibraryHandle {
         Self(
             world
                 .resource::<AssetServer>()
-                .load("ALS/Character/overlay_actor.runtime.json"),
+                .load(crate::als_asset_path("ALS/Character/overlay_actor.runtime.json")),
         )
     }
 }
@@ -99,7 +99,8 @@ impl bevy::asset::AssetLoader for OverlayLibraryLoader {
                     "Overlay tag, graph or blend duration is invalid",
                 ));
             }
-            definition.graph_handle = context.load(definition.graph.clone());
+            let path = crate::builtin_assets::dependency_path(context, &definition.graph);
+            definition.graph_handle = context.load(path);
         }
         Ok(library)
     }
@@ -113,6 +114,7 @@ pub struct OverlayLibraryPlugin;
 
 impl Plugin for OverlayLibraryPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.init_asset::<OverlayLibrary>()
             .init_asset_loader::<OverlayLibraryLoader>()
             .init_resource::<OverlayLibraryHandle>();
@@ -394,10 +396,10 @@ fn sync_overlay_object(
                 ChildOf(prop),
             ));
             if let Some(scene) = &spec.scene {
-                content.insert(AnimatedSceneHandle::new(assets.load(scene.clone())));
+                content.insert(AnimatedSceneHandle::new(assets.load(crate::als_asset_path(scene))));
             } else {
                 content.insert(WorldAssetRoot(
-                    assets.load(GltfAssetLabel::Scene(0).from_asset(spec.mesh.clone())),
+                    assets.load(GltfAssetLabel::Scene(0).from_asset(crate::als_asset_path(&spec.mesh))),
                 ));
             }
             content.id()

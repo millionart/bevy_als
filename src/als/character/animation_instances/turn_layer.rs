@@ -406,6 +406,7 @@ pub struct TurnLayerPlugin;
 
 impl Plugin for TurnLayerPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         app.add_systems(
             Update,
             (

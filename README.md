@@ -5,9 +5,10 @@
 ## Integrate the plugin
 
 1. Add `bevy_als` to your Cargo dependencies and use the matching Bevy version. Install Bevy's `DefaultPlugins` before `bevy_als::AlsPlugin`.
-2. Copy `assets/ALS`, `assets/ALSCamera`, and `assets/ALSRuntime` from the same ALS revision into your application's Bevy asset root. Preserve the directory names and relative paths.
-3. Spawn an actor with `spawn_als_character` and `AlsCharacterBlueprint`. Set `spawn_camera: true` to create an ALS view camera. For a host camera that should render footprints, attach Bevy's `DepthPrepass`.
-4. Write `AlsInputCommand` on each controlled actor in `PreUpdate`. Refresh movement and held values every frame. Set action pulses such as `jump_pressed` for one update. Use `AlsStateRequest` for direct state requests.
+2. Spawn an actor with `spawn_als_character` and `AlsCharacterBlueprint`. Set `spawn_camera: true` to create an ALS view camera. For a host camera that should render footprints, attach Bevy's `DepthPrepass`.
+3. Write `AlsInputCommand` on each controlled actor in `PreUpdate`. Refresh movement and held values every frame. Set action pulses such as `jump_pressed` for one update. Use `AlsStateRequest` for direct state requests.
+
+The default character, camera, animation, and footprint assets are embedded by the plugin. Games can load a bundled asset with `als_asset_path` or use their own asset paths for custom content.
 
 If the host installs Avian itself, register `AlsPlugin::physics_plugins()` before `AlsPlugin` to use the matching physics schedule and collision hooks. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
 

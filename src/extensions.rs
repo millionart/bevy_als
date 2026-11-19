@@ -350,6 +350,7 @@ pub struct AlsExtPlugin;
 
 impl Plugin for AlsExtPlugin {
     fn build(&self, app: &mut App) {
+        crate::builtin_assets::install(app);
         if !app.is_plugin_added::<SourceAnimationInputsPlugin>() {
             app.add_plugins(SourceAnimationInputsPlugin);
         }

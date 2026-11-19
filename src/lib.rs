@@ -2,6 +2,9 @@ pub mod als;
 pub mod als_camera;
 pub mod extensions;
 
+mod builtin_assets;
+pub use builtin_assets::{als_asset_bytes, als_asset_path};
+
 pub use als::character::{AlsCharacter, AlsCollisionLayer};
 pub use als::control_scheme::AlsControlSchemeConfig;
 pub use als::input::AlsInputCommand;

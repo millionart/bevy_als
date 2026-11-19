@@ -294,11 +294,11 @@ mod tests {
         let reference: Handle<bevy_animation_graph::core::animation_graph::AnimationGraph> = app
             .world()
             .resource::<AssetServer>()
-            .load("ALS/Character/AnimationInstances/AB_Als_Ragdolling/AnimGraph.animgraph.ron");
+            .load(crate::als_asset_path("ALS/Character/AnimationInstances/AB_Als_Ragdolling/AnimGraph.animgraph.ron"));
         let mapping: Handle<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap> =
             app.world()
                 .resource::<AssetServer>()
-                .load("ALS/Character/PA_Als.bm.ron");
+                .load(crate::als_asset_path("ALS/Character/PA_Als.bm.ron"));
         let sequence=app.world().resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>().get(&reference).unwrap()
             .nodes.values().find(|node|node.try_inner_downcast_ref::<crate::extensions::source_sequence_player::SourceSequencePlayerNode>()
                 .is_some_and(|node|node.play_rate_key==RAGDOLLING_FLAIL_PLAY_RATE_KEY)).unwrap().clone();
