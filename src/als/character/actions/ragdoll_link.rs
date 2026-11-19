@@ -24,7 +24,7 @@ use avian3d::prelude::{
     RigidBody, Rotation, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
 };
 use bevy::ecs::schedule::ApplyDeferred;
-use bevy::math::DQuat;
+use bevy::math::{DQuat, Isometry3d};
 use bevy::prelude::*;
 use bevy::reflect::{PartialReflect, ReflectMut};
 use bevy::transform::helper::TransformHelper;
@@ -1437,6 +1437,11 @@ pub fn ragdoll_recovery_rotation(pelvis: Quat) -> (Quat, bool) {
 pub(crate) fn restore_ragdoll_player_parent(
     mut commands: Commands,
     transform_helper: TransformHelper,
+    schedule: Option<Res<crate::AlsPhysicsSchedule>>,
+    scene_handles: Query<&AnimatedSceneHandle>,
+    scenes: Option<Res<Assets<AnimatedScene>>>,
+    maps: Option<Res<Assets<RagdollBoneMap>>>,
+    body_poses: Query<(&Position, &Rotation)>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
     characters: Query<
         (
@@ -1479,15 +1484,36 @@ pub(crate) fn restore_ragdoll_player_parent(
         let Ok(parent_world) = transform_helper.compute_global_transform(detached.parent) else {
             continue;
         };
-        let Some(pelvis_world) = skeleton.iter_bones().find_map(|bone| {
+        let Some((pelvis, published_pelvis)) = skeleton.iter_bones().find_map(|bone| {
             player
                 .bone_entity(bone)
                 .and_then(|entity| bones.get(entity).ok())
                 .filter(|(name, _, _, _)| name.as_str() == PELVIS_LABEL)
-                .map(|(_, _, world, _)| *world)
+                .map(|(_, _, world, _)| (bone, *world))
         }) else {
             continue;
         };
+        // A fixed tick can recover before the renderer has published the latest ragdoll pose.
+        let physical_pelvis = || {
+            if !matches!(schedule.as_deref(), Some(crate::AlsPhysicsSchedule::Avian(_))) {
+                return None;
+            }
+            let scene = scenes.as_ref()?.get(&scene_handles.get(avatar_entity).ok()?.handle)?;
+            let map = maps.as_ref()?.get(scene.ragdoll_bone_map.as_ref()?)?;
+            let mapping = map.bones_from_bodies.get(&skeleton.id_to_path(pelvis)?)?;
+            let [weight] = mapping.bodies.as_slice() else {
+                return None;
+            };
+            let body = player.get_spawned_ragdoll()?.bodies.get(&weight.body)?;
+            let (position, rotation) = body_poses.get(*body).ok()?;
+            let pose = Isometry3d::new(position.0, rotation.0) * weight.offset;
+            Some(GlobalTransform::from(Transform {
+                translation: pose.translation.into(),
+                rotation: pose.rotation,
+                scale: published_pelvis.scale(),
+            }))
+        };
+        let pelvis_world = physical_pelvis().unwrap_or(published_pelvis);
         let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis_world.rotation());
         let Ok(actor_world) = transform_helper.compute_global_transform(avatar.character) else {
             continue;
@@ -1554,6 +1580,7 @@ pub(crate) fn restore_ragdoll_player_parent(
                     .copied()
                     .unwrap_or(*old_player_world);
                 let parent_in_player = parent_world.reparented_to(old_player_world);
+                let world = if bone == pelvis { pelvis_world } else { *world };
                 local = world.reparented_to(&(restored_world * parent_in_player));
             }
             snapshot.add_bone(BonePose::from_transform(local), bone);
