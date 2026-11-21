@@ -172,6 +172,9 @@ impl AlsPlayableCharacterPlugin {
             );
         } else {
             app.add_plugins(PhysicsPlugins::new(schedule).with_collision_hooks::<H>());
+            if schedule == FixedPostUpdate.intern() {
+                app.register_required_components::<crate::AlsCharacter, avian3d::interpolation::TransformInterpolation>();
+            }
         }
         if AlsPhysicsSchedule::uses_physics_steps(app) {
             app.configure_sets(
