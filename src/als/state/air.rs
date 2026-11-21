@@ -196,7 +196,7 @@ type AirQueryItem<'w, 's> = (
 );
 #[allow(clippy::type_complexity)]
 fn air_state_system(
-    time: Res<Time<Virtual>>,
+    time: crate::playable_character::AlsStepTime,
     spatial: SceneQuery,
     transforms: bevy::transform::helper::TransformHelper,
     mut q: Query<AirQueryItem, With<AlsCharacter>>,
@@ -332,15 +332,17 @@ pub struct AlsAirPlugin;
 
 impl Plugin for AlsAirPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let controller = crate::AlsPhysicsSchedule::controller(app);
         app.register_required_components::<AlsCharacter, AlsAirState>()
             .add_systems(
-                Update,
+                controller,
                 record_pre_impact_velocity_system
                     .after(crate::als::motion::initialize_spawn_movement_mode)
                     .before(TnuaPipelineSystems::Sensors),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 air_state_system
                     .after(PhysicsSystems::Last)
                     .after(crate::als::motion::AlsActualVelocitySet),

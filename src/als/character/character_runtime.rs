@@ -35,6 +35,7 @@ pub struct AlsCharacterRuntimePlugin;
 
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         if !app.world().contains_resource::<GameplayTagsManager>() {
             let tags = crate::als_asset_bytes("ALS/Data/als_gameplay_tags.json")
                 .expect("ALS gameplay tags must be packaged");
@@ -47,9 +48,13 @@ impl Plugin for AlsCharacterRuntimePlugin {
         app.add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
-        .add_plugins(crate::footprint::FootprintPlugin)
-        .add_plugins(SourcePhysicsTimingPlugin)
-        .add_plugins((
+        .add_plugins(crate::footprint::FootprintPlugin);
+        if !crate::AlsPhysicsSchedule::uses_physics_steps(app)
+            && !app.is_plugin_added::<SourcePhysicsTimingPlugin>()
+        {
+            app.add_plugins(SourcePhysicsTimingPlugin);
+        }
+        app.add_plugins((
             ControlRigApplyPlugin,
             FootIkApplyPlugin,
             GaitLayerPlugin,
@@ -80,16 +85,15 @@ impl Plugin for AlsCharacterRuntimePlugin {
             crate::get_up::AlsGetUpPlugin,
         ))
         .add_systems(
-            Update,
+            prepare,
             (
                 ensure_start_stop_state,
                 start_stop_detector_system.after(ensure_start_stop_state),
-            ),
+            ).in_set(crate::playable_character::AlsPhysicsPrepareSet),
         )
         .configure_sets(
             PostUpdate,
             (
-                crate::actual_motion::AlsActualMotionSet,
                 crate::gait_layer::AlsGaitLayerSet,
                 crate::standing_layer::AlsStandingLayerSet,
                 crate::crouching_layer::AlsCrouchingLayerSet,

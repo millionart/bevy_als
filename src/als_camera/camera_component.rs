@@ -79,14 +79,20 @@ impl Plugin for AlsSourceCameraPlugin {
                 ))
                 .in_set(AlsCameraAnimationSet)
                 .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
-                .before(AnimationGraphSet::PostPhysics),
-        )
-        .add_systems(
-            Update,
-            (remove_orphaned_views, publish_player_view_yaw)
-                .chain()
-                .before(crate::als::view::AlsViewInputSet),
+                .before(AnimationGraphSet::PostPhysics)
+                .before(AnimationGraphSet::Final),
         );
+        let view = (remove_orphaned_views, publish_player_view_yaw)
+            .chain()
+            .before(crate::als::view::AlsViewInputSet);
+        if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+            app.add_systems(
+                RunFixedMainLoop,
+                view.in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop),
+            );
+        } else {
+            app.add_systems(Update, view);
+        }
     }
 }
 
@@ -596,6 +602,7 @@ pub(crate) mod tests {
         .init_asset::<Image>()
         .init_asset::<StandardMaterial>()
         .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+        .insert_resource(crate::AlsPhysicsSchedule::SourceFrameTiming)
         .add_plugins(crate::playable_character::AlsPlayableCharacterPlugin)
         .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
             std::time::Duration::from_millis(100),

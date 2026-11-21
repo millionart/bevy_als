@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::als::aim::AlsLastFreeRotationMode;
 use crate::als::character::AlsCharacter;
-use crate::als::input::AlsInputCommand;
+use crate::als::input::{AlsInputCommand, AlsStepInput};
 use crate::als::motion::AlsInputOverride;
 use crate::als::state::{AlsNotifyLocomotionAction, Gait, RotationMode, Stance};
 use crate::als::transition::{AlsDesiredStance, AlsStateRequest, state_transition_system};
@@ -32,6 +32,7 @@ pub fn input_state_request_system(
             Option<&mut AlsSprintPrev>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&AlsStepInput>,
             &mut AlsStateRequest,
         ),
         With<AlsCharacter>,
@@ -50,10 +51,11 @@ pub fn input_state_request_system(
         sprint_prev,
         cmd,
         ovr,
+        step,
         mut request,
     ) in &mut q
     {
-        let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
+        let effective = AlsStepInput::command(cmd, ovr, step);
 
         if effective.crouch_pressed {
             match desired_stance.map(|desired| desired.0).unwrap_or(*stance) {
@@ -136,8 +138,9 @@ pub struct AlsInputRequestPlugin;
 impl Plugin for AlsInputRequestPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            crate::AlsPhysicsSchedule::prepare(app),
             input_state_request_system
+                .in_set(crate::playable_character::AlsPhysicsPrepareSet)
                 .before(crate::als::aim::aim_rotation_mode_system)
                 .before(state_transition_system),
         );

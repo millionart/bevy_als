@@ -30,9 +30,13 @@ pub struct PaAlsPhysicsPlugin;
 
 impl Plugin for PaAlsPhysicsPlugin {
     fn build(&self, app: &mut App) {
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         app.add_plugins(SourcePhysicsJointPlugin)
             .init_resource::<PaAlsPhysicsProfileTemplate>()
-            .add_systems(Update, attach_pa_als_physics_profile);
+            .add_systems(
+                prepare,
+                attach_pa_als_physics_profile.in_set(crate::playable_character::AlsPhysicsPrepareSet),
+            );
     }
 }
 

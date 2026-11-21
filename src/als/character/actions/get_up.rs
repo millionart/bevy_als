@@ -456,21 +456,24 @@ pub struct AlsGetUpPlugin;
 
 impl Plugin for AlsGetUpPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
+        let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         crate::builtin_assets::install(app);
         app.add_systems(Startup, load_get_up_assets)
             .add_observer(discard_get_up_target)
             .add_systems(
-                Update,
-                start_get_up.after(crate::ragdoll_link::restore_ragdoll_player_parent),
+                prepare,
+                start_get_up.in_set(crate::playable_character::AlsPhysicsPrepareSet).after(crate::ragdoll_link::restore_ragdoll_player_parent),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 update_get_up_pose
                     .after(crate::roll_drive::prepare_roll_slot_samples)
                     .before(AnimationGraphSet::PrePhysics),
             )
             .add_systems(
-                PostUpdate,
+                root_motion,
                 release_get_up_input
                     .after(AlsAnimationEventSet::Dispatch)
                     .before(crate::roll_drive::AlsRollDriveSet),

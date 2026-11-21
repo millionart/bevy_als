@@ -203,11 +203,13 @@ const MESH_IGNORES_PAWN: bool = include!("../../settings/mesh_pawn_ignored.rs");
 
 impl Plugin for AlsRagdollLinkPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let prepare = crate::AlsPhysicsSchedule::prepare(app);
         app.add_message::<StateTransitionEvent>()
             .add_observer(disable_spawned_ragdoll_collider)
             .add_observer(register_ragdoll_camera_trace_owner);
         app.add_systems(
-            Update,
+            prepare,
             (
                 ensure_ragdoll_link,
                 (
@@ -228,30 +230,31 @@ impl Plugin for AlsRagdollLinkPlugin {
                     .after(crate::als::input_request::input_state_request_system)
                     .after(crate::als::motion::locomotion_drive_system)
                     .before(crate::als::transition::state_transition_system),
-                capture_ragdoll_player_world_transform
-                    .after(crate::als::transition::state_transition_system),
-                ragdoll_character_physics_system
-                    .after(capture_ragdoll_player_world_transform)
+                (
+                    capture_ragdoll_player_world_transform,
+                    ragdoll_character_physics_system,
+                    (restore_ragdoll_player_parent, ragdoll_link_system),
+                )
+                    .chain()
+                    .after(crate::als::transition::state_transition_system)
                     .after(ensure_ragdoll_link),
-                restore_ragdoll_player_parent.after(ragdoll_character_physics_system),
-                ragdoll_link_system.after(ragdoll_character_physics_system),
-            ),
+            ).in_set(crate::playable_character::AlsPhysicsPrepareSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             reset_ragdoll_on_scale_recovery
                 .before(spawn_missing_ragdolls_avian)
                 .in_set(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             set_simulating_ragdoll_body_modes
                 .after(update_ragdoll_rigidbodies)
                 .before(update_relative_kinematic_body_velocities)
                 .in_set(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 capture_ragdoll_player_world_transform,
                 ragdoll_character_physics_system,
@@ -273,7 +276,7 @@ impl Plugin for AlsRagdollLinkPlugin {
                 ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 capture_ragdoll_player_world_transform,
                 ragdoll_character_physics_system,
@@ -295,7 +298,7 @@ impl Plugin for AlsRagdollLinkPlugin {
                 ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (
                 sync_ragdoll_body_modes,
                 (
@@ -314,7 +317,7 @@ impl Plugin for AlsRagdollLinkPlugin {
                 .before(RagdollAngularDriveSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             release_ragdoll_air_exit_on_ground
                 .after(PhysicsSystems::Last)
                 .before(AnimationGraphSet::PostPhysics),
@@ -834,6 +837,9 @@ fn sync_ragdoll_body_modes(
 
 fn sync_animated_ragdoll_bodies(
     time: Res<Time>,
+    schedule: Option<Res<crate::AlsPhysicsSchedule>>,
+    physics: Option<Res<Time<avian3d::prelude::Physics>>>,
+    mut last_step_time: Local<std::time::Duration>,
     characters: Query<
         (Option<&AlsNotifyLocomotionAction>, &AlsCharacterAssembly),
         With<AlsCharacter>,
@@ -855,7 +861,19 @@ fn sync_animated_ragdoll_bodies(
         &mut AngularVelocity,
     )>,
 ) {
-    let delta = source_physics_delta(time.delta()).as_secs_f32();
+    let delta = if let (Some(crate::AlsPhysicsSchedule::Avian(_)), Some(physics)) =
+        (schedule.as_deref(), physics)
+    {
+        let elapsed = physics.elapsed();
+        let delta = elapsed.saturating_sub(*last_step_time);
+        *last_step_time = elapsed;
+        if delta.is_zero() {
+            return;
+        }
+        delta.as_secs_f32()
+    } else {
+        source_physics_delta(time.delta()).as_secs_f32()
+    };
     for (avatar_entity, avatar, instance, handle) in &avatars {
         let Ok((action, assembly)) = characters.get(avatar.character) else {
             continue;

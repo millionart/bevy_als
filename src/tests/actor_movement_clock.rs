@@ -12,6 +12,196 @@ use bevy_als::als::{
 use bevy_als::als_camera::AlsCameraCustomTimeDilation;
 use std::time::Duration;
 
+use bevy::time::TimeUpdateStrategy;
+
+fn headless_app() -> App {
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins,
+        AssetPlugin::default(),
+        bevy::image::ImagePlugin::default(),
+        bevy::gltf::GltfPlugin::default(),
+        bevy::world_serialization::WorldSerializationPlugin,
+        TransformPlugin,
+        bevy::animation::AnimationPlugin,
+        bevy::input::InputPlugin,
+        bevy::gizmos::GizmoPlugin,
+    ))
+    .init_asset::<bevy::world_serialization::WorldAsset>()
+    .init_asset::<Mesh>()
+    .init_asset::<StandardMaterial>()
+    .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>();
+    app
+}
+
+fn update_for(app: &mut App, milliseconds: u64) {
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        milliseconds,
+    )));
+    app.update();
+}
+
+#[test]
+fn playable_character_uses_zero_or_multiple_fixed_physics_steps_per_frame() {
+    #[derive(Resource, Default)]
+    struct Steps {
+        physics: Vec<Duration>,
+        controls: usize,
+    }
+
+    let mut app = headless_app();
+    app.add_plugins(bevy_als::AlsPlugin)
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)))
+        .init_resource::<Steps>()
+        .add_systems(
+            PhysicsSchedule,
+            (|time: Res<Time<Physics>>, mut steps: ResMut<Steps>| {
+                steps.physics.push(time.delta());
+            })
+            .in_set(PhysicsStepSystems::Last),
+        )
+        .add_systems(
+            PhysicsSchedule,
+            (|mut steps: ResMut<Steps>| steps.controls += 1)
+                .in_set(bevy_tnua::TnuaUserControlsSystems),
+        );
+    app.finish();
+    app.cleanup();
+
+    update_for(&mut app, 0);
+    update_for(&mut app, 4);
+    let steps = app.world().resource::<Steps>();
+    assert!(steps.physics.is_empty());
+    assert_eq!(steps.controls, 0);
+
+    update_for(&mut app, 44);
+    let steps = app.world().resource::<Steps>();
+    assert_eq!(steps.physics, [Duration::from_millis(16); 3]);
+    assert_eq!(steps.controls, 3);
+}
+
+#[test]
+fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once_per_frame() {
+    use bevy_als::extensions::{GlobalPoseInputNode, post_physics_animation::PhysicsAnimationPlayer};
+    use bevy_animation_graph::core::{
+        animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,
+        animation_node::AnimationNode, edge_data::DataSpec, pose::{Pose, RootMotionDelta},
+        systems::RootMotionOutput,
+    };
+    #[derive(Resource, Default)]
+    struct Displacements(Vec<Vec3>);
+    let mut app = headless_app();
+    app.add_plugins(bevy_als::AlsPlugin)
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)))
+        .init_resource::<Displacements>()
+        .add_systems(PhysicsSchedule, (|mut samples: ResMut<Displacements>, physical: Single<&RootMotionOutput, With<PhysicsAnimationPlayer>>| {
+            samples.0.push(physical.translation_delta);
+        }).in_set(PhysicsStepSystems::First));
+    let mut graph = AnimationGraph::new();
+    let node = AnimationNode::new("input", GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+    graph.add_node(node.clone());
+    graph.add_output_data("pose".into(), DataSpec::Pose);
+    graph.add_output_data_edge(node.id, "Pose", "pose");
+    let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+    let mut player = AnimationGraphPlayer::new(default()).with_graph(graph);
+    player.set_global_input_data("input", Pose { root_motion: Some(RootMotionDelta {
+        translation: Vec3::X, rotation: Quat::IDENTITY,
+    }), ..default() });
+    let physics = app.world_mut().spawn((Name::new("motion"), Children::default(), Transform::default(),
+        player.clone(), PhysicsAnimationPlayer, RootMotionOutput::default())).id();
+    let visual = app.world_mut().spawn((Name::new("mesh"), Children::default(), Transform::default(), player)).id();
+    app.finish();
+    app.cleanup();
+    let frame = |app: &App, entity| app.world().get::<AnimationGraphPlayer>(entity).unwrap()
+        .get_context_arena().unwrap().frame_index();
+    update_for(&mut app, 0);
+    let initial = (frame(&app, physics), frame(&app, visual));
+    app.world_mut().get_mut::<RootMotionOutput>(physics).unwrap().translation_delta = Vec3::Z;
+    update_for(&mut app, 4);
+    assert_eq!(app.world().get::<RootMotionOutput>(physics).unwrap().translation_delta, Vec3::Z);
+    assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0, initial.1 + 1));
+    update_for(&mut app, 44);
+    assert_eq!(app.world().resource::<Displacements>().0, [Vec3::X; 3]);
+    assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0 + 3, initial.1 + 2));
+}
+
+#[test]
+fn playable_character_reuses_a_host_physics_schedule_and_clock() {
+    use bevy::app::MainScheduleOrder;
+    use bevy::ecs::schedule::ScheduleLabel;
+    use bevy_als::{AlsPhysicsSchedule, AlsPlugin};
+
+    #[derive(ScheduleLabel, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    struct HostPhysics;
+
+    #[derive(Resource, Default)]
+    struct Steps(Vec<Duration>);
+
+    let mut app = headless_app();
+    app.world_mut()
+        .resource_mut::<MainScheduleOrder>()
+        .insert_after(Update, HostPhysics);
+    app.insert_resource(AlsPhysicsSchedule::new(HostPhysics))
+        .add_plugins(AlsPlugin::physics_plugins_in(HostPhysics))
+        .insert_resource(SubstepCount(2))
+        .add_plugins(AlsPlugin)
+        .init_resource::<Steps>()
+        .add_systems(
+            PhysicsSchedule,
+            (|time: Res<Time<Physics>>, mut steps: ResMut<Steps>| {
+                steps.0.push(time.delta());
+            })
+                .in_set(PhysicsStepSystems::Last),
+        );
+    app.finish();
+    app.cleanup();
+
+    update_for(&mut app, 0);
+    update_for(&mut app, 100);
+    assert_eq!(app.world().resource::<Steps>().0, [Duration::from_millis(100)]);
+    assert_eq!(app.world().resource::<SubstepCount>().0, 2);
+}
+
+#[test]
+fn playable_character_consumes_a_buffered_press_once_across_fixed_steps() {
+    use bevy_als::als::{
+        character::AlsCharacterBundle,
+        control_scheme::AlsControlSchemeConfig,
+        gait::AlsDesiredGait,
+        input::AlsInputCommand,
+        motion::initial_als_control_scheme_config,
+        params::AlsMovementParams,
+        state::Gait,
+    };
+
+    let mut app = headless_app();
+    app.add_plugins(bevy_als::AlsPlugin)
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)));
+    let settings = AlsMovementParams::default();
+    let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
+    let bundle = AlsCharacterBundle::new(
+        params,
+        &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(),
+        initial_als_control_scheme_config(&settings),
+    );
+    let actor = app.world_mut().spawn(bundle).id();
+    app.finish();
+    app.cleanup();
+
+    update_for(&mut app, 0);
+    app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = true;
+    update_for(&mut app, 4);
+    assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Running);
+
+    app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = false;
+    update_for(&mut app, 28);
+    assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Walking);
+
+    app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = true;
+    update_for(&mut app, 32);
+    assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Running);
+}
+
 #[test]
 fn jump_hold_observes_owner_clock_including_midair_changes() {
     for rates in [

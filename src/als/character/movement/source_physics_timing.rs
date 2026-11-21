@@ -33,7 +33,7 @@ pub enum SourcePhysicsTimingSet {
 }
 
 #[derive(Resource, Default)]
-struct SourcePhysicsClockRestore {
+pub(crate) struct SourcePhysicsClockRestore {
     previous: Option<Time>,
 }
 

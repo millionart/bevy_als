@@ -10,7 +10,11 @@
 
 The default character, camera, animation, and footprint assets are embedded by the plugin. Games can load a bundled asset with `als_asset_path` or use their own asset paths for custom content.
 
-If the host installs Avian itself, register `AlsPlugin::physics_plugins()` before `AlsPlugin` to use the matching physics schedule and collision hooks. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
+ALS advances physics in Avian's default `FixedPostUpdate` schedule. Write input in `PreUpdate` and pulse `*_pressed` fields for one frame. ALS buffers presses until a physics step consumes them. The complete character graph, cosmetic layers, IK and camera update once per display frame in `PostUpdate`. A frame with several physics steps still evaluates one character pose. The roll slot samples the physical displacement on each step. Hosts can mark other dedicated physics input graphs with `extensions::post_physics_animation::PhysicsAnimationPlayer`.
+
+To select a different physics schedule, insert `AlsPhysicsSchedule::new(schedule)` before adding `AlsPlugin`. If the host installs Avian itself, use `AlsPlugin::physics_plugins()` for the default or `AlsPlugin::physics_plugins_in(schedule)` for a custom schedule. Both install ALS's ragdoll collision hooks.
+
+Insert `AlsPhysicsSchedule::SourceFrameTiming` before adding `AlsPlugin` to opt in to the original Unreal-style frame timing and world timestep cap. This mode drives Avian in `PostUpdate`. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
 
 Run `cargo run --example als_character` from the companion `bevy_als_playground` project to exercise ALS with WASD, mouse look, and jump. The core crate is a library. The full Playground scene owns its Enhanced Input adapter.
 

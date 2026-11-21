@@ -592,8 +592,9 @@ pub struct RagdollPhysicsProfilePlugin;
 
 impl Plugin for RagdollPhysicsProfilePlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             (
                 RagdollPhysicsProfileSet
                     .after(AnimationGraphSet::PrePhysics)
@@ -604,17 +605,17 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             ),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             (apply_ragdoll_physics_profiles, ApplyDeferred)
                 .chain()
                 .in_set(RagdollPhysicsProfileSet),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             observe_ragdoll_joint_anchor_error.after(PhysicsSystems::Last),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             observe_ragdoll_handoff_anchor_error
                 .after(RagdollPhysicsHandoffSet)
                 .before(RagdollAngularDriveSet)

@@ -27,15 +27,16 @@ pub struct RagdollAngularDrivePlugin;
 
 impl Plugin for RagdollAngularDrivePlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
-            PostUpdate,
+            outer,
             RagdollAngularDriveSet
                 .after(AnimationGraphSet::PrePhysics)
                 .after(RagdollPhysicsProfileSet)
                 .before(PhysicsSystems::First),
         )
         .add_systems(
-            PostUpdate,
+            outer,
             apply_ragdoll_angular_drive.in_set(RagdollAngularDriveSet),
         );
     }

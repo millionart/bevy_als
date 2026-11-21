@@ -379,6 +379,7 @@ fn default_character_uses_bundled_assets_in_an_empty_host() {
         bevy::image::CompressedImageFormats::NONE,
     ))
     .add_plugins(AlsPlugin)
+    .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)))
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
         16,
     )));
@@ -445,4 +446,22 @@ fn default_character_uses_bundled_assets_in_an_empty_host() {
         );
         std::thread::sleep(Duration::from_millis(5));
     }
+
+    let graph_frame = |app: &App| {
+        let world = app.world();
+        let scene = world.get::<AnimatedSceneInstance>(assembly.avatar).unwrap();
+        world
+            .get::<AnimationGraphPlayer>(scene.player_entity())
+            .unwrap()
+            .get_context_arena()
+            .unwrap()
+            .frame_index()
+    };
+    let start = graph_frame(&app);
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(4)));
+    app.update();
+    assert_eq!(graph_frame(&app), start + 1, "a display frame with no physics step must still animate");
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(44)));
+    app.update();
+    assert_eq!(graph_frame(&app), start + 2, "three catch-up steps share one visible pose");
 }

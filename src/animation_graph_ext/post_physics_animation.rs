@@ -6,7 +6,7 @@ use avian3d::prelude::{PhysicsSystems, Position, Rotation};
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy},
+    ecs::{query::QueryFilter, schedule::{ScheduleCleanupPolicy, ScheduleLabel}},
     math::{Affine3A, Isometry3d},
     prelude::*,
     transform::TransformSystems,
@@ -40,6 +40,11 @@ use bevy_animation_graph::core::{
 
 #[derive(Component)]
 pub struct PostPhysicsAnimation;
+
+/// Evaluate this player on the host physics clock. Use it for a separate graph whose
+/// output is consumed by the simulation, such as the root displacement of a roll.
+#[derive(Component, Default)]
+pub struct PhysicsAnimationPlayer;
 
 #[derive(Component)]
 pub struct ManualAnimationPlayer;
@@ -92,6 +97,7 @@ pub struct PostPhysicsAnimationPlugin;
 
 impl Plugin for PostPhysicsAnimationPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() {
             app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
         }
@@ -102,32 +108,46 @@ impl Plugin for PostPhysicsAnimationPlugin {
                 PostPhysicsAnimationSet::Evaluate
                     .after(PostPhysicsAnimationSet::Inputs)
                     .before(AnimationGraphSet::PostPhysics),
+            ),
+        )
+        .configure_sets(
+            PostUpdate,
+            (
+                AnimationGraphSet::Final.before(TransformSystems::Propagate),
                 PostPhysicsAnimationSet::Readback
                     .after(AnimationGraphSet::Final)
                     .after(TransformSystems::Propagate),
             ),
-        )
-        .add_systems(
-            PostUpdate,
-            evaluate_players::<Without<PostPhysicsAnimation>>
-                .after(spawn_missing_ragdolls_avian)
-                .before(extract_root_motion)
-                .in_set(AnimationGraphSet::PrePhysics),
-        )
-        .add_systems(
-            PostUpdate,
-            (
-                evaluate_players::<With<PostPhysicsAnimation>>,
-                extract_late_root_motion,
-            )
-                .chain()
-                .in_set(PostPhysicsAnimationSet::Evaluate),
         );
+        if outer == PostUpdate.intern() {
+            app.add_systems(PostUpdate, evaluate_players::<Without<PostPhysicsAnimation>>
+                .after(spawn_missing_ragdolls_avian).before(extract_root_motion)
+                .in_set(AnimationGraphSet::PrePhysics))
+                .add_systems(PostUpdate, (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)
+                    .chain().in_set(PostPhysicsAnimationSet::Evaluate));
+        } else {
+            type EarlyFrame = (Without<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
+            type LateFrame = (With<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
+            app.configure_sets(PostUpdate, (
+                AnimationGraphSet::PrePhysics, PostPhysicsAnimationSet::Inputs,
+                PostPhysicsAnimationSet::Evaluate, AnimationGraphSet::PostPhysics, AnimationGraphSet::Final,
+            ).chain())
+                .add_systems(outer, (
+                    evaluate_players::<With<PhysicsAnimationPlayer>>, publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
+                ).chain().after(spawn_missing_ragdolls_avian)
+                    .before(bevy_animation_graph::core::physics_systems_avian::update_ragdoll_rigidbodies)
+                    .in_set(AnimationGraphSet::PrePhysics))
+                .add_systems(PostUpdate, (evaluate_players::<EarlyFrame>, publish_sampled_motion::<EarlyFrame>)
+                    .chain().in_set(AnimationGraphSet::PrePhysics))
+                .add_systems(PostUpdate, (evaluate_players::<LateFrame>, publish_sampled_motion::<LateFrame>)
+                    .chain().in_set(PostPhysicsAnimationSet::Evaluate));
+        }
     }
 
     fn finish(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
         app.world_mut()
-            .schedule_scope(PostUpdate, |world, schedule| {
+            .schedule_scope(outer, |world, schedule| {
                 let count = schedule
                     .remove_systems_in_set(
                         animation_player,
@@ -141,17 +161,6 @@ impl Plugin for PostPhysicsAnimationPlugin {
                 );
                 let count = schedule
                     .remove_systems_in_set(
-                        bevy_animation_graph::core::systems::apply_animation_to_targets,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("bone refresh schedule must initialize");
-                assert_eq!(
-                    count, 1,
-                    "bone refresh must replace exactly one default player system"
-                );
-                let count = schedule
-                    .remove_systems_in_set(
                         read_back_poses_avian,
                         world,
                         ScheduleCleanupPolicy::RemoveSystemsOnly,
@@ -161,6 +170,12 @@ impl Plugin for PostPhysicsAnimationPlugin {
                     count, 1,
                     "physics readback must replace exactly one default readback system"
                 );
+                if outer != PostUpdate.intern() {
+                    let removed = schedule.remove_systems_in_set(
+                        extract_root_motion, world, ScheduleCleanupPolicy::RemoveSystemsOnly,
+                    ).expect("root motion extraction schedule must initialize");
+                    assert_eq!(removed, 1, "publish each player's root motion on its own clock");
+                }
                 let count = schedule
                     .remove_systems_in_set(
                         update_relative_kinematic_position_based_body_velocities,
@@ -173,8 +188,19 @@ impl Plugin for PostPhysicsAnimationPlugin {
                     "kinematic velocity update must replace exactly one default system"
                 );
             });
+        app.world_mut()
+            .schedule_scope(PostUpdate, |world, schedule| {
+                let count = schedule
+                    .remove_systems_in_set(
+                        bevy_animation_graph::core::systems::apply_animation_to_targets,
+                        world,
+                        ScheduleCleanupPolicy::RemoveSystemsOnly,
+                    )
+                    .expect("bone refresh schedule must initialize");
+                assert_eq!(count, 1, "bone refresh must replace exactly one default player system");
+            });
         app.add_systems(
-            PostUpdate,
+            outer,
             update_relative_kinematic_target_velocities
                 .after(update_ragdolls_avian)
                 .before(update_relative_kinematic_body_velocities)
@@ -214,6 +240,8 @@ pub(crate) fn source_kinematic_angular_velocity(start: Quat, target: Quat, delta
 
 pub(crate) fn update_relative_kinematic_target_velocities(
     time: Res<Time>,
+    schedule: Option<Res<crate::AlsPhysicsSchedule>>,
+    legacy_clock: Option<Res<crate::source_physics_timing::SourcePhysicsClockRestore>>,
     mut bodies: Query<(
         &RelativeKinematicBodyPositionBased,
         &Position,
@@ -224,7 +252,11 @@ pub(crate) fn update_relative_kinematic_target_velocities(
     references: Query<(&Position, &Rotation), Without<RelativeKinematicBodyPositionBased>>,
 ) {
     let world_delta = time.delta_secs();
-    let physics_delta = source_physics_delta(time.delta()).as_secs_f32();
+    let physics_delta = if schedule.is_none() || legacy_clock.is_some() {
+        source_physics_delta(time.delta()).as_secs_f32()
+    } else {
+        world_delta
+    };
     for (target, position, rotation, mut body, use_source) in &mut bodies {
         let world = Isometry3d::new(position.0, rotation.0);
         let current = target
@@ -762,6 +794,28 @@ fn extract_late_root_motion(
     players: Query<(&AnimationGraphPlayer, &Transform), Without<RootMotionOutput>>,
 ) {
     extract_root_motion(with_player, with_scene, players);
+}
+
+fn publish_sampled_motion<F: QueryFilter>(
+    mut outputs: Query<(Entity, &mut RootMotionOutput, Option<&AnimatedSceneInstance>, Has<AnimationGraphPlayer>)>,
+    players: Query<(&AnimationGraphPlayer, Option<&Transform>, Has<RootMotionOutput>), F>,
+) {
+    for (entity, mut output, scene, direct) in &mut outputs {
+        let (source, local) = if direct {
+            let Ok((player, _, _)) = players.get(entity) else { continue };
+            (player, Transform::IDENTITY)
+        } else {
+            let Some((player, Some(transform), false)) = scene.and_then(|s| players.get(s.player_entity()).ok()) else { continue };
+            (player, *transform)
+        };
+        if let Some(delta) = source.get_root_motion() {
+            output.translation_delta = local.rotation * (delta.translation * local.scale);
+            output.rotation_delta = delta.rotation;
+        } else {
+            output.translation_delta = Vec3::ZERO;
+            output.rotation_delta = Quat::IDENTITY;
+        }
+    }
 }
 
 #[cfg(test)]

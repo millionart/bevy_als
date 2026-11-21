@@ -721,6 +721,8 @@ pub struct AlsAnimationEventPlugin;
 
 impl Plugin for AlsAnimationEventPlugin {
     fn build(&self, app: &mut App) {
+        let outer = crate::AlsPhysicsSchedule::outer(app);
+        let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         crate::builtin_assets::install(app);
         app.init_asset::<AlsNotifyManifest>()
             .register_asset_loader(AlsNotifyManifestLoader)
@@ -728,7 +730,7 @@ impl Plugin for AlsAnimationEventPlugin {
             .init_resource::<AlsNotifyGraphClipHandles>()
             .add_systems(Startup, load_notify_manifest)
             .configure_sets(
-                PostUpdate,
+                root_motion,
                 (
                     AlsAnimationEventSet::Refresh,
                     AlsAnimationEventSet::Dispatch,
@@ -739,34 +741,39 @@ impl Plugin for AlsAnimationEventPlugin {
                     .after(AlsMantleDriveSet),
             )
             .add_systems(
-                PostUpdate,
-                ensure_animation_event_components.before(AlsAnimationEventSet::Refresh),
+                outer,
+                ensure_animation_event_components
+                    .before(AnimationGraphSet::PrePhysics)
+                    .before(AlsAnimationEventSet::Refresh),
             )
             .add_systems(
-                PostUpdate,
+                root_motion,
                 refresh_animation_event_playbacks.in_set(AlsAnimationEventSet::Refresh),
             )
             .add_systems(
-                PostUpdate,
+                root_motion,
                 dispatch_animation_events::<false>.in_set(AlsAnimationEventSet::Dispatch),
             )
             .configure_sets(
-                PostUpdate,
+                outer,
                 AlsAnimationEventSet::SlotDispatch
+                    .after(avian3d::prelude::PhysicsSystems::Last)
+                    .after(AnimationGraphSet::PostPhysics)
                     .after(AnimationGraphSet::Final)
                     .before(AlsAnimationEventSet::GraphFootsteps),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 dispatch_animation_events::<true>.in_set(AlsAnimationEventSet::SlotDispatch),
             )
             .add_systems(
-                PostUpdate,
+                outer,
                 apply_grounded_entry_point_notifications.after(AlsAnimationEventSet::SlotDispatch),
             )
             .configure_sets(
                 PostUpdate,
                 AlsAnimationEventSet::GraphFootsteps
+                    .after(AnimationGraphSet::PostPhysics)
                     .after(AnimationGraphSet::Final)
                     .before(crate::als_camera::AlsCameraSet),
             )
