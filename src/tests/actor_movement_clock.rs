@@ -124,24 +124,27 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
         .world_mut()
         .resource_mut::<Assets<AnimationGraph>>()
         .add(graph);
-    let mut player = AnimationGraphPlayer::new(default()).with_graph(graph);
-    player.set_global_input_data(
-        "input",
-        Pose {
-            root_motion: Some(RootMotionDelta {
-                translation: Vec3::X,
-                rotation: Quat::IDENTITY,
-            }),
-            ..default()
-        },
-    );
+    let make_player = || {
+        let mut player = AnimationGraphPlayer::new(default()).with_graph(graph.clone());
+        player.set_global_input_data(
+            "input",
+            Pose {
+                root_motion: Some(RootMotionDelta {
+                    translation: Vec3::X,
+                    rotation: Quat::IDENTITY,
+                }),
+                ..default()
+            },
+        );
+        player
+    };
     let physics = app
         .world_mut()
         .spawn((
             Name::new("motion"),
             Children::default(),
             Transform::default(),
-            player.clone(),
+            make_player(),
             PhysicsAnimationPlayer,
             RootMotionOutput::default(),
         ))
@@ -152,7 +155,7 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
             Name::new("mesh"),
             Children::default(),
             Transform::default(),
-            player,
+            make_player(),
         ))
         .id();
     app.finish();
