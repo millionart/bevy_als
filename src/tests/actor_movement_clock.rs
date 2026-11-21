@@ -196,8 +196,9 @@ fn composed_host_hooks_filter_contacts_in_the_same_avian_world() {
     update_for(&mut app, 0);
     update_for(&mut app, 16);
     let contacts = app.world().resource::<ContactGraph>();
-    assert!(contacts.contains(floor, allowed));
-    assert!(!contacts.contains(floor, rejected));
+    let touching = |body| contacts.get(floor, body).is_some_and(|(_, pair)| pair.is_touching());
+    assert!(touching(allowed));
+    assert!(!touching(rejected));
 }
 
 #[test]
