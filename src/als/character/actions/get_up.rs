@@ -387,14 +387,26 @@ fn advance_get_up(
 
 fn update_get_up_pose(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
-    time: Res<Time>, assets: Res<GetUpAssets>, clips: Res<Assets<GraphClip>>,
-    skeletons: Res<Assets<Skeleton>>, curves: Res<Assets<AlsAnimCurves>>, clip_curves: Option<Res<ClipCurves>>,
-    mut characters: Query<(&mut AlsGetUpState, Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<AlsCharacter>>,
+    time: Res<Time>,
+    assets: Res<GetUpAssets>,
+    clips: Res<Assets<GraphClip>>,
+    skeletons: Res<Assets<Skeleton>>,
+    curves: Res<Assets<AlsAnimCurves>>,
+    clip_curves: Option<Res<ClipCurves>>,
+    mut characters: Query<
+        (
+            &mut AlsGetUpState,
+            Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
+        ),
+        With<AlsCharacter>,
+    >,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (mut state, dilation) in &mut characters {
         let player_entity = state.target_player;
-        let Ok(mut player) = players.get_mut(player_entity) else { continue };
+        let Ok(mut player) = players.get_mut(player_entity) else {
+            continue;
+        };
         let settings = get_up_settings(state.facing_up);
         let delta = time.delta_secs() * dilation.map_or(1.0, |scale| scale.0);
         let index = usize::from(state.facing_up);
@@ -472,7 +484,9 @@ impl Plugin for AlsGetUpPlugin {
             .add_observer(discard_get_up_target)
             .add_systems(
                 prepare,
-                start_get_up.in_set(crate::playable_character::AlsPhysicsPrepareSet).after(crate::ragdoll_link::restore_ragdoll_player_parent),
+                start_get_up
+                    .in_set(crate::playable_character::AlsPhysicsPrepareSet)
+                    .after(crate::ragdoll_link::restore_ragdoll_player_parent),
             )
             .add_systems(
                 root_motion,
@@ -481,8 +495,12 @@ impl Plugin for AlsGetUpPlugin {
                     .before(crate::extensions::post_physics_animation::PhysicsAnimationSet)
                     .before(AnimationGraphSet::PrePhysics),
             )
-            .add_systems(PostUpdate, update_get_up_pose
-                .after(advance_get_up).before(AnimationGraphSet::PrePhysics))
+            .add_systems(
+                PostUpdate,
+                update_get_up_pose
+                    .after(advance_get_up)
+                    .before(AnimationGraphSet::PrePhysics),
+            )
             .add_systems(
                 root_motion,
                 release_get_up_input

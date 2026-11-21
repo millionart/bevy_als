@@ -123,76 +123,126 @@ impl Plugin for PostPhysicsAnimationPlugin {
             ),
         );
         if !crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-            app.add_systems(PostUpdate, evaluate_players::<Without<PostPhysicsAnimation>>
-                .after(spawn_missing_ragdolls_avian).before(extract_root_motion)
-                .in_set(AnimationGraphSet::PrePhysics))
-                .add_systems(PostUpdate, (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)
-                    .chain().in_set(PostPhysicsAnimationSet::Evaluate));
+            app.add_systems(
+                PostUpdate,
+                evaluate_players::<Without<PostPhysicsAnimation>>
+                    .after(spawn_missing_ragdolls_avian)
+                    .before(extract_root_motion)
+                    .in_set(AnimationGraphSet::PrePhysics),
+            )
+            .add_systems(
+                PostUpdate,
+                (
+                    evaluate_players::<With<PostPhysicsAnimation>>,
+                    extract_late_root_motion,
+                )
+                    .chain()
+                    .in_set(PostPhysicsAnimationSet::Evaluate),
+            );
         } else {
-            type EarlyFrame = (Without<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
+            type EarlyFrame = (
+                Without<PostPhysicsAnimation>,
+                Without<PhysicsAnimationPlayer>,
+            );
             type LateFrame = (With<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
-            app.configure_sets(PostUpdate, (
-                AnimationGraphSet::PrePhysics, PostPhysicsAnimationSet::Inputs,
-                PostPhysicsAnimationSet::Evaluate, AnimationGraphSet::PostPhysics, AnimationGraphSet::Final,
-            ).chain())
-                .configure_sets(PhysicsSchedule, PhysicsAnimationSet
+            app.configure_sets(
+                PostUpdate,
+                (
+                    AnimationGraphSet::PrePhysics,
+                    PostPhysicsAnimationSet::Inputs,
+                    PostPhysicsAnimationSet::Evaluate,
+                    AnimationGraphSet::PostPhysics,
+                    AnimationGraphSet::Final,
+                )
+                    .chain(),
+            )
+            .configure_sets(
+                PhysicsSchedule,
+                PhysicsAnimationSet
                     .before(bevy_tnua::TnuaPipelineSystems::Sensors)
-                    .before(PhysicsStepSystems::First))
-                .add_systems(PhysicsSchedule, (
-                    evaluate_players::<With<PhysicsAnimationPlayer>>, publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
-                ).chain().in_set(PhysicsAnimationSet))
-                .add_systems(PostUpdate, (evaluate_players::<EarlyFrame>, publish_sampled_motion::<EarlyFrame>)
-                    .chain().in_set(AnimationGraphSet::PrePhysics))
-                .add_systems(PostUpdate, (evaluate_players::<LateFrame>, publish_sampled_motion::<LateFrame>)
-                    .chain().in_set(PostPhysicsAnimationSet::Evaluate));
+                    .before(PhysicsStepSystems::First),
+            )
+            .add_systems(
+                PhysicsSchedule,
+                (
+                    evaluate_players::<With<PhysicsAnimationPlayer>>,
+                    publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
+                )
+                    .chain()
+                    .in_set(PhysicsAnimationSet),
+            )
+            .add_systems(
+                PostUpdate,
+                (
+                    evaluate_players::<EarlyFrame>,
+                    publish_sampled_motion::<EarlyFrame>,
+                )
+                    .chain()
+                    .in_set(AnimationGraphSet::PrePhysics),
+            )
+            .add_systems(
+                PostUpdate,
+                (
+                    evaluate_players::<LateFrame>,
+                    publish_sampled_motion::<LateFrame>,
+                )
+                    .chain()
+                    .in_set(PostPhysicsAnimationSet::Evaluate),
+            );
         }
     }
 
     fn finish(&self, app: &mut App) {
         let outer = crate::AlsPhysicsSchedule::outer(app);
         let split = crate::AlsPhysicsSchedule::uses_physics_steps(app);
-        app.world_mut()
-            .schedule_scope(outer, |world, schedule| {
-                let count = schedule
+        app.world_mut().schedule_scope(outer, |world, schedule| {
+            let count = schedule
+                .remove_systems_in_set(
+                    animation_player,
+                    world,
+                    ScheduleCleanupPolicy::RemoveSystemsOnly,
+                )
+                .expect("animation evaluation schedule must initialize");
+            assert_eq!(
+                count, 1,
+                "animation evaluation must replace exactly one default player system"
+            );
+            let count = schedule
+                .remove_systems_in_set(
+                    read_back_poses_avian,
+                    world,
+                    ScheduleCleanupPolicy::RemoveSystemsOnly,
+                )
+                .expect("physics readback schedule must initialize");
+            assert_eq!(
+                count, 1,
+                "physics readback must replace exactly one default readback system"
+            );
+            if split {
+                let removed = schedule
                     .remove_systems_in_set(
-                        animation_player,
+                        extract_root_motion,
                         world,
                         ScheduleCleanupPolicy::RemoveSystemsOnly,
                     )
-                    .expect("animation evaluation schedule must initialize");
+                    .expect("root motion extraction schedule must initialize");
                 assert_eq!(
-                    count, 1,
-                    "animation evaluation must replace exactly one default player system"
+                    removed, 1,
+                    "publish each player's root motion on its own clock"
                 );
-                let count = schedule
-                    .remove_systems_in_set(
-                        read_back_poses_avian,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("physics readback schedule must initialize");
-                assert_eq!(
-                    count, 1,
-                    "physics readback must replace exactly one default readback system"
-                );
-                if split {
-                    let removed = schedule.remove_systems_in_set(
-                        extract_root_motion, world, ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    ).expect("root motion extraction schedule must initialize");
-                    assert_eq!(removed, 1, "publish each player's root motion on its own clock");
-                }
-                let count = schedule
-                    .remove_systems_in_set(
-                        update_relative_kinematic_position_based_body_velocities,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("kinematic velocity schedule must initialize");
-                assert_eq!(
-                    count, 1,
-                    "kinematic velocity update must replace exactly one default system"
-                );
-            });
+            }
+            let count = schedule
+                .remove_systems_in_set(
+                    update_relative_kinematic_position_based_body_velocities,
+                    world,
+                    ScheduleCleanupPolicy::RemoveSystemsOnly,
+                )
+                .expect("kinematic velocity schedule must initialize");
+            assert_eq!(
+                count, 1,
+                "kinematic velocity update must replace exactly one default system"
+            );
+        });
         app.world_mut()
             .schedule_scope(PostUpdate, |world, schedule| {
                 let count = schedule
@@ -202,7 +252,10 @@ impl Plugin for PostPhysicsAnimationPlugin {
                         ScheduleCleanupPolicy::RemoveSystemsOnly,
                     )
                     .expect("bone refresh schedule must initialize");
-                assert_eq!(count, 1, "bone refresh must replace exactly one default player system");
+                assert_eq!(
+                    count, 1,
+                    "bone refresh must replace exactly one default player system"
+                );
             });
         app.add_systems(
             outer,
@@ -802,15 +855,33 @@ fn extract_late_root_motion(
 }
 
 fn publish_sampled_motion<F: QueryFilter>(
-    mut outputs: Query<(Entity, &mut RootMotionOutput, Option<&AnimatedSceneInstance>, Has<AnimationGraphPlayer>)>,
-    players: Query<(&AnimationGraphPlayer, Option<&Transform>, Has<RootMotionOutput>), F>,
+    mut outputs: Query<(
+        Entity,
+        &mut RootMotionOutput,
+        Option<&AnimatedSceneInstance>,
+        Has<AnimationGraphPlayer>,
+    )>,
+    players: Query<
+        (
+            &AnimationGraphPlayer,
+            Option<&Transform>,
+            Has<RootMotionOutput>,
+        ),
+        F,
+    >,
 ) {
     for (entity, mut output, scene, direct) in &mut outputs {
         let (source, local) = if direct {
-            let Ok((player, _, _)) = players.get(entity) else { continue };
+            let Ok((player, _, _)) = players.get(entity) else {
+                continue;
+            };
             (player, Transform::IDENTITY)
         } else {
-            let Some((player, Some(transform), false)) = scene.and_then(|s| players.get(s.player_entity()).ok()) else { continue };
+            let Some((player, Some(transform), false)) =
+                scene.and_then(|s| players.get(s.player_entity()).ok())
+            else {
+                continue;
+            };
             (player, *transform)
         };
         if let Some(delta) = source.get_root_motion() {

@@ -114,7 +114,8 @@ impl Plugin for AlsActualMotionPlugin {
         let outer = crate::AlsPhysicsSchedule::outer(app);
         app.configure_sets(
             outer,
-            AlsActualMotionSet.after(crate::als::motion::AlsActualVelocitySet)
+            AlsActualMotionSet
+                .after(crate::als::motion::AlsActualVelocitySet)
                 .before(crate::gait_layer::AlsGaitLayerSet),
         )
         .add_systems(

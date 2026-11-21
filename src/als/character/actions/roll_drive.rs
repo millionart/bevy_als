@@ -4957,44 +4957,69 @@ impl Plugin for AlsRollDrivePlugin {
         let prepare = crate::AlsPhysicsSchedule::prepare(app);
         let root_motion = crate::AlsPhysicsSchedule::root_motion(app);
         crate::builtin_assets::install(app);
-        app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(Startup, load_roll_slot_curve_asset)
+        app.add_message::<crate::als::transition::StateTransitionEvent>()
+            .add_systems(Startup, load_roll_slot_curve_asset)
             .add_observer(discard_roll_target)
-            .add_systems(prepare, (ensure_roll_state, start_roll_input).chain()
-                .in_set(crate::playable_character::AlsPhysicsPrepareSet)
-                .after(crate::als::motion::locomotion_drive_system)
-                .before(crate::als::transition::state_transition_system));
+            .add_systems(
+                prepare,
+                (ensure_roll_state, start_roll_input)
+                    .chain()
+                    .in_set(crate::playable_character::AlsPhysicsPrepareSet)
+                    .after(crate::als::motion::locomotion_drive_system)
+                    .before(crate::als::transition::state_transition_system),
+            );
         if prepare != outer {
             app.add_systems(outer, ensure_roll_state);
         }
-        app
-            .add_systems(outer, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
-            .configure_sets(
-                root_motion,
-                AlsRollDriveSet
-                    .after(AnimationGraphSet::PrePhysics)
-                    .before(avian3d::prelude::PhysicsSystems::First),
-            )
-            .add_systems(outer, ensure_root_motion_output)
-            .add_systems(root_motion, (
-                advance_rolls.after(ensure_roll_state).after(crate::animation_visibility::AlsAnimationVisibilitySet),
+        app.add_systems(
+            outer,
+            ensure_roll_slot_samplers
+                .after(ensure_roll_state)
+                .before(advance_rolls),
+        )
+        .configure_sets(
+            root_motion,
+            AlsRollDriveSet
+                .after(AnimationGraphSet::PrePhysics)
+                .before(avian3d::prelude::PhysicsSystems::First),
+        )
+        .add_systems(outer, ensure_root_motion_output)
+        .add_systems(
+            root_motion,
+            (
+                advance_rolls
+                    .after(ensure_roll_state)
+                    .after(crate::animation_visibility::AlsAnimationVisibilitySet),
                 prepare_roll_slot_samples,
-            ).chain().before(AnimationGraphSet::PrePhysics)
-                .before(crate::extensions::post_physics_animation::PhysicsAnimationSet))
-            .add_systems(PostUpdate, bridge_roll_slot_samples
+            )
+                .chain()
+                .before(AnimationGraphSet::PrePhysics)
+                .before(crate::extensions::post_physics_animation::PhysicsAnimationSet),
+        )
+        .add_systems(
+            PostUpdate,
+            bridge_roll_slot_samples
                 .after(AnimationGraphSet::PrePhysics)
                 .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
-            .add_systems(
-                root_motion,
-                roll_drive_system
-                    .after(ensure_roll_state)
-                    .after(bridge_roll_slot_samples)
-                    .after(AnimationGraphSet::PrePhysics)
-                    .in_set(AlsRollDriveSet),
-            );
+                .before(
+                    crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
+                ),
+        )
+        .add_systems(
+            root_motion,
+            roll_drive_system
+                .after(ensure_roll_state)
+                .after(bridge_roll_slot_samples)
+                .after(AnimationGraphSet::PrePhysics)
+                .in_set(AlsRollDriveSet),
+        );
         if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-            app.add_systems(root_motion, capture_roll_step_scale.after(prepare_roll_slot_samples)
-                .before(crate::extensions::post_physics_animation::PhysicsAnimationSet));
+            app.add_systems(
+                root_motion,
+                capture_roll_step_scale
+                    .after(prepare_roll_slot_samples)
+                    .before(crate::extensions::post_physics_animation::PhysicsAnimationSet),
+            );
         }
     }
 }
@@ -5264,15 +5289,22 @@ pub(crate) fn prepare_roll_slot_samples(
     use crate::extensions::post_physics_animation::AnimationPoseUpdateGate;
     for (entity, sampler, mut player, tail, gated) in &mut samplers {
         let roll = rolls.get(sampler.character).ok().filter(|roll| roll.active);
-        let clip_time = tail.map(|tail| tail.clip_time)
-            .or_else(|| roll.map(AlsRollState::clip_time)).unwrap_or(0.0);
+        let clip_time = tail
+            .map(|tail| tail.clip_time)
+            .or_else(|| roll.map(AlsRollState::clip_time))
+            .unwrap_or(0.0);
         player.set_global_input_data(ROLL_SLOT_TIME_KEY, clip_time);
         // Reuse a hydrated neutral clip. Wake before the first active step, including a blend tail.
-        let idle = roll.is_none() && tail.is_none()
-            && player.get_default_output_pose().is_some_and(|pose| pose.timestamp == 0.0);
+        let idle = roll.is_none()
+            && tail.is_none()
+            && player
+                .get_default_output_pose()
+                .is_some_and(|pose| pose.timestamp == 0.0);
         if idle && !gated {
             commands.entity(entity).insert(AnimationPoseUpdateGate {
-                update_graph: false, refresh_bones: false, pending_update: false,
+                update_graph: false,
+                refresh_bones: false,
+                pending_update: false,
             });
         } else if !idle && gated {
             commands.entity(entity).remove::<AnimationPoseUpdateGate>();
@@ -5283,15 +5315,25 @@ pub(crate) fn prepare_roll_slot_samples(
 // A branching notify can change this scale during the step. Apply the value at the start of the interval.
 fn capture_roll_step_scale(
     mut commands: Commands,
-    mut characters: Query<(Entity, &AlsRollState, Option<&AlsNotifyRootMotionScale>, Option<&mut AlsRollSlotRuntime>)>,
+    mut characters: Query<(
+        Entity,
+        &AlsRollState,
+        Option<&AlsNotifyRootMotionScale>,
+        Option<&mut AlsRollSlotRuntime>,
+    )>,
 ) {
     for (entity, roll, scale, runtime) in &mut characters {
-        if !roll.active { continue; }
+        if !roll.active {
+            continue;
+        }
         let root_motion_scale = scale.map_or(1.0, |scale| scale.0);
         if let Some(mut runtime) = runtime {
             runtime.root_motion_scale = root_motion_scale;
         } else {
-            commands.entity(entity).insert(AlsRollSlotRuntime { root_motion_scale, ..default() });
+            commands.entity(entity).insert(AlsRollSlotRuntime {
+                root_motion_scale,
+                ..default()
+            });
         }
     }
 }

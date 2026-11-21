@@ -277,7 +277,10 @@ impl Plugin for AlsMantleDrivePlugin {
         crate::builtin_assets::install(app);
         app.add_message::<StateTransitionEvent>()
             .add_systems(Startup, load_mantle_assets)
-            .add_systems(prepare, ensure_mantle_state.in_set(crate::playable_character::AlsPhysicsPrepareSet));
+            .add_systems(
+                prepare,
+                ensure_mantle_state.in_set(crate::playable_character::AlsPhysicsPrepareSet),
+            );
         app.configure_sets(
             root_motion,
             AlsMantleDriveSet
