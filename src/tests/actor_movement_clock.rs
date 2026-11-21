@@ -345,6 +345,14 @@ fn playable_character_consumes_a_buffered_press_once_across_fixed_steps() {
     app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = true;
     update_for(&mut app, 32);
     assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Running);
+    app.world_mut().resource_mut::<Time<Physics>>().set_relative_speed(0.0);
+    app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = true;
+    update_for(&mut app, 16);
+    assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Running);
+    app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().walk_pressed = false;
+    app.world_mut().resource_mut::<Time<Physics>>().set_relative_speed(1.0);
+    update_for(&mut app, 16);
+    assert_eq!(app.world().get::<AlsDesiredGait>(actor).unwrap().0, Gait::Walking);
 }
 
 #[test]

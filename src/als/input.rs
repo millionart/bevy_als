@@ -100,11 +100,21 @@ pub(crate) fn begin_input_step(
     physics: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<&mut AlsStepInput, With<AlsCharacter>>,
 ) {
+    let step_due = physics_step_due(&time, &physics);
     for mut step in &mut characters {
-        step.pressed = if time.delta().is_zero() || physics.is_paused() {
-            AlsInputCommand::default()
-        } else {
+        step.pressed = if step_due {
             step.pending.pop_front().unwrap_or_default()
+        } else {
+            AlsInputCommand::default()
         };
+    }
+}
+
+pub(crate) fn physics_step_due(time: &Time, physics: &Time<avian3d::prelude::Physics>) -> bool {
+    if physics.is_paused() {
+        // Avian allows an explicitly advanced step on a paused clock.
+        !physics.delta().is_zero()
+    } else {
+        !time.delta().mul_f64(physics.relative_speed_f64()).is_zero()
     }
 }

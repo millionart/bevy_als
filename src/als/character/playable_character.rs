@@ -180,6 +180,9 @@ impl AlsPlayableCharacterPlugin {
             app.configure_sets(
                 schedule,
                 AlsPhysicsPrepareSet
+                    .run_if(|time: Res<Time>, clock: Res<Time<avian3d::prelude::Physics>>| {
+                        crate::als::input::physics_step_due(&time, &clock)
+                    })
                     .before(AnimationGraphSet::PrePhysics)
                     .before(PhysicsSystems::First),
             )
