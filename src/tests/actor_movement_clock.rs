@@ -83,7 +83,8 @@ fn playable_character_uses_zero_or_multiple_fixed_physics_steps_per_frame() {
 #[test]
 fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once_per_frame() {
     use bevy_als::extensions::{
-        GlobalPoseInputNode, post_physics_animation::PhysicsAnimationPlayer,
+        GlobalPoseInputNode,
+        post_physics_animation::{AnimationPoseUpdateGate, PhysicsAnimationPlayer},
     };
     use bevy_animation_graph::core::{
         animation_graph::AnimationGraph,
@@ -210,6 +211,20 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
     assert_eq!(
         (frame(&app, physics), frame(&app, visual)),
         (initial.0 + 4, initial.1 + 4)
+    );
+    app.world_mut().entity_mut(physics).insert(AnimationPoseUpdateGate {
+        update_graph: false,
+        refresh_bones: false,
+        pending_update: false,
+    });
+    update_for(&mut app, 16);
+    assert_eq!(
+        app.world().resource::<Displacements>().0.last(),
+        Some(&(Duration::from_millis(8), Vec3::ZERO))
+    );
+    assert_eq!(
+        (frame(&app, physics), frame(&app, visual)),
+        (initial.0 + 4, initial.1 + 5)
     );
 }
 

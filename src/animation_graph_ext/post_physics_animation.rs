@@ -866,25 +866,26 @@ fn publish_sampled_motion<F: QueryFilter>(
             &AnimationGraphPlayer,
             Option<&Transform>,
             Has<RootMotionOutput>,
+            Option<&AnimationPoseUpdateGate>,
         ),
         F,
     >,
 ) {
     for (entity, mut output, scene, direct) in &mut outputs {
-        let (source, local) = if direct {
-            let Ok((player, _, _)) = players.get(entity) else {
+        let (source, local, gate) = if direct {
+            let Ok((player, _, _, gate)) = players.get(entity) else {
                 continue;
             };
-            (player, Transform::IDENTITY)
+            (player, Transform::IDENTITY, gate)
         } else {
-            let Some((player, Some(transform), false)) =
+            let Some((player, Some(transform), false, gate)) =
                 scene.and_then(|s| players.get(s.player_entity()).ok())
             else {
                 continue;
             };
-            (player, *transform)
+            (player, *transform, gate)
         };
-        if let Some(delta) = source.get_root_motion() {
+        if gate.is_none_or(|gate| gate.update_graph) && let Some(delta) = source.get_root_motion() {
             output.translation_delta = local.rotation * (delta.translation * local.scale);
             output.rotation_delta = delta.rotation;
         } else {
