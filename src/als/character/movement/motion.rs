@@ -4771,6 +4771,7 @@ impl Plugin for AlsMotionPlugin {
                     (|| MovementBaseFollowPhase::BeforeSensors)
                         .pipe(follow_movement_base_system)
                         .after(capsule_reshape_system)
+                        .before(crate::roll_drive::advance_rolls)
                         .before(tnua_config_sync_system)
                         .before(crate::als::character::character_sensor_shape_sync_system)
                         .before(TnuaPipelineSystems::Sensors),

@@ -5565,7 +5565,7 @@ pub(crate) fn bridge_roll_slot_samples(
 }
 
 #[allow(clippy::type_complexity)]
-fn advance_rolls(
+pub(crate) fn advance_rolls(
     time: Res<Time>,
     mut commands: Commands,
     transform_helper: bevy::transform::helper::TransformHelper,
