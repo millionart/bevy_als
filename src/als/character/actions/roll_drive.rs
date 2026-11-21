@@ -4905,7 +4905,7 @@ pub(crate) struct RollAnimationLocomotion {
 }
 
 #[derive(Resource)]
-struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<GraphClip>);
+pub(crate) struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<GraphClip>);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollBlendOut {

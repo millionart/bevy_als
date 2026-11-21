@@ -119,20 +119,6 @@ impl AlsStepTime<'_> {
         self.virtual_time.is_paused()
     }
 
-    pub(crate) fn unscaled_delta_secs(&self, real_time: &Time<Real>) -> f32 {
-        if self.is_paused() {
-            0.0
-        } else if matches!(self.schedule.as_deref(), Some(AlsPhysicsSchedule::Avian(_))) {
-            let speed = self.virtual_time.relative_speed();
-            if speed > 0.0 {
-                self.delta_secs() / speed
-            } else {
-                0.0
-            }
-        } else {
-            real_time.delta_secs()
-        }
-    }
 }
 
 impl AlsPlayableCharacterPlugin {
