@@ -4946,7 +4946,7 @@ impl AlsRollBlendOut {
 pub struct AlsRollDrivePlugin;
 
 #[derive(Component)]
-struct AlsRollInputHandled;
+pub(crate) struct AlsRollInputHandled;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRollDriveSet;
