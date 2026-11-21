@@ -4974,15 +4974,12 @@ impl Plugin for AlsRollDrivePlugin {
                     .after(AnimationGraphSet::PrePhysics)
                     .before(avian3d::prelude::PhysicsSystems::First),
             )
-            .add_systems(
-                outer,
-                (
-                    advance_rolls.after(ensure_roll_state).after(crate::animation_visibility::AlsAnimationVisibilitySet)
-                        .before(prepare_roll_slot_samples),
-                    prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
-                    ensure_root_motion_output,
-                ),
-            )
+            .add_systems(outer, ensure_root_motion_output)
+            .add_systems(root_motion, (
+                advance_rolls.after(ensure_roll_state).after(crate::animation_visibility::AlsAnimationVisibilitySet),
+                prepare_roll_slot_samples,
+            ).chain().before(AnimationGraphSet::PrePhysics)
+                .before(crate::extensions::post_physics_animation::PhysicsAnimationSet))
             .add_systems(PostUpdate, bridge_roll_slot_samples
                 .after(AnimationGraphSet::PrePhysics)
                 .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
@@ -4996,8 +4993,8 @@ impl Plugin for AlsRollDrivePlugin {
                     .in_set(AlsRollDriveSet),
             );
         if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-            app.add_systems(outer, capture_roll_step_scale
-                .after(prepare_roll_slot_samples).before(avian3d::prelude::PhysicsSystems::First));
+            app.add_systems(root_motion, capture_roll_step_scale.after(prepare_roll_slot_samples)
+                .before(crate::extensions::post_physics_animation::PhysicsAnimationSet));
         }
     }
 }

@@ -755,19 +755,19 @@ impl Plugin for AlsAnimationEventPlugin {
                 dispatch_animation_events::<false>.in_set(AlsAnimationEventSet::Dispatch),
             )
             .configure_sets(
-                outer,
+                root_motion,
                 AlsAnimationEventSet::SlotDispatch
-                    .after(avian3d::prelude::PhysicsSystems::Last)
+                    .after(avian3d::prelude::PhysicsStepSystems::Last)
                     .after(AnimationGraphSet::PostPhysics)
                     .after(AnimationGraphSet::Final)
                     .before(AlsAnimationEventSet::GraphFootsteps),
             )
             .add_systems(
-                outer,
+                root_motion,
                 dispatch_animation_events::<true>.in_set(AlsAnimationEventSet::SlotDispatch),
             )
             .add_systems(
-                outer,
+                root_motion,
                 apply_grounded_entry_point_notifications.after(AlsAnimationEventSet::SlotDispatch),
             )
             .configure_sets(

@@ -2,11 +2,11 @@ use std::collections::HashSet;
 
 use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
 use crate::source_physics_timing::source_physics_delta;
-use avian3d::prelude::{PhysicsSystems, Position, Rotation};
+use avian3d::prelude::{PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Position, Rotation};
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    ecs::{query::QueryFilter, schedule::{ScheduleCleanupPolicy, ScheduleLabel}},
+    ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy},
     math::{Affine3A, Isometry3d},
     prelude::*,
     transform::TransformSystems,
@@ -45,6 +45,10 @@ pub struct PostPhysicsAnimation;
 /// output is consumed by the simulation, such as the root displacement of a roll.
 #[derive(Component, Default)]
 pub struct PhysicsAnimationPlayer;
+
+/// Dedicated simulation graphs publish root motion here, once per actual Avian step.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PhysicsAnimationSet;
 
 #[derive(Component)]
 pub struct ManualAnimationPlayer;
@@ -97,7 +101,6 @@ pub struct PostPhysicsAnimationPlugin;
 
 impl Plugin for PostPhysicsAnimationPlugin {
     fn build(&self, app: &mut App) {
-        let outer = crate::AlsPhysicsSchedule::outer(app);
         if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() {
             app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
         }
@@ -119,7 +122,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
                     .after(TransformSystems::Propagate),
             ),
         );
-        if outer == PostUpdate.intern() {
+        if !crate::AlsPhysicsSchedule::uses_physics_steps(app) {
             app.add_systems(PostUpdate, evaluate_players::<Without<PostPhysicsAnimation>>
                 .after(spawn_missing_ragdolls_avian).before(extract_root_motion)
                 .in_set(AnimationGraphSet::PrePhysics))
@@ -132,11 +135,12 @@ impl Plugin for PostPhysicsAnimationPlugin {
                 AnimationGraphSet::PrePhysics, PostPhysicsAnimationSet::Inputs,
                 PostPhysicsAnimationSet::Evaluate, AnimationGraphSet::PostPhysics, AnimationGraphSet::Final,
             ).chain())
-                .add_systems(outer, (
+                .configure_sets(PhysicsSchedule, PhysicsAnimationSet
+                    .before(bevy_tnua::TnuaPipelineSystems::Sensors)
+                    .before(PhysicsStepSystems::First))
+                .add_systems(PhysicsSchedule, (
                     evaluate_players::<With<PhysicsAnimationPlayer>>, publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
-                ).chain().after(spawn_missing_ragdolls_avian)
-                    .before(bevy_animation_graph::core::physics_systems_avian::update_ragdoll_rigidbodies)
-                    .in_set(AnimationGraphSet::PrePhysics))
+                ).chain().in_set(PhysicsAnimationSet))
                 .add_systems(PostUpdate, (evaluate_players::<EarlyFrame>, publish_sampled_motion::<EarlyFrame>)
                     .chain().in_set(AnimationGraphSet::PrePhysics))
                 .add_systems(PostUpdate, (evaluate_players::<LateFrame>, publish_sampled_motion::<LateFrame>)
@@ -146,6 +150,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
 
     fn finish(&self, app: &mut App) {
         let outer = crate::AlsPhysicsSchedule::outer(app);
+        let split = crate::AlsPhysicsSchedule::uses_physics_steps(app);
         app.world_mut()
             .schedule_scope(outer, |world, schedule| {
                 let count = schedule
@@ -170,7 +175,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
                     count, 1,
                     "physics readback must replace exactly one default readback system"
                 );
-                if outer != PostUpdate.intern() {
+                if split {
                     let removed = schedule.remove_systems_in_set(
                         extract_root_motion, world, ScheduleCleanupPolicy::RemoveSystemsOnly,
                     ).expect("root motion extraction schedule must initialize");

@@ -89,13 +89,14 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
         systems::RootMotionOutput,
     };
     #[derive(Resource, Default)]
-    struct Displacements(Vec<Vec3>);
+    struct Displacements(Vec<(Duration, Vec3)>);
     let mut app = headless_app();
     app.add_plugins(bevy_als::AlsPlugin)
         .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)))
         .init_resource::<Displacements>()
-        .add_systems(PhysicsSchedule, (|mut samples: ResMut<Displacements>, physical: Single<&RootMotionOutput, With<PhysicsAnimationPlayer>>| {
-            samples.0.push(physical.translation_delta);
+        .add_systems(PhysicsSchedule, (|mut samples: ResMut<Displacements>, time: Res<Time>,
+            physical: Single<&RootMotionOutput, With<PhysicsAnimationPlayer>>| {
+            samples.0.push((time.delta(), physical.translation_delta));
         }).in_set(PhysicsStepSystems::First));
     let mut graph = AnimationGraph::new();
     let node = AnimationNode::new("input", GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
@@ -121,8 +122,19 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
     assert_eq!(app.world().get::<RootMotionOutput>(physics).unwrap().translation_delta, Vec3::Z);
     assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0, initial.1 + 1));
     update_for(&mut app, 44);
-    assert_eq!(app.world().resource::<Displacements>().0, [Vec3::X; 3]);
+    assert_eq!(app.world().resource::<Displacements>().0, [(Duration::from_millis(16), Vec3::X); 3]);
     assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0 + 3, initial.1 + 2));
+    let mut clock = app.world_mut().resource_mut::<Time<Physics>>();
+    clock.pause();
+    clock.advance_by(Duration::ZERO);
+    update_for(&mut app, 16);
+    assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0 + 3, initial.1 + 3));
+    let mut clock = app.world_mut().resource_mut::<Time<Physics>>();
+    clock.set_relative_speed(0.5);
+    clock.unpause();
+    update_for(&mut app, 16);
+    assert_eq!(app.world().resource::<Displacements>().0.last(), Some(&(Duration::from_millis(8), Vec3::X)));
+    assert_eq!((frame(&app, physics), frame(&app, visual)), (initial.0 + 4, initial.1 + 4));
 }
 
 #[test]
