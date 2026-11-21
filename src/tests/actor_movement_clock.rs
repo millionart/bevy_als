@@ -163,6 +163,44 @@ fn playable_character_reuses_a_host_physics_schedule_and_clock() {
 }
 
 #[test]
+fn composed_host_hooks_filter_contacts_in_the_same_avian_world() {
+    use bevy::ecs::system::SystemParam;
+    use bevy_als::extensions::RagdollCollisionHooks;
+
+    #[derive(Component)]
+    struct Filtered;
+    #[derive(SystemParam)]
+    struct HostHooks<'w, 's> {
+        filtered: Query<'w, 's, (), With<Filtered>>,
+        als: RagdollCollisionHooks<'w, 's>,
+    }
+    impl CollisionHooks for HostHooks<'_, '_> {
+        fn filter_pairs(&self, a: Entity, b: Entity, commands: &mut Commands) -> bool {
+            !self.filtered.contains(a) && !self.filtered.contains(b)
+                && self.als.filter_pairs(a, b, commands)
+        }
+    }
+
+    let mut app = headless_app();
+    app.add_plugins(PhysicsPlugins::new(FixedPostUpdate).with_collision_hooks::<HostHooks>())
+        .add_plugins(bevy_als::AlsPlugin::with_collision_hooks::<HostHooks>())
+        .insert_resource(Gravity(Vec3::ZERO))
+        .insert_resource(Time::<Fixed>::from_duration(Duration::from_millis(16)));
+    let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 1.0, 4.0),
+        Transform::from_xyz(0.0, -0.5, 0.0), ActiveCollisionHooks::FILTER_PAIRS)).id();
+    let ball = |x| (RigidBody::Dynamic, Collider::sphere(0.5), Transform::from_xyz(x, 0.4, 0.0));
+    let allowed = app.world_mut().spawn(ball(2.0)).id();
+    let rejected = app.world_mut().spawn((ball(-2.0), Filtered)).id();
+    app.finish();
+    app.cleanup();
+    update_for(&mut app, 0);
+    update_for(&mut app, 16);
+    let contacts = app.world().resource::<ContactGraph>();
+    assert!(contacts.contains(floor, allowed));
+    assert!(!contacts.contains(floor, rejected));
+}
+
+#[test]
 fn playable_character_consumes_a_buffered_press_once_across_fixed_steps() {
     use bevy_als::als::{
         character::AlsCharacterBundle,
