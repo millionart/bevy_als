@@ -334,15 +334,10 @@ pub(crate) fn sampled_curve_context(
     }
 }
 
-fn update_get_up_pose(
+fn advance_get_up(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     mut commands: Commands,
     time: Res<Time>,
-    assets: Res<GetUpAssets>,
-    clips: Res<Assets<GraphClip>>,
-    skeletons: Res<Assets<Skeleton>>,
-    curves: Res<Assets<AlsAnimCurves>>,
-    clip_curves: Option<Res<ClipCurves>>,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut characters: Query<
         (
@@ -382,12 +377,26 @@ fn update_get_up_pose(
         let delta =
             time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         state.advance(delta, settings);
-        let mut player = players.get_mut(player_entity).unwrap();
         if state.weight <= 0.0 {
+            let mut player = players.get_mut(player_entity).unwrap();
             clear_get_up_slot(&mut player, source_inputs.get_mut(player_entity).ok());
             end_get_up_instance(&mut commands, character, action);
-            continue;
         }
+    }
+}
+
+fn update_get_up_pose(
+    mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
+    time: Res<Time>, assets: Res<GetUpAssets>, clips: Res<Assets<GraphClip>>,
+    skeletons: Res<Assets<Skeleton>>, curves: Res<Assets<AlsAnimCurves>>, clip_curves: Option<Res<ClipCurves>>,
+    mut characters: Query<(&mut AlsGetUpState, Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<AlsCharacter>>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+) {
+    for (mut state, dilation) in &mut characters {
+        let player_entity = state.target_player;
+        let Ok(mut player) = players.get_mut(player_entity) else { continue };
+        let settings = get_up_settings(state.facing_up);
+        let delta = time.delta_secs() * dilation.map_or(1.0, |scale| scale.0);
         let index = usize::from(state.facing_up);
         let Some(clip) = clips.get(&assets.clips[index]) else {
             state.pose_ready = false;
@@ -468,10 +477,12 @@ impl Plugin for AlsGetUpPlugin {
             )
             .add_systems(
                 outer,
-                update_get_up_pose
+                advance_get_up
                     .after(crate::roll_drive::prepare_roll_slot_samples)
                     .before(AnimationGraphSet::PrePhysics),
             )
+            .add_systems(PostUpdate, update_get_up_pose
+                .after(advance_get_up).before(AnimationGraphSet::PrePhysics))
             .add_systems(
                 root_motion,
                 release_get_up_input
@@ -530,6 +541,7 @@ mod tests {
             app.world_mut()
                 .resource_mut::<Time>()
                 .advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(advance_get_up).unwrap();
             app.world_mut().run_system_once(update_get_up_pose).unwrap();
             let state = app.world().get::<AlsGetUpState>(character).unwrap();
             let expected = before + 0.05 * scale;

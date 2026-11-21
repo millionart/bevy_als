@@ -307,13 +307,13 @@ impl Plugin for AlsMantleDrivePlugin {
                 handle_mantle_early_blend_out
                     .after(crate::animation_events::AlsAnimationEventSet::Dispatch)
                     .after(crate::als::aim::aim_rotation_mode_system),
-                publish_mantle_slot
-                    .after(handle_mantle_early_blend_out)
-                    .after(crate::roll_drive::AlsRollDriveSet)
-                    .after(crate::source_physics_timing::SourcePhysicsTimingSet::Restore)
-                    .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             ),
-        );
+        ).add_systems(PostUpdate, publish_mantle_slot
+            .after(handle_mantle_early_blend_out)
+            .after(crate::roll_drive::bridge_roll_slot_samples)
+            .after(crate::roll_drive::AlsRollDriveSet)
+            .after(crate::source_physics_timing::SourcePhysicsTimingSet::Restore)
+            .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
     }
 }
 

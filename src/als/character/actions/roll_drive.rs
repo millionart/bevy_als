@@ -4981,13 +4981,12 @@ impl Plugin for AlsRollDrivePlugin {
                         .before(prepare_roll_slot_samples),
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
-                    bridge_roll_slot_samples
-                        .after(AnimationGraphSet::PrePhysics)
-                        .before(avian3d::prelude::PhysicsSystems::First)
-                        .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
-                        .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 ),
             )
+            .add_systems(PostUpdate, bridge_roll_slot_samples
+                .after(AnimationGraphSet::PrePhysics)
+                .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
+                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
             .add_systems(
                 root_motion,
                 roll_drive_system
@@ -4996,6 +4995,10 @@ impl Plugin for AlsRollDrivePlugin {
                     .after(AnimationGraphSet::PrePhysics)
                     .in_set(AlsRollDriveSet),
             );
+        if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+            app.add_systems(outer, capture_roll_step_scale
+                .after(prepare_roll_slot_samples).before(avian3d::prelude::PhysicsSystems::First));
+        }
     }
 }
 
@@ -5251,27 +5254,52 @@ fn discard_roll_target(
 }
 
 pub(crate) fn prepare_roll_slot_samples(
+    mut commands: Commands,
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
     mut samplers: Query<(
+        Entity,
         &AlsRollSlotSampler,
         &mut AnimationGraphPlayer,
         Option<&AlsRollTail>,
+        Has<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
     )>,
 ) {
-    for (sampler, mut player, tail) in &mut samplers {
-        let clip_time = tail.map(|tail| tail.clip_time).unwrap_or_else(|| {
-            rolls
-                .get(sampler.character)
-                .ok()
-                .filter(|roll| roll.active)
-                .map(AlsRollState::clip_time)
-                .unwrap_or(0.0)
-        });
+    use crate::extensions::post_physics_animation::AnimationPoseUpdateGate;
+    for (entity, sampler, mut player, tail, gated) in &mut samplers {
+        let roll = rolls.get(sampler.character).ok().filter(|roll| roll.active);
+        let clip_time = tail.map(|tail| tail.clip_time)
+            .or_else(|| roll.map(AlsRollState::clip_time)).unwrap_or(0.0);
         player.set_global_input_data(ROLL_SLOT_TIME_KEY, clip_time);
+        // Reuse a hydrated neutral clip. Wake before the first active step, including a blend tail.
+        let idle = roll.is_none() && tail.is_none()
+            && player.get_default_output_pose().is_some_and(|pose| pose.timestamp == 0.0);
+        if idle && !gated {
+            commands.entity(entity).insert(AnimationPoseUpdateGate {
+                update_graph: false, refresh_bones: false, pending_update: false,
+            });
+        } else if !idle && gated {
+            commands.entity(entity).remove::<AnimationPoseUpdateGate>();
+        }
     }
 }
 
-fn bridge_roll_slot_samples(
+// A branching notify can change this scale during the step. Apply the value at the start of the interval.
+fn capture_roll_step_scale(
+    mut commands: Commands,
+    mut characters: Query<(Entity, &AlsRollState, Option<&AlsNotifyRootMotionScale>, Option<&mut AlsRollSlotRuntime>)>,
+) {
+    for (entity, roll, scale, runtime) in &mut characters {
+        if !roll.active { continue; }
+        let root_motion_scale = scale.map_or(1.0, |scale| scale.0);
+        if let Some(mut runtime) = runtime {
+            runtime.root_motion_scale = root_motion_scale;
+        } else {
+            commands.entity(entity).insert(AlsRollSlotRuntime { root_motion_scale, ..default() });
+        }
+    }
+}
+
+pub(crate) fn bridge_roll_slot_samples(
     time: Res<Time>,
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
