@@ -208,12 +208,12 @@ impl AlsPlayableCharacterPlugin {
             AlsCharacterPlugin,
             AlsMotionPlugin,
             crate::als::air::AlsAirPlugin,
+            crate::extensions::post_physics_animation::PostPhysicsAnimationPlugin,
             AnimationGraphPlugin::from_physics_schedule(schedule),
             AlsExtPlugin,
             AlsCharacterRuntimePlugin,
             AlsCameraPlugin,
-        ))
-        .add_plugins(crate::extensions::post_physics_animation::PostPhysicsAnimationPlugin);
+        ));
     }
 }
 

@@ -6,22 +6,18 @@ use avian3d::prelude::{PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Posi
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy},
+    ecs::{query::QueryFilter, schedule::InternedScheduleLabel},
     math::{Affine3A, Isometry3d},
     prelude::*,
     transform::TransformSystems,
 };
+use bevy_animation_graph::{AnimationGraphPlayback, AnimationPlaybackSystems};
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
     animation_graph::{AnimationGraph, DEFAULT_OUTPUT_RAGDOLL_CONFIG},
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
     context::{pose_fallback::PoseFallbackContext, system_resources::SystemResources},
     id::BoneId,
-    physics_systems_avian::{
-        read_back_poses_avian, spawn_missing_ragdolls_avian, update_ragdolls_avian,
-        update_relative_kinematic_body_velocities,
-        update_relative_kinematic_position_based_body_velocities,
-    },
     plugin::AnimationGraphSet,
     pose::Pose,
     ragdoll::{
@@ -33,7 +29,7 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
     space_conversion::SpaceConversionContext,
     systems::{
-        RootMotionOutput, animation_player, debug_draw_animation_players, extract_root_motion,
+        RootMotionOutput, debug_draw_animation_players, extract_root_motion,
         run_animation_player,
     },
 };
@@ -104,180 +100,98 @@ impl Plugin for PostPhysicsAnimationPlugin {
         if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() {
             app.add_plugins(crate::extensions::SourceAnimationInputsPlugin);
         }
-        app.configure_sets(
-            PostUpdate,
-            (
-                PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),
-                PostPhysicsAnimationSet::Evaluate
-                    .after(PostPhysicsAnimationSet::Inputs)
-                    .before(AnimationGraphSet::PostPhysics),
-            ),
-        )
-        .configure_sets(
-            PostUpdate,
-            (
-                AnimationGraphSet::Final.before(TransformSystems::Propagate),
-                PostPhysicsAnimationSet::Readback
-                    .after(AnimationGraphSet::Final)
-                    .after(TransformSystems::Propagate),
-            ),
-        );
-        if !crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-            app.add_systems(
-                PostUpdate,
-                evaluate_players::<Without<PostPhysicsAnimation>>
-                    .after(spawn_missing_ragdolls_avian)
-                    .before(extract_root_motion)
-                    .in_set(AnimationGraphSet::PrePhysics),
-            )
-            .add_systems(
-                PostUpdate,
-                (
-                    evaluate_players::<With<PostPhysicsAnimation>>,
-                    extract_late_root_motion,
-                )
-                    .chain()
-                    .in_set(PostPhysicsAnimationSet::Evaluate),
-            );
-        } else {
-            type EarlyFrame = (
-                Without<PostPhysicsAnimation>,
-                Without<PhysicsAnimationPlayer>,
-            );
-            type LateFrame = (With<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
-            app.configure_sets(
-                PostUpdate,
-                (
-                    AnimationGraphSet::PrePhysics,
-                    PostPhysicsAnimationSet::Inputs,
-                    PostPhysicsAnimationSet::Evaluate,
-                    AnimationGraphSet::PostPhysics,
-                    AnimationGraphSet::Final,
-                )
-                    .chain(),
-            )
-            .configure_sets(
-                PhysicsSchedule,
-                PhysicsAnimationSet
-                    .before(bevy_tnua::TnuaPipelineSystems::Sensors)
-                    .before(PhysicsStepSystems::First),
-            )
-            .add_systems(
-                PhysicsSchedule,
-                (
-                    evaluate_players::<With<PhysicsAnimationPlayer>>,
-                    publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
-                )
-                    .chain()
-                    .in_set(PhysicsAnimationSet),
-            )
-            .add_systems(
-                PostUpdate,
-                (
-                    evaluate_players::<EarlyFrame>,
-                    publish_sampled_motion::<EarlyFrame>,
-                )
-                    .chain()
-                    .in_set(AnimationGraphSet::PrePhysics),
-            )
-            .add_systems(
-                PostUpdate,
-                (
-                    evaluate_players::<LateFrame>,
-                    publish_sampled_motion::<LateFrame>,
-                )
-                    .chain()
-                    .in_set(PostPhysicsAnimationSet::Evaluate),
-            );
-        }
-    }
-
-    fn finish(&self, app: &mut App) {
-        let outer = crate::AlsPhysicsSchedule::outer(app);
-        let split = crate::AlsPhysicsSchedule::uses_physics_steps(app);
-        app.world_mut().schedule_scope(outer, |world, schedule| {
-            let count = schedule
-                .remove_systems_in_set(
-                    animation_player,
-                    world,
-                    ScheduleCleanupPolicy::RemoveSystemsOnly,
-                )
-                .expect("animation evaluation schedule must initialize");
-            assert_eq!(
-                count, 1,
-                "animation evaluation must replace exactly one default player system"
-            );
-            let count = schedule
-                .remove_systems_in_set(
-                    read_back_poses_avian,
-                    world,
-                    ScheduleCleanupPolicy::RemoveSystemsOnly,
-                )
-                .expect("physics readback schedule must initialize");
-            assert_eq!(
-                count, 1,
-                "physics readback must replace exactly one default readback system"
-            );
-            if split {
-                let removed = schedule
-                    .remove_systems_in_set(
-                        extract_root_motion,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("root motion extraction schedule must initialize");
-                assert_eq!(
-                    removed, 1,
-                    "publish each player's root motion on its own clock"
-                );
-            }
-            let count = schedule
-                .remove_systems_in_set(
-                    update_relative_kinematic_position_based_body_velocities,
-                    world,
-                    ScheduleCleanupPolicy::RemoveSystemsOnly,
-                )
-                .expect("kinematic velocity schedule must initialize");
-            assert_eq!(
-                count, 1,
-                "kinematic velocity update must replace exactly one default system"
-            );
+        app.add_plugins(AnimationGraphPlayback {
+            physics: install_physics_playback,
+            pose: install_pose_playback,
         });
-        app.world_mut()
-            .schedule_scope(PostUpdate, |world, schedule| {
-                let count = schedule
-                    .remove_systems_in_set(
-                        bevy_animation_graph::core::systems::apply_animation_to_targets,
-                        world,
-                        ScheduleCleanupPolicy::RemoveSystemsOnly,
-                    )
-                    .expect("bone refresh schedule must initialize");
-                assert_eq!(
-                    count, 1,
-                    "bone refresh must replace exactly one default player system"
-                );
-            });
-        app.add_systems(
-            outer,
-            update_relative_kinematic_target_velocities
-                .after(update_ragdolls_avian)
-                .before(update_relative_kinematic_body_velocities)
-                .in_set(AnimationGraphSet::PrePhysics)
-                .run_if(|time: Res<Time>| !time.delta().is_zero()),
-        );
-        app.add_systems(
-            PostUpdate,
-            apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final),
-        );
-        app.add_systems(
-            PostUpdate,
+    }
+}
+
+fn install_physics_playback(app: &mut App, outer: InternedScheduleLabel) {
+    app.add_systems(
+        outer,
+        update_relative_kinematic_target_velocities
+            .in_set(AnimationPlaybackSystems::KinematicTargets)
+            .run_if(|time: Res<Time>| !time.delta().is_zero()),
+    );
+    if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+        app.configure_sets(
+            PhysicsSchedule,
+            PhysicsAnimationSet
+                .before(bevy_tnua::TnuaPipelineSystems::Sensors)
+                .before(PhysicsStepSystems::First),
+        )
+        .add_systems(
+            PhysicsSchedule,
             (
-                read_back_ragdoll_poses,
-                normalize_scaled_readback_pose,
-                apply_readback_pose,
+                evaluate_players::<With<PhysicsAnimationPlayer>>,
+                publish_sampled_motion::<With<PhysicsAnimationPlayer>>,
             )
                 .chain()
-                .in_set(PostPhysicsAnimationSet::Readback),
+                .in_set(PhysicsAnimationSet),
+        );
+    } else {
+        app.add_systems(
+            outer,
+            (evaluate_players::<Without<PostPhysicsAnimation>>, extract_root_motion)
+                .chain()
+                .in_set(AnimationPlaybackSystems::Sample),
+        );
+    }
+}
+
+fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
+    app.configure_sets(
+        pose,
+        (
+            PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),
+            PostPhysicsAnimationSet::Evaluate
+                .after(PostPhysicsAnimationSet::Inputs)
+                .before(AnimationGraphSet::PostPhysics),
+            AnimationGraphSet::Final.before(TransformSystems::Propagate),
+            PostPhysicsAnimationSet::Readback
+                .after(AnimationGraphSet::Final)
+                .after(TransformSystems::Propagate),
+        ),
+    )
+    .add_systems(pose, apply_animation_to_visible_targets.in_set(AnimationPlaybackSystems::WritePose))
+    .add_systems(
+        pose,
+        (read_back_ragdoll_poses, normalize_scaled_readback_pose, apply_readback_pose)
+            .chain()
+            .in_set(PostPhysicsAnimationSet::Readback),
+    );
+    if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+        type EarlyFrame = (Without<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
+        type LateFrame = (With<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
+        app.configure_sets(
+            pose,
+            (
+                AnimationGraphSet::PrePhysics,
+                PostPhysicsAnimationSet::Inputs,
+                PostPhysicsAnimationSet::Evaluate,
+                AnimationGraphSet::PostPhysics,
+                AnimationGraphSet::Final,
+            ).chain(),
+        )
+        .add_systems(
+            pose,
+            (evaluate_players::<EarlyFrame>, publish_sampled_motion::<EarlyFrame>)
+                .chain()
+                .in_set(AnimationGraphSet::PrePhysics),
+        )
+        .add_systems(
+            pose,
+            (evaluate_players::<LateFrame>, publish_sampled_motion::<LateFrame>)
+                .chain()
+                .in_set(PostPhysicsAnimationSet::Evaluate),
+        );
+    } else {
+        app.add_systems(
+            pose,
+            (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)
+                .chain()
+                .in_set(PostPhysicsAnimationSet::Evaluate),
         );
     }
 }
@@ -2165,20 +2079,22 @@ mod tests {
 
     #[test]
     fn marked_players_evaluate_once_after_physics_while_samplers_stay_before_it() {
+        use bevy::ecs::schedule::ScheduleLabel;
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .init_resource::<Assets<GraphClip>>().init_resource::<Assets<AnimationGraph>>()
             .init_resource::<Assets<Skeleton>>().init_resource::<Assets<StateMachine>>()
             .init_resource::<Assets<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>>()
-            .add_systems(PostUpdate, (animation_player, extract_root_motion,
-                update_relative_kinematic_position_based_body_velocities).chain().in_set(AnimationGraphSet::PrePhysics))
-            .add_systems(PostUpdate, read_back_poses_avian.in_set(AnimationGraphSet::PostPhysics))
-            .add_systems(PostUpdate, bevy_animation_graph::core::systems::apply_animation_to_targets.in_set(AnimationGraphSet::Final))
+            .add_plugins(crate::extensions::SourceAnimationInputsPlugin)
             .configure_sets(PostUpdate, (
+                AnimationPlaybackSystems::Sample.in_set(AnimationGraphSet::PrePhysics),
+                AnimationPlaybackSystems::WritePose.in_set(AnimationGraphSet::Final),
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
                 PhysicsSystems::Last.after(PhysicsSystems::First),
                 AnimationGraphSet::PostPhysics.after(PhysicsSystems::Last),
-            )).add_plugins(PostPhysicsAnimationPlugin);
+            ));
+        install_physics_playback(&mut app, PostUpdate.intern());
+        install_pose_playback(&mut app, PostUpdate.intern());
         let mut graph = AnimationGraph::new();
         let node = AnimationNode::new(
             "input",
