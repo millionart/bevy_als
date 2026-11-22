@@ -18,7 +18,7 @@ opt-level = 1
 
 [dependencies]
 bevy = { version = "0.20.1", features = ["tga"] }
-bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", rev = "ee8389b75069ccaea8f3d7f5a3db44c71413636b", features = ["physics_avian"] }
+bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", rev = "f891a83f37ad2c4452691e83eb0882b94d8643b0", features = ["physics_avian"] }
 bevy_control_rig = { git = "https://github.com/millionart/bevy_control_rig", rev = "ccca1b0dc7e855a63c6654430b41d3bedc214d3a" }
 bevy_gameplay_tag = { git = "https://github.com/millionart/bevy_gameplay_tag", rev = "30a41183ac0705e6b7b483d0a72f0ca70510327e" }
 avian3d = { version = "0.8", default-features = false, features = ["3d", "debug-plugin", "parallel"] }
