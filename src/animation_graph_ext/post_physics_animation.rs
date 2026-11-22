@@ -46,6 +46,17 @@ pub struct PhysicsAnimationPlayer;
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PhysicsAnimationSet;
 
+/// Optional cumulative wall time spent evaluating ALS graphs, including parallel workers.
+/// Read the difference across a physics or presentation phase to measure that phase.
+#[derive(Resource, Default)]
+pub struct GraphEvaluationTime(std::time::Duration);
+
+impl GraphEvaluationTime {
+    pub fn elapsed(&self) -> std::time::Duration {
+        self.0
+    }
+}
+
 #[derive(Component)]
 pub struct ManualAnimationPlayer;
 
@@ -564,7 +575,9 @@ pub fn evaluate_players<F: QueryFilter>(
         (F, Without<ManualAnimationPlayer>),
     >,
     resources: SystemResources,
+    timing: Option<ResMut<GraphEvaluationTime>>,
 ) {
+    let started = timing.as_ref().map(|_| bevy::platform::time::Instant::now());
     players
         .par_iter_mut()
         .for_each(|(entity, mut player, mut inputs, mut gate, initial)| {
@@ -639,6 +652,9 @@ pub fn evaluate_players<F: QueryFilter>(
             debug_draw_animation_players(player, &resources);
             inputs.set_rig_query_context(None);
         });
+    if let (Some(mut timing), Some(started)) = (timing, started) {
+        timing.0 += started.elapsed();
+    }
 }
 
 fn apply_animation_to_visible_targets(
