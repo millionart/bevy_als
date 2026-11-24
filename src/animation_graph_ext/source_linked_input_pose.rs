@@ -7,8 +7,6 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-use crate::extensions::animation_context::AnimationContextState;
-
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -79,6 +77,7 @@ impl NodeLike for SourceLinkedInputPoseNode {
 mod tests {
     use super::*;
     use crate::extensions::{
+        animation_context::AnimationContextState,
         SourceCachedPoseSaveNode, SourceScopedCachedPoseUseNode,
         control_rig_hierarchy::RigTransform, source_pose::SourcePose,
     };
