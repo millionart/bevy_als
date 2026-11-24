@@ -4,12 +4,14 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
+    pose::Pose,
 };
 
 use crate::extensions::mesh_space_difference::make_mesh_space_difference;
-use crate::extensions::source_sequence_player::rebuild_virtual_bones;
+use crate::extensions::source_sequence_player::rebuild_asset_virtual_bones;
 use crate::extensions::{
-    AnimationContextState, reference_local_difference::precise_reference_difference,
+    AnimationContextState,
+    reference_local_difference::{precise_reference_difference, reference_difference_metadata},
 };
 
 pub const REFERENCE_POSE: &str = "reference_pose";
@@ -54,13 +56,22 @@ impl NodeLike for ReferenceMeshDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        rebuild_virtual_bones(&mut reference, skeleton);
-        rebuild_virtual_bones(&mut target, skeleton);
-        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, true);
-        let mut difference = make_mesh_space_difference(&reference, &target, skeleton);
-        if let Some(source) = &source_pose {
-            source.project_into(&mut difference);
-        }
+        let (mut difference, source_pose) = if crate::extensions::sync_group_phase::source_sync_preview(&ctx) {
+            (Pose {
+                skeleton: reference.skeleton.clone(),
+                ..reference_difference_metadata(&reference, &target)
+            }, None)
+        } else {
+            let asset = reference.skeleton.id();
+            rebuild_asset_virtual_bones(&mut reference, skeleton, asset);
+            rebuild_asset_virtual_bones(&mut target, skeleton, asset);
+            let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, true);
+            let mut difference = make_mesh_space_difference(&reference, &target, skeleton);
+            if let Some(source) = &source_pose {
+                source.project_into(&mut difference);
+            }
+            (difference, source_pose)
+        };
         difference.timestamp = target.timestamp;
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd(OUT_POSE, difference);

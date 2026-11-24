@@ -16,11 +16,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::source_gameplay_tag_input::sample_graph_clip_curves;
-use crate::extensions::source_pose::{SourcePose, blend_source_poses};
+use crate::extensions::source_pose::blend_source_poses;
 use crate::extensions::source_pose_nodes::{
     accumulate_source_poses, normalize_source_pose_rotations,
 };
-use crate::extensions::source_sequence_player::sample_source_clip_pose;
+use crate::extensions::source_sequence_player::sample_clip_with_precision;
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick,
     blend_space_nearly_zero_delta, marker_phase_sample_time_continuous,
@@ -56,6 +56,9 @@ pub(super) fn pose_input_node(
 }
 
 pub(super) fn clip_binding(node: &AnimationNode) -> Option<(&Handle<GraphClip>, bool)> {
+    if let Some(clip_node) = node.try_inner_downcast_ref::<super::source_clip::SourceClipNode>() {
+        return Some((&clip_node.clip, clip_node.override_duration.is_none()));
+    }
     let clip_node = node.try_inner_downcast_ref::<ClipNode>()?;
     let fields = clip_node.reflect_ref().as_struct().ok()?;
     let handle = fields
@@ -1150,12 +1153,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 clip.filter(|_| direct_clips[index].is_some_and(|(_, eligible)| eligible))
             {
                 let skeletons = &ctx.graph_context.resources.skeleton_assets;
-                let pose = sample_source_clip_pose(clip, time, skeletons);
-                let source = skeletons
-                    .get(&pose.skeleton)
-                    .and_then(|skeleton| SourcePose::from_complete_pose(&pose, skeleton))
-                    .map(Arc::new);
-                (pose, source)
+                sample_clip_with_precision(clip, time, skeletons)
             } else {
                 let pin = Self::pose_pin(&point.id);
                 let pose = ctx.data_back(&pin)?.into_pose()?;
@@ -1198,7 +1196,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 });
         }
         let context = Arc::make_mut(&mut state.context);
-        context.curves = curves;
+        context.curves = curves.into();
         context.curves_are_authoritative = true;
         context.asset_samples.clear();
         if !self.teleport_to_normalized_time

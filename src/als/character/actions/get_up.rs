@@ -327,7 +327,8 @@ pub(crate) fn sampled_curve_context(
     AnimationContextState {
         curves: clip
             .and_then(|clip| clip_curves?.sample(clip, time))
-            .unwrap_or_else(|| curves.sample_all(time)),
+            .unwrap_or_else(|| curves.sample_all(time))
+            .into(),
         relevant_asset: None,
         curves_are_authoritative: true,
         ..default()

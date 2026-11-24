@@ -13,7 +13,7 @@ use bevy::{
 };
 use bevy_als::{
     animation_events::{ALS_NOTIFY_MANIFEST_PATH, AlsNotifyManifest, AlsNotifyManifestLoader},
-    extensions::RootMotionClipNode,
+    extensions::{RootMotionClipNode, source_clip::SourceClipNode},
 };
 use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
 use bevy_animation_graph::core::{
@@ -51,14 +51,25 @@ fn string_id(event: &AnimationEvent) -> Option<&str> {
 
 fn assert_clip_queue(track: EventTrack, update: TimeUpdate, expected: EventQueue) {
     let handle = Handle::<GraphClip>::default();
-    GraphTestHarness::new(ClipExtractor {
-        node: AnimationNode::new("clip", ClipNode::new(handle.clone(), None, None)),
-        handle,
-        track,
-    })
-    .with_time_fwd(Some(update))
-    .when_queried()
-    .then_output_is(ClipNode::OUT_EVENT_QUEUE, expected);
+    for node in [
+        AnimationNode::new("clip", ClipNode::new(handle.clone(), None, None)),
+        AnimationNode::new(
+            "clip",
+            SourceClipNode {
+                clip: handle.clone(),
+                override_duration: None,
+            },
+        ),
+    ] {
+        GraphTestHarness::new(ClipExtractor {
+            node,
+            handle: handle.clone(),
+            track: track.clone(),
+        })
+        .with_time_fwd(Some(update.clone()))
+        .when_queried()
+        .then_output_is(ClipNode::OUT_EVENT_QUEUE, expected.clone());
+    }
 }
 
 struct ClipExtractor {

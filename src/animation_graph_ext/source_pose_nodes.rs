@@ -667,6 +667,7 @@ pub struct SourceApplyAdditiveNode {
     pub expose_source_alpha_controls: bool,
     pub alpha_curve_name: String,
     pub alpha_bool_enabled: bool,
+    pub lod_threshold: Option<usize>,
 }
 
 impl Default for SourceApplyAdditiveNode {
@@ -687,6 +688,7 @@ impl Default for SourceApplyAdditiveNode {
             expose_source_alpha_controls: false,
             alpha_curve_name: "None".to_owned(),
             alpha_bool_enabled: true,
+            lod_threshold: None,
         }
     }
 }
@@ -708,6 +710,9 @@ impl SourceApplyAdditiveNode {
 impl NodeLike for SourceApplyAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let mut base = ctx.data_back("Base")?.into_pose()?;
+        if !super::source_gameplay_tag_input::active_lod_allows_node(self.lod_threshold) {
+            return publish_additive_base(ctx, base);
+        }
         let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
@@ -796,6 +801,7 @@ pub struct SourceMeshSpaceAdditiveNode {
     pub expose_source_alpha_controls: bool,
     pub alpha_curve_name: String,
     pub alpha_bool_enabled: bool,
+    pub lod_threshold: Option<usize>,
 }
 
 impl Default for SourceMeshSpaceAdditiveNode {
@@ -816,6 +822,7 @@ impl Default for SourceMeshSpaceAdditiveNode {
             expose_source_alpha_controls: false,
             alpha_curve_name: "None".to_owned(),
             alpha_bool_enabled: true,
+            lod_threshold: None,
         }
     }
 }
@@ -838,6 +845,9 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         let mut base = ctx.data_back("Base")?.into_pose()?;
+        if !super::source_gameplay_tag_input::active_lod_allows_node(self.lod_threshold) {
+            return publish_additive_base(ctx, base);
+        }
         let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
@@ -928,6 +938,14 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
     }
 }
 
+fn publish_additive_base(mut ctx: NodeContext, pose: Pose) -> Result<(), GraphError> {
+    let context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
+    ctx.set_time(pose.timestamp);
+    ctx.set_data_fwd("Pose", pose);
+    ctx.state_mut::<SourceBlendState>()?.context = context;
+    Ok(())
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -999,8 +1017,8 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
             (context.relevant_asset, 1.0),
         ]);
         context.curves_are_authoritative |= base_context.curves_are_authoritative;
-        for (key, value) in base_context.curves {
-            *context.curves.entry(key).or_default() -= value;
+        for (key, value) in base_context.curves.iter() {
+            *context.curves.entry(key.clone()).or_default() -= value;
         }
         *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
@@ -1050,7 +1068,7 @@ fn blend_source_curve_context(
     ]);
     match blend_mode {
         SourceCurvesBlendMode::Accumulate => {
-            for (name, value) in &curve.curves {
+            for (name, value) in curve.curves.iter() {
                 *base.curves.entry(name.clone()).or_default() += value * blend_amount;
             }
             base.curves_are_authoritative |= curve.curves_are_authoritative;
@@ -1316,7 +1334,7 @@ fn take_lerped_curves(
     a: &mut AnimationContextState,
     b: &mut AnimationContextState,
     alpha: f32,
-) -> (crate::extensions::SourceCurveValues, bool) {
+) -> (crate::extensions::als_curves::SharedSourceCurveValues, bool) {
     use crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD;
 
     let mut first = std::mem::take(&mut a.curves);
@@ -1327,13 +1345,13 @@ fn take_lerped_curves(
     if (alpha - 1.0).abs() <= WEIGHT_THRESHOLD {
         return (second, b.curves_are_authoritative);
     }
-    for (key, value) in &mut first {
+    for (key, value) in first.iter_mut() {
         *value = blend_curve_value(*value, second.get(key).copied().unwrap_or_default(), alpha);
     }
-    for (key, value) in second {
+    for (key, value) in second.iter() {
         first
-            .entry(key)
-            .or_insert_with(|| blend_curve_value(0.0, value, alpha));
+            .entry(key.clone())
+            .or_insert_with(|| blend_curve_value(0.0, *value, alpha));
     }
     (
         first,
@@ -1438,8 +1456,8 @@ pub fn blend_animation_contexts(
         merge_sync_players(&mut output.sync_players, &context.sync_players, weight);
         merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);
         output.curves_are_authoritative |= context.curves_are_authoritative;
-        for (name, value) in context.curves {
-            *output.curves.entry(name).or_default() += value * weight;
+        for (name, value) in context.curves.iter() {
+            *output.curves.entry(name.clone()).or_default() += value * weight;
         }
         relevant_assets.push((context.relevant_asset, weight));
     }
@@ -1821,6 +1839,7 @@ impl NodeLike for SourceCurveModifyNode {
         let pose = ctx.data_back(self.source_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.source_pose_pin).unwrap_or_default();
         let curve_names = self.curve_pin_names();
+        let filter = super::source_gameplay_tag_input::active_curve_filter();
         let alpha = self.alpha_value(&ctx)?;
         if self
             .apply_mode
@@ -1830,6 +1849,9 @@ impl NodeLike for SourceCurveModifyNode {
                 let alpha = alpha.clamp(0.0, 1.0);
                 for curve_name in &curve_names {
                     let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
+                    if filter.as_ref().is_some_and(|filter| !filter.allows(&curve_name)) {
+                        continue;
+                    }
                     if let Some(last) = previous.curves.get(&curve_name) {
                         let current = context.curves.get(&curve_name).copied().unwrap_or(0.0);
                         context
@@ -1842,6 +1864,10 @@ impl NodeLike for SourceCurveModifyNode {
             let value_keys = self.value_keys();
             let value_pin_names = self.value_pin_names();
             for (index, curve_name) in curve_names.iter().enumerate() {
+                let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
+                if filter.as_ref().is_some_and(|filter| !filter.allows(&curve_name)) {
+                    continue;
+                }
                 let default = self
                     .pin_defaults
                     .get(index)
@@ -1858,7 +1884,6 @@ impl NodeLike for SourceCurveModifyNode {
                 } else {
                     default
                 };
-                let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
                 let source = context.curves.get(&curve_name).copied().unwrap_or(0.0);
                 let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
                 context.curves.insert(curve_name, value);
@@ -2591,7 +2616,7 @@ mod tests {
                     .into_iter()
                     .map(|(key, value)| (SourceCurveName::from(key), value))
                     .collect();
-                assert_eq!(context.curves, curves, "{}", case.name);
+                assert_eq!(&*context.curves, &curves, "{}", case.name);
                 assert_eq!(
                     context
                         .sync_players
@@ -3400,6 +3425,7 @@ mod tests {
             expose_source_alpha_controls: false,
             alpha_curve_name: "None".to_owned(),
             alpha_bool_enabled: true,
+            lod_threshold: None,
         };
         assert!(!node.expose_alpha_pin);
         assert!(node.use_constant_alpha);

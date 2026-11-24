@@ -149,7 +149,8 @@ impl NodeLike for SourceSequenceEvaluatorNode {
                     Some(clip),
                     &self.curves,
                     time,
-                ),
+                )
+                .into(),
                 curves_are_authoritative: true,
                 source_pose,
                 ..default()

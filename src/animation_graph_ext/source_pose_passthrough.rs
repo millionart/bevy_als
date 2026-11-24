@@ -72,40 +72,44 @@ impl NodeLike for SourcePosePassthroughNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let mut global_inputs = std::borrow::Cow::Borrowed(ctx.graph_context.global_input_data);
         if self.synchronize_groups && !global_inputs.contains_key(SOURCE_SYNC_RESOLVED) {
-            let snapshot = ctx
-                .graph_context
-                .context_arena
-                .get_ref()
-                .reflect_clone()
-                .map_err(|error| GraphError::UnknownErrorNode {
-                    graph: ctx.graph_context.context_id,
-                    node: ctx.node_id,
-                    error: format!("source sync snapshot failed: {error}"),
-                })?;
-            let mut snapshot = snapshot
-                .take::<GraphContextArena>()
-                .map_err(|_| GraphError::MissingStateValue)?;
-            let mut gizmos = DeferredGizmos::default();
             global_inputs
                 .to_mut()
                 .insert(SOURCE_SYNC_RESOLVED.to_owned(), DataValue::Bool(false));
             let evaluate_pose = global_inputs
                 .to_mut()
                 .insert("animation.evaluate_pose".to_owned(), DataValue::Bool(false));
-            let mut preview_ctx = ctx.clone();
-            preview_ctx.graph_context.context_arena = (&mut snapshot).into();
-            preview_ctx.graph_context.deferred_gizmos = (&mut gizmos).into();
-            preview_ctx.graph_context.global_input_data = &global_inputs;
-            crate::extensions::source_cached_pose::prewarm_linked_pose_caches(
-                &preview_ctx,
-                &self.input,
-                &self.linked_pose_cache_order,
-            )?;
-            preview_ctx.data_back(self.input.clone())?;
-            let mut current = pose_input_context(&preview_ctx, &self.input)
-                .map(|context| context.sync_players.clone())
-                .unwrap_or_default();
-            order_source_sync_players(&preview_ctx, &mut current);
+            let current = super::pre_rig_sharing::sync_preview_ticks(&ctx, || {
+                let snapshot = ctx
+                    .graph_context
+                    .context_arena
+                    .get_ref()
+                    .reflect_clone()
+                    .map_err(|error| GraphError::UnknownErrorNode {
+                        graph: ctx.graph_context.context_id,
+                        node: ctx.node_id,
+                        error: format!("source sync snapshot failed: {error}"),
+                    })?;
+                let mut snapshot = snapshot
+                    .take::<GraphContextArena>()
+                    .map_err(|_| GraphError::MissingStateValue)?;
+                let mut gizmos = DeferredGizmos::default();
+                let mut preview_ctx = ctx.clone();
+                preview_ctx.graph_context.context_arena = (&mut snapshot).into();
+                preview_ctx.graph_context.deferred_gizmos = (&mut gizmos).into();
+                preview_ctx.graph_context.global_input_data = &global_inputs;
+                crate::extensions::source_cached_pose::prewarm_linked_pose_caches(
+                    &preview_ctx,
+                    &self.input,
+                    &self.linked_pose_cache_order,
+                )?;
+                preview_ctx.data_back(self.input.clone())?;
+                let mut current = pose_input_context(&preview_ctx, &self.input)
+                    .map(|context| context.sync_players.clone())
+                    .unwrap_or_default();
+                order_source_sync_players(&preview_ctx, &mut current);
+                let same_layout = super::pre_rig_sharing::same_preview_layout(&ctx, &snapshot);
+                Ok((current, same_layout))
+            })?;
             if let Some(evaluate_pose) = evaluate_pose {
                 global_inputs
                     .to_mut()

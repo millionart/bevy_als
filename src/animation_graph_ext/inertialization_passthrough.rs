@@ -112,8 +112,8 @@ pub(crate) struct SourceInertializationState {
     deficit: f32,
     active: bool,
     bones: Vec<SourceInertialBone>,
-    previous_curves: crate::extensions::SourceCurveValues,
-    evaluated_curves: crate::extensions::SourceCurveValues,
+    previous_curves: crate::extensions::als_curves::SharedSourceCurveValues,
+    evaluated_curves: crate::extensions::als_curves::SharedSourceCurveValues,
     curve_differences: HashMap<crate::extensions::SourceCurveName, (f32, f32)>,
     pub(crate) context: Arc<AnimationContextState>,
 }

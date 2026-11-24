@@ -1,17 +1,20 @@
 use std::{
     any::TypeId,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Mutex, OnceLock},
 };
 
 use bevy::{
     animation::animation_curves::WeightsCurveSample,
-    asset::{Assets, Handle},
-    platform::{collections::HashMap, hash::Hashed},
+    asset::{AssetId, Assets, Handle},
+    platform::{
+        collections::{HashMap, HashSet},
+        hash::Hashed,
+    },
     prelude::{EvaluatorId, Transform, VariableCurve},
     reflect::prelude::*,
 };
 use bevy_animation_graph::core::{
-    animation_clip::GraphClip,
+    animation_clip::{GraphClip, loader::GraphClipSource},
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
@@ -26,7 +29,10 @@ use serde::Deserialize;
 use crate::extensions::animation_context::optional_data_back;
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
-use crate::extensions::source_gameplay_tag_input::sample_graph_clip_curves;
+use crate::extensions::source_gameplay_tag_input::{
+    active_acl_animation, active_acl_identity, active_clip_samples, active_omitted_bones,
+    sample_graph_clip_curves,
+};
 use crate::extensions::source_pose::SourcePose;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
@@ -96,13 +102,17 @@ pub(crate) fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSamp
 }
 
 pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
+    let omitted = active_omitted_bones(clip.skeleton.id());
     let mut pose = Pose {
         timestamp: time,
         skeleton: clip.skeleton.clone(),
         ..Pose::default()
     };
     for (bone_id, curves) in &clip.curves {
-        pose.add_bone(sample_bone_pose(curves, time), BoneId::from(*bone_id));
+        let bone = BoneId::from(*bone_id);
+        if omitted.as_ref().is_none_or(|omitted| !omitted.contains(&bone)) {
+            pose.add_bone(sample_bone_pose(curves, time), bone);
+        }
     }
     pose
 }
@@ -140,6 +150,20 @@ static VIRTUAL_BONES: LazyLock<VirtualBones> = LazyLock::new(|| {
     .expect("generated raw virtual bone bindings")
 });
 
+static VIRTUAL_BONE_PATH_NAMES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    VIRTUAL_BONES
+        .virtual_bones
+        .iter()
+        .flat_map(|binding| {
+            [
+                binding.source_bone.as_str(),
+                binding.target_bone.as_str(),
+                binding.virtual_bone.as_str(),
+            ]
+        })
+        .collect()
+});
+
 fn source_component_transform(
     pose: &Pose,
     skeleton: &Skeleton,
@@ -168,22 +192,44 @@ fn source_component_transform(
     Some(component)
 }
 
-#[doc(hidden)]
-pub fn rebuild_virtual_bones(pose: &mut Pose, skeleton: &Skeleton) {
-    let bones: HashMap<_, _> = skeleton
-        .iter_paths()
-        .filter_map(|path| Some((path.parts.last()?.as_str(), path.id())))
-        .collect();
+#[derive(Clone, Copy)]
+pub(crate) struct ResolvedVirtualBone {
+    pub(crate) source: BoneId,
+    pub(crate) target: BoneId,
+    pub(crate) bone: BoneId,
+}
+
+pub(crate) fn resolve_virtual_bones(skeleton: &Skeleton) -> Vec<ResolvedVirtualBone> {
+    let mut bones = HashMap::with_capacity(VIRTUAL_BONE_PATH_NAMES.len());
+    for path in skeleton.iter_paths() {
+        if let Some(name) = path.parts.last().map(|name| name.as_str())
+            && VIRTUAL_BONE_PATH_NAMES.contains(name)
+        {
+            bones.insert(name, path.id());
+        }
+    }
+    VIRTUAL_BONES
+        .virtual_bones
+        .iter()
+        .filter_map(|binding| {
+            let source = *bones.get(binding.source_bone.as_str())?;
+            let target = *bones.get(binding.target_bone.as_str())?;
+            let bone = *bones.get(binding.virtual_bone.as_str())?;
+            (skeleton.parent(&bone) == Some(source))
+                .then_some(ResolvedVirtualBone { source, target, bone })
+        })
+        .collect()
+}
+
+fn rebuild_bound_virtual_bones(
+    pose: &mut Pose,
+    skeleton: &Skeleton,
+    virtual_bones: &[ResolvedVirtualBone],
+    omitted: Option<&HashSet<BoneId>>,
+) {
     let mut components = HashMap::new();
-    for binding in &VIRTUAL_BONES.virtual_bones {
-        let (Some(&source), Some(&target), Some(&virtual_bone)) = (
-            bones.get(binding.source_bone.as_str()),
-            bones.get(binding.target_bone.as_str()),
-            bones.get(binding.virtual_bone.as_str()),
-        ) else {
-            continue;
-        };
-        if skeleton.parent(&virtual_bone) != Some(source) {
+    for &ResolvedVirtualBone { source, target, bone: virtual_bone } in virtual_bones {
+        if omitted.is_some_and(|omitted| omitted.contains(&virtual_bone)) {
             continue;
         }
         let (Some(source), Some(target)) = (
@@ -208,16 +254,195 @@ pub fn rebuild_virtual_bones(pose: &mut Pose, skeleton: &Skeleton) {
 }
 
 #[doc(hidden)]
+pub fn rebuild_virtual_bones(pose: &mut Pose, skeleton: &Skeleton) {
+    rebuild_bound_virtual_bones(pose, skeleton, &resolve_virtual_bones(skeleton), None);
+}
+
+pub(crate) fn rebuild_asset_virtual_bones(
+    pose: &mut Pose,
+    skeleton: &Skeleton,
+    asset: AssetId<Skeleton>,
+) {
+    let omitted = active_omitted_bones(asset);
+    if crate::extensions::source_gameplay_tag_input::with_skeleton_layout(asset, |layout| {
+        rebuild_bound_virtual_bones(pose, skeleton, &layout.virtual_bones, omitted.as_deref());
+    })
+    .is_none()
+    {
+        rebuild_bound_virtual_bones(pose, skeleton, &resolve_virtual_bones(skeleton), omitted.as_deref());
+    }
+}
+
+fn compute_source_clip_pose(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+) -> Pose {
+    let Some(skeleton) = skeletons.get(&clip.skeleton) else {
+        return sample_pose(clip, time);
+    };
+    let mut pose = sample_acl_pose(clip, time, skeleton, ClipPoseKind::Absolute)
+        .unwrap_or_else(|| sample_pose(clip, time));
+    rebuild_asset_virtual_bones(&mut pose, skeleton, clip.skeleton.id());
+    pose
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum ClipPoseKind {
+    Absolute,
+    LocalAdditive,
+}
+
+fn sample_acl_pose(
+    clip: &GraphClip,
+    time: f32,
+    skeleton: &Skeleton,
+    kind: ClipPoseKind,
+) -> Option<Pose> {
+    let animation = active_acl_animation(clip)?;
+    if animation.is_local_additive() != (kind == ClipPoseKind::LocalAdditive) {
+        return None;
+    }
+    let omitted = active_omitted_bones(clip.skeleton.id());
+    animation.pose(skeleton, clip, time, omitted.as_deref()).ok()
+}
+
+fn compute_clip_pose(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+    kind: ClipPoseKind,
+) -> Option<Pose> {
+    match kind {
+        ClipPoseKind::Absolute => Some(compute_source_clip_pose(clip, time, skeletons)),
+        ClipPoseKind::LocalAdditive => {
+            sample_acl_pose(clip, time, skeletons.get(&clip.skeleton)?, kind)
+        }
+    }
+}
+
+/// Shares the evaluation of identical loaded clip samples between characters.
+#[derive(bevy::prelude::Resource, Clone, Copy, Debug)]
+pub struct AlsAnimationSharingSettings {
+    pub enabled: bool,
+}
+
+impl Default for AlsAnimationSharingSettings {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct ClipSampleKey {
+    clip: usize,
+    skeletons: usize,
+    time: u32,
+    omitted: usize,
+    acl: usize,
+    kind: ClipPoseKind,
+}
+
+#[derive(Default)]
+struct SharedClipPose {
+    pose: OnceLock<Option<Pose>>,
+    precision: OnceLock<Option<Arc<SourcePose>>>,
+}
+
+#[doc(hidden)]
+#[derive(Default)]
+pub struct SharedClipSamples {
+    clips: Mutex<HashMap<ClipSampleKey, Arc<SharedClipPose>>>,
+    pub(crate) pre_rig_sharing: super::pre_rig_sharing::PreRigSharing,
+}
+
+impl SharedClipSamples {
+    pub(crate) fn clear(&self) {
+        self.clips.lock().unwrap().clear();
+    }
+}
+
+fn shared_source_clip(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+    kind: ClipPoseKind,
+) -> Option<Arc<SharedClipPose>> {
+    if !matches!(clip.source.as_ref(), Some(GraphClipSource::GltfNamed { .. })) {
+        return None;
+    }
+    let samples = active_clip_samples()?;
+    // These identities are used only while the evaluation systems hold the same asset reads.
+    let key = ClipSampleKey {
+        clip: std::ptr::from_ref(clip) as usize,
+        skeletons: std::ptr::from_ref(skeletons) as usize,
+        time: time.to_bits(),
+        omitted: active_omitted_bones(clip.skeleton.id())
+            .map_or(0, |bones| Arc::as_ptr(&bones) as usize),
+        acl: active_acl_identity(),
+        kind,
+    };
+    let sample = {
+        let mut cache = samples.clips.lock().unwrap();
+        Arc::clone(cache.entry(key).or_default())
+    };
+    sample.pose.get_or_init(|| compute_clip_pose(clip, time, skeletons, kind));
+    Some(sample)
+}
+
+#[doc(hidden)]
 pub fn sample_source_clip_pose(
     clip: &GraphClip,
     time: f32,
     skeletons: &Assets<Skeleton>,
 ) -> Pose {
-    let mut pose = sample_pose(clip, time);
-    if let Some(skeleton) = skeletons.get(&clip.skeleton) {
-        rebuild_virtual_bones(&mut pose, skeleton);
+    shared_source_clip(clip, time, skeletons, ClipPoseKind::Absolute)
+        .and_then(|shared| shared.pose.get().and_then(Option::as_ref).cloned())
+        .unwrap_or_else(|| compute_source_clip_pose(clip, time, skeletons))
+}
+
+pub(crate) fn sample_clip_with_precision(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+) -> (Pose, Option<Arc<SourcePose>>) {
+    sample_clip_with_precision_kind(clip, time, skeletons, ClipPoseKind::Absolute)
+        .expect("absolute clip sampling always produces a pose")
+}
+
+fn sample_clip_with_precision_kind(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+    kind: ClipPoseKind,
+) -> Option<(Pose, Option<Arc<SourcePose>>)> {
+    let precision = |pose: &Pose| {
+        let skeleton = skeletons.get(&pose.skeleton)?;
+        SourcePose::from_asset_pose(pose, pose.skeleton.id(), skeleton).map(Arc::new)
+    };
+    if let Some(shared) = shared_source_clip(clip, time, skeletons, kind) {
+        let pose = shared.pose.get()?.as_ref()?;
+        let source = shared.precision.get_or_init(|| precision(pose));
+        Some((pose.clone(), source.clone()))
+    } else {
+        let pose = compute_clip_pose(clip, time, skeletons, kind)?;
+        let source = precision(&pose);
+        Some((pose, source))
     }
-    pose
+}
+
+pub(crate) fn sample_baked_additive_clip(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+    reference: &Handle<GraphClip>,
+    reference_position: f32,
+    mesh_space: bool,
+) -> Option<(Pose, Option<Arc<SourcePose>>)> {
+    if mesh_space || !active_acl_animation(clip)?.matches_additive_reference(reference, reference_position) {
+        return None;
+    }
+    sample_clip_with_precision_kind(clip, time, skeletons, ClipPoseKind::LocalAdditive)
 }
 
 pub(crate) fn sample_source_pose(
@@ -240,11 +465,12 @@ pub(crate) fn sample_source_pose(
         ));
     }
     let skeletons = &ctx.graph_context.resources.skeleton_assets;
-    let mut pose = sample_source_clip_pose(clip, time, skeletons);
-    let mut source = skeletons
-        .get(&pose.skeleton)
-        .and_then(|skeleton| SourcePose::from_complete_pose(&pose, skeleton));
-    if let Some(reference_handle) = additive_reference {
+    let baked = additive_reference.and_then(|reference| {
+        sample_baked_additive_clip(clip, time, skeletons, reference, reference_position, mesh_space)
+    });
+    let used_baked_additive = baked.is_some();
+    let (mut pose, mut source) = baked.unwrap_or_else(|| sample_clip_with_precision(clip, time, skeletons));
+    if !used_baked_additive && let Some(reference_handle) = additive_reference {
         let reference_clip = ctx
             .graph_context
             .resources
@@ -253,17 +479,19 @@ pub(crate) fn sample_source_pose(
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let reference =
             sample_source_clip_pose(reference_clip, reference_position.max(0.0), skeletons);
-        let skeleton = skeletons
+        let (skeleton, asset) = skeletons
             .get(&reference.skeleton)
-            .or_else(|| skeletons.get(&pose.skeleton))
+            .map(|skeleton| (skeleton, reference.skeleton.id()))
+            .or_else(|| skeletons.get(&pose.skeleton).map(|skeleton| (skeleton, pose.skeleton.id())))
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        source = SourcePose::from_complete_pose(&reference, skeleton)
+        source = SourcePose::from_asset_pose(&reference, asset, skeleton)
             .zip(source)
             .and_then(|(base, target)| {
                 crate::extensions::mesh_space_difference::source_pose_difference(
                     &base, &target, skeleton, mesh_space,
                 )
-            });
+            })
+            .map(Arc::new);
         pose = if mesh_space {
             make_mesh_space_difference(&reference, &pose, skeleton)
         } else {
@@ -288,7 +516,7 @@ pub(crate) fn sample_source_pose(
         .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         source = source.filter(|source| source.matches_projection(&pose));
     }
-    Ok((pose, source.map(Arc::new)))
+    Ok((pose, source))
 }
 
 pub(crate) fn bound_source_sample_time(position: f32, duration: f32, looped: bool) -> f32 {
@@ -749,7 +977,8 @@ impl NodeLike for SourceSequencePlayerNode {
                 Some(clip),
                 &self.curves,
                 position,
-            ),
+            )
+            .into(),
             relevant_asset: (!self.ignore_for_relevancy_test).then_some(clock.clone()),
             curves_are_authoritative: true,
             sync_players,
@@ -815,6 +1044,35 @@ impl NodeLike for SourceSequencePlayerNode {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn exact_clip_samples_are_reused_across_character_contexts() {
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+        use crate::extensions::{SourceAnimationInputs, source_pose::SourceSkeletonLayouts};
+
+        let (mut app, owner, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let other = app.world_mut().spawn_empty().id();
+        let world = app.world();
+        let player = world.get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let input = world.get::<SourceAnimationInputs>(player).unwrap();
+        let skeletons = world.resource::<Assets<Skeleton>>();
+        let graphs = world.resource::<Assets<GraphClip>>();
+        let clip = graphs.iter().find_map(|(_, clip)| {
+            matches!(clip.source.as_ref(), Some(GraphClipSource::GltfNamed { .. })).then_some(clip)
+        }).expect("installed source clips are loaded");
+        let layouts = Arc::new(SourceSkeletonLayouts::new(skeletons));
+        let cache = Arc::new(SharedClipSamples::default());
+        let sample = |entity, time| input.evaluate_with_skeleton_layouts(entity, &layouts, None, Some(&cache), None, || {
+            shared_source_clip(clip, time, skeletons, ClipPoseKind::Absolute).unwrap()
+        });
+        let first = sample(owner, 0.2);
+        let second = sample(other, 0.2);
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(first.pose.get().unwrap().as_ref().unwrap(), &compute_source_clip_pose(clip, 0.2, skeletons));
+        assert!(!Arc::ptr_eq(&first, &sample(other, 0.25)));
+        cache.clear();
+        assert!(!Arc::ptr_eq(&first, &sample(other, 0.2)));
+    }
+
     use super::*;
     use bevy::prelude::*;
     use bevy_animation_graph::core::animation_clip::loader::GraphClipSource;

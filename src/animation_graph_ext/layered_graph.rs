@@ -22,7 +22,7 @@ use crate::extensions::animation_context::{
 use crate::extensions::global_f32_input::{
     global_f32_or_root_default, global_f32_or_root_default_value,
 };
-use crate::extensions::source_cached_pose::resolve_cached_pose;
+use crate::extensions::source_cached_pose::{prewarm_cached_pose, resolve_cached_pose};
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
@@ -231,7 +231,7 @@ impl LayeredGraphNode {
     fn prewarm_cached_poses(&self, ctx: &NodeContext) -> Result<(), GraphError> {
         for cache_node in &self.prewarm_cached_pose_nodes {
             let mut parent_ctx = ctx.clone();
-            resolve_cached_pose(&mut parent_ctx, cache_node)?;
+            prewarm_cached_pose(&mut parent_ctx, cache_node)?;
         }
         Ok(())
     }

@@ -42,9 +42,14 @@ pub(crate) struct SourceCurveKey<'a>(pub &'a str);
 
 impl std::hash::Hash for SourceCurveKey<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_usize(self.0.len());
-        for byte in self.0.bytes() {
-            state.write_u8(byte.to_ascii_lowercase());
+        let bytes = self.0.as_bytes();
+        state.write_usize(bytes.len());
+        let mut lowercase = [0; 32];
+        for chunk in bytes.chunks(lowercase.len()) {
+            let lowercase = &mut lowercase[..chunk.len()];
+            lowercase.copy_from_slice(chunk);
+            lowercase.make_ascii_lowercase();
+            state.write(lowercase);
         }
     }
 }
@@ -98,6 +103,90 @@ impl From<SourceCurveName> for String {
 
 pub type SourceCurveValues = bevy::platform::collections::HashMap<SourceCurveName, f32>;
 
+#[doc(hidden)]
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(opaque, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SharedSourceCurveValues(Option<Arc<SourceCurveValues>>);
+
+impl SharedSourceCurveValues {
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl std::ops::Deref for SharedSourceCurveValues {
+    type Target = SourceCurveValues;
+
+    fn deref(&self) -> &Self::Target {
+        static EMPTY: std::sync::LazyLock<SourceCurveValues> =
+            std::sync::LazyLock::new(SourceCurveValues::default);
+        self.0.as_deref().unwrap_or(&EMPTY)
+    }
+}
+
+impl std::ops::DerefMut for SharedSourceCurveValues {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::make_mut(self.0.get_or_insert_with(Arc::default))
+    }
+}
+
+impl PartialEq for SharedSourceCurveValues {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl From<SourceCurveValues> for SharedSourceCurveValues {
+    fn from(values: SourceCurveValues) -> Self {
+        Self((!values.is_empty()).then(|| Arc::new(values)))
+    }
+}
+
+impl<const N: usize> From<[(SourceCurveName, f32); N]> for SharedSourceCurveValues {
+    fn from(values: [(SourceCurveName, f32); N]) -> Self {
+        values.into_iter().collect()
+    }
+}
+
+impl FromIterator<(SourceCurveName, f32)> for SharedSourceCurveValues {
+    fn from_iter<T: IntoIterator<Item = (SourceCurveName, f32)>>(iter: T) -> Self {
+        iter.into_iter().collect::<SourceCurveValues>().into()
+    }
+}
+
+impl IntoIterator for SharedSourceCurveValues {
+    type Item = (SourceCurveName, f32);
+    type IntoIter = <SourceCurveValues as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .map(Arc::unwrap_or_clone)
+            .unwrap_or_default()
+            .into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a SharedSourceCurveValues {
+    type Item = (&'a SourceCurveName, &'a f32);
+    type IntoIter = <&'a SourceCurveValues as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl Serialize for SharedSourceCurveValues {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        (**self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SharedSourceCurveValues {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        SourceCurveValues::deserialize(deserializer).map(Into::into)
+    }
+}
+
 #[derive(Asset, TypePath, Debug, Default, Clone)]
 pub struct AlsAnimCurves(pub HashMap<Box<str>, AlsPoseCurves>);
 
@@ -115,6 +204,10 @@ impl AlsAnimCurves {
 pub(crate) struct ClipCurves(Arc<RwLock<HashMap<AssetPath<'static>, AlsAnimCurves>>>);
 
 impl ClipCurves {
+    pub(crate) fn same_store(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
     pub(crate) fn insert(&self, path: AssetPath<'static>, curves: AlsAnimCurves) {
         self.0.write().unwrap().insert(path, curves);
     }
@@ -140,14 +233,18 @@ pub struct AlsPoseCurves(pub HashMap<SourceCurveName, AlsFloatCurve>);
 
 impl AlsPoseCurves {
     pub fn sample(&self, curve: &str, t: f32) -> Option<f32> {
-        self.0
-            .get(&SourceCurveName::from(curve))
-            .map(|c| c.sample(t))
+        let name = SourceCurveName::from(curve);
+        if super::source_gameplay_tag_input::active_curve_filter().is_some_and(|filter| !filter.allows(&name)) {
+            return None;
+        }
+        self.0.get(&name).map(|c| c.sample(t))
     }
 
     pub fn sample_all(&self, time: f32) -> SourceCurveValues {
+        let filter = super::source_gameplay_tag_input::active_curve_filter();
         self.0
             .iter()
+            .filter(|(name, _)| filter.as_ref().is_none_or(|filter| filter.allows(name)))
             .map(|(name, curve)| (name.clone(), curve.sample(time)))
             .collect()
     }
@@ -841,12 +938,35 @@ mod tests {
 
     #[test]
     fn source_curves_preserve_fname_case_identity() {
-        let curves = parse_curves(&serde_json::json!({"curves":[{
-            "name":"FixtureCurve", "times":[0.0,1.0], "values":[2.0,6.0], "interps":["LINEAR","LINEAR"]
-        }]})).unwrap();
-        for name in ["FixtureCurve", "fixturecurve", "FIXTURECURVE"] {
-            assert_eq!(curves.sample(name, 0.5), Some(4.0), "curve name: {name}");
+        for name in ["FixtureCurve", "FixtureCurve_AcrossMultipleHashChunks_É_0123456789"] {
+            let curves = parse_curves(&serde_json::json!({"curves":[{
+                "name":name, "times":[0.0,1.0], "values":[2.0,6.0], "interps":["LINEAR","LINEAR"]
+            }]})).unwrap();
+            assert_eq!(curves.sample(name, 0.5), Some(4.0));
+            assert_eq!(curves.sample(&name.to_ascii_lowercase(), 0.5), Some(4.0));
+            assert_eq!(curves.sample(&name.to_ascii_uppercase(), 0.5), Some(4.0));
+            let values = curves.sample_all(0.5);
+            assert_eq!(values.get(&SourceCurveKey(&name.to_ascii_lowercase())), Some(&4.0));
         }
+    }
+
+    #[test]
+    fn curve_snapshots_share_values_until_a_branch_writes() {
+        let original: SharedSourceCurveValues = [("FootPlanted".into(), 1.0)].into();
+        let mut branch = original.clone();
+        assert!(std::ptr::eq(&*original, &*branch));
+
+        branch.insert("footplanted".into(), 0.25);
+        assert_eq!(original.get(&SourceCurveKey("FootPlanted")), Some(&1.0));
+        assert_eq!(branch.get(&SourceCurveKey("FootPlanted")), Some(&0.25));
+        let serialized = ron::to_string(&branch).unwrap();
+        let restored: SourceCurveValues = ron::from_str(&serialized).unwrap();
+        assert_eq!(&*branch, &restored);
+
+        let mut preview = branch.clone();
+        preview.clear();
+        assert!(preview.is_empty());
+        assert_eq!(branch.get(&SourceCurveKey("FootPlanted")), Some(&0.25));
     }
 
     #[test]

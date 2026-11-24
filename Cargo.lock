@@ -583,6 +583,7 @@ dependencies = [
  "bevy_control_rig",
  "bevy_gameplay_tag",
  "bevy_gltf",
+ "cc",
  "parry3d-f64",
  "ron 0.10.1",
  "serde",

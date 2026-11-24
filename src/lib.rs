@@ -30,6 +30,20 @@ pub mod animation_context_projection;
 pub mod animation_events;
 #[path = "als/character/animation_instances/animation_visibility.rs"]
 pub mod animation_visibility;
+#[path = "als/character/animation_instances/animation_lod.rs"]
+pub mod animation_lod;
+#[path = "als/character/animation_instances/animation_rate.rs"]
+pub mod animation_rate;
+pub use animation_rate::{
+    AlsAnimationRate, AlsAnimationRateSettings, AlsAnimationRateTier, AlsAnimationSignificance,
+};
+pub use extensions::acl_animation::{
+    AlsAclAnimation, AlsAclAnimations, AlsAclBoneTrack, AlsAclError, AlsAclRetarget, AlsAclTransform,
+};
+pub use extensions::post_physics_animation::AlsAnimationPoseFollower;
+pub use extensions::pre_rig_sharing::AlsPreRigSharingSettings;
+pub use extensions::source_sequence_player::AlsAnimationSharingSettings;
+pub use animation_lod::{AlsAnimationCurveLod, AlsAnimationLod, AlsAnimationLodSettings, AlsAnimationLodTier};
 #[path = "als_camera/camera_component.rs"]
 pub mod camera_component;
 #[path = "als/character/character_assembly.rs"]

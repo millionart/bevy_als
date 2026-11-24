@@ -231,7 +231,8 @@ fn sample_mantle_pose(
     let mut context = crate::extensions::AnimationContextState {
         curves: clip_curves
             .and_then(|curves| curves.sample(clip, time))
-            .unwrap_or_default(),
+            .unwrap_or_default()
+            .into(),
         curves_are_authoritative: true,
         ..default()
     };

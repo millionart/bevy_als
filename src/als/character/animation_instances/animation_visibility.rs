@@ -74,6 +74,7 @@ fn refresh_mesh_animation_visibility(
     mut players: Query<(
         &mut AnimationGraphPlayer,
         Option<&mut AnimationPoseUpdateGate>,
+        Option<&mut crate::AlsAnimationRate>,
     )>,
     mut commands: Commands,
 ) {
@@ -107,9 +108,12 @@ fn refresh_mesh_animation_visibility(
         let option = option
             .copied()
             .unwrap_or(crate::ab_als_provider::ANIMATION_COMPONENT.visibility_tick_option);
-        let Ok((mut player, gate)) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, gate, rate)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
+        if let Some(mut rate) = rate {
+            rate.visible = rendered;
+        }
         let initialize = player.get_animation_source().is_graph()
             && player
                 .get_context_arena()

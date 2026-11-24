@@ -17,6 +17,17 @@ const SHARED_DATA: &[&str] = &[
 
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=src/animation_graph_ext/acl_decode.cpp");
+    println!("cargo::rerun-if-changed=vendor/acl/includes");
+    println!("cargo::rerun-if-changed=vendor/rtm/includes");
+    cc::Build::new()
+        .cpp(true)
+        .std("c++17")
+        .include("vendor/acl/includes")
+        .include("vendor/rtm/includes")
+        .file("src/animation_graph_ext/acl_decode.cpp")
+        .compile("als_acl_decode");
+
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("assets");
     let output = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let mut files = BTreeMap::new();

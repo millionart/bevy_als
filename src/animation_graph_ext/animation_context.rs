@@ -96,7 +96,7 @@ pub struct SourceCachedPoseRequestOrigin {
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, Clone)]
 pub struct AnimationContextState {
-    pub curves: crate::extensions::SourceCurveValues,
+    pub curves: crate::extensions::als_curves::SharedSourceCurveValues,
     pub relevant_asset: Option<SourceRelevantAsset>,
     pub curves_are_authoritative: bool,
     pub sync_players: Vec<crate::extensions::sync_group_phase::SourceSyncPlayerTick>,
@@ -403,9 +403,7 @@ pub fn merge_missing_context_curves(
     target: &mut AnimationContextState,
     source: &AnimationContextState,
 ) {
-    for (name, value) in &source.curves {
-        target.curves.entry(name.clone()).or_insert(*value);
-    }
+    merge_missing_curve_values(target, source);
     if target.relevant_asset.is_none() {
         target.relevant_asset = source.relevant_asset.clone();
     }
@@ -500,14 +498,24 @@ pub fn merge_linked_input_context(
         source.skipped_cached_pose_request.as_ref(),
     );
     if !target.curves_are_authoritative {
-        for (name, value) in &source.curves {
-            target.curves.entry(name.clone()).or_insert(*value);
-        }
+        merge_missing_curve_values(target, source);
         if target.relevant_asset.is_none() {
             target.relevant_asset = source.relevant_asset.clone();
         }
         target.curves_are_authoritative |= source.curves_are_authoritative;
         merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
+    }
+}
+
+fn merge_missing_curve_values(target: &mut AnimationContextState, source: &AnimationContextState) {
+    if target.curves.is_empty() {
+        target.curves = source.curves.clone();
+        return;
+    }
+    for (name, value) in source.curves.iter() {
+        if !target.curves.contains_key(name) {
+            target.curves.insert(name.clone(), *value);
+        }
     }
 }
 
@@ -573,6 +581,11 @@ fn source_curve_value(
     curve_name: &str,
     default: Option<f32>,
 ) -> Result<f32, GraphError> {
+    if super::source_gameplay_tag_input::active_curve_filter()
+        .is_some_and(|filter| !filter.allows(&crate::extensions::SourceCurveName::from(curve_name)))
+    {
+        return Ok(default.unwrap_or(0.0));
+    }
     let state_key = ctx.graph_context.state_key;
     if let Some(state) = source
         && let Some(value) = state
@@ -659,7 +672,12 @@ pub fn capture_context_curve(
     value: &DataValue,
 ) -> Result<(), GraphError> {
     if let DataValue::F32(value) = value {
-        state.curves.insert(output_name.into(), *value);
+        let name = output_name.into();
+        if super::source_gameplay_tag_input::active_curve_filter()
+            .is_none_or(|filter| filter.allows(&name))
+        {
+            state.curves.insert(name, *value);
+        }
     }
     Ok(())
 }
@@ -741,7 +759,7 @@ mod tests {
         for rig in [false, true] {
             let mut states = NodeStates::default();
             let context = AnimationContextState {
-                curves: HashMap::from([("PoseMoving".into(), 0.75)]),
+                curves: [("PoseMoving".into(), 0.75)].into(),
                 ..default()
             };
             if rig {
@@ -925,11 +943,11 @@ mod tests {
     #[test]
     fn merged_output_context_preserves_explicit_output_curves() {
         let mut target = AnimationContextState {
-            curves: HashMap::from([("PoseGrounded".into(), 1.0)]),
+            curves: [("PoseGrounded".into(), 1.0)].into(),
             ..default()
         };
         let source = AnimationContextState {
-            curves: HashMap::from([("PoseGrounded".into(), 0.0), ("PoseMoving".into(), 1.0)]),
+            curves: [("PoseGrounded".into(), 0.0), ("PoseMoving".into(), 1.0)].into(),
             ..default()
         };
         merge_missing_context_curves(&mut target, &source);
@@ -954,7 +972,7 @@ mod tests {
             ..default()
         };
         let input = AnimationContextState {
-            curves: HashMap::from([("FootLeftIk".into(), 1.0)]),
+            curves: [("FootLeftIk".into(), 1.0)].into(),
             ..default()
         };
         merge_linked_input_context(&mut child, &input);

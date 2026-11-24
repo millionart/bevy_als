@@ -9,9 +9,9 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::{
-    AnimationContextState, animation_context::pose_input_context_state,
+    AnimationContextState, animation_context::pose_input_context,
     mesh_space_difference::source_pose_difference, source_pose::SourcePose,
-    source_sequence_player::rebuild_virtual_bones,
+    source_sequence_player::rebuild_asset_virtual_bones,
 };
 use std::sync::Arc;
 
@@ -72,8 +72,8 @@ fn root_motion_difference(
     }
 }
 
-pub fn make_local_difference(reference: &Pose, target: &Pose, skeleton: &Skeleton) -> Pose {
-    let mut difference = Pose {
+pub(crate) fn reference_difference_metadata(reference: &Pose, target: &Pose) -> Pose {
+    Pose {
         timestamp: target.timestamp,
         skeleton: target.skeleton.clone(),
         root_motion: root_motion_difference(
@@ -81,8 +81,16 @@ pub fn make_local_difference(reference: &Pose, target: &Pose, skeleton: &Skeleto
             target.root_motion.as_ref(),
         ),
         ..default()
-    };
+    }
+}
+
+pub fn make_local_difference(reference: &Pose, target: &Pose, skeleton: &Skeleton) -> Pose {
+    let mut difference = reference_difference_metadata(reference, target);
+    let omitted = crate::extensions::source_gameplay_tag_input::active_omitted_bones(reference.skeleton.id());
     for (bone, target_index) in &target.paths {
+        if omitted.as_ref().is_some_and(|omitted| omitted.contains(bone)) {
+            continue;
+        }
         let target_bone = &target.bones[*target_index];
         let reference_bone = reference.get_bone(*bone);
         let default = default_transform(skeleton, *bone);
@@ -128,9 +136,9 @@ pub(crate) fn precise_reference_difference(
     mesh_space: bool,
 ) -> Option<Arc<SourcePose>> {
     let source = |pin, pose: &Pose| {
-        pose_input_context_state(ctx, pin)
+        pose_input_context(ctx, pin)
             .and_then(|context| context.source_pose_for(pose).cloned())
-            .or_else(|| SourcePose::from_complete_pose(pose, skeleton).map(Arc::new))
+            .or_else(|| SourcePose::from_asset_pose(pose, reference.skeleton.id(), skeleton).map(Arc::new))
     };
     let reference = source(REFERENCE_POSE, reference)?;
     let target = source(TARGET_POSE, target)?;
@@ -173,13 +181,19 @@ impl NodeLike for ReferenceLocalDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        rebuild_virtual_bones(&mut reference, skeleton);
-        rebuild_virtual_bones(&mut target, skeleton);
-        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, false);
-        let mut difference = make_local_difference(&reference, &target, skeleton);
-        if let Some(source) = &source_pose {
-            source.project_into(&mut difference);
-        }
+        let (difference, source_pose) = if crate::extensions::sync_group_phase::source_sync_preview(&ctx) {
+            (reference_difference_metadata(&reference, &target), None)
+        } else {
+            let asset = reference.skeleton.id();
+            rebuild_asset_virtual_bones(&mut reference, skeleton, asset);
+            rebuild_asset_virtual_bones(&mut target, skeleton, asset);
+            let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, false);
+            let mut difference = make_local_difference(&reference, &target, skeleton);
+            if let Some(source) = &source_pose {
+                source.project_into(&mut difference);
+            }
+            (difference, source_pose)
+        };
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd(OUT_POSE, difference);
         ctx.state_mut::<AnimationContextState>()?.source_pose = source_pose;

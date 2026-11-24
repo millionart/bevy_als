@@ -77,9 +77,14 @@ impl NodeLike for SourceLocalRefPoseNode {
             timestamp,
             ..default()
         };
-        for bone in skeleton.iter_bones() {
-            if let Some(transform) = skeleton.default_transforms(bone) {
-                pose.add_bone(BonePose::from_transform(transform.local), bone);
+        if !crate::extensions::sync_group_phase::source_sync_preview(&ctx) {
+            let omitted = crate::extensions::source_gameplay_tag_input::active_omitted_bones(self.reference_skeleton.id());
+            for bone in skeleton.iter_bones() {
+                if omitted.as_ref().is_none_or(|omitted| !omitted.contains(&bone))
+                    && let Some(transform) = skeleton.default_transforms(bone)
+                {
+                    pose.add_bone(BonePose::from_transform(transform.local), bone);
+                }
             }
         }
         ctx.set_time(timestamp);
@@ -118,18 +123,25 @@ mod tests {
                 graph_context_arena::GraphContextArena, new_context::GraphContext,
                 system_resources::SystemResources,
             },
+            edge_data::DataValue,
             skeleton::Skeleton,
             state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
         };
         fn query(
-            In(handle): In<Handle<AnimationGraph>>,
+            In((handle, preview)): In<(Handle<AnimationGraph>, bool)>,
             resources: SystemResources,
         ) -> Result<(Pose, Option<crate::extensions::AnimationContextState>), GraphError> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
-            let inputs = HashMap::new();
+            let mut inputs = HashMap::new();
+            if preview {
+                inputs.insert(
+                    crate::extensions::sync_group_phase::SOURCE_SYNC_RESOLVED.to_owned(),
+                    DataValue::Bool(false),
+                );
+            }
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             let context = GraphContext::new(
@@ -186,7 +198,7 @@ mod tests {
         graph.add_output_data_edge(node.id, "Pose", "Pose");
         let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
         let (pose, curves) = world
-            .run_system_cached_with(query, graph.clone())
+            .run_system_cached_with(query, (graph.clone(), false))
             .unwrap()
             .unwrap();
         assert_eq!(pose.skeleton, skeleton);
@@ -209,17 +221,25 @@ mod tests {
         crate::extensions::animation_context::merge_linked_input_context(
             &mut curves,
             &crate::extensions::AnimationContextState {
-                curves: HashMap::from([("FixtureCurve".into(), 1.0)]),
+                curves: [("FixtureCurve".into(), 1.0)].into(),
                 ..default()
             },
         );
         assert!(curves.curves.is_empty());
         assert!(curves.relevant_asset.is_none() && curves.sync_players.is_empty());
+        let (preview, context) = world
+            .run_system_cached_with(query, (graph.clone(), true))
+            .unwrap()
+            .unwrap();
+        assert_eq!(preview.timestamp, pose.timestamp);
+        assert_eq!(preview.skeleton, pose.skeleton);
+        assert!(context.unwrap().curves_are_authoritative);
+        assert!(preview.bones.is_empty());
         world
             .resource_mut::<Assets<Skeleton>>()
             .remove(skeleton.id());
         let error = world
-            .run_system_cached_with(query, graph)
+            .run_system_cached_with(query, (graph, false))
             .unwrap()
             .unwrap_err();
         assert!(matches!(error, GraphError::SkeletonMissing(_)));

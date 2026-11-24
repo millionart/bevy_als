@@ -1,12 +1,13 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
-use bevy::math::DVec3;
+use bevy::{asset::AssetId, math::DVec3};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::{DataSpec, DataValue},
     errors::GraphError,
+    id::BoneId,
     pose::{BonePose, Pose},
     skeleton::Skeleton,
 };
@@ -16,11 +17,14 @@ use crate::extensions::animation_context::{
     pose_input_context_state, resolve_named_context_curves,
 };
 use crate::extensions::{
+    als_curves::SourceCurveKey,
     control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},
     control_rig_math::{RigValue, rotation_basis},
     control_rig_program::{RigDefinition, RigValueRef},
     control_rig_units::{RigUnitContext, call_unit},
+    source_gameplay_tag_input::active_skeleton_layouts,
     source_instance::source_input_data,
+    source_pose::SourceSkeletonLayouts,
 };
 
 const SOURCE_TIME: &str = "source_time";
@@ -52,8 +56,16 @@ pub struct RigInputBinding {
 }
 
 #[derive(Clone, Debug)]
+struct RigBoneBinding {
+    skeleton: AssetId<Skeleton>,
+    layouts: Weak<SourceSkeletonLayouts>,
+    bones: Arc<[Option<BoneId>]>,
+}
+
+#[derive(Clone, Debug)]
 struct ControlRigRuntime {
-    definition: RigDefinition,
+    definition: Arc<RigDefinition>,
+    binding: Option<RigBoneBinding>,
     hierarchy: RigHierarchy,
     values: Vec<RigValue>,
     curves: crate::extensions::SourceCurveValues,
@@ -72,6 +84,8 @@ pub struct ControlRigNodeState {
     pub traces: Vec<RigTraceSample>,
     #[reflect(ignore)]
     runtime: Option<ControlRigRuntime>,
+    #[reflect(ignore)]
+    lod_bypassed: bool,
 }
 
 impl ControlRigNodeState {
@@ -124,6 +138,7 @@ pub fn current_control_rig<'a>(
                 && let Ok(state) = context
                     .node_states
                     .get::<ControlRigNodeState>(node.id, StateKey::Default)
+                && !state.lod_bypassed
             {
                 if found.is_some() {
                     return None;
@@ -208,6 +223,8 @@ pub struct ControlRigBoundaryNode {
     pub exposed_output_data: Vec<String>,
     pub missing_curve_value: Option<f32>,
     pub internalize_time: bool,
+    #[reflect(default)]
+    pub lod_threshold: Option<usize>,
 }
 
 impl Default for ControlRigBoundaryNode {
@@ -228,6 +245,7 @@ impl Default for ControlRigBoundaryNode {
             exposed_output_data: default(),
             missing_curve_value: None,
             internalize_time: false,
+            lod_threshold: None,
         }
     }
 }
@@ -262,10 +280,11 @@ impl ControlRigBoundaryNode {
         let rebuild = state
             .runtime
             .as_ref()
-            .is_none_or(|runtime| runtime.definition != *definition);
+            .is_none_or(|runtime| runtime.definition.as_ref() != definition);
         if rebuild {
             state.runtime = Some(ControlRigRuntime {
-                definition: definition.clone(),
+                definition: Arc::new(definition.clone()),
+                binding: None,
                 hierarchy: RigHierarchy::new(
                     definition.bones.clone(),
                     definition.translation_tolerance,
@@ -380,19 +399,41 @@ impl ControlRigBoundaryNode {
         if self.transfer_pose_in_global_space {
             return Err("rig global pose transfer is unsupported".to_owned());
         }
-        let mut mapping = Vec::with_capacity(definition.bones.len());
-        for bone in &definition.bones {
-            let mut matches = skeleton.iter_paths().filter(|path| {
-                path.parts
-                    .last()
-                    .is_some_and(|name| name.as_str().eq_ignore_ascii_case(&bone.name))
-            });
-            let matched = matches.next().map(|path| path.id());
-            if matches.next().is_some() {
-                return Err(format!("rig bone mapping is ambiguous: {}", bone.name));
+        let compile_mapping = || {
+            let mut mapping = Vec::with_capacity(definition.bones.len());
+            for bone in &definition.bones {
+                let mut matches = skeleton.iter_paths().filter(|path| {
+                    path.parts
+                        .last()
+                        .is_some_and(|name| name.as_str().eq_ignore_ascii_case(&bone.name))
+                });
+                let matched = matches.next().map(|path| path.id());
+                if matches.next().is_some() {
+                    return Err(format!("rig bone mapping is ambiguous: {}", bone.name));
+                }
+                mapping.push(matched);
             }
-            mapping.push(matched);
-        }
+            Ok(mapping)
+        };
+        let cached;
+        let compiled;
+        let mapping = if let Some(layouts) = active_skeleton_layouts() {
+            let skeleton = pose.skeleton.id();
+            if runtime.binding.as_ref().is_none_or(|binding| {
+                binding.skeleton != skeleton || binding.layouts.as_ptr() != Arc::as_ptr(&layouts)
+            }) {
+                runtime.binding = Some(RigBoneBinding {
+                    skeleton,
+                    layouts: Arc::downgrade(&layouts),
+                    bones: Arc::from(compile_mapping()?),
+                });
+            }
+            cached = Arc::clone(&runtime.binding.as_ref().unwrap().bones);
+            cached.as_ref()
+        } else {
+            compiled = compile_mapping()?;
+            compiled.as_slice()
+        };
         let mut source_pose = state.context.source_pose.take().map(Arc::unwrap_or_clone);
         let source_indices: bevy::platform::collections::HashMap<_, _> = source_pose
             .iter()
@@ -442,21 +483,21 @@ impl ControlRigBoundaryNode {
         if self.transfer_input_curves {
             runtime.curves.clear();
             for name in definition.curves.keys() {
-                if let Some(value) = state
-                    .context
-                    .curves
-                    .iter()
-                    .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value))
+                if let Some((key, value)) = state.context.curves.get_key_value(&SourceCurveKey(name))
                 {
-                    runtime.curves.insert(name.clone().into(), value);
+                    runtime.curves.insert(key.clone(), *value);
                 }
             }
         }
         state.executed_steps = execute(runtime, "Forwards Solve")?;
-        for (index, id) in mapping.into_iter().enumerate() {
+        let omitted = crate::extensions::source_gameplay_tag_input::active_omitted_bones(pose.skeleton.id());
+        for (index, &id) in mapping.iter().enumerate() {
             let Some(id) = id else {
                 continue;
             };
+            if omitted.as_ref().is_some_and(|omitted| omitted.contains(&id)) {
+                continue;
+            }
             let transform = runtime.hierarchy.transform(index, RigSpace::Local, false)?;
             if let Some(source) = &mut source_pose
                 && let Some(&index) = source_indices.get(&id)
@@ -513,6 +554,7 @@ impl NodeLike for ControlRigBoundaryNode {
         if !meters_per_unit.is_finite() || meters_per_unit <= 0.0 {
             return Err(failure("rig length unit is invalid".to_owned()));
         }
+        let lod_allows_rig = crate::extensions::source_gameplay_tag_input::active_lod_allows_control_rig(self.lod_threshold);
         let foot_locations =
             crate::extensions::source_gameplay_tag_input::active_rig_foot_locations_cm(
                 ctx.graph_context.root_entity,
@@ -520,6 +562,7 @@ impl NodeLike for ControlRigBoundaryNode {
         let inputs = self
             .input_bindings
             .iter()
+            .filter(|_| lod_allows_rig)
             .map(|binding| {
                 let mut target = definition
                     .externals
@@ -565,18 +608,17 @@ impl NodeLike for ControlRigBoundaryNode {
             &ctx,
             &self.delta_seconds_key,
         )? as f64;
-        let query = crate::extensions::source_gameplay_tag_input::active_rig_query_context(
-            ctx.graph_context.root_entity,
-        );
+        let query = lod_allows_rig.then(|| crate::extensions::source_gameplay_tag_input::active_rig_query_context(ctx.graph_context.root_entity)).flatten();
         let update = if self.internalize_time {
             context_time_update(&ctx)?
         } else {
             ctx.time_update_fwd()?
         };
         if !self.internalize_time {
-            ctx.set_time_update_back(SOURCE_TIME, update);
+            ctx.set_time_update_back(SOURCE_TIME, update.clone());
         }
-        let mut pose = ctx.data_back(self.pose_input.clone())?.into_pose()?;
+        let (mut pose, notify_aliases) =
+            super::pre_rig_sharing::source_pose(&ctx, &self.pose_input, &update)?;
         let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         if !preview
             && self.transfer_input_pose
@@ -610,7 +652,17 @@ impl NodeLike for ControlRigBoundaryNode {
                 ctx.set_data_fwd(curve.clone(), value);
             }
         }
-        let upstream = pose_input_context_state(&ctx, &self.pose_input);
+        let mut upstream = pose_input_context_state(&ctx, &self.pose_input);
+        if let Some(context) = &mut upstream {
+            for sample in &mut context.asset_samples {
+                if let Some((_, local)) = notify_aliases
+                    .iter()
+                    .find(|(source, _)| *source == sample.notify_instance_id)
+                {
+                    sample.notify_instance_id = *local;
+                }
+            }
+        }
         state.source_pose = upstream
             .as_ref()
             .and_then(|context| context.source_pose_for(&pose))
@@ -634,7 +686,8 @@ impl NodeLike for ControlRigBoundaryNode {
             });
         let node_state = ctx.state_mut::<ControlRigNodeState>()?;
         node_state.context = state;
-        if !preview {
+        node_state.lod_bypassed = !lod_allows_rig;
+        if !preview && lod_allows_rig {
             let started = capture.then(std::time::Instant::now);
             let result = self.solve(
                 definition,
@@ -650,6 +703,11 @@ impl NodeLike for ControlRigBoundaryNode {
             );
             node_state.elapsed_seconds = started.map_or(0.0, |start| start.elapsed().as_secs_f64());
             result.map_err(failure)?;
+        } else if !preview {
+            node_state.executed_steps = 0;
+            node_state.elapsed_seconds = 0.0;
+            node_state.calls.clear();
+            node_state.traces.clear();
         }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(OUT_POSE, pose.clone());
@@ -694,6 +752,70 @@ mod tests {
         definition.curves.clear();
         definition.externals.clear();
         definition
+    }
+
+    #[test]
+    fn control_rig_rebinds_bones_after_skeleton_reload() {
+        use crate::extensions::{SourceAnimationInputs, control_rig_hierarchy::RigBone};
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+
+        let mut definition = hot_swap_definition();
+        definition.bones.push(RigBone {
+            name: "root".into(),
+            parent: None,
+            initial_local: default(),
+            initial_global: default(),
+        });
+        let make_skeleton = |armature: &'static str| {
+            let mut skeleton = Skeleton::default();
+            let path = EntityPath::default().child(armature).child("root");
+            let id = path.id();
+            skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+            skeleton.set_root(id);
+            (id, skeleton)
+        };
+        let (original, skeleton) = make_skeleton("original");
+        let mut assets = Assets::default();
+        let handle = assets.add(skeleton);
+        let node = ControlRigBoundaryNode::default();
+        let mut state = ControlRigNodeState::default();
+        let mut solve = |assets: &Assets<Skeleton>| {
+            let layouts = Arc::new(SourceSkeletonLayouts::new(assets));
+            let mut pose = Pose {
+                skeleton: handle.clone(),
+                ..default()
+            };
+            SourceAnimationInputs::default().evaluate_with_skeleton_layouts(
+                Entity::PLACEHOLDER,
+                &layouts,
+                None,
+                None,
+                None,
+                || {
+                    node.solve(
+                        &definition,
+                        &mut state,
+                        &mut pose,
+                        assets.get(&handle).unwrap(),
+                        &[],
+                        false,
+                        0.0,
+                        RigTransform::default(),
+                        None,
+                        false,
+                    )
+                    .unwrap();
+                },
+            );
+            pose
+        };
+
+        assert!(solve(&assets).get_bone(original).is_some());
+        let (replacement, skeleton) = make_skeleton("replacement");
+        assets.insert(handle.id(), skeleton).unwrap();
+        let pose = solve(&assets);
+        assert!(pose.get_bone(replacement).is_some());
+        assert!(pose.get_bone(original).is_none());
     }
 
     #[test]
@@ -827,6 +949,11 @@ mod tests {
         )
         .unwrap();
         assert_eq!(state.initialization_count, 1);
+        let snapshot = state.clone();
+        assert!(Arc::ptr_eq(
+            &state.runtime.as_ref().unwrap().definition,
+            &snapshot.runtime.as_ref().unwrap().definition,
+        ));
         let source: RigDefinition = serde_json::from_str(include_str!(
             "../tests/fixtures/rig/cr_als_program.json"
         ))
@@ -864,6 +991,11 @@ mod tests {
                 .is_some()
         );
         assert_eq!(state.initialization_count, 2);
+        assert_eq!(snapshot.initialization_count, 1);
+        assert_eq!(
+            snapshot.runtime.as_ref().unwrap().values[0],
+            RigValue::F32(1.0),
+        );
     }
 
     #[test]

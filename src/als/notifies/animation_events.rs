@@ -434,6 +434,7 @@ fn dispatch_graph_footsteps(
     players: Query<(
         &bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
         Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
+        Option<&crate::AlsAnimationLod>,
     )>,
     mut runtimes: Query<(
         &crate::character_assembly::AlsCharacterAssembly,
@@ -465,9 +466,10 @@ fn dispatch_graph_footsteps(
             continue;
         }
         let entity = instance.player_entity();
-        let Ok((player, gate)) = players.get(entity) else {
+        let Ok((player, gate, lod)) = players.get(entity) else {
             continue;
         };
+        let predicted_lod = notify_lod(lod);
         let frozen = gate.is_some_and(|gate| !gate.update_graph);
         let slot_notifies =
             applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs());
@@ -590,7 +592,7 @@ fn dispatch_graph_footsteps(
             let sprint = source.source_asset == SOURCE_SPRINT
                 || source.source_asset == SOURCE_SPRINT_ACCELERATION;
             let definitions =
-                timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD)
+                timed_events(source, predicted_lod)
                     .into_iter()
                     .filter(|definition| {
                         source.events.iter().any(|event| {
@@ -1006,6 +1008,12 @@ fn is_branching_montage_notify(
             ))
 }
 
+fn notify_lod(lod: Option<&crate::AlsAnimationLod>) -> i32 {
+    lod.map_or(crate::character_assembly::ALS_RENDERED_MESH_LOD, |lod| {
+        i32::try_from(lod.level()).unwrap_or(i32::MAX)
+    })
+}
+
 fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEvent> {
     let mut events = clip
         .events
@@ -1245,6 +1253,7 @@ fn dispatch_animation_events<const QUEUED: bool>(
         &bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
         Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
     )>,
+    lods: Query<&crate::AlsAnimationLod>,
 ) {
     let Some(handle) = manifest_handle else {
         return;
@@ -1287,6 +1296,7 @@ fn dispatch_animation_events<const QUEUED: bool>(
         if let Some((_, _, instance)) = event_source {
             runtime.set_instance(instance);
         }
+        let predicted_lod = notify_lod(event_source.and_then(|(_, player, _)| lods.get(player).ok()));
         let graph_owned = assembly.is_some() || event_source.is_some();
         if QUEUED && !graph_owned {
             continue;
@@ -1418,7 +1428,7 @@ fn dispatch_animation_events<const QUEUED: bool>(
             } else {
                 let clock = playback_clock(source_runtime, playback);
                 let mut definitions =
-                    timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
+                    timed_events(source, predicted_lod);
                 let queue = if slot_relevant {
                     let handle = graph_clip_handle(
                         &mut graph_clip_handles,

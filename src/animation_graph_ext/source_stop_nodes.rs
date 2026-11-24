@@ -260,6 +260,7 @@ pub struct SourceLayeredBoneBlendNode {
     pub blend_pose_pin: String,
     pub blend_pose_pins: Vec<String>,
     pub output_pin: String,
+    pub lod_threshold: Option<usize>,
 }
 
 impl Default for SourceLayeredBoneBlendNode {
@@ -280,6 +281,7 @@ impl Default for SourceLayeredBoneBlendNode {
             blend_pose_pin: "BlendPoses_0".to_owned(),
             blend_pose_pins: default(),
             output_pin: "Pose".to_owned(),
+            lod_threshold: None,
         }
     }
 }
@@ -377,6 +379,14 @@ fn source_layered_root_motion(
 
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        if !super::source_gameplay_tag_input::active_lod_allows_node(self.lod_threshold) {
+            let pose = ctx.data_back(self.base_pose_pin.as_str())?.into_pose()?;
+            let context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
+            ctx.set_time(pose.timestamp);
+            ctx.set_data_fwd(self.output_pin.as_str(), pose);
+            ctx.state_mut::<SourceLayeredBoneBlendState>()?.context = context;
+            return Ok(());
+        }
         let preview = crate::extensions::sync_group_phase::source_sync_preview(&ctx);
         let mut bone_data = ctx
             .state::<SourceLayeredBoneBlendState>()
@@ -437,7 +447,9 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     &mut context.skipped_cached_pose_request,
                     overlay_context.skipped_cached_pose_request.as_ref(),
                 );
-                context.curves.extend(overlay_context.curves);
+                context.curves.extend(
+                    overlay_context.curves.iter().map(|(name, value)| (name.clone(), *value)),
+                );
                 context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }
         }

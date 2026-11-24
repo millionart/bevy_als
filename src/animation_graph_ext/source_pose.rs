@@ -1,4 +1,5 @@
 use bevy::{
+    asset::{AssetId, Assets},
     math::{DQuat, DVec3, Quat, Vec3},
     platform::collections::HashMap,
 };
@@ -58,6 +59,61 @@ pub(crate) fn normalize_source_rotation(rotation: DQuat) -> DQuat {
     rotation_basis(rig_normalize(rotation_basis(rotation)))
 }
 
+pub(crate) struct SourceSkeletonLayout {
+    bones: Vec<BoneId>,
+    pub(crate) virtual_bones: Vec<crate::extensions::source_sequence_player::ResolvedVirtualBone>,
+}
+
+impl SourceSkeletonLayout {
+    fn new(skeleton: &Skeleton) -> Self {
+        let mut order: Vec<_> = skeleton
+            .iter_bones()
+            .filter_map(|bone| Some((skeleton.id_to_path(bone)?.parts.len(), bone)))
+            .collect();
+        order.sort_unstable_by_key(|(depth, bone)| (*depth, bone.animation_target_id().0));
+        Self {
+            bones: order.into_iter().map(|(_, bone)| bone).collect(),
+            virtual_bones: crate::extensions::source_sequence_player::resolve_virtual_bones(
+                skeleton,
+            ),
+        }
+    }
+}
+
+#[doc(hidden)]
+#[derive(Default)]
+pub struct SourceSkeletonLayouts(HashMap<AssetId<Skeleton>, SourceSkeletonLayout>);
+
+impl SourceSkeletonLayouts {
+    pub(crate) fn new(skeletons: &Assets<Skeleton>) -> Self {
+        Self(
+            skeletons
+                .iter()
+                .map(|(id, skeleton)| (id, SourceSkeletonLayout::new(skeleton)))
+                .collect(),
+        )
+    }
+
+    pub(crate) fn get(&self, id: AssetId<Skeleton>) -> Option<&SourceSkeletonLayout> {
+        self.0.get(&id)
+    }
+}
+
+const SOURCE_UNIT_SCALE: f64 = 0.01;
+
+fn complete_local_transform(bone: &BonePose) -> Option<RigTransform> {
+    if bone.weights.is_some() {
+        return None;
+    }
+    let [x, y, z] = bone.translation?.as_dvec3().to_array();
+    let [sx, sy, sz] = bone.scale?.as_dvec3().to_array();
+    Some(RigTransform {
+        translation: DVec3::new(x, z, y) / SOURCE_UNIT_SCALE,
+        rotation: rotation_basis(bone.rotation?.as_dquat()),
+        scale: DVec3::new(sx, sz, sy),
+    })
+}
+
 #[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct SourcePose {
@@ -68,27 +124,12 @@ pub struct SourcePose {
 impl SourcePose {
     #[doc(hidden)]
     pub fn from_complete_pose(pose: &Pose, skeleton: &Skeleton) -> Option<Self> {
-        const UNIT_SCALE: f64 = 0.01;
         let mut bones = pose
             .paths
             .iter()
             .map(|(&id, &index)| {
-                let bone = &pose.bones[index];
-                if bone.weights.is_some() {
-                    return None;
-                }
-                let [x, y, z] = bone.translation?.as_dvec3().to_array();
-                let [sx, sy, sz] = bone.scale?.as_dvec3().to_array();
                 let depth = skeleton.id_to_path(id)?.parts.len();
-                Some((
-                    depth,
-                    id,
-                    RigTransform {
-                        translation: DVec3::new(x, z, y) / UNIT_SCALE,
-                        rotation: rotation_basis(bone.rotation?.as_dquat()),
-                        scale: DVec3::new(sx, sz, sy),
-                    },
-                ))
+                Some((depth, id, complete_local_transform(&pose.bones[index])?))
             })
             .collect::<Option<Vec<_>>>()?;
         if bones.is_empty() {
@@ -100,7 +141,35 @@ impl SourcePose {
                 .into_iter()
                 .map(|(_, id, transform)| (id, transform))
                 .collect(),
-            length_scale: UNIT_SCALE,
+            length_scale: SOURCE_UNIT_SCALE,
+        })
+    }
+
+    pub(crate) fn from_asset_pose(
+        pose: &Pose,
+        skeleton_asset: AssetId<Skeleton>,
+        skeleton: &Skeleton,
+    ) -> Option<Self> {
+        crate::extensions::source_gameplay_tag_input::with_skeleton_layout(
+            skeleton_asset,
+            |layout| Self::from_layout(pose, layout),
+        )
+        .unwrap_or_else(|| Self::from_complete_pose(pose, skeleton))
+    }
+
+    fn from_layout(pose: &Pose, layout: &SourceSkeletonLayout) -> Option<Self> {
+        let mut bones = Vec::with_capacity(pose.paths.len());
+        for &id in &layout.bones {
+            if let Some(bone) = pose.get_bone(id) {
+                bones.push((id, complete_local_transform(bone)?));
+            }
+        }
+        if bones.is_empty() || bones.len() != pose.paths.len() {
+            return None;
+        }
+        Some(Self {
+            bones,
+            length_scale: SOURCE_UNIT_SCALE,
         })
     }
 
@@ -260,4 +329,34 @@ pub fn blend_source_poses<'a>(
     }
     output.normalize_rotations(normalization_passes);
     Some(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_animation_graph::core::animation_clip::EntityPath;
+
+    #[test]
+    fn compiled_layout_preserves_reference_order_for_sparse_poses() {
+        let mut skeleton = Skeleton::default();
+        let root = EntityPath::default().child("Root");
+        let joint = root.child("Joint");
+        let tip = joint.child("Tip");
+        skeleton.set_root(root.id());
+        for path in [&root, &joint, &tip] {
+            skeleton.add_bone(path.clone(), Default::default(), Default::default());
+        }
+        let layout = SourceSkeletonLayout::new(&skeleton);
+        let mut pose = Pose::default();
+        pose.add_bone(BonePose::from_transform(Default::default()), tip.id());
+        pose.add_bone(BonePose::from_transform(Default::default()), root.id());
+        let expected = SourcePose::from_complete_pose(&pose, &skeleton).unwrap();
+        let actual = SourcePose::from_layout(&pose, &layout).unwrap();
+        assert_eq!(actual.bones, expected.bones);
+
+        let outside = EntityPath::default().child("Outside");
+        pose.add_bone(BonePose::from_transform(Default::default()), outside.id());
+        assert!(SourcePose::from_layout(&pose, &layout).is_none());
+        assert!(SourcePose::from_complete_pose(&pose, &skeleton).is_none());
+    }
 }

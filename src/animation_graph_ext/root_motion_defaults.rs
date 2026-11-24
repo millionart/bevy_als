@@ -141,10 +141,20 @@ fn inject_default_root_motion_bones(
     let (Some(mut graphs), Some(clips), Some(skeletons)) = (graphs, clips, skeletons) else {
         return;
     };
-    for (id, graph) in graphs.iter_mut() {
-        if processed.0.contains(&id) {
+    let pending_graphs: Vec<_> = graphs.ids().filter(|id| !processed.0.contains(id)).collect();
+    for id in pending_graphs {
+        if graphs.get(id).is_some_and(|graph| {
+            !graph
+                .nodes
+                .values()
+                .any(|node| node.try_inner_downcast_ref::<ClipNode>().is_some())
+        }) {
+            processed.0.insert(id);
             continue;
         }
+        let Some(mut graph) = graphs.get_mut(id) else {
+            continue;
+        };
         let mut pending = false;
         for node in graph.nodes.values_mut() {
             let inner: &mut dyn bevy_animation_graph::core::animation_node::NodeLike =
@@ -178,6 +188,31 @@ impl Plugin for RootMotionDefaultsPlugin {
 mod tests {
     use super::*;
     use bevy::animation::AnimationTargetId;
+
+    #[test]
+    fn graph_without_clip_nodes_does_not_emit_modified_events() {
+        use bevy::{asset::AssetEvent, ecs::message::Messages};
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), RootMotionDefaultsPlugin))
+            .init_asset::<AnimationGraph>()
+            .init_asset::<GraphClip>()
+            .init_asset::<Skeleton>();
+        let mut cursor = app
+            .world()
+            .resource::<Messages<AssetEvent<AnimationGraph>>>()
+            .get_cursor_current();
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(AnimationGraph::new());
+        app.update();
+        app.update();
+        let messages = app.world().resource::<Messages<AssetEvent<AnimationGraph>>>();
+        let events: Vec<_> = cursor.read(messages).collect();
+        assert!(events.iter().any(|event| event.is_added(graph.id())));
+        assert!(!events.iter().any(|event| event.is_modified(graph.id())));
+    }
 
     fn path(parts: &[&str]) -> EntityPath {
         EntityPath::from(parts.iter().map(|s| s.to_string()).collect::<Vec<_>>())

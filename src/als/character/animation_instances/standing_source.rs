@@ -110,7 +110,7 @@ pub(crate) fn sample_source_montage(
         settings.curves.sample_all(time)
     };
     let mut context = AnimationContextState {
-        curves,
+        curves: curves.into(),
         curves_are_authoritative: true,
         source_pose: source_pose.map(Arc::new),
         ..default()

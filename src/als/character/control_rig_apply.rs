@@ -461,7 +461,7 @@ pub fn publish_control_rig_inputs(
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&crate::AlsAnimationLod>)>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
     trees: Option<Res<ColliderTrees>>,
@@ -490,9 +490,16 @@ pub fn publish_control_rig_inputs(
             continue;
         }
         let root = instance.player_entity();
-        let Ok(mut player) = players.get_mut(root) else {
+        let Ok((mut player, lod)) = players.get_mut(root) else {
             continue;
         };
+        if lod.is_some_and(|lod| !lod.allows_control_rig(None)) {
+            if let Ok(mut source) = source_inputs.get_mut(root) {
+                source.set_rig_query_context(None);
+                source.set_rig_foot_locations_cm(None);
+            }
+            continue;
+        }
         let mut ignored = vec![entity];
         if let Some(ragdoll) = player.get_spawned_ragdoll() {
             ignored.extend(ragdoll.bodies.values().copied());

@@ -9,10 +9,17 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
+    id::BoneId,
+    skeleton::Skeleton,
 };
 use bevy_gameplay_tag::GameplayTag;
 
-use crate::extensions::als_curves::{AlsPoseCurves, ClipCurves, SourceCurveValues};
+use crate::extensions::{
+    acl_animation::{AlsAclAnimation, AlsAclAnimations},
+    als_curves::{AlsPoseCurves, ClipCurves, SourceCurveValues},
+    source_pose::{SourceSkeletonLayout, SourceSkeletonLayouts},
+    source_sequence_player::{AlsAnimationSharingSettings, SharedClipSamples},
+};
 
 #[derive(Clone, Default)]
 struct SourceInputValues {
@@ -34,11 +41,55 @@ pub struct LinkedGraphInput {
 #[derive(Component, Clone, Default)]
 pub struct SourceAnimationInputs(Arc<SourceInputValues>, Option<ClipCurves>);
 
+struct SourceEvaluation {
+    entity: Entity,
+    inputs: SourceAnimationInputs,
+    skeleton_layouts: Option<Arc<SourceSkeletonLayouts>>,
+    animation_lod: Option<crate::AlsAnimationLod>,
+    clip_samples: Option<Arc<SharedClipSamples>>,
+    acl_animations: Option<AlsAclAnimations>,
+}
+
 thread_local! {
-    static EVALUATING: RefCell<Option<(Entity, SourceAnimationInputs)>> = const { RefCell::new(None) };
+    static EVALUATING: RefCell<Option<SourceEvaluation>> = const { RefCell::new(None) };
 }
 
 impl SourceAnimationInputs {
+    pub(crate) fn pre_rig_foot_transition(
+        &self,
+        scale: f32,
+        lock_amounts: [f32; 2],
+    ) -> Option<Option<crate::als::transitions::TransitionSequence>> {
+        use crate::als::{
+            state::Stance,
+            transitions::{TransitionConfig, select_dynamic_transition},
+        };
+        let distances = self.0.foot_lock_distances_squared_cm?;
+        let config = TransitionConfig::default();
+        Some(
+            select_dynamic_transition(distances, lock_amounts, scale, Stance::Standing, &config)
+                .map(|selected| selected.sequence),
+        )
+    }
+
+    pub(crate) fn pre_rig_compatible(&self, other: &Self) -> bool {
+        let a = &self.0;
+        let b = &other.0;
+        let same_curves = match (&self.1, &other.1) {
+            (Some(a), Some(b)) => a.same_store(b),
+            (None, None) => true,
+            _ => false,
+        };
+        same_curves && a.slots.is_empty() && b.slots.is_empty()
+            && a.tags == b.tags && a.graphs.len() == b.graphs.len()
+            && a.graphs.iter().all(|(key, link)| {
+                b.graphs.get(key).is_some_and(|other| {
+                    link.graph == other.graph && link.blend_in.to_bits() == other.blend_in.to_bits()
+                        && link.blend_out.to_bits() == other.blend_out.to_bits()
+                })
+            })
+    }
+
     pub fn set_gameplay_tag_input(&mut self, key: impl Into<String>, tag: GameplayTag) {
         Arc::make_mut(&mut self.0).tags.insert(key.into(), tag);
     }
@@ -110,14 +161,53 @@ impl SourceAnimationInputs {
     }
 
     pub fn evaluate<T>(&self, entity: Entity, evaluate: impl FnOnce() -> T) -> T {
-        struct Restore(Option<(Entity, SourceAnimationInputs)>);
+        self.evaluate_scoped(entity, None, None, None, None, evaluate)
+    }
+
+    pub(crate) fn evaluate_with_skeleton_layouts<T>(
+        &self,
+        entity: Entity,
+        layouts: &Arc<SourceSkeletonLayouts>,
+        lod: Option<&crate::AlsAnimationLod>,
+        clip_samples: Option<&Arc<SharedClipSamples>>,
+        acl_animations: Option<&AlsAclAnimations>,
+        evaluate: impl FnOnce() -> T,
+    ) -> T {
+        self.evaluate_scoped(
+            entity,
+            Some(Arc::clone(layouts)),
+            lod.cloned(),
+            clip_samples.cloned(),
+            acl_animations.cloned(),
+            evaluate,
+        )
+    }
+
+    fn evaluate_scoped<T>(
+        &self,
+        entity: Entity,
+        skeleton_layouts: Option<Arc<SourceSkeletonLayouts>>,
+        animation_lod: Option<crate::AlsAnimationLod>,
+        clip_samples: Option<Arc<SharedClipSamples>>,
+        acl_animations: Option<AlsAclAnimations>,
+        evaluate: impl FnOnce() -> T,
+    ) -> T {
+        struct Restore(Option<SourceEvaluation>);
         impl Drop for Restore {
             fn drop(&mut self) {
                 EVALUATING.with(|current| current.replace(self.0.take()));
             }
         }
-        let _restore =
-            Restore(EVALUATING.with(|current| current.replace(Some((entity, self.clone())))));
+        let _restore = Restore(EVALUATING.with(|current| {
+            current.replace(Some(SourceEvaluation {
+                entity,
+                inputs: self.clone(),
+                skeleton_layouts,
+                animation_lod,
+                clip_samples,
+                acl_animations,
+            }))
+        }));
         evaluate()
     }
 }
@@ -127,6 +217,9 @@ pub struct SourceAnimationInputsPlugin;
 impl Plugin for SourceAnimationInputsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ClipCurves>()
+            .init_resource::<AlsAnimationSharingSettings>()
+            .init_resource::<AlsAclAnimations>()
+            .init_resource::<crate::AlsPreRigSharingSettings>()
             .register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
             .add_observer(
                 |event: On<Add<SourceAnimationInputs>>,
@@ -148,12 +241,90 @@ impl Plugin for SourceAnimationInputsPlugin {
     }
 }
 
+pub(crate) fn active_skeleton_layouts() -> Option<Arc<SourceSkeletonLayouts>> {
+    EVALUATING.with_borrow(|active| active.as_ref()?.skeleton_layouts.clone())
+}
+
 fn current_inputs(entity: Entity) -> Option<SourceAnimationInputs> {
     EVALUATING.with_borrow(|current| {
         current
             .as_ref()
-            .filter(|(root, _)| *root == entity)
-            .map(|(_, inputs)| inputs.clone())
+            .filter(|active| active.entity == entity)
+            .map(|active| active.inputs.clone())
+    })
+}
+
+pub(crate) fn with_skeleton_layout<T>(
+    asset: AssetId<Skeleton>,
+    inspect: impl FnOnce(&SourceSkeletonLayout) -> T,
+) -> Option<T> {
+    EVALUATING.with_borrow(|current| {
+        let layout = current.as_ref()?.skeleton_layouts.as_ref()?.get(asset)?;
+        Some(inspect(layout))
+    })
+}
+
+pub(crate) fn active_omitted_bones(
+    asset: AssetId<Skeleton>,
+) -> Option<Arc<bevy::platform::collections::HashSet<BoneId>>> {
+    EVALUATING.with_borrow(|current| {
+        current.as_ref()?.animation_lod.as_ref()?.omitted_bone_plan(asset).cloned()
+    })
+}
+
+pub(crate) fn active_clip_samples() -> Option<Arc<SharedClipSamples>> {
+    EVALUATING.with_borrow(|current| current.as_ref()?.clip_samples.clone())
+}
+
+pub(crate) fn active_pre_rig_inputs(
+    entity: Entity,
+) -> Option<(Arc<SharedClipSamples>, SourceAnimationInputs)> {
+    EVALUATING.with_borrow(|current| {
+        let active = current.as_ref().filter(|active| active.entity == entity)?;
+        let inputs = &active.inputs;
+        if !inputs.0.slots.is_empty() || !inputs.0.graphs.values().all(|link| {
+            link.graph.path().is_some_and(|path| {
+                path.path().to_str().is_some_and(|name| {
+                    name.starts_with("ALS/Character/AnimationInstances/")
+                        && crate::als_asset_path(name) == *path
+                })
+            })
+        }) {
+            return None;
+        }
+        Some((active.clip_samples.clone()?, inputs.clone()))
+    })
+}
+
+pub(crate) fn active_curve_filter() -> Option<Arc<crate::animation_lod::AlsAnimationCurveFilter>> {
+    EVALUATING.with_borrow(|current| current.as_ref()?.animation_lod.as_ref()?.curve_filter.clone())
+}
+
+pub(crate) fn active_acl_animation(clip: &GraphClip) -> Option<Arc<AlsAclAnimation>> {
+    EVALUATING.with_borrow(|current| current.as_ref()?.acl_animations.as_ref()?.get(clip))
+}
+
+pub(crate) fn active_acl_identity() -> usize {
+    EVALUATING.with_borrow(|current| {
+        current.as_ref().and_then(|active| active.acl_animations.as_ref())
+            .map_or(0, AlsAclAnimations::cache_identity)
+    })
+}
+
+pub(crate) fn active_lod_allows_control_rig(maximum_level: Option<usize>) -> bool {
+    EVALUATING.with_borrow(|current| {
+        current.as_ref().and_then(|active| active.animation_lod.as_ref())
+            .is_none_or(|lod| lod.allows_control_rig(maximum_level))
+    })
+}
+
+pub(crate) fn active_lod_allows_node(maximum_level: Option<usize>) -> bool {
+    if maximum_level.is_none() {
+        return true;
+    }
+    EVALUATING.with_borrow(|current| {
+        current.as_ref().and_then(|active| active.animation_lod.as_ref())
+            .is_none_or(|lod| lod.allows_node(maximum_level))
     })
 }
 
@@ -163,7 +334,11 @@ pub(crate) fn sample_graph_clip_curves(
     fallback: &AlsPoseCurves,
     time: f32,
 ) -> SourceCurveValues {
-    clip.and_then(|clip| current_inputs(entity)?.1?.sample(clip, time))
+    clip.and_then(|clip| {
+        active_acl_animation(clip)
+            .and_then(|animation| animation.curve_values(time).ok().flatten())
+            .or_else(|| current_inputs(entity)?.1?.sample(clip, time))
+    })
         .unwrap_or_else(|| fallback.sample_all(time))
 }
 

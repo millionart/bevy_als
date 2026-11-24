@@ -47,6 +47,8 @@ impl Plugin for AlsCharacterRuntimePlugin {
         }
         app.add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
+        .add_plugins(crate::animation_lod::AlsAnimationLodPlugin)
+        .add_plugins(crate::animation_rate::AlsAnimationRatePlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
         .add_plugins(crate::footprint::FootprintPlugin);
         if !crate::AlsPhysicsSchedule::uses_physics_steps(app)

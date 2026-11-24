@@ -133,6 +133,12 @@ pub mod source_animation_state_getter;
 pub mod source_body_dynamics;
 #[path = "animation_graph_ext/source_cached_pose.rs"]
 pub mod source_cached_pose;
+#[path = "animation_graph_ext/graph_prefix_writes.rs"]
+pub(crate) mod graph_prefix_writes;
+#[path = "animation_graph_ext/pre_rig_sharing.rs"]
+pub(crate) mod pre_rig_sharing;
+#[path = "animation_graph_ext/source_clip.rs"]
+pub mod source_clip;
 #[path = "avian_ext/source_capsule_sweep.rs"]
 pub(crate) mod source_capsule_sweep;
 #[path = "animation_graph_ext/source_gameplay_tag_input.rs"]
@@ -158,6 +164,8 @@ pub mod source_pose_passthrough;
 pub mod source_scalar_expression;
 #[path = "animation_graph_ext/source_sequence_evaluator.rs"]
 pub mod source_sequence_evaluator;
+#[path = "animation_graph_ext/acl_animation.rs"]
+pub mod acl_animation;
 #[path = "animation_graph_ext/source_sequence_player.rs"]
 pub mod source_sequence_player;
 #[path = "animation_graph_ext/source_slot.rs"]
@@ -467,6 +475,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceSequenceEvaluatorNode>()
             .register_type::<source_sequence_player::SourceRootLock>()
             .register_type::<SourceSequencePlayerNode>()
+            .register_type::<source_clip::SourceClipNode>()
             .register_type::<SourceSlotNode>()
             .register_type::<SourceEnumPoseBlendNode>()
             .register_type::<SourceBranchFilter>()

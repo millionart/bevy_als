@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin},
-    animation_node::{NodeLike, ReflectNodeLike},
+    animation_node::{AnimationNode, NodeLike, ReflectNodeLike},
     context::{
         graph_context_arena::GraphContextId,
         new_context::{GraphContext, NodeContext},
@@ -164,7 +164,7 @@ fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), Grap
             if request.scoped {
                 prewarm_scoped_cached_pose(&mut ctx, &request.name, &request.key)?;
             } else {
-                resolve_cached_pose(&mut ctx, &request.name)?;
+                prewarm_cached_pose(&mut ctx, &request.name)?;
             }
             if !started {
                 let route = SourceCachedPoseRequestRoute {
@@ -553,7 +553,10 @@ fn merge_context_defaults(state: &mut AnimationContextState, defaults: &[SourceC
     }
 }
 
-pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Pose, GraphError> {
+fn update_cached_pose<'a>(
+    ctx: &mut NodeContext<'a>,
+    cache_node: &str,
+) -> Result<&'a AnimationNode, GraphError> {
     let graph = ctx.graph_context.graph;
     let cache = graph
         .nodes
@@ -579,11 +582,38 @@ pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Po
             .node_caches_mut()
             .mark_updated(cache_id, key);
     }
+    Ok(cache)
+}
+
+fn read_cached_pose(ctx: &NodeContext, cache_id: NodeId, cache_node: &str) -> Result<Pose, GraphError> {
     ctx.graph_context
         .node_caches()
-        .get_output_data(cache_id, key, CACHED_POSE_VALUE.to_owned())
+        .get_output_data(
+            cache_id,
+            ctx.graph_context.state_key,
+            CACHED_POSE_VALUE.to_owned(),
+        )
         .ok_or_else(|| cache_error(ctx, format!("cached pose is missing: {cache_node}")))?
         .into_pose()
+}
+
+pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Pose, GraphError> {
+    let cache = update_cached_pose(ctx, cache_node)?;
+    read_cached_pose(ctx, cache.id, cache_node)
+}
+
+pub(crate) fn prewarm_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<(), GraphError> {
+    let cache = update_cached_pose(ctx, cache_node)?;
+    // A completed save node has already published a pose. Prewarming never consumes it.
+    if cache.try_inner_downcast_ref::<SourceCachedPoseSaveNode>().is_some()
+        && ctx
+            .graph_context
+            .node_caches()
+            .is_updated(cache.id, ctx.graph_context.state_key)
+    {
+        return Ok(());
+    }
+    read_cached_pose(ctx, cache.id, cache_node).map(drop)
 }
 
 pub(crate) fn prewarm_scoped_cached_pose(
@@ -598,8 +628,7 @@ pub(crate) fn prewarm_scoped_cached_pose(
             .then(|| node.name.clone())
     });
     if let Some(local_cache) = local_cache {
-        resolve_cached_pose(ctx, &local_cache)?;
-        return Ok(());
+        return prewarm_cached_pose(ctx, &local_cache);
     }
     let (context_id, graph, cache_id) =
         scoped_cache_context(ctx, requested_key).ok_or_else(|| {
@@ -608,18 +637,14 @@ pub(crate) fn prewarm_scoped_cached_pose(
                 format!("scoped cached pose node is missing: {cache_node}"),
             )
         })?;
-    let cache_name = graph.nodes[&cache_id].name.clone();
+    let cache_name = &graph.nodes[&cache_id].name;
     let scoped_context = GraphContext {
         context_id,
         graph,
         ..ctx.graph_context.clone()
     }
     .with_state_key(StateKey::Default);
-    resolve_cached_pose(
-        &mut scoped_context.create_node_context(cache_id),
-        &cache_name,
-    )?;
-    Ok(())
+    prewarm_cached_pose(&mut scoped_context.create_node_context(cache_id), cache_name)
 }
 
 pub fn resolve_scoped_cached_pose(

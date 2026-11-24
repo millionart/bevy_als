@@ -1157,8 +1157,17 @@ mod tests {
         let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
         let leaf: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load(
             "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron");
-        for _ in 0..3 {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !app
+            .world()
+            .resource::<AssetServer>()
+            .is_loaded_with_dependencies(leaf.id())
+        {
             app.update();
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Rotate Right graph and dependencies did not load"
+            );
         }
         let source_graph = app
             .world()

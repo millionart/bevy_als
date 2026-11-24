@@ -1,0 +1,5 @@
+ACL 2.1.0 and its bundled RTM headers come from the Unreal Engine 5.8 checkout
+at 396c9f059 under Engine/Plugins/Animation/ACLPlugin/Source/ThirdParty/acl.
+The MIT license for each library accompanies the corresponding headers.
+Three redundant C++ template disambiguators in the ACL decompression header
+were removed for current Clang. The runtime bridge belongs to bevy_als.

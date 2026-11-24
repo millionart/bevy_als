@@ -1,12 +1,22 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
-use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
+use crate::extensions::{
+    acl_animation::AlsAclAnimations,
+    control_rig_hierarchy::{RigTransform, rig_normalize},
+    pre_rig_sharing::{ActorScope, AlsPreRigSharingSettings, with_actor_scope},
+    source_pose::SourceSkeletonLayouts,
+    source_sequence_player::{AlsAnimationSharingSettings, SharedClipSamples},
+};
 use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Position, Rotation};
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    ecs::{query::QueryFilter, schedule::InternedScheduleLabel},
+    asset::{AssetEvent, AssetEventSystems},
+    ecs::{
+        batching::BatchingStrategy, query::QueryFilter, schedule::InternedScheduleLabel,
+        system::SystemParam,
+    },
     math::{Affine3A, Isometry3d},
     prelude::*,
     transform::TransformSystems,
@@ -14,6 +24,7 @@ use bevy::{
 use bevy_animation_graph::{AnimationGraphPlayback, AnimationPlaybackSystems};
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
+    animation_clip::GraphClip,
     animation_graph::{AnimationGraph, DEFAULT_OUTPUT_RAGDOLL_CONFIG},
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
     context::{pose_fallback::PoseFallbackContext, system_resources::SystemResources},
@@ -28,6 +39,7 @@ use bevy_animation_graph::core::{
     },
     skeleton::Skeleton,
     space_conversion::SpaceConversionContext,
+    state_machine::high_level::StateMachine,
     systems::{
         RootMotionOutput, debug_draw_animation_players, extract_root_motion,
         run_animation_player,
@@ -59,6 +71,16 @@ impl GraphEvaluationTime {
 
 #[derive(Component)]
 pub struct ManualAnimationPlayer;
+
+/// Applies one player's pose to a separate visual skeleton with matching bone paths.
+///
+/// Put this on the entity referenced by the visual bones' `AnimatedBy` components.
+/// The leader owns graph time, events and curves. Each visual keeps its own world transform.
+#[derive(Component, Clone, Debug)]
+pub struct AlsAnimationPoseFollower {
+    pub leader: Entity,
+    pub skeleton: Handle<Skeleton>,
+}
 
 #[derive(Component, Clone, Copy, Debug)]
 pub struct InitialAnimation {
@@ -144,7 +166,10 @@ fn install_physics_playback(app: &mut App, outer: InternedScheduleLabel) {
     } else {
         app.add_systems(
             outer,
-            (evaluate_players::<Without<PostPhysicsAnimation>>, extract_root_motion)
+            (
+                evaluate_players::<Without<PostPhysicsAnimation>>.after(AssetEventSystems),
+                extract_root_motion,
+            )
                 .chain()
                 .in_set(AnimationPlaybackSystems::Sample),
         );
@@ -187,7 +212,10 @@ fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
         )
         .add_systems(
             pose,
-            (evaluate_players::<EarlyFrame>, publish_sampled_motion::<EarlyFrame>)
+            (
+                evaluate_players::<EarlyFrame>.after(AssetEventSystems),
+                publish_sampled_motion::<EarlyFrame>,
+            )
                 .chain()
                 .in_set(AnimationGraphSet::PrePhysics),
         )
@@ -562,6 +590,35 @@ fn apply_readback_pose(
     }
 }
 
+#[derive(SystemParam)]
+#[doc(hidden)]
+pub struct SharingAssetEvents<'w, 's> {
+    graphs: Option<MessageReader<'w, 's, AssetEvent<AnimationGraph>>>,
+    clips: Option<MessageReader<'w, 's, AssetEvent<GraphClip>>>,
+    states: Option<MessageReader<'w, 's, AssetEvent<StateMachine>>>,
+    skeletons: Option<MessageReader<'w, 's, AssetEvent<Skeleton>>>,
+    gltfs: Option<MessageReader<'w, 's, AssetEvent<bevy::gltf::Gltf>>>,
+}
+
+impl SharingAssetEvents<'_, '_> {
+    fn has_revision(&mut self) -> bool {
+        fn revised<A: Asset>(reader: &mut Option<MessageReader<AssetEvent<A>>>) -> bool {
+            let Some(reader) = reader else { return false };
+            let mut changed = false;
+            for event in reader.read() {
+                changed |= matches!(event, AssetEvent::Modified { .. } | AssetEvent::Removed { .. });
+            }
+            changed
+        }
+
+        revised(&mut self.graphs)
+            | revised(&mut self.clips)
+            | revised(&mut self.states)
+            | revised(&mut self.skeletons)
+            | revised(&mut self.gltfs)
+    }
+}
+
 pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
     mut players: Query<
@@ -571,16 +628,46 @@ pub fn evaluate_players<F: QueryFilter>(
             &mut crate::extensions::SourceAnimationInputs,
             Option<&mut AnimationPoseUpdateGate>,
             Option<&InitialAnimation>,
+            Option<&crate::AlsAnimationLod>,
+            Option<&mut crate::AlsAnimationRate>,
         ),
         (F, Without<ManualAnimationPlayer>),
     >,
     resources: SystemResources,
     timing: Option<ResMut<GraphEvaluationTime>>,
+    mut skeleton_layouts: Local<Arc<SourceSkeletonLayouts>>,
+    sharing: Option<Res<AlsAnimationSharingSettings>>,
+    pre_rig_sharing: Option<Res<AlsPreRigSharingSettings>>,
+    clip_samples: Local<Arc<SharedClipSamples>>,
+    acl_animations: Option<Res<AlsAclAnimations>>,
+    mut asset_events: SharingAssetEvents,
 ) {
     let started = timing.as_ref().map(|_| bevy::platform::time::Instant::now());
+    if resources.skeleton_assets.is_changed() {
+        *skeleton_layouts = Arc::new(SourceSkeletonLayouts::new(&resources.skeleton_assets));
+    }
+    let skeleton_layouts = &*skeleton_layouts;
+    let pre_rig_enabled = sharing.as_ref().is_some_and(|settings| settings.enabled)
+        && pre_rig_sharing.as_ref().is_some_and(|settings| settings.enabled)
+        && players.iter().nth(1).is_some();
+    let inputs_changed = pre_rig_enabled
+        && (asset_events.has_revision()
+            || acl_animations.as_ref().is_some_and(|assets| assets.is_changed()));
+    let batch_size = clip_samples
+        .pre_rig_sharing
+        .begin_frame(pre_rig_enabled, inputs_changed);
+    let acl_animations = acl_animations.as_deref().filter(|animations| !animations.is_empty());
+    let clip_samples = sharing.filter(|sharing| sharing.enabled).map(|_| {
+        clip_samples.clear();
+        &*clip_samples
+    });
     players
         .par_iter_mut()
-        .for_each(|(entity, mut player, mut inputs, mut gate, initial)| {
+        .batching_strategy(BatchingStrategy::new().min_batch_size(batch_size))
+        .for_each(|(entity, mut player, mut inputs, mut gate, initial, lod, mut rate)| {
+            let actor_scope = pre_rig_enabled
+                .then(|| ActorScope::for_player(entity, &player, lod))
+                .flatten();
             let initialize = initial.is_some()
                 || gate.as_ref().is_some_and(|gate| gate.refresh_bones)
                     && player.get_animation_source().is_graph()
@@ -588,6 +675,11 @@ pub fn evaluate_players<F: QueryFilter>(
                         .get_context_arena()
                         .is_none_or(|arena| arena.frame_index() == 0);
             let update_graph = gate.as_ref().is_none_or(|gate| gate.update_graph);
+            if !update_graph && !initialize
+                && let Some(rate) = rate.as_mut()
+            {
+                rate.cancel_inactive();
+            }
             if (initialize || update_graph)
                 && initial.is_none_or(|initial| {
                     initial.ready && player.get_default_output_pose().is_none()
@@ -605,16 +697,21 @@ pub fn evaluate_players<F: QueryFilter>(
                     if delta.is_some() {
                         player.set_global_input_data("animation.delta_seconds", 0.0_f32);
                     }
-                    inputs.evaluate(entity, || {
-                        run_animation_player(
-                            entity,
-                            player.reborrow(),
-                            &Time::default(),
-                            &resources,
-                        )
+                    inputs.evaluate_with_skeleton_layouts(entity, skeleton_layouts, lod, clip_samples, acl_animations, || {
+                        with_actor_scope(actor_scope.clone(), || {
+                            run_animation_player(
+                                entity,
+                                player.reborrow(),
+                                &Time::default(),
+                                &resources,
+                            )
+                        })
                     });
                     if let Some(delta) = delta {
                         player.set_global_input_data("animation.delta_seconds", delta);
+                    }
+                    if player.get_error().is_none() && let Some(rate) = rate.as_mut() {
+                        rate.publish(None, None);
                     }
                 }
                 if update_graph
@@ -629,25 +726,49 @@ pub fn evaluate_players<F: QueryFilter>(
                         "animation.evaluate_pose",
                         gate.as_ref().is_none_or(|gate| gate.refresh_bones),
                     );
-                    let delta = player
-                        .get_global_input_data("animation.delta_seconds")
-                        .and_then(|value| value.as_f32().ok())
-                        .map_or(time.delta_secs(), |value| value);
-                    let mut animation_time = Time::default();
-                    animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));
-                    inputs.evaluate(entity, || {
-                        run_animation_player(entity, player.reborrow(), &animation_time, &resources)
-                    });
+                    let original = player.get_global_input_data("animation.delta_seconds").cloned();
+                    let explicit = original.as_ref().and_then(|value| value.as_f32().ok());
+                    let delta = explicit.unwrap_or_else(|| time.delta_secs());
+                    let elapsed = rate.as_mut().map_or(Some(delta), |rate| rate.step(delta, initialize));
+                    if let Some(elapsed) = elapsed {
+                        let override_delta = explicit.is_some() && elapsed != delta;
+                        if override_delta {
+                            player.set_global_input_data("animation.delta_seconds", elapsed);
+                        }
+                        let previous_pose = rate.as_ref().filter(|rate| rate.needs_previous_pose())
+                            .and_then(|_| player.get_default_output_pose().cloned());
+                        let started = rate.as_ref().and_then(|rate| rate.measure_cost.then(std::time::Instant::now));
+                        let mut animation_time = Time::default();
+                        animation_time.advance_by(std::time::Duration::from_secs_f32(elapsed.max(0.0)));
+                        inputs.evaluate_with_skeleton_layouts(entity, skeleton_layouts, lod, clip_samples, acl_animations, || {
+                            with_actor_scope(actor_scope, || {
+                                run_animation_player(entity, player.reborrow(), &animation_time, &resources)
+                            })
+                        });
+                        let work = started.map(|started| started.elapsed());
+                        if override_delta && let Some(original) = original {
+                            player.set_global_input_data("animation.delta_seconds", original);
+                        }
+                        if player.get_error().is_none() && let Some(rate) = rate.as_mut() {
+                            rate.publish(previous_pose, work);
+                        }
+                    }
                 }
                 if update_graph
                     && initial.is_none()
                     && playing
                     && player.get_error().is_none()
                     && player.get_default_output_pose().is_some()
+                    && rate.as_ref().is_none_or(|rate| rate.updated_this_frame)
                     && let Some(gate) = gate.as_mut()
                 {
                     gate.pending_update = false;
                 }
+            }
+            if let Some(lod) = lod
+                && let Some(compact) = player.get_default_output_pose().and_then(|pose| lod.compact_pose(pose))
+            {
+                player.set_default_output_pose(compact);
             }
             debug_draw_animation_players(player, &resources);
             inputs.set_rig_query_context(None);
@@ -669,11 +790,21 @@ fn apply_animation_to_visible_targets(
         &AnimatedBy,
         Option<&mut PublishedSourceBone>,
     )>,
-    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
+    players: Query<(
+        &AnimationGraphPlayer,
+        Option<&AnimationPoseUpdateGate>,
+        Option<&crate::AlsAnimationLod>,
+    )>,
+    mut rates: Query<&mut crate::AlsAnimationRate>,
+    followers: Query<&AlsAnimationPoseFollower, Without<AnimationGraphPlayer>>,
 ) {
+    let mut source_poses = bevy::platform::collections::HashMap::new();
+    let mut rig_outputs = bevy::platform::collections::HashMap::new();
     let mut rig_hierarchies = bevy::platform::collections::HashMap::new();
     for (entity, mut transform, morphs, id, animated_by, published) in &mut targets {
-        let Ok((player, gate)) = players.get(animated_by.0) else {
+        let follower = followers.get(animated_by.0).ok();
+        let source = follower.map_or(animated_by.0, |follower| follower.leader);
+        let Ok((player, gate, lod)) = players.get(source) else {
             continue;
         };
         if gate.is_some_and(|gate| !gate.refresh_bones) {
@@ -682,22 +813,51 @@ fn apply_animation_to_visible_targets(
         let Some(pose) = player.get_default_output_pose() else {
             continue;
         };
+        if follower.is_some_and(|follower| follower.skeleton != pose.skeleton) {
+            continue;
+        }
         let id = BoneId::from(*id);
-        let Some(bone) = pose.get_bone(id) else {
+        if lod.and_then(|lod| lod.omitted_bones(pose.skeleton.id()))
+            .is_some_and(|omitted| omitted.contains(&id))
+        {
+            if let Some(reference) = skeletons.as_ref().and_then(|assets| assets.get(&pose.skeleton))
+                .and_then(|skeleton| skeleton.default_transforms(id))
+                && *transform != reference.local
+            {
+                *transform = reference.local;
+            }
+            if published.is_some() {
+                commands.entity(entity).remove::<PublishedSourceBone>();
+            }
+            continue;
+        }
+        let mut rate = rates.get_mut(source).ok();
+        if rate.as_ref().is_some_and(|rate| !rate.pose_to_publish()) {
+            continue;
+        }
+        let started = rate.as_ref().and_then(|rate| rate.measure_cost.then(std::time::Instant::now));
+        let Some(target) = pose.get_bone(id) else {
             continue;
         };
-        let precise = gate.and_then(|_| {
-            let AnimationSource::Graph(graph) = player.get_animation_source() else { return None; };
-            let graph = graphs.as_ref()?.get(graph)?;
-            let root = crate::animation_context_projection::root_pose_source_node(graph)?;
-            let context = crate::extensions::animation_context::player_animation_context_state(player, root);
-            let exact = context.and_then(|context| context.source_pose.as_ref()).and_then(|source| {
-                let (_, value) = source.bones.iter().find(|(bone, _)| *bone == id)?;
+        let interpolated = rate.as_ref().and_then(|rate| rate.interpolate_bone(pose, id, target));
+        let bone = interpolated.as_ref().unwrap_or(target);
+        let precise = gate.filter(|_| follower.is_none() && interpolated.is_none()).and_then(|_| {
+            let indexed = source_poses.entry(source).or_insert_with(|| {
+                let AnimationSource::Graph(graph) = player.get_animation_source() else { return None; };
+                let graph = graphs.as_ref()?.get(graph)?;
+                let root = crate::animation_context_projection::root_pose_source_node(graph)?;
+                let context = crate::extensions::animation_context::player_animation_context_state(player, root)?;
+                let pose = context.source_pose.as_ref()?;
+                let bones: bevy::platform::collections::HashMap<_, _> = pose.bones.iter().copied().collect();
+                Some((bones, pose.length_scale))
+            }).as_ref();
+            let exact = indexed.and_then(|(bones, length_scale)| {
+                let value = bones.get(&id)?;
                 let mut projection = bevy_animation_graph::core::pose::BonePose::default();
-                crate::extensions::source_pose::project_bone_transform(&mut projection, *value, source.length_scale);
+                crate::extensions::source_pose::project_bone_transform(&mut projection, *value, *length_scale);
                 Some((RigTransform {
                     translation: bevy::math::DVec3::new(value.translation.x, value.translation.z, value.translation.y)
-                        * (source.length_scale * 100.0),
+                        * (*length_scale * 100.0),
                     rotation: bevy::math::DQuat::from_xyzw(-value.rotation.x, -value.rotation.z, -value.rotation.y, value.rotation.w),
                     scale: bevy::math::DVec3::new(value.scale.x, value.scale.z, value.scale.y),
                 }, projection))
@@ -706,18 +866,21 @@ fn apply_animation_to_visible_targets(
                 && (projection.translation, projection.rotation, projection.scale) == (bone.translation, bone.rotation, bone.scale) {
                 return Some(RigTransform { rotation: rig_normalize(value.rotation), ..value });
             }
-            let (context, node, state) = crate::extensions::root_graph_boundaries::current_control_rig(player, graphs.as_ref()?)?;
-            let cached = context.node_caches.get_output_data(node.id,
-                bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into())?;
-            let rig_bone = cached.as_pose().ok()?.get_bone(id)?;
+            let (cached, definition, state) = rig_outputs.entry(animated_by.0).or_insert_with(|| {
+                let (context, node, state) = crate::extensions::root_graph_boundaries::current_control_rig(player, graphs.as_ref()?)?;
+                let pose = context.node_caches.get_output_data(node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into())?.into_pose().ok()?;
+                let definition = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()?
+                    .definition.as_ref()?;
+                Some((pose, definition, state))
+            }).as_ref()?;
+            let rig_bone = cached.get_bone(id)?;
             if (rig_bone.translation, rig_bone.rotation, rig_bone.scale) != (bone.translation, bone.rotation, bone.scale) {
                 return None;
             }
             let skeleton = skeletons.as_ref()?.get(&pose.skeleton)?;
             let path = skeleton.id_to_path(id)?;
             let name = path.parts.last()?;
-            let definition = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()?
-                .definition.as_ref()?;
             let index = definition.bones.iter().position(|bone| bone.name.eq_ignore_ascii_case(name.as_str()))?;
             let hierarchy = rig_hierarchies.entry(animated_by.0).or_insert_with(|| state.snapshot_hierarchy());
             let local = hierarchy.as_mut()?.transform(index,
@@ -769,6 +932,9 @@ fn apply_animation_to_visible_targets(
             for (target, source) in morphs.weights_mut().iter_mut().zip(weights) {
                 *target = *source;
             }
+        }
+        if let Some((rate, started)) = rate.as_deref_mut().zip(started) {
+            rate.record_writeback(started);
         }
     }
 }
@@ -2241,3 +2407,52 @@ mod tests {
         assert_eq!(player.get_context_arena().unwrap().frame_index(), 3);
     }
 }
+    #[test]
+    fn compatible_followers_publish_one_pose_with_independent_visual_roots() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{animation_clip::EntityPath, pose::BonePose};
+
+        let mut app = App::new();
+        let world = app.world_mut();
+        let mut skeletons = Assets::<Skeleton>::default();
+        let skeleton = skeletons.add(Skeleton::default());
+        let different = skeletons.add(Skeleton::default());
+        let bone = EntityPath::default().child("bone").id();
+        let pose_at = |translation| {
+            let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+            pose.add_bone(BonePose::from_transform(Transform::from_translation(translation)), bone);
+            pose
+        };
+        let mut leader = AnimationGraphPlayer::default();
+        leader.set_animation(AnimationSource::Pose(pose_at(Vec3::Y)));
+        let leader = world.spawn(leader).id();
+        let mut followers = Vec::new();
+        for (skeleton, offset) in [(skeleton.clone(), 10.0), (skeleton.clone(), 20.0), (different, 30.0)] {
+            let root = world.spawn((
+                Transform::from_xyz(offset, 0.0, 0.0),
+                AlsAnimationPoseFollower { leader, skeleton },
+            )).id();
+            let target = world.spawn((
+                Transform::IDENTITY,
+                ChildOf(root),
+                AnimatedBy(root),
+                bone.animation_target_id(),
+            )).id();
+            followers.push((root, target, offset));
+        }
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        for (index, &(root, target, offset)) in followers.iter().enumerate() {
+            assert_eq!(world.get::<Transform>(root).unwrap().translation.x, offset);
+            assert_eq!(world.get::<Transform>(target).unwrap().translation,
+                if index < 2 { Vec3::Y } else { Vec3::ZERO });
+        }
+
+        let mut independent = AnimationGraphPlayer::default();
+        independent.set_animation(AnimationSource::Pose(pose_at(Vec3::Z)));
+        world.entity_mut(followers[0].0).insert(independent);
+        world.get_mut::<AnimationGraphPlayer>(leader).unwrap()
+            .set_animation(AnimationSource::Pose(pose_at(Vec3::X)));
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        assert_eq!(world.get::<Transform>(followers[0].1).unwrap().translation, Vec3::Z);
+        assert_eq!(world.get::<Transform>(followers[1].1).unwrap().translation, Vec3::X);
+    }

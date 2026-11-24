@@ -41,6 +41,24 @@ Sequence sampling honors logical source frames for GLB `STEP` keys, including un
 
 The runtime uses Bevy's ForwardDecal for footprints. Camera and animation timing use Bevy's real and virtual clocks. Network prediction and replication, Unreal editor tools, MetaSounds, Niagara, and general motion matching are outside the plugin's scope.
 
+## Animation quality settings
+
+The nearest active 3D camera selects the default bone LOD. At 32 meters the animation skips finger branches. At 72 meters it also bypasses Control Rig evaluation. Set `AlsAnimationLodSettings` to change the bands, protect socket bones, or filter scalar curves by LOD and linked bones. Imported Control Rig, additive and layered blend nodes accept an optional `lod_threshold`.
+
+Set `AlsAnimationRateSettings.enabled` to stagger updates for visible distant characters and interpolate the displayed pose. The default distance bands update every third frame at 32 meters and every sixth frame at 72 meters. Set `cpu_budget_ms` to adapt evaluation rates and interpolation to an average CPU budget. `AlsAnimationSignificance` overrides distance priority, and `reduce_rig_under_budget` permits rig bypass during budget pressure. Locally controlled characters and actions that require a continuous pose take priority.
+
+`AlsAnimationSharingSettings` enables sharing identical clip samples by default. The cache matches the clip, sample time and required bones. For visual-only characters with matching bone paths, attach `AlsAnimationPoseFollower` to the entity referenced by their `AnimatedBy` components. Their leader supplies the pose and owns playback, while each follower keeps its own world transform.
+
+Set `AlsPreRigSharingSettings.enabled` at startup to share compatible stock ALS graph updates before Control Rig. Each character retains its own Rig and physics state. The scheduler matches the animation inputs, pose detail and state history as playback starts. A character with independent input or animation state uses ordinary graph evaluation.
+
+The default `AlsAclAnimations` decodes bundled ACL locomotion clips and the baked local-space idle additive. The idle decoder uses the base pose and frame declared by the sequence player. Insert `AlsAclAnimations::empty()` to use the installed glTF animation tracks for every clip.
+
+To rebuild the bundled ACL bank, request a `SequenceCompressionExport` from the native UE reader with `relative_retarget` enabled and the bundled sequence paths. Pack the resulting capture from the project root. Pass a `SequencePoseProbe` capture through `--additive-base-probe` for each local additive clip to bind its authored frame-zero base.
+
+```sh
+python3 tools/import/pack_als_acl.py capture.json assets/ALSRuntime/Animations/als_acl.bank
+```
+
 Run the core tests with `cargo test --locked --jobs 2 -- --test-threads=1`.
 
 ## License

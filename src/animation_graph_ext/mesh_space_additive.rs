@@ -157,8 +157,11 @@ pub(super) fn hierarchy_order(skeleton: &Skeleton) -> Vec<BoneId> {
 
 #[doc(hidden)]
 pub fn materialize_missing_reference_bones(base: &mut Pose, skeleton: &Skeleton) {
+    let omitted = crate::extensions::source_gameplay_tag_input::active_omitted_bones(base.skeleton.id());
     for bone in skeleton.iter_bones() {
-        if bone == skeleton.root() || base.paths.contains_key(&bone) {
+        if bone == skeleton.root() || base.paths.contains_key(&bone)
+            || omitted.as_ref().is_some_and(|omitted| omitted.contains(&bone))
+        {
             continue;
         }
         let Some(transform) = skeleton.default_transforms(bone) else {

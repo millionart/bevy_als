@@ -139,7 +139,11 @@ fn root_motion_difference(
 }
 
 pub fn make_mesh_space_difference(base: &Pose, target: &Pose, skeleton: &Skeleton) -> Pose {
-    let hierarchy = hierarchy_order(skeleton);
+    let omitted = crate::extensions::source_gameplay_tag_input::active_omitted_bones(base.skeleton.id());
+    let mut hierarchy = hierarchy_order(skeleton);
+    if let Some(omitted) = &omitted {
+        hierarchy.retain(|bone| !omitted.contains(bone));
+    }
     let base_mesh = mesh_rotations(base, skeleton, &hierarchy);
     let target_mesh = mesh_rotations(target, skeleton, &hierarchy);
     let mut difference = Pose {
@@ -150,6 +154,9 @@ pub fn make_mesh_space_difference(base: &Pose, target: &Pose, skeleton: &Skeleto
     };
 
     for (bone, target_index) in &target.paths {
+        if omitted.as_ref().is_some_and(|omitted| omitted.contains(bone)) {
+            continue;
+        }
         let target_bone = &target.bones[*target_index];
         let base_bone = base.get_bone(*bone);
         let default = default_transform(skeleton, *bone);
