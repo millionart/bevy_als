@@ -32,6 +32,7 @@ pub fn derive_default_root_bone(clip: &GraphClip, skeleton: &Skeleton) -> Option
 pub(crate) enum ScanStep {
     Resolved,
     PendingAssets,
+    Injected,
 }
 
 fn open_struct(node: &mut ClipNode) -> Option<&mut dyn bevy::reflect::structs::Struct> {
@@ -51,15 +52,6 @@ fn bone_already_set(struct_v: &mut dyn bevy::reflect::structs::Struct) -> Option
         .field("root_motion_bone")
         .and_then(|f| f.try_downcast_ref::<Option<EntityPath>>())
         .map(|b| b.is_some())
-}
-
-fn write_missing_root_bone(struct_v: &mut dyn bevy::reflect::structs::Struct, bone: EntityPath) {
-    if let Some(slot) = struct_v
-        .field_mut("root_motion_bone")
-        .and_then(|f| f.try_downcast_mut::<Option<EntityPath>>())
-    {
-        *slot = Some(bone);
-    }
 }
 
 #[cfg(test)]
@@ -121,12 +113,18 @@ fn step_clip_node(
         );
         return ScanStep::Resolved;
     };
-    write_missing_root_bone(struct_v, bone);
+    let Some(slot) = struct_v
+        .field_mut("root_motion_bone")
+        .and_then(|f| f.try_downcast_mut::<Option<EntityPath>>())
+    else {
+        return ScanStep::Resolved;
+    };
+    *slot = Some(bone);
     info!(
         "root motion defaults: injected derived root bone for clip {:?}",
         handle.path()
     );
-    ScanStep::Resolved
+    ScanStep::Injected
 }
 
 #[derive(Resource, Default)]
@@ -156,18 +154,22 @@ fn inject_default_root_motion_bones(
             continue;
         };
         let mut pending = false;
-        for node in graph.nodes.values_mut() {
+        let mut changed = false;
+        for node in graph.bypass_change_detection().nodes.values_mut() {
             let inner: &mut dyn bevy_animation_graph::core::animation_node::NodeLike =
                 &mut **node.inner;
             let Some(clip_node) = inner.as_any_mut().downcast_mut::<ClipNode>() else {
                 continue;
             };
-            if matches!(
-                step_clip_node(clip_node, &clips, &skeletons),
-                ScanStep::PendingAssets
-            ) {
-                pending = true;
+            match step_clip_node(clip_node, &clips, &skeletons) {
+                ScanStep::PendingAssets => pending = true,
+                ScanStep::Injected => changed = true,
+                ScanStep::Resolved => {}
             }
+        }
+        if changed {
+            // Notify asset consumers only after a default was written.
+            let _ = graph.into_inner();
         }
         if !pending {
             processed.0.insert(id);
@@ -302,13 +304,14 @@ mod tests {
         );
         app.world_mut()
             .resource_mut::<Assets<Skeleton>>()
-            .insert(skel_handle.id(), skeleton);
+            .insert(skel_handle.id(), skeleton)
+            .unwrap();
 
         let clips = app.world().resource::<Assets<GraphClip>>();
         let skeletons = app.world().resource::<Assets<Skeleton>>();
         assert!(matches!(
             step_clip_node(&mut cn, clips, skeletons),
-            ScanStep::Resolved
+            ScanStep::Injected
         ));
 
         let struct_v = open_struct(&mut cn).expect("struct");
@@ -328,5 +331,74 @@ mod tests {
             derive_default_root_bone(clip, skeleton)
         };
         assert_eq!(derived, Some(path(&["GltfNode0", "root"])));
+    }
+}
+
+#[cfg(test)]
+mod asset_change_tests {
+    use super::*;
+    use bevy::asset::AssetEvent;
+    use bevy_animation_graph::core::animation_node::AnimationNode;
+
+    #[test]
+    fn root_motion_injection_only_reports_real_asset_changes() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<AnimationGraph>()
+            .init_asset::<GraphClip>()
+            .init_asset::<Skeleton>()
+            .add_plugins(RootMotionDefaultsPlugin);
+
+        let root = EntityPath::from(vec!["root".to_owned()]);
+        let skeleton_handle = app.world().resource::<Assets<Skeleton>>().reserve_handle();
+        let mut clip = GraphClip {
+            duration: 1.0,
+            skeleton: skeleton_handle.clone(),
+            ..default()
+        };
+        clip.curves.insert(root.id().animation_target_id(), Vec::new());
+        let clip = app.world_mut().resource_mut::<Assets<GraphClip>>().add(clip);
+        let mut node = ClipNode::new(clip, None, None);
+        force_mode_full(open_struct(&mut node).unwrap());
+        let mut graph = AnimationGraph::new();
+        graph.add_node(AnimationNode::new("Root motion clip", node));
+        let handle = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let mut events = app
+            .world()
+            .resource::<Messages<AssetEvent<AnimationGraph>>>()
+            .get_cursor_current();
+        let mut take_modified = |app: &App| {
+            events
+                .read(app.world().resource::<Messages<AssetEvent<AnimationGraph>>>())
+                .filter(|event| matches!(event, AssetEvent::Modified { id } if *id == handle.id()))
+                .count()
+        };
+
+        app.update();
+        assert_eq!(
+            take_modified(&app),
+            0,
+            "waiting for the skeleton emitted a change event"
+        );
+
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(root, Transform::IDENTITY, Transform::IDENTITY);
+        app.world_mut()
+            .resource_mut::<Assets<Skeleton>>()
+            .insert(skeleton_handle.id(), skeleton)
+            .unwrap();
+        app.update();
+        assert_eq!(
+            take_modified(&app),
+            1,
+            "root injection did not publish exactly one change event"
+        );
+
+        app.update();
+        assert_eq!(
+            take_modified(&app),
+            0,
+            "the processed graph emitted another change event"
+        );
     }
 }
