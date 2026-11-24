@@ -718,10 +718,10 @@ impl NodeLike for SourceCachedPoseSaveNode {
                     }
                 }
             }
-            *ctx.state_mut_or_else(AnimationContextState::default)? = AnimationContextState {
+            ctx.replace_state(AnimationContextState {
                 cached_pose_request_route: None,
                 ..context
-            };
+            })?;
         }
         Ok(())
     }
@@ -760,7 +760,7 @@ impl NodeLike for SourceScopedCachedPoseUseNode {
         let mut context = scoped_cached_context_state(&mut ctx, &self.cache_node, &self.cache_key)
             .unwrap_or_default();
         merge_context_defaults(&mut context, &self.context_defaults);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 
@@ -780,7 +780,7 @@ impl NodeLike for SourceCachedPoseUseNode {
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         if let Some(context) = cached_context_state(&mut ctx, &self.cache_node) {
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            ctx.replace_state(context)?;
         }
         Ok(())
     }

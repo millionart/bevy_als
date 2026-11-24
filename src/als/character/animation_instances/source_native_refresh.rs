@@ -1,5 +1,4 @@
 use crate::extensions::{
-    AnimationContextState,
     animation_context::pose_input_context_state,
     source_instance::{set_source_property, source_input_data, source_instance_properties},
 };
@@ -437,8 +436,7 @@ impl NodeLike for AlsSourceRefreshNode {
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        *ctx.state_mut_or_else(AnimationContextState::default)? =
-            pose_input_context_state(&ctx, "Source").unwrap_or_default();
+        ctx.replace_state(pose_input_context_state(&ctx, "Source").unwrap_or_default())?;
         Ok(())
     }
 

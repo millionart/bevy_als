@@ -319,51 +319,51 @@ pub fn node_context_state(
     key: StateKey,
     node: NodeId,
 ) -> Option<&AnimationContextState> {
-    if let Ok(state) = states.get::<crate::extensions::layered_graph::LayeredGraphState>(node, key)
+    let state = states.get_any(node, key)?;
+    if let Some(state) = state.downcast_ref::<crate::extensions::layered_graph::LayeredGraphState>()
     {
         return Some(&state.context);
     }
-    if let Ok(state) =
-        states.get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(node, key)
+    if let Some(state) =
+        state.downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigNodeState>()
     {
         return Some(&state.context);
     }
-    if let Ok(state) =
-        states.get::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>(node, key)
+    if let Some(state) =
+        state.downcast_ref::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>()
     {
         return Some(&state.context);
     }
-    if let Ok(state) = states.get::<AnimationContextState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<AnimationContextState>() {
         return Some(state);
     }
-    if let Ok(state) = states.get::<SourceInertializationState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<SourceInertializationState>() {
         return Some(&state.context);
     }
-    if let Ok(state) =
-        states.get::<crate::extensions::inertialization::InertializationState>(node, key)
+    if let Some(state) =
+        state.downcast_ref::<crate::extensions::inertialization::InertializationState>()
     {
         return Some(&state.context);
     }
-    if let Ok(state) = states.get::<SourceSequencePlayerState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<SourceSequencePlayerState>() {
         return Some(&state.context);
     }
-    if let Ok(state) = states.get::<SourceTwoWayBlendState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<SourceTwoWayBlendState>() {
         return Some(&state.context);
     }
-    if let Ok(state) = states.get::<SourceGameplayTagBlendState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<SourceGameplayTagBlendState>() {
         return Some(&state.context);
     }
-    if let Ok(state) = states.get::<SourceBlendState>(node.clone(), key) {
+    if let Some(state) = state.downcast_ref::<SourceBlendState>() {
         return Some(&state.context);
     }
-    if let Ok(state) =
-        states.get::<crate::extensions::source_stop_nodes::SourceLayeredBoneBlendState>(node, key)
+    if let Some(state) =
+        state.downcast_ref::<crate::extensions::source_stop_nodes::SourceLayeredBoneBlendState>()
     {
         return Some(&state.context);
     }
-    states
-        .get::<InterruptibleFsmState>(node, key)
-        .ok()
+    state
+        .downcast_ref::<InterruptibleFsmState>()
         .map(|state| state.context.as_ref())
 }
 
@@ -596,8 +596,8 @@ fn source_curve_value(
     }
     ctx.graph_context
         .node_caches()
-        .get_output_data(source_node.clone(), state_key, curve_name.to_owned())
-        .ok_or(GraphError::OutputMissing {
+        .get_output_data_ref(source_node, state_key, curve_name)
+        .ok_or_else(|| GraphError::OutputMissing {
             graph: ctx.graph_context.context_id,
             node: source_node,
             pin: curve_name.to_owned(),

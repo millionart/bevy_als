@@ -1020,7 +1020,7 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
         for (key, value) in base_context.curves.iter() {
             *context.curves.entry(key.clone()).or_default() -= value;
         }
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 
@@ -1130,7 +1130,7 @@ impl NodeLike for SourceCurvesBlendNode {
         };
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 
@@ -1891,7 +1891,7 @@ impl NodeLike for SourceCurveModifyNode {
         }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 

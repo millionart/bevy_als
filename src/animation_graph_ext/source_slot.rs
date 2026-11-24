@@ -345,7 +345,7 @@ impl NodeLike for SourceSlotNode {
             }
             context.source_pose = source_pose;
             ctx.set_data_fwd("Pose", pose);
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            ctx.replace_state(context)?;
             return Ok(());
         }
         let base =
@@ -431,7 +431,7 @@ impl NodeLike for SourceSlotNode {
             {
                 sample.slot_key.clone_from(&self.pose_key);
             }
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            ctx.replace_state(context)?;
         }
         Ok(())
     }

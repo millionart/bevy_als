@@ -181,7 +181,7 @@ impl NodeLike for SourceMultiWayBlendNode {
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 
@@ -251,7 +251,7 @@ impl NodeLike for SourceSetHipsDirectionNode {
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         if let Some(context) = pose_input_context_state(&ctx, "Source") {
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            ctx.replace_state(context)?;
         }
         Ok(())
     }

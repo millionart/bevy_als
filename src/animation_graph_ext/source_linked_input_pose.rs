@@ -61,7 +61,7 @@ impl NodeLike for SourceLinkedInputPoseNode {
                 state.curves.insert(curve.clone().into(), value);
             }
         }
-        *ctx.state_mut_or_else(AnimationContextState::default)? = state;
+        ctx.replace_state(state)?;
         Ok(())
     }
 

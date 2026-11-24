@@ -12,9 +12,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-use crate::extensions::animation_context::{
-    AnimationContextState, context_time_update, graph_output_context_state,
-};
+use crate::extensions::animation_context::{context_time_update, graph_output_context_state};
 
 pub const ALS_LAYER_CURVE_NAMES: [&str; 18] = [
     "LayerArmLeft",
@@ -172,8 +170,9 @@ impl NodeLike for LinkedAnimLayerNode {
         for (id, data_spec) in output_data {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
             if data_spec == DataSpec::Pose {
-                *ctx.state_mut_or_else(AnimationContextState::default)? =
-                    graph_output_context_state(graph, &sub_ctx, &id).unwrap_or_default();
+                ctx.replace_state(
+                    graph_output_context_state(graph, &sub_ctx, &id).unwrap_or_default(),
+                )?;
             }
             if source_pose_output_alias(&id, &data_spec) {
                 ctx.set_data_fwd("Pose", value.clone());

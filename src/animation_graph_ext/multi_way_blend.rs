@@ -8,9 +8,7 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
-use crate::extensions::animation_context::{
-    AnimationContextState, pose_input_context_state, select_relevant_asset,
-};
+use crate::extensions::animation_context::{pose_input_context_state, select_relevant_asset};
 
 const WEIGHT_THRESHOLD: f32 = 1e-6;
 
@@ -108,7 +106,7 @@ impl NodeLike for MultiWayBlendNode {
                 *weight,
             )
         }));
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        ctx.replace_state(context)?;
         Ok(())
     }
 

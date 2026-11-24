@@ -259,7 +259,7 @@ impl NodeLike for SourcePosePassthroughNode {
                     }
                 }
             }
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            ctx.replace_state(context)?;
         }
         if self.output_time {
             let time_update = ctx.time_update_fwd()?;

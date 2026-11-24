@@ -13,7 +13,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::animation_context::pose_input_context_state;
 use crate::extensions::interruptible_fsm::SourceFsmStateWeight;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -336,8 +336,7 @@ impl NodeLike for SourcePropertyWriteNode {
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        *ctx.state_mut_or_else(AnimationContextState::default)? =
-            pose_input_context_state(&ctx, "Source").unwrap_or_default();
+        ctx.replace_state(pose_input_context_state(&ctx, "Source").unwrap_or_default())?;
         Ok(())
     }
 

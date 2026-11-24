@@ -470,7 +470,7 @@ impl NodeLike for LayeredGraphNode {
             self.merge_input_pose_contexts(graph, &ctx, &mut context_state);
             self.capture_global_curves(&ctx, &mut context_state)?;
             if self.graph_binding.is_empty() {
-                *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
+                ctx.replace_state(context_state)?;
                 return Ok(());
             }
             let binding = crate::extensions::source_gameplay_tag_input::active_linked_graph_input(

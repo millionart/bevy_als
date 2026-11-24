@@ -294,7 +294,7 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
             {
                 merge_missing_context_curves(&mut context_state, &output_context);
             }
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
+            ctx.replace_state(context_state)?;
         }
         Ok(())
     }
