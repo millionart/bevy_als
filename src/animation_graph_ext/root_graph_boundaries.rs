@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::{borrow::Cow, sync::{Arc, Weak}};
 
 use bevy::{asset::AssetId, math::DVec3};
 use bevy::prelude::*;
@@ -69,6 +69,14 @@ struct ControlRigRuntime {
     hierarchy: RigHierarchy,
     values: Vec<RigValue>,
     curves: crate::extensions::SourceCurveValues,
+}
+
+fn bone_name_key(name: &str) -> Cow<'_, str> {
+    if name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        Cow::Owned(name.to_ascii_lowercase())
+    } else {
+        Cow::Borrowed(name)
+    }
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -400,20 +408,25 @@ impl ControlRigBoundaryNode {
             return Err("rig global pose transfer is unsupported".to_owned());
         }
         let compile_mapping = || {
-            let mut mapping = Vec::with_capacity(definition.bones.len());
-            for bone in &definition.bones {
-                let mut matches = skeleton.iter_paths().filter(|path| {
-                    path.parts
-                        .last()
-                        .is_some_and(|name| name.as_str().eq_ignore_ascii_case(&bone.name))
-                });
-                let matched = matches.next().map(|path| path.id());
-                if matches.next().is_some() {
-                    return Err(format!("rig bone mapping is ambiguous: {}", bone.name));
+            let mut by_name =
+                bevy::platform::collections::HashMap::with_capacity(definition.bones.len());
+            for (id, path) in skeleton.iter_bone_paths() {
+                if let Some(name) = path.parts.last() {
+                    by_name
+                        .entry(bone_name_key(name.as_str()))
+                        .and_modify(|matched| *matched = None)
+                        .or_insert(Some(id));
                 }
-                mapping.push(matched);
             }
-            Ok(mapping)
+            definition
+                .bones
+                .iter()
+                .map(|bone| match by_name.get(&bone_name_key(&bone.name)) {
+                    Some(None) => Err(format!("rig bone mapping is ambiguous: {}", bone.name)),
+                    Some(Some(id)) => Ok(Some(*id)),
+                    None => Ok(None),
+                })
+                .collect::<Result<Vec<_>, _>>()
         };
         let cached;
         let compiled;
