@@ -67,8 +67,8 @@ pub(crate) struct SourceSkeletonLayout {
 impl SourceSkeletonLayout {
     fn new(skeleton: &Skeleton) -> Self {
         let mut order: Vec<_> = skeleton
-            .iter_bones()
-            .filter_map(|bone| Some((skeleton.id_to_path(bone)?.parts.len(), bone)))
+            .iter_bone_paths()
+            .map(|(bone, path)| (path.parts.len(), bone))
             .collect();
         order.sort_unstable_by_key(|(depth, bone)| (*depth, bone.animation_target_id().0));
         Self {
@@ -124,15 +124,21 @@ pub struct SourcePose {
 impl SourcePose {
     #[doc(hidden)]
     pub fn from_complete_pose(pose: &Pose, skeleton: &Skeleton) -> Option<Self> {
-        let mut bones = pose
-            .paths
-            .iter()
-            .map(|(&id, &index)| {
-                let depth = skeleton.id_to_path(id)?.parts.len();
-                Some((depth, id, complete_local_transform(&pose.bones[index])?))
+        let mut bones = skeleton
+            .iter_bone_paths()
+            .filter_map(|(id, path)| {
+                let index = *pose.paths.get(&id)?;
+                Some((id, path, &pose.bones[index]))
+            })
+            .map(|(id, path, bone)| {
+                Some((
+                    path.parts.len(),
+                    id,
+                    complete_local_transform(bone)?,
+                ))
             })
             .collect::<Option<Vec<_>>>()?;
-        if bones.is_empty() {
+        if bones.is_empty() || bones.len() != pose.paths.len() {
             return None;
         }
         bones.sort_unstable_by_key(|(depth, id, _)| (*depth, id.animation_target_id().0));
