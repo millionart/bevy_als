@@ -15,7 +15,6 @@ use avian3d::{
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
-use bevy::transform::systems as transform_systems;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 #[cfg(test)]
@@ -28,6 +27,7 @@ use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, character_mesh_entity};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
+use crate::late_transform_propagation::{LateTransformPropagationPlugin, late_transform_propagation};
 
 pub(crate) const CR_ALS_RUNTIME_PROFILE: &str =
     include_str!("../../../assets/ALS/Character/CR_Als.runtime.json");
@@ -69,6 +69,9 @@ pub struct ControlRigApplyPlugin;
 
 impl Plugin for ControlRigApplyPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<LateTransformPropagationPlugin>() {
+            app.add_plugins(LateTransformPropagationPlugin);
+        }
         app.configure_sets(
             PostUpdate,
             (
@@ -91,16 +94,11 @@ impl Plugin for ControlRigApplyPlugin {
                 (refresh_control_rig_input, publish_control_rig_inputs)
                     .chain()
                     .in_set(AlsControlRigInputSet),
-                (
-                    transform_systems::mark_dirty_trees,
-                    transform_systems::propagate_parent_transforms,
-                    transform_systems::sync_simple_transforms,
-                )
-                    .chain()
-                    .in_set(AlsControlRigPropagationSet),
+                late_transform_propagation::<true>().in_set(AlsControlRigPropagationSet),
             ),
         );
     }
+
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]

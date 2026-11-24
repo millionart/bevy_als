@@ -1,4 +1,8 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use crate::extensions::{
     acl_animation::AlsAclAnimations,
@@ -619,8 +623,19 @@ impl SharingAssetEvents<'_, '_> {
     }
 }
 
+fn batch_size_within_step(
+    requested: usize,
+    (previous_width, elapsed): (usize, Duration),
+    step: Duration,
+) -> usize {
+    let capacity = (previous_width as u128).saturating_mul(step.as_nanos())
+        / elapsed.as_nanos().max(1);
+    capacity.clamp(1, requested as u128) as usize
+}
+
 pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
+    fixed_time: Option<Res<Time<Fixed>>>,
     mut players: Query<
         (
             Entity,
@@ -641,8 +656,9 @@ pub fn evaluate_players<F: QueryFilter>(
     clip_samples: Local<Arc<SharedClipSamples>>,
     acl_animations: Option<Res<AlsAclAnimations>>,
     mut asset_events: SharingAssetEvents,
+    mut previous_batch: Local<Option<(usize, Duration)>>,
 ) {
-    let started = timing.as_ref().map(|_| bevy::platform::time::Instant::now());
+    let timing_started = timing.as_ref().map(|_| bevy::platform::time::Instant::now());
     if resources.skeleton_assets.is_changed() {
         *skeleton_layouts = Arc::new(SourceSkeletonLayouts::new(&resources.skeleton_assets));
     }
@@ -653,14 +669,20 @@ pub fn evaluate_players<F: QueryFilter>(
     let inputs_changed = pre_rig_enabled
         && (asset_events.has_revision()
             || acl_animations.as_ref().is_some_and(|assets| assets.is_changed()));
-    let batch_size = clip_samples
+    let requested_batch = clip_samples
         .pre_rig_sharing
         .begin_frame(pre_rig_enabled, inputs_changed);
+    let batch_size = previous_batch.map_or(requested_batch, |previous| {
+        let step = fixed_time.as_ref().map_or_else(|| time.delta(), |time| time.timestep());
+        // Estimate how much shared work fits into one simulation step.
+        batch_size_within_step(requested_batch, previous, step)
+    });
     let acl_animations = acl_animations.as_deref().filter(|animations| !animations.is_empty());
     let clip_samples = sharing.filter(|sharing| sharing.enabled).map(|_| {
         clip_samples.clear();
         &*clip_samples
     });
+    let started = pre_rig_enabled.then(Instant::now);
     players
         .par_iter_mut()
         .batching_strategy(BatchingStrategy::new().min_batch_size(batch_size))
@@ -773,7 +795,8 @@ pub fn evaluate_players<F: QueryFilter>(
             debug_draw_animation_players(player, &resources);
             inputs.set_rig_query_context(None);
         });
-    if let (Some(mut timing), Some(started)) = (timing, started) {
+    *previous_batch = started.map(|started| (batch_size, started.elapsed()));
+    if let (Some(mut timing), Some(started)) = (timing, timing_started) {
         timing.0 += started.elapsed();
     }
 }
@@ -994,6 +1017,15 @@ fn publish_sampled_motion<F: QueryFilter>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_animation_batch_is_bounded_by_observed_work() {
+        let step = Duration::from_millis(16);
+        let previous = (8, Duration::from_millis(4));
+        assert_eq!(batch_size_within_step(20, previous, step), 20);
+        assert_eq!(batch_size_within_step(80, previous, step), 32);
+        assert_eq!(batch_size_within_step(80, previous, Duration::ZERO), 1);
+    }
 
     #[test]
     fn kinematic_ragdoll_targets_use_the_source_quaternion_difference() {

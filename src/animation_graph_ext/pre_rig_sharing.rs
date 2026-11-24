@@ -275,7 +275,7 @@ impl PreRigSharing {
         }
         // Share live work within an ECS batch to avoid waking one task per follower.
         if enabled && !assets_changed {
-            (reused + 1).min(8)
+            reused + 1
         } else {
             1
         }
@@ -606,8 +606,8 @@ mod tests {
     fn animation_batch_uses_recent_replays() {
         let sharing = PreRigSharing::default();
         assert_eq!(sharing.begin_frame(true, false), 1);
-        sharing.0.lock().unwrap().reused_players = 7;
-        assert_eq!(sharing.begin_frame(true, false), 8);
+        sharing.0.lock().unwrap().reused_players = 11;
+        assert_eq!(sharing.begin_frame(true, false), 12);
         sharing.0.lock().unwrap().reused_players = 7;
         assert_eq!(sharing.begin_frame(true, true), 1);
         assert_eq!(sharing.begin_frame(true, false), 1);

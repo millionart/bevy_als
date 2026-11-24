@@ -9,7 +9,8 @@ use bevy::asset::{Asset, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
-use bevy::transform::{TransformSystems, systems as transform_systems};
+use bevy::transform::TransformSystems;
+use crate::late_transform_propagation::{LateTransformPropagationPlugin, late_transform_propagation};
 use serde::{Deserialize, Serialize};
 pub use shake::AlsCameraShakes;
 pub use source_definition::{
@@ -393,6 +394,9 @@ pub struct AlsCameraSet;
 
 impl Plugin for AlsCameraPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<LateTransformPropagationPlugin>() {
+            app.add_plugins(LateTransformPropagationPlugin);
+        }
         app.init_asset::<AlsCameraDefinition>()
             .init_asset_loader::<source_definition::AlsCameraDefinitionLoader>()
             .add_message::<AlsCameraShakeRequest>()
@@ -414,12 +418,7 @@ impl Plugin for AlsCameraPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (
-                    transform_systems::mark_dirty_trees,
-                    transform_systems::propagate_parent_transforms,
-                    transform_systems::sync_simple_transforms,
-                )
-                    .chain()
+                late_transform_propagation::<false>()
                     .after(shake::apply_camera_shakes)
                     .before(bevy::camera::visibility::VisibilitySystems::UpdateFrusta),
             );

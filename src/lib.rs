@@ -3,6 +3,7 @@ pub mod als_camera;
 pub mod extensions;
 
 mod builtin_assets;
+mod late_transform_propagation;
 pub use builtin_assets::{als_asset_bytes, als_asset_path};
 
 pub use als::character::{AlsCharacter, AlsCollisionLayer};
