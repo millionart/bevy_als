@@ -891,8 +891,8 @@ fn apply_animation_to_visible_targets(
             }
             let (cached, definition, state) = rig_outputs.entry(animated_by.0).or_insert_with(|| {
                 let (context, node, state) = crate::extensions::root_graph_boundaries::current_control_rig(player, graphs.as_ref()?)?;
-                let pose = context.node_caches.get_output_data(node.id,
-                    bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into())?.into_pose().ok()?;
+                let pose = context.node_caches.get_output_data_ref(node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose")?.as_pose().ok()?;
                 let definition = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()?
                     .definition.as_ref()?;
                 Some((pose, definition, state))
