@@ -25,8 +25,8 @@ pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
 struct CachedUpdateRequest<'a> {
     owner: (GraphContextId, NodeId),
     ctx: NodeContext<'a>,
-    name: String,
-    key: String,
+    name: &'a str,
+    key: &'a str,
     scoped: bool,
     weight: f32,
     forward: bool,
@@ -83,8 +83,8 @@ fn collect_cached_requests<'a>(
                 *request = CachedUpdateRequest {
                     owner,
                     ctx: ctx.graph_context.create_node_context(*id),
-                    name: name.into(),
-                    key: key.into(),
+                    name,
+                    key,
                     scoped,
                     weight,
                     forward,
@@ -94,8 +94,8 @@ fn collect_cached_requests<'a>(
             requests.push(CachedUpdateRequest {
                 owner,
                 ctx: ctx.graph_context.create_node_context(*id),
-                name: name.into(),
-                key: key.into(),
+                name,
+                key,
                 scoped,
                 weight,
                 forward,
@@ -162,9 +162,9 @@ fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), Grap
                         .is_update_started(request.owner.1, state_key)
                 });
             if request.scoped {
-                prewarm_scoped_cached_pose(&mut ctx, &request.name, &request.key)?;
+                prewarm_scoped_cached_pose(&mut ctx, request.name, request.key)?;
             } else {
-                prewarm_cached_pose(&mut ctx, &request.name)?;
+                prewarm_cached_pose(&mut ctx, request.name)?;
             }
             if !started {
                 let route = SourceCachedPoseRequestRoute {
@@ -585,21 +585,25 @@ fn update_cached_pose<'a>(
     Ok(cache)
 }
 
-fn read_cached_pose(ctx: &NodeContext, cache_id: NodeId, cache_node: &str) -> Result<Pose, GraphError> {
+fn read_cached_pose<'a>(
+    ctx: &'a NodeContext,
+    cache_id: NodeId,
+    cache_node: &str,
+) -> Result<&'a Pose, GraphError> {
     ctx.graph_context
         .node_caches()
-        .get_output_data(
+        .get_output_data_ref(
             cache_id,
             ctx.graph_context.state_key,
-            CACHED_POSE_VALUE.to_owned(),
+            CACHED_POSE_VALUE,
         )
         .ok_or_else(|| cache_error(ctx, format!("cached pose is missing: {cache_node}")))?
-        .into_pose()
+        .as_pose()
 }
 
 pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Pose, GraphError> {
     let cache = update_cached_pose(ctx, cache_node)?;
-    read_cached_pose(ctx, cache.id, cache_node)
+    read_cached_pose(ctx, cache.id, cache_node).cloned()
 }
 
 pub(crate) fn prewarm_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<(), GraphError> {
@@ -613,7 +617,7 @@ pub(crate) fn prewarm_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Re
     {
         return Ok(());
     }
-    read_cached_pose(ctx, cache.id, cache_node).map(drop)
+    read_cached_pose(ctx, cache.id, cache_node).map(|_| ())
 }
 
 pub(crate) fn prewarm_scoped_cached_pose(
@@ -622,13 +626,12 @@ pub(crate) fn prewarm_scoped_cached_pose(
     cache_key: &str,
 ) -> Result<(), GraphError> {
     let requested_key = requested_cache_key(cache_node, cache_key);
-    let local_cache = ctx.graph_context.graph.nodes.values().find_map(|node| {
+    let local_cache = ctx.graph_context.graph.nodes.values().find(|node| {
         node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
             .is_some_and(|value| saved_cache_key(value, &node.name) == requested_key)
-            .then(|| node.name.clone())
     });
     if let Some(local_cache) = local_cache {
-        return prewarm_cached_pose(ctx, &local_cache);
+        return prewarm_cached_pose(ctx, &local_cache.name);
     }
     let (context_id, graph, cache_id) =
         scoped_cache_context(ctx, requested_key).ok_or_else(|| {
@@ -653,13 +656,12 @@ pub fn resolve_scoped_cached_pose(
     cache_key: &str,
 ) -> Result<Pose, GraphError> {
     let requested_key = requested_cache_key(cache_node, cache_key);
-    let local_cache = ctx.graph_context.graph.nodes.values().find_map(|node| {
+    let local_cache = ctx.graph_context.graph.nodes.values().find(|node| {
         node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
             .is_some_and(|value| saved_cache_key(value, &node.name) == requested_key)
-            .then(|| node.name.clone())
     });
     if let Some(local_cache) = local_cache {
-        return resolve_cached_pose(ctx, &local_cache);
+        return resolve_cached_pose(ctx, &local_cache.name);
     }
     let (context_id, graph, cache_id) =
         scoped_cache_context(ctx, requested_key).ok_or_else(|| {
@@ -687,9 +689,10 @@ pub fn resolve_scoped_cached_pose(
     }
     scoped_context
         .node_caches()
-        .get_output_data(cache_id, StateKey::Default, CACHED_POSE_VALUE.to_owned())
+        .get_output_data_ref(cache_id, StateKey::Default, CACHED_POSE_VALUE)
         .ok_or_else(|| cache_error(ctx, format!("scoped cached pose is missing: {cache_node}")))?
-        .into_pose()
+        .as_pose()
+        .cloned()
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
