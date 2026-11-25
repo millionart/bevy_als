@@ -988,34 +988,62 @@ fn joint_solver_bodies<'a>(
     Some((pair, inertias))
 }
 
+struct JointPositionWork {
+    entity: Entity,
+    bodies: [SolverBodyIndex; 2],
+    iterations: u32,
+}
+
 fn solve_source_joint_iterations(
     mut joints: Query<
-        (&mut SourcePhysicsJoint, &mut SourcePhysicsJointSolverData),
+        (Entity, &mut SourcePhysicsJoint, &mut SourcePhysicsJointSolverData),
         Without<JointDisabled>,
     >,
     indices: Query<&SolverBodyIndex, Without<RigidBodyDisabled>>,
     mut bodies: ResMut<SolverBodies>,
     time: Res<Time>,
+    mut work: Local<Vec<JointPositionWork>>,
 ) {
-    let count = joints
-        .iter()
-        .map(|(joint, _)| joint.settings.position_iterations)
-        .max()
-        .unwrap_or(0);
+    work.clear();
+    let mut count = 0;
+    for (entity, joint, _) in &joints {
+        let iterations = joint.settings.position_iterations;
+        if iterations == 0 {
+            continue;
+        }
+        let pair = joint.entities().map(|entity| {
+            indices
+                .get(entity)
+                .copied()
+                .unwrap_or(SolverBodyIndex::INVALID)
+        });
+        // The solver treats missing and non-dynamic inertias as zero response.
+        if pair[0] == pair[1]
+            || !pair.iter().any(|&index| {
+                bodies.get_inertia(index).is_some_and(|inertia| {
+                    inertia.dominance() != SolverBodyInertia::DUMMY.dominance()
+                })
+            })
+        {
+            continue;
+        }
+        count = count.max(iterations);
+        work.push(JointPositionWork {
+            entity,
+            bodies: pair,
+            iterations,
+        });
+    }
+    let dt = time.delta_secs();
     for iteration in 0..count {
-        for (mut joint, mut data) in &mut joints {
-            if iteration >= joint.settings.position_iterations {
+        for task in work.iter() {
+            if iteration >= task.iterations {
                 continue;
             }
+            let (_, mut joint, mut data) = joints.get_mut(task.entity).unwrap();
             let mut dummy = SolverBody::default();
-            let pair = joint.entities().map(|entity| {
-                indices
-                    .get(entity)
-                    .copied()
-                    .unwrap_or(SolverBodyIndex::INVALID)
-            });
             let Some((bodies, [parent_inertia, child_inertia])) =
-                joint_solver_bodies(&mut bodies, pair, &mut dummy)
+                joint_solver_bodies(&mut bodies, task.bodies, &mut dummy)
             else {
                 continue;
             };
@@ -1025,7 +1053,7 @@ fn solve_source_joint_iterations(
             } else if child_inertia.dominance() > parent_inertia.dominance() {
                 inertias[1] = &SolverBodyInertia::DUMMY;
             }
-            joint.solve(bodies, inertias, &mut data, time.delta_secs());
+            joint.solve(bodies, inertias, &mut data, dt);
         }
     }
 }
@@ -1454,6 +1482,65 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn joint_position_work_resumes_when_an_endpoint_becomes_dynamic() {
+        use avian3d::dynamics::solver::solver_body::SolverBodyFlags;
+
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        world.insert_resource(time);
+        let kinematic = || {
+            (
+                SolverBody {
+                    flags: SolverBodyFlags::IS_KINEMATIC,
+                    ..default()
+                },
+                SolverBodyInertia::new(
+                    1.0,
+                    SymmetricTensor::from_diagonal(Vec3::ONE),
+                    LockedAxes::default(),
+                    0,
+                    false,
+                ),
+            )
+        };
+        let parent = spawn_solver_body(&mut world, kinematic());
+        let child = spawn_solver_body(&mut world, kinematic());
+        world.spawn((
+            SourcePhysicsJoint {
+                parent,
+                child,
+                use_linear_solver: true,
+                linear_locked: true,
+                ..joint()
+            },
+            SourcePhysicsJointSolverData {
+                center_difference: Vec3::X,
+                ..default()
+            },
+        ));
+        world.run_system_cached(solve_source_joint_iterations).unwrap();
+        assert_eq!(
+            solver_body_fixture::get(&world, child).unwrap().delta_position,
+            Vec3::ZERO,
+        );
+
+        let index = *world.get::<SolverBodyIndex>(child).unwrap();
+        let mut bodies = world.resource_mut::<SolverBodies>();
+        bodies.get_mut(index).unwrap().flags = SolverBodyFlags::empty();
+        *bodies.get_inertia_mut(index).unwrap() = inertia(1.0, Vec3::ONE);
+        world.run_system_cached(solve_source_joint_iterations).unwrap();
+        assert_eq!(
+            solver_body_fixture::get(&world, parent).unwrap().delta_position,
+            Vec3::ZERO,
+        );
+        assert_eq!(
+            solver_body_fixture::get(&world, child).unwrap().delta_position,
+            -Vec3::X,
+        );
     }
 
     #[test]

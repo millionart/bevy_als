@@ -4,7 +4,9 @@ use bevy::{
         change_detection::Tick,
         lifecycle::RemovedComponentEntity,
         message::MessageCursor,
-        schedule::{AnonymousSet, InternedSystemSet, IntoSystemSet, ScheduleConfigs},
+        schedule::{
+            AnonymousSet, InternedScheduleLabel, InternedSystemSet, IntoSystemSet, ScheduleConfigs,
+        },
         system::{ScheduleSystem, SystemChangeTick},
     },
     prelude::*,
@@ -46,9 +48,10 @@ impl Plugin for LateTransformPropagationPlugin {
         })
         .add_systems(PostUpdate, capture);
 
-        if readback_is_ordered && let Some(pass) = avian_transform_pass(app) {
+        let physics_schedule = crate::AlsPhysicsSchedule::outer(app);
+        if readback_is_ordered && let Some(pass) = avian_transform_pass(app, physics_schedule) {
             app.configure_sets(
-                PostUpdate,
+                physics_schedule,
                 (
                     pass.in_set(AvianTransformPropagation),
                     AvianTransformPropagation.run_if(late_transform_inputs_changed::<false>),
@@ -58,14 +61,17 @@ impl Plugin for LateTransformPropagationPlugin {
     }
 }
 
-fn avian_transform_pass(app: &mut App) -> Option<InternedSystemSet> {
-    app.get_schedule(PostUpdate)?
+fn avian_transform_pass(
+    app: &mut App,
+    physics_schedule: InternedScheduleLabel,
+) -> Option<InternedSystemSet> {
+    app.get_schedule(physics_schedule)?
         .graph()
         .system_sets
         .contains(PhysicsTransformSystems::Propagate)
         .then_some(())?;
     app.world_mut()
-        .schedule_scope(PostUpdate, |world, schedule| {
+        .schedule_scope(physics_schedule, |world, schedule| {
             schedule.initialize(world).ok()?;
             let graph = schedule.graph();
             let physics = graph

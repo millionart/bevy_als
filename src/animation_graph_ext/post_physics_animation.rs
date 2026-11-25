@@ -18,7 +18,9 @@ use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
     asset::AssetEvent,
     ecs::{
-        batching::BatchingStrategy, query::QueryFilter, schedule::InternedScheduleLabel,
+        batching::BatchingStrategy,
+        query::{QueryFilter, QueryItem},
+        schedule::InternedScheduleLabel,
         system::SystemParam,
     },
     math::{Affine3A, Isometry3d},
@@ -645,21 +647,20 @@ fn batch_size_within_step(
     capacity.clamp(1, requested as u128) as usize
 }
 
+type PlayerEvaluation = (
+    Entity,
+    &'static mut AnimationGraphPlayer,
+    &'static mut crate::extensions::SourceAnimationInputs,
+    Option<&'static mut AnimationPoseUpdateGate>,
+    Option<&'static InitialAnimation>,
+    Option<&'static crate::AlsAnimationLod>,
+    Option<&'static mut crate::AlsAnimationRate>,
+);
+
 pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
     fixed_time: Option<Res<Time<Fixed>>>,
-    mut players: Query<
-        (
-            Entity,
-            &mut AnimationGraphPlayer,
-            &mut crate::extensions::SourceAnimationInputs,
-            Option<&mut AnimationPoseUpdateGate>,
-            Option<&InitialAnimation>,
-            Option<&crate::AlsAnimationLod>,
-            Option<&mut crate::AlsAnimationRate>,
-        ),
-        (F, Without<ManualAnimationPlayer>),
-    >,
+    mut players: Query<PlayerEvaluation, (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
     timing: Option<ResMut<GraphEvaluationTime>>,
     mut skeleton_layouts: Local<Arc<SourceSkeletonLayouts>>,
@@ -695,10 +696,9 @@ pub fn evaluate_players<F: QueryFilter>(
         &*clip_samples
     });
     let started = pre_rig_enabled.then(Instant::now);
-    players
-        .par_iter_mut()
-        .batching_strategy(BatchingStrategy::new().min_batch_size(batch_size))
-        .for_each(|(entity, mut player, mut inputs, mut gate, initial, lod, mut rate)| {
+    let evaluate =
+        |(entity, mut player, mut inputs, mut gate, initial, lod, mut rate):
+             QueryItem<'_, '_, PlayerEvaluation>| {
             let actor_scope = pre_rig_enabled
                 .then(|| ActorScope::for_player(entity, &player, lod))
                 .flatten();
@@ -806,7 +806,21 @@ pub fn evaluate_players<F: QueryFilter>(
             }
             debug_draw_animation_players(player, &resources);
             inputs.set_rig_query_context(None);
-        });
+        };
+    // A single batch has no work for another worker to take.
+    if players
+        .iter()
+        .size_hint()
+        .1
+        .is_some_and(|count| count <= batch_size)
+    {
+        players.iter_mut().for_each(evaluate);
+    } else {
+        players
+            .par_iter_mut()
+            .batching_strategy(BatchingStrategy::new().min_batch_size(batch_size))
+            .for_each(evaluate);
+    }
     *previous_batch = started.map(|started| (batch_size, started.elapsed()));
     if let (Some(mut timing), Some(started)) = (timing, timing_started) {
         timing.0 += started.elapsed();
