@@ -16,7 +16,7 @@ use avian3d::prelude::{PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Posi
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    asset::{AssetEvent, AssetEventSystems},
+    asset::AssetEvent,
     ecs::{
         batching::BatchingStrategy, query::QueryFilter, schedule::InternedScheduleLabel,
         system::SystemParam,
@@ -171,7 +171,7 @@ fn install_physics_playback(app: &mut App, outer: InternedScheduleLabel) {
         app.add_systems(
             outer,
             (
-                evaluate_players::<Without<PostPhysicsAnimation>>.after(AssetEventSystems),
+                evaluate_players::<Without<PostPhysicsAnimation>>,
                 extract_root_motion,
             )
                 .chain()
@@ -217,7 +217,7 @@ fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
         .add_systems(
             pose,
             (
-                evaluate_players::<EarlyFrame>.after(AssetEventSystems),
+                evaluate_players::<EarlyFrame>,
                 publish_sampled_motion::<EarlyFrame>,
             )
                 .chain()
@@ -602,10 +602,11 @@ pub struct SharingAssetEvents<'w, 's> {
     states: Option<MessageReader<'w, 's, AssetEvent<StateMachine>>>,
     skeletons: Option<MessageReader<'w, 's, AssetEvent<Skeleton>>>,
     gltfs: Option<MessageReader<'w, 's, AssetEvent<bevy::gltf::Gltf>>>,
+    gltf_assets: Option<Res<'w, Assets<bevy::gltf::Gltf>>>,
 }
 
 impl SharingAssetEvents<'_, '_> {
-    fn has_revision(&mut self) -> bool {
+    fn has_revision(&mut self, resources: &SystemResources) -> bool {
         fn revised<A: Asset>(reader: &mut Option<MessageReader<AssetEvent<A>>>) -> bool {
             let Some(reader) = reader else { return false };
             let mut changed = false;
@@ -615,11 +616,22 @@ impl SharingAssetEvents<'_, '_> {
             changed
         }
 
-        revised(&mut self.graphs)
+        let published_revision = revised(&mut self.graphs)
             | revised(&mut self.clips)
             | revised(&mut self.states)
             | revised(&mut self.skeletons)
-            | revised(&mut self.gltfs)
+            | revised(&mut self.gltfs);
+
+        // Camera and UI systems can publish asset events after pose sampling.
+        published_revision
+            || resources.animation_graph_assets.is_changed()
+            || resources.graph_clip_assets.is_changed()
+            || resources.state_machine_assets.is_changed()
+            || resources.skeleton_assets.is_changed()
+            || self
+                .gltf_assets
+                .as_ref()
+                .is_some_and(|assets| assets.is_changed())
     }
 }
 
@@ -667,7 +679,7 @@ pub fn evaluate_players<F: QueryFilter>(
         && pre_rig_sharing.as_ref().is_some_and(|settings| settings.enabled)
         && players.iter().nth(1).is_some();
     let inputs_changed = pre_rig_enabled
-        && (asset_events.has_revision()
+        && (asset_events.has_revision(&resources)
             || acl_animations.as_ref().is_some_and(|assets| assets.is_changed()));
     let requested_batch = clip_samples
         .pre_rig_sharing

@@ -292,15 +292,20 @@ mod tests {
         .init_asset::<Mesh>()
         .init_asset::<Image>()
         .add_plugins(crate::AlsPlugin::physics_plugins())
-        .add_plugins(crate::AlsPlugin);
+        .add_plugins(crate::AlsPlugin)
+        .configure_sets(
+            PostUpdate,
+            bevy::camera::CameraUpdateSystems.before(bevy::asset::AssetEventSystems),
+        );
         app.finish();
         app.cleanup();
-        app.world_mut()
-            .schedule_scope(FixedPostUpdate, |world, schedule| {
+        for label in [FixedPostUpdate.intern(), PostUpdate.intern()] {
+            app.world_mut().schedule_scope(label, |world, schedule| {
                 schedule
                     .initialize(world)
                     .expect("playable character animation phases must initialize");
             });
+        }
     }
 
     #[test]
