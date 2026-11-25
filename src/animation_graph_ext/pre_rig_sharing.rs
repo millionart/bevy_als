@@ -30,6 +30,7 @@ use crate::{
     extensions::{
         animation_context::pose_input_context,
         graph_prefix_writes::{GraphPrefixWrites, NotifyAliases},
+        sharing_asset_revisions::AssetRevision,
         source_gameplay_tag_input::{SourceAnimationInputs, active_pre_rig_inputs},
         source_instance::source_input_data,
         sync_group_phase::{SourceSyncPlayerTick, source_sync_preview},
@@ -238,6 +239,7 @@ struct History {
 
 #[derive(Default)]
 struct Frame {
+    pending_asset_events: bool,
     epoch: u64,
     next_lineage: u64,
     reused_players: usize,
@@ -251,13 +253,14 @@ struct Frame {
 pub(crate) struct PreRigSharing(Mutex<Frame>);
 
 impl PreRigSharing {
-    pub(crate) fn begin_frame(&self, enabled: bool, assets_changed: bool) -> usize {
+    pub(crate) fn begin_frame(&self, enabled: bool, revision: AssetRevision) -> usize {
         let mut frame = self.0.lock().unwrap();
         let reused = std::mem::take(&mut frame.reused_players);
         frame.prefixes.clear();
         frame.previews.clear();
         frame.cohort_sizes.clear();
-        if !enabled || assets_changed {
+        frame.pending_asset_events = enabled && revision == AssetRevision::Pending;
+        if !enabled || revision == AssetRevision::Invalidated {
             frame.histories.clear();
         }
         frame.epoch = frame.epoch.wrapping_add(1);
@@ -274,7 +277,7 @@ impl PreRigSharing {
             *cohort_sizes.entry(history.lineage).or_default() += 1;
         }
         // Share live work within an ECS batch to avoid waking one task per follower.
-        if enabled && !assets_changed {
+        if enabled && revision == AssetRevision::Stable {
             reused + 1
         } else {
             1
@@ -288,7 +291,7 @@ impl PreRigSharing {
         policy: ActorScope,
         source: &SourceAnimationInputs,
         update: &TimeUpdate,
-    ) -> Option<Arc<PrefixEntry>> {
+    ) -> Option<(Arc<PrefixEntry>, bool)> {
         let mut frame = self.0.lock().unwrap();
         let current = ctx.graph_context.frame_index();
         let previous = if current <= 1 {
@@ -313,7 +316,7 @@ impl PreRigSharing {
             .iter()
             .find(|entry| entry.key == key && entry.inputs.matches(&policy, source, globals, foot))
         {
-            return Some(Arc::clone(entry));
+            return Some((Arc::clone(entry), frame.pending_asset_events));
         }
         frame.next_lineage = frame.next_lineage.wrapping_add(1);
         let entry = Arc::new(PrefixEntry {
@@ -328,7 +331,7 @@ impl PreRigSharing {
             captured: OnceLock::new(),
         });
         frame.prefixes.push(Arc::clone(&entry));
-        Some(entry)
+        Some((entry, frame.pending_asset_events))
     }
 
     fn preview_entry(
@@ -351,6 +354,9 @@ impl PreRigSharing {
                     .get(StateKey::Default)
             })?;
         let mut frame = self.0.lock().unwrap();
+        if frame.pending_asset_events {
+            return None;
+        }
         let mut histories = frame.histories.iter().filter(|((entity, ..), history)| {
             *entity == policy.entity
                 && (history.frame == current || history.frame.wrapping_add(1) == current)
@@ -515,9 +521,17 @@ pub(crate) fn source_pose(
     let arena = &ctx.graph_context.context_arena;
     let actor = (policy.entity, ctx.graph_context.context_id, ctx.node_id);
     let sharing = &samples.pre_rig_sharing;
-    let Some(entry) = sharing.prefix_entry(ctx, actor, policy, &inputs, update) else {
+    let Some((entry, pending_asset_events)) =
+        sharing.prefix_entry(ctx, actor, policy, &inputs, update)
+    else {
         return evaluate_locally();
     };
+    if pending_asset_events {
+        // Independently advance each actor while its cohort is still provisional.
+        let result = evaluate_locally();
+        sharing.finish_prefix(actor, &entry, result.is_ok(), false);
+        return result;
+    }
     let mut local = None;
     let shared = entry.captured.get_or_init(|| {
         let before = arena.get_ref().clone();
@@ -605,12 +619,12 @@ mod tests {
     #[test]
     fn animation_batch_uses_recent_replays() {
         let sharing = PreRigSharing::default();
-        assert_eq!(sharing.begin_frame(true, false), 1);
+        assert_eq!(sharing.begin_frame(true, AssetRevision::Stable), 1);
         sharing.0.lock().unwrap().reused_players = 11;
-        assert_eq!(sharing.begin_frame(true, false), 12);
+        assert_eq!(sharing.begin_frame(true, AssetRevision::Stable), 12);
         sharing.0.lock().unwrap().reused_players = 7;
-        assert_eq!(sharing.begin_frame(true, true), 1);
-        assert_eq!(sharing.begin_frame(true, false), 1);
+        assert_eq!(sharing.begin_frame(true, AssetRevision::Invalidated), 1);
+        assert_eq!(sharing.begin_frame(true, AssetRevision::Stable), 1);
     }
 
     #[test]

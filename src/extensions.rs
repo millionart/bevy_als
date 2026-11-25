@@ -137,6 +137,10 @@ pub mod source_cached_pose;
 pub(crate) mod graph_prefix_writes;
 #[path = "animation_graph_ext/pre_rig_sharing.rs"]
 pub(crate) mod pre_rig_sharing;
+#[path = "animation_graph_ext/sharing_asset_revisions.rs"]
+pub(crate) mod sharing_asset_revisions;
+#[path = "animation_graph_ext/sharing_graph_dependencies.rs"]
+pub(crate) mod sharing_graph_dependencies;
 #[path = "animation_graph_ext/source_clip.rs"]
 pub mod source_clip;
 #[path = "avian_ext/source_capsule_sweep.rs"]

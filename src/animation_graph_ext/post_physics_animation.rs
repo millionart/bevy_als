@@ -1,4 +1,5 @@
 use std::{
+    cell::OnceCell,
     collections::HashSet,
     sync::Arc,
     time::{Duration, Instant},
@@ -8,6 +9,8 @@ use crate::extensions::{
     acl_animation::AlsAclAnimations,
     control_rig_hierarchy::{RigTransform, rig_normalize},
     pre_rig_sharing::{ActorScope, AlsPreRigSharingSettings, with_actor_scope},
+    sharing_asset_revisions::{AssetRevision, AssetRevisions},
+    sharing_graph_dependencies::reachable_sharing_graphs,
     source_pose::SourceSkeletonLayouts,
     source_sequence_player::{AlsAnimationSharingSettings, SharedClipSamples},
 };
@@ -16,7 +19,6 @@ use avian3d::prelude::{PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Posi
 use bevy::reflect::ReflectRef;
 use bevy::{
     animation::{AnimatedBy, AnimationTargetId},
-    asset::AssetEvent,
     ecs::{
         batching::BatchingStrategy,
         query::{QueryFilter, QueryItem},
@@ -599,41 +601,28 @@ fn apply_readback_pose(
 #[derive(SystemParam)]
 #[doc(hidden)]
 pub struct SharingAssetEvents<'w, 's> {
-    graphs: Option<MessageReader<'w, 's, AssetEvent<AnimationGraph>>>,
-    clips: Option<MessageReader<'w, 's, AssetEvent<GraphClip>>>,
-    states: Option<MessageReader<'w, 's, AssetEvent<StateMachine>>>,
-    skeletons: Option<MessageReader<'w, 's, AssetEvent<Skeleton>>>,
-    gltfs: Option<MessageReader<'w, 's, AssetEvent<bevy::gltf::Gltf>>>,
+    graphs: AssetRevisions<'w, 's, AnimationGraph>,
+    clips: AssetRevisions<'w, 's, GraphClip>,
+    states: AssetRevisions<'w, 's, StateMachine>,
+    skeletons: AssetRevisions<'w, 's, Skeleton>,
+    gltfs: AssetRevisions<'w, 's, bevy::gltf::Gltf>,
     gltf_assets: Option<Res<'w, Assets<bevy::gltf::Gltf>>>,
 }
 
 impl SharingAssetEvents<'_, '_> {
-    fn has_revision(&mut self, resources: &SystemResources) -> bool {
-        fn revised<A: Asset>(reader: &mut Option<MessageReader<AssetEvent<A>>>) -> bool {
-            let Some(reader) = reader else { return false };
-            let mut changed = false;
-            for event in reader.read() {
-                changed |= matches!(event, AssetEvent::Modified { .. } | AssetEvent::Removed { .. });
-            }
-            changed
-        }
-
-        let published_revision = revised(&mut self.graphs)
-            | revised(&mut self.clips)
-            | revised(&mut self.states)
-            | revised(&mut self.skeletons)
-            | revised(&mut self.gltfs);
-
-        // Camera and UI systems can publish asset events after pose sampling.
-        published_revision
-            || resources.animation_graph_assets.is_changed()
-            || resources.graph_clip_assets.is_changed()
-            || resources.state_machine_assets.is_changed()
-            || resources.skeleton_assets.is_changed()
-            || self
-                .gltf_assets
-                .as_ref()
-                .is_some_and(|assets| assets.is_changed())
+    fn revision(
+        &mut self,
+        resources: &SystemResources,
+        graph_in_use: impl Fn(AssetId<AnimationGraph>) -> bool,
+    ) -> AssetRevision {
+        use AssetRevision::*;
+        let gltf = self.gltf_assets.as_ref();
+        let graphs = self.graphs.read(&resources.animation_graph_assets, graph_in_use);
+        let clips = self.clips.read(&resources.graph_clip_assets, |_| true);
+        let states = self.states.read(&resources.state_machine_assets, |_| true);
+        let skeletons = self.skeletons.read(&resources.skeleton_assets, |_| true);
+        let gltfs = gltf.map_or(Stable, |assets| self.gltfs.read(assets, |_| true));
+        graphs.max(clips).max(states).max(skeletons).max(gltfs)
     }
 }
 
@@ -679,12 +668,41 @@ pub fn evaluate_players<F: QueryFilter>(
     let pre_rig_enabled = sharing.as_ref().is_some_and(|settings| settings.enabled)
         && pre_rig_sharing.as_ref().is_some_and(|settings| settings.enabled)
         && players.iter().nth(1).is_some();
-    let inputs_changed = pre_rig_enabled
-        && (asset_events.has_revision(&resources)
-            || acl_animations.as_ref().is_some_and(|assets| assets.is_changed()));
+    let mut asset_revision = AssetRevision::Stable;
+    if pre_rig_enabled {
+        // Only build the graph closure when an addition needs to be classified.
+        let reachable = OnceCell::new();
+        asset_revision = asset_events.revision(&resources, |id| {
+            reachable
+                .get_or_init(|| {
+                    let mut roots = Vec::new();
+                    for (_, player, inputs, ..) in players.iter() {
+                        if let AnimationSource::Graph(graph) = player.get_animation_source() {
+                            roots.push(graph.id());
+                        }
+                        roots.extend(inputs.linked_graph_ids());
+                        if let Some(arena) = player.get_context_arena() {
+                            roots.extend(arena.iter_context_ids().filter_map(|id| {
+                                arena.get_context(id).map(|context| context.get_graph_id())
+                            }));
+                        }
+                    }
+                    reachable_sharing_graphs(
+                        roots,
+                        &resources.animation_graph_assets,
+                        &resources.state_machine_assets,
+                    )
+                })
+                .as_ref()
+                .is_none_or(|graphs| graphs.contains(&id))
+        });
+        if acl_animations.as_ref().is_some_and(|assets| assets.is_changed()) {
+            asset_revision = AssetRevision::Invalidated;
+        }
+    }
     let requested_batch = clip_samples
         .pre_rig_sharing
-        .begin_frame(pre_rig_enabled, inputs_changed);
+        .begin_frame(pre_rig_enabled, asset_revision);
     let batch_size = previous_batch.map_or(requested_batch, |previous| {
         let step = fixed_time.as_ref().map_or_else(|| time.delta(), |time| time.timestep());
         // Estimate how much shared work fits into one simulation step.

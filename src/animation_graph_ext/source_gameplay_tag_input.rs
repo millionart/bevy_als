@@ -107,6 +107,10 @@ impl SourceAnimationInputs {
         }
     }
 
+    pub(crate) fn linked_graph_ids(&self) -> impl Iterator<Item = AssetId<AnimationGraph>> + '_ {
+        self.0.graphs.values().map(|link| link.graph.id())
+    }
+
     pub fn linked_graph_input(&self, key: &str) -> Option<LinkedGraphInput> {
         self.0.graphs.get(key).cloned()
     }
