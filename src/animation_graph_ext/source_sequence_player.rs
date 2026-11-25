@@ -201,11 +201,11 @@ pub(crate) struct ResolvedVirtualBone {
 
 pub(crate) fn resolve_virtual_bones(skeleton: &Skeleton) -> Vec<ResolvedVirtualBone> {
     let mut bones = HashMap::with_capacity(VIRTUAL_BONE_PATH_NAMES.len());
-    for path in skeleton.iter_paths() {
+    for (id, path) in skeleton.iter_bone_paths() {
         if let Some(name) = path.parts.last().map(|name| name.as_str())
             && VIRTUAL_BONE_PATH_NAMES.contains(name)
         {
-            bones.insert(name, path.id());
+            bones.insert(name, id);
         }
     }
     VIRTUAL_BONES
