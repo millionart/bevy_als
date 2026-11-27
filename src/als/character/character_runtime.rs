@@ -1,7 +1,7 @@
 use crate::als::character::AlsCharacter;
 use crate::als::start_stop::{StartStopState, start_stop_detector_system};
-use bevy::prelude::*;
-use bevy_gameplay_tag::{GameplayTagsManager, GameplayTagsSettings};
+use bevy::{ecs::entity::EntityHashSet, prelude::*};
+use bevy_gameplay_tag::{GameplayTagsManager, GameplayTagsSettings, gameplay_tags_manager::GameplayTagNode};
 
 use crate::ab_als_provider::AbAlsProviderPlugin;
 use crate::ab_als_root::AlsRootGraphPlugin;
@@ -33,17 +33,78 @@ use crate::view_layer::ViewLayerPlugin;
 
 pub struct AlsCharacterRuntimePlugin;
 
+fn install_gameplay_tags(world: &mut World) {
+    let bundled = crate::als_asset_bytes("ALS/Data/als_gameplay_tags.json")
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+        .expect("Bundled ALS gameplay tags must be UTF-8");
+    let settings = world.remove_resource::<GameplayTagsSettings>();
+    if settings.is_none() && !world.contains_resource::<GameplayTagsManager>() {
+        world.insert_resource(GameplayTagsSettings { json_data: bundled.into(), data_path: None });
+        world.init_resource::<GameplayTagsManager>();
+        return;
+    }
+
+    let mut rows = settings.map_or_else(Vec::new, |settings| {
+        let result = match settings.data_path {
+            Some(path) => GameplayTagsSettings::load_tag_table_from_path(path),
+            None => GameplayTagsSettings::parse_tag_table(&settings.json_data),
+        };
+        result.unwrap_or_else(|error| {
+            error!("Could not load host gameplay tags: {error}");
+            Vec::new()
+        })
+    });
+    let mut names: std::collections::HashSet<_> = rows.iter().map(|row| row.tag_name.clone()).collect();
+    rows.extend(GameplayTagsSettings::parse_tag_table(bundled)
+        .expect("Bundled ALS gameplay tags must be valid")
+        .into_iter()
+        .filter(|row| names.insert(row.tag_name.clone())));
+    if let Some(manager) = world.get_resource::<GameplayTagsManager>() {
+        rows.retain(|row| !manager.has_tag_name(&row.tag_name));
+        if rows.is_empty() {
+            return;
+        }
+    }
+    world.insert_resource(GameplayTagsSettings {
+        json_data: serde_json::to_string(&rows).expect("Gameplay tag rows must serialize"),
+        data_path: None,
+    });
+
+    if !world.contains_resource::<GameplayTagsManager>() {
+        world.init_resource::<GameplayTagsManager>();
+        return;
+    }
+    let added = GameplayTagsManager::from_world(world);
+    world.resource_scope(|world, mut manager: Mut<GameplayTagsManager>| {
+        for (tag, container) in added.tag_map {
+            manager.tag_map.entry(tag).or_insert(container);
+        }
+        merge_tag_subtree(world, added.root, manager.root);
+    });
+}
+
+fn merge_tag_subtree(world: &mut World, source: Entity, target: Entity) {
+    let children = world.get::<Children>(source).map_or_else(Vec::new, |children| children.to_vec());
+    for child in children {
+        let matching = world.get::<Children>(target).into_iter().flatten().copied().find(|&entity| {
+            world.get::<GameplayTagNode>(entity).is_some()
+                && world.get::<Name>(entity) == world.get::<Name>(child)
+        });
+        if let Some(matching) = matching {
+            merge_tag_subtree(world, child, matching);
+        } else {
+            world.entity_mut(child).insert(ChildOf(target));
+        }
+    }
+    world.despawn(source);
+}
+
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
         let prepare = crate::AlsPhysicsSchedule::prepare(app);
-        if !app.world().contains_resource::<GameplayTagsManager>() {
-            let tags = crate::als_asset_bytes("ALS/Data/als_gameplay_tags.json")
-                .expect("ALS gameplay tags must be packaged");
-            app.insert_resource(GameplayTagsSettings {
-                json_data: std::str::from_utf8(tags).expect("ALS gameplay tags must be UTF-8").into(),
-                data_path: None,
-            })
-            .init_resource::<GameplayTagsManager>();
+        install_gameplay_tags(app.world_mut());
+        if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
+            app.add_observer(mark_new_animation_scene_phase);
         }
         app.add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
@@ -137,6 +198,42 @@ impl Plugin for AlsCharacterRuntimePlugin {
                 crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate,
             ),
         );
+    }
+
+    fn finish(&self, app: &mut App) {
+        if app.world().contains_resource::<GameplayTagsSettings>() {
+            install_gameplay_tags(app.world_mut());
+        }
+    }
+}
+
+fn mark_new_animation_scene_phase(
+    event: On<Insert<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>>,
+    mut commands: Commands,
+    scenes: Query<(
+        &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance,
+        Option<&crate::character_assembly::AlsCharacterAvatar>,
+        Has<crate::camera_component::AlsSourceCameraComponent>,
+        Option<&ChildOf>,
+    )>,
+    assemblies: Query<&crate::character_assembly::AlsCharacterAssembly, With<AlsCharacter>>,
+    props: Query<&crate::overlay_object::AlsOverlayObject>,
+) {
+    use crate::extensions::post_physics_animation::{ManualAnimationPlayer, PostPhysicsAnimation};
+
+    let Ok((scene, avatar, camera, parent)) = scenes.get(event.entity) else {
+        return;
+    };
+    if camera || parent
+        .and_then(|parent| props.get(parent.parent()).ok())
+        .is_some_and(|prop| prop.content == event.entity)
+    {
+        commands.entity(scene.player_entity()).try_insert_if_new(ManualAnimationPlayer);
+    } else if avatar
+        .and_then(|avatar| assemblies.get(avatar.character).ok())
+        .is_some_and(|assembly| assembly.avatar == event.entity)
+    {
+        commands.entity(scene.player_entity()).try_insert_if_new(PostPhysicsAnimation);
     }
 }
 
@@ -260,31 +357,27 @@ fn mark_character_animation_phase(
         Has<crate::extensions::post_physics_animation::PostPhysicsAnimation>,
         With<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
     >,
-    mut previous: Local<std::collections::HashSet<Entity>>,
+    mut ownership: Local<(EntityHashSet, EntityHashSet)>,
 ) {
-    let current = avatars
-        .iter()
-        .filter(|(entity, avatar, _)| {
-            assemblies
-                .get(avatar.character)
-                .is_ok_and(|assembly| assembly.avatar == *entity)
-        })
-        .map(|(_, _, instance)| instance.player_entity())
-        .filter(|player| players.get(*player).is_ok())
-        .collect::<std::collections::HashSet<_>>();
-    for player in previous.difference(&current) {
+    let (previous, current) = &mut *ownership;
+    current.clear();
+    for (entity, avatar, instance) in &avatars {
+        if assemblies.get(avatar.character).is_ok_and(|assembly| assembly.avatar == entity)
+            && let Ok(marked) = players.get(instance.player_entity())
+            && current.insert(instance.player_entity())
+            && !marked
+        {
+            commands
+                .entity(instance.player_entity())
+                .insert(crate::extensions::post_physics_animation::PostPhysicsAnimation);
+        }
+    }
+    for player in previous.difference(current) {
         if let Ok(mut entity) = commands.get_entity(*player) {
             entity.remove::<crate::extensions::post_physics_animation::PostPhysicsAnimation>();
         }
     }
-    for player in &current {
-        if players.get(*player).is_ok_and(|marked| !marked) {
-            commands
-                .entity(*player)
-                .insert(crate::extensions::post_physics_animation::PostPhysicsAnimation);
-        }
-    }
-    *previous = current;
+    std::mem::swap(previous, current);
 }
 
 fn ensure_start_stop_state(

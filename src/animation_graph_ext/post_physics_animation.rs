@@ -136,6 +136,29 @@ pub enum PostPhysicsAnimationSet {
 
 pub struct PostPhysicsAnimationPlugin;
 
+type HostAnimationPlayers = (Without<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>, Without<ManualAnimationPlayer>);
+type FrameAnimationPlayers = Or<(With<PostPhysicsAnimation>, With<PhysicsAnimationPlayer>, With<ManualAnimationPlayer>)>;
+
+pub(crate) fn require_animation_player_component<R: Component + Default>(app: &mut App) {
+    use bevy::ecs::component::RequiredComponentsError;
+
+    match app.try_register_required_components::<AnimationGraphPlayer, R>() {
+        Ok(()) | Err(RequiredComponentsError::DuplicateRegistration(..)) => {},
+        Err(RequiredComponentsError::ArchetypeExists(_)) => {
+            let world = app.world_mut();
+            let mut query = world.query_filtered::<Entity, (With<AnimationGraphPlayer>, Without<R>)>();
+            let players: Vec<_> = query.iter(world).collect();
+            for player in players {
+                world.entity_mut(player).insert_if_new(R::default());
+            }
+            app.add_observer(|event: On<Insert<AnimationGraphPlayer>>, mut commands: Commands| {
+                commands.entity(event.entity).try_insert_if_new(R::default());
+            });
+        }
+        Err(error) => panic!("Could not set up an animation player component: {error}"),
+    }
+}
+
 impl Plugin for PostPhysicsAnimationPlugin {
     fn build(&self, app: &mut App) {
         if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() {
@@ -156,7 +179,23 @@ fn install_physics_playback(app: &mut App, outer: InternedScheduleLabel) {
             .run_if(|time: Res<Time>| !time.delta().is_zero()),
     );
     if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-        app.configure_sets(
+        app.add_systems(
+            outer,
+            (evaluate_players::<HostAnimationPlayers>, publish_sampled_motion::<HostAnimationPlayers>)
+                .chain()
+                .in_set(AnimationPlaybackSystems::Sample)
+                .run_if(host_animation_step_pending),
+        )
+        .add_systems(
+            outer,
+            (read_back_ragdoll_poses::<HostAnimationPlayers>, normalize_scaled_readback_pose::<HostAnimationPlayers>)
+                .chain()
+                .in_set(AnimationGraphSet::PostPhysics)
+                .run_if(|players: Query<(), (With<AnimationGraphPlayer>, HostAnimationPlayers)>| {
+                    !players.is_empty()
+                }),
+        )
+        .configure_sets(
             PhysicsSchedule,
             PhysicsAnimationSet
                 .before(bevy_tnua::TnuaPipelineSystems::Sensors)
@@ -184,6 +223,20 @@ fn install_physics_playback(app: &mut App, outer: InternedScheduleLabel) {
     }
 }
 
+fn host_animation_step_pending(
+    time: Res<Time>,
+    physics: Res<Time<avian3d::prelude::Physics>>,
+    players: Query<(), (With<AnimationGraphPlayer>, HostAnimationPlayers)>,
+    mut previously_active: Local<bool>,
+) -> bool {
+    if !crate::als::input::physics_step_due(&time, &physics) {
+        return false;
+    }
+    let active = !players.is_empty();
+    // The evaluation system needs one empty step to release its previous sharing batch.
+    std::mem::replace(&mut *previously_active, active) || active
+}
+
 fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
     app.configure_sets(
         pose,
@@ -198,15 +251,8 @@ fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
                 .after(TransformSystems::Propagate),
         ),
     )
-    .add_systems(pose, apply_animation_to_visible_targets.in_set(AnimationPlaybackSystems::WritePose))
-    .add_systems(
-        pose,
-        (read_back_ragdoll_poses, normalize_scaled_readback_pose, apply_readback_pose)
-            .chain()
-            .in_set(PostPhysicsAnimationSet::Readback),
-    );
+    .add_systems(pose, apply_animation_to_visible_targets.in_set(AnimationPlaybackSystems::WritePose));
     if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-        type EarlyFrame = (Without<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
         type LateFrame = (With<PostPhysicsAnimation>, Without<PhysicsAnimationPlayer>);
         app.configure_sets(
             pose,
@@ -220,18 +266,19 @@ fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
         )
         .add_systems(
             pose,
-            (
-                evaluate_players::<EarlyFrame>,
-                publish_sampled_motion::<EarlyFrame>,
-            )
-                .chain()
-                .in_set(AnimationGraphSet::PrePhysics),
-        )
-        .add_systems(
-            pose,
             (evaluate_players::<LateFrame>, publish_sampled_motion::<LateFrame>)
                 .chain()
                 .in_set(PostPhysicsAnimationSet::Evaluate),
+        )
+        .add_systems(
+            pose,
+            (
+                read_back_ragdoll_poses::<FrameAnimationPlayers>,
+                normalize_scaled_readback_pose::<FrameAnimationPlayers>,
+                apply_readback_pose::<FrameAnimationPlayers>,
+            )
+                .chain()
+                .in_set(PostPhysicsAnimationSet::Readback),
         );
     } else {
         app.add_systems(
@@ -239,6 +286,12 @@ fn install_pose_playback(app: &mut App, pose: InternedScheduleLabel) {
             (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)
                 .chain()
                 .in_set(PostPhysicsAnimationSet::Evaluate),
+        )
+        .add_systems(
+            pose,
+            (read_back_ragdoll_poses::<()>, normalize_scaled_readback_pose::<()>, apply_readback_pose::<()>)
+                .chain()
+                .in_set(PostPhysicsAnimationSet::Readback),
         );
     }
 }
@@ -320,8 +373,8 @@ fn has_physics_readback(player: &AnimationGraphPlayer) -> bool {
             })
 }
 
-fn read_back_ragdoll_poses(
-    mut players: Query<(Entity, &mut AnimationGraphPlayer)>,
+fn read_back_ragdoll_poses<F: QueryFilter>(
+    mut players: Query<(Entity, &mut AnimationGraphPlayer), F>,
     maps: Res<Assets<RagdollBoneMap>>,
     bodies: Query<(&Position, &Rotation)>,
     resources: SystemResources,
@@ -469,13 +522,13 @@ fn normalize_ragdoll_pose_scale(
     }
 }
 
-fn normalize_scaled_readback_pose(
+fn normalize_scaled_readback_pose<F: QueryFilter>(
     mut players: Query<(
         Entity,
         &mut AnimationGraphPlayer,
         &GlobalTransform,
         Has<crate::extensions::RagdollPhysicsProfile>,
-    )>,
+    ), F>,
     hosts: Query<(&AnimatedSceneHandle, &AnimatedSceneInstance)>,
     scenes: Option<Res<Assets<AnimatedScene>>>,
     maps: Res<Assets<RagdollBoneMap>>,
@@ -549,7 +602,7 @@ fn normalize_scaled_readback_pose(
     }
 }
 
-fn apply_readback_pose(
+fn apply_readback_pose<F: QueryFilter>(
     mut commands: Commands,
     mut targets: Query<(
         Entity,
@@ -558,7 +611,7 @@ fn apply_readback_pose(
         &AnimatedBy,
         Option<&PublishedSourceBone>,
     )>,
-    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
+    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>), F>,
 ) {
     for (entity, mut transform, id, animated_by, precise) in &mut targets {
         let Ok((player, gate)) = players.get(animated_by.0) else {
@@ -652,7 +705,7 @@ pub fn evaluate_players<F: QueryFilter>(
     mut players: Query<PlayerEvaluation, (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
     timing: Option<ResMut<GraphEvaluationTime>>,
-    mut skeleton_layouts: Local<Arc<SourceSkeletonLayouts>>,
+    mut skeleton_layouts: Local<Option<Arc<SourceSkeletonLayouts>>>,
     sharing: Option<Res<AlsAnimationSharingSettings>>,
     pre_rig_sharing: Option<Res<AlsPreRigSharingSettings>>,
     clip_samples: Local<Arc<SharedClipSamples>>,
@@ -662,9 +715,17 @@ pub fn evaluate_players<F: QueryFilter>(
 ) {
     let timing_started = timing.as_ref().map(|_| bevy::platform::time::Instant::now());
     if resources.skeleton_assets.is_changed() {
-        *skeleton_layouts = Arc::new(SourceSkeletonLayouts::new(&resources.skeleton_assets));
+        *skeleton_layouts = None;
     }
-    let skeleton_layouts = &*skeleton_layouts;
+    if players.is_empty() {
+        if previous_batch.take().is_some() {
+            clip_samples.pre_rig_sharing.begin_frame(false, AssetRevision::Stable);
+            clip_samples.clear();
+        }
+        return;
+    }
+    let skeleton_layouts = &*skeleton_layouts
+        .get_or_insert_with(|| Arc::new(SourceSkeletonLayouts::new(&resources.skeleton_assets)));
     let pre_rig_enabled = sharing.as_ref().is_some_and(|settings| settings.enabled)
         && pre_rig_sharing.as_ref().is_some_and(|settings| settings.enabled)
         && players.iter().nth(1).is_some();

@@ -3,7 +3,9 @@ use crate::als::foot_ik::{AlsFootLockState, AlsFootTargetSelection};
 use crate::als::input_request::AlsFirstPersonView;
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::state::RotationMode;
-use crate::control_rig_query::{RigQueryContext, RigQueryWorld};
+use crate::control_rig_query::{
+    IndexedRigQuery, RigQueryContext, RigQueryIndex, RigQueryWorld, collider_trace_bounds,
+};
 use crate::extensions::source_instance::source_player_property;
 use crate::extensions::{
     ShapeCollisionMode, control_rig_hierarchy::RigTransform,
@@ -11,9 +13,9 @@ use crate::extensions::{
 };
 use avian3d::{
     collider_tree::ColliderTrees,
-    prelude::{Collider, CollisionLayers, Position, Rotation, SpatialQueryFilter},
+    prelude::{Collider, ColliderDisabled, CollisionLayers, Position, Rotation, SpatialQueryFilter},
 };
-use bevy::ecs::hierarchy::ChildOf;
+use bevy::ecs::{change_detection::Tick, hierarchy::ChildOf, system::SystemChangeTick};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -447,6 +449,116 @@ fn refresh_control_rig_input(
 }
 
 #[doc(hidden)]
+type RigColliders<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Position,
+        &'static Rotation,
+        Ref<'static, Collider>,
+        Option<&'static CollisionLayers>,
+        Option<Ref<'static, crate::extensions::ComplexCollider>>,
+        Option<&'static ShapeCollisionMode>,
+        Option<Ref<'static, CookedMeshRayData>>,
+    ),
+    Without<ColliderDisabled>,
+>;
+
+#[doc(hidden)]
+#[derive(Default)]
+pub struct RigQueryCapture {
+    world: Arc<RigQueryWorld>,
+    index: Arc<RigQueryIndex>,
+    last_capture: Option<Tick>,
+}
+
+impl RigQueryCapture {
+    fn refresh(&mut self, colliders: &RigColliders, this_run: Tick) {
+        let last_capture = self.last_capture.replace(this_run);
+        let changed = |tick: Tick| last_capture.is_none_or(|last| tick.is_newer_than(last, this_run));
+        let mut count = 0;
+        for (entity, position, rotation, collider, layers, complex, mode, mesh) in colliders {
+            if mode.is_some_and(|mode| !mode.has_query()) {
+                continue;
+            }
+            count += 1;
+            let layers = layers.copied().unwrap_or_default();
+            let old = self.world.colliders.get(&entity);
+            let moved = old.is_none_or(|(pos, rot, ..)| pos != position || rot != rotation);
+            let shape_changed = old.is_none()
+                || changed(collider.last_changed())
+                || complex.as_ref().is_some_and(|shape| changed(shape.last_changed()))
+                || complex.is_some() != self.index.complex.contains(&entity);
+            let mesh_changed = mesh
+                .as_ref()
+                .is_some_and(|mesh| changed(mesh.last_changed()))
+                || mesh.is_some() != self.world.mesh_ray_data.contains_key(&entity);
+            let geometry_changed = moved || shape_changed || mesh_changed;
+            if geometry_changed || old.is_some_and(|(.., old_layers)| *old_layers != layers) {
+                let surface = if shape_changed {
+                    if let Some(complex) = &complex {
+                        let mut surface = complex.0.clone();
+                        surface.set_scale(collider.scale(), 10);
+                        surface
+                    } else {
+                        (*collider).clone()
+                    }
+                } else {
+                    old.unwrap().2.clone()
+                };
+                if geometry_changed {
+                    let bounds = if mesh.is_none() {
+                        collider_trace_bounds(*position, *rotation, &surface)
+                    } else {
+                        None
+                    };
+                    let index = Arc::make_mut(&mut self.index);
+                    index.update(entity, bounds);
+                }
+                if shape_changed {
+                    let index = Arc::make_mut(&mut self.index);
+                    if complex.is_some() {
+                        index.complex.insert(entity);
+                    } else {
+                        index.complex.remove(&entity);
+                    }
+                }
+                let world = Arc::make_mut(&mut self.world);
+                if mesh_changed {
+                    if let Some(mesh) = mesh {
+                        world.mesh_ray_data.insert(entity, (*mesh).clone());
+                    } else {
+                        world.mesh_ray_data.remove(&entity);
+                    }
+                }
+                world.colliders.insert(entity, (*position, *rotation, surface, layers));
+            }
+        }
+        if count != self.world.colliders.len() {
+            let removed: Vec<_> = self
+                .world
+                .colliders
+                .keys()
+                .copied()
+                .filter(|&entity| {
+                    !colliders.get(entity).is_ok_and(|(_, _, _, _, _, _, mode, _)| {
+                        mode.is_none_or(|mode| mode.has_query())
+                    })
+                })
+                .collect();
+            let world = Arc::make_mut(&mut self.world);
+            let index = Arc::make_mut(&mut self.index);
+            for entity in removed {
+                world.colliders.remove(&entity);
+                world.mesh_ray_data.remove(&entity);
+                index.remove(entity);
+                index.complex.remove(&entity);
+            }
+        }
+    }
+}
+
 pub fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     characters: Query<
@@ -463,19 +575,12 @@ pub fn publish_control_rig_inputs(
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
     trees: Option<Res<ColliderTrees>>,
-    colliders: Query<(
-        Entity,
-        &Position,
-        &Rotation,
-        &Collider,
-        Option<&CollisionLayers>,
-        Option<&crate::extensions::ComplexCollider>,
-        Option<&ShapeCollisionMode>,
-        Option<&CookedMeshRayData>,
-    )>,
+    colliders: RigColliders,
+    mut query_capture: Local<RigQueryCapture>,
+    tick: SystemChangeTick,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
-    let mut world: Option<Arc<RigQueryWorld>> = None;
+    let mut captured = false;
     for (entity, input, foot_locations, assembly) in &characters {
         let Some(assembly) = assembly else {
             continue;
@@ -571,60 +676,23 @@ pub fn publish_control_rig_inputs(
                     .compute_global_transform(mesh)
                     .ok()
                     .map(|transform| {
-                        let world = world
-                            .get_or_insert_with(|| {
-                                let mut mesh_ray_data =
-                                    bevy::platform::collections::HashMap::default();
-                                let colliders = colliders
-                                    .iter()
-                                    .filter(|(_, _, _, _, _, _, mode, _)| {
-                                        mode.is_none_or(|mode| mode.has_query())
-                                    })
-                                    .map(
-                                        |(
-                                            entity,
-                                            position,
-                                            rotation,
-                                            collider,
-                                            layers,
-                                            complex,
-                                            _,
-                                            ray,
-                                        )| {
-                                            let mut surface =
-                                                complex.map_or(collider, |value| &value.0).clone();
-                                            surface.set_scale(collider.scale(), 10);
-                                            if let Some(ray) = ray {
-                                                mesh_ray_data.insert(entity, ray.clone());
-                                            }
-                                            (
-                                                entity,
-                                                (
-                                                    *position,
-                                                    *rotation,
-                                                    surface,
-                                                    layers.copied().unwrap_or_default(),
-                                                ),
-                                            )
-                                        },
-                                    )
-                                    .collect();
-                                Arc::new(RigQueryWorld {
-                                    colliders,
-                                    mesh_ray_data,
-                                })
-                            })
-                            .clone();
+                        if !captured {
+                            query_capture.refresh(&colliders, tick.this_run());
+                            captured = true;
+                        }
                         let transform = transform.compute_transform();
-                        RigQueryContext {
-                            world,
-                            filter,
-                            channel: "ECC_Visibility".to_owned(),
-                            to_world: RigTransform {
-                                translation: transform.translation.as_dvec3(),
-                                rotation: transform.rotation.as_dquat(),
-                                scale: transform.scale.as_dvec3(),
+                        IndexedRigQuery {
+                            context: RigQueryContext {
+                                world: Arc::clone(&query_capture.world),
+                                filter,
+                                channel: "ECC_Visibility".to_owned(),
+                                to_world: RigTransform {
+                                    translation: transform.translation.as_dvec3(),
+                                    rotation: transform.rotation.as_dquat(),
+                                    scale: transform.scale.as_dvec3(),
+                                },
                             },
+                            index: Some(Arc::clone(&query_capture.index)),
                         }
                     })
             })
@@ -632,7 +700,7 @@ pub fn publish_control_rig_inputs(
             None
         };
         let mut source = source_inputs.get_mut(root).unwrap();
-        source.set_rig_query_context(context);
+        source.set_indexed_rig_query(context);
         source.set_rig_foot_locations_cm(
             foot_locations
                 .filter(|locations| {
@@ -654,6 +722,84 @@ mod tests {
     use crate::als::motion::AlsViewYaw;
     use crate::als::state::LocomotionState;
     use crate::locomotion_layer::AlsGroundPredictionState;
+
+    #[test]
+    fn rig_index_matches_flat_casts_after_collider_changes() {
+        use bevy::math::DVec3;
+
+        #[derive(Resource, Default)]
+        struct Snapshot(Option<IndexedRigQuery>);
+
+        let mut app = App::new();
+        app.init_resource::<Snapshot>().add_systems(
+            Update,
+            |colliders: RigColliders,
+             mut cache: Local<RigQueryCapture>,
+             tick: SystemChangeTick,
+             mut snapshot: ResMut<Snapshot>| {
+                cache.refresh(&colliders, tick.this_run());
+                snapshot.0 = Some(IndexedRigQuery {
+                    context: RigQueryContext {
+                        world: Arc::clone(&cache.world),
+                        filter: SpatialQueryFilter::default(),
+                        channel: "ECC_Visibility".into(),
+                        to_world: RigTransform::default(),
+                    },
+                    index: Some(Arc::clone(&cache.index)),
+                });
+            },
+        );
+        let moving = app
+            .world_mut()
+            .spawn((Position(Vec3::Y), Rotation::default(), Collider::sphere(0.5)))
+            .id();
+        let removed = app
+            .world_mut()
+            .spawn((Position(Vec3::Z * 4.0), Rotation::default(), Collider::sphere(1.0)))
+            .id();
+        app.world_mut().spawn((
+            Position(Vec3::NEG_Y),
+            Rotation::default(),
+            Collider::cuboid(10.0, 2.0, 10.0),
+        ));
+        app.world_mut().spawn((Position(Vec3::X * 10.0), Rotation::default(), Collider::sphere(0.5)));
+
+        let capture = |app: &mut App| {
+            // Keep the previous published snapshot alive through capture to exercise copy-on-write.
+            app.world_mut().run_schedule(Update);
+            app.world().resource::<Snapshot>().0.clone().unwrap()
+        };
+        let trace = |query: &IndexedRigQuery, x, z| {
+            let start = DVec3::new(x, 5.0, z);
+            let end = DVec3::new(x, -5.0, z);
+            let indexed = query.trace_in_units(start, end, "ECC_Visibility", true, 1.0).unwrap();
+            assert_eq!(indexed, query.context.trace(start, end, "ECC_Visibility", true).unwrap());
+            indexed.unwrap().0.y
+        };
+        let initial = capture(&mut app);
+        assert_eq!(trace(&initial, 0.0, 0.0), 1.5);
+        assert_eq!(trace(&initial, 0.0, 4.0), 1.0);
+
+        app.world_mut().despawn(removed);
+        app.world_mut().entity_mut(moving).insert((
+            Position(Vec3::X * 2.0 + Vec3::Y),
+            Rotation(Quat::from_rotation_y(0.4)),
+            Collider::cuboid(1.0, 2.0, 1.0),
+        ));
+        let moved = capture(&mut app);
+        assert_eq!(trace(&moved, 0.0, 0.0), 0.0);
+        assert_eq!(trace(&moved, 0.0, 4.0), 0.0);
+        assert!((trace(&moved, 2.0, 0.0) - 2.0).abs() < 1e-12);
+        assert_eq!(trace(&initial, 0.0, 0.0), 1.5);
+
+        let mut entity = app.world_mut().entity_mut(moving);
+        entity.insert(crate::extensions::ComplexCollider(Collider::sphere(0.25)));
+        assert!((trace(&capture(&mut app), 2.0, 0.0) - 1.25).abs() < 1e-12);
+        app.world_mut().entity_mut(moving).remove::<crate::extensions::ComplexCollider>();
+        assert!((trace(&capture(&mut app), 2.0, 0.0) - 2.0).abs() < 1e-12);
+        app.world_mut().entity_mut(moving).insert(ShapeCollisionMode::PhysicsOnly);
+        assert_eq!(trace(&capture(&mut app), 2.0, 0.0), 0.0);
+    }
 
     #[test]
     fn rig_input_snapshots_prepared_actor_state_before_source_update() {

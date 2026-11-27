@@ -309,8 +309,8 @@ pub(crate) struct AlsAnimationRatePlugin;
 
 impl Plugin for AlsAnimationRatePlugin {
     fn build(&self, app: &mut App) {
+        crate::extensions::post_physics_animation::require_animation_player_component::<AlsAnimationRate>(app);
         app.init_resource::<AlsAnimationRateSettings>()
-            .register_required_components::<AnimationGraphPlayer, AlsAnimationRate>()
             .add_observer(
                 |event: On<Discard<AnimationGraphPlayer>>, mut commands: Commands| {
                     commands

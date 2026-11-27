@@ -1,11 +1,13 @@
-use avian3d::dynamics::integrator::VelocityIntegrationData;
+use avian3d::dynamics::{
+    integrator::VelocityIntegrationData, joints::joint_graph::JointGraph,
+};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::dynamics::solver::solver_body::{
     SolverBodies, SolverBodyFlags, SolverBodyIndex, SolverBodyInertia,
 };
 use avian3d::prelude::{
     AngularInertia, AngularVelocity, Collider, ComputedCenterOfMass, CustomPositionIntegration,
-    JointDisabled, LinearVelocity, Physics, Position, RigidBody, Rotation,
+    JointDisabled, LinearVelocity, Physics, Position, RigidBody, RigidBodyColliders, Rotation,
 };
 use avian3d::schedule::LastPhysicsTick;
 use bevy::ecs::{change_detection::Tick, system::SystemChangeTick};
@@ -409,16 +411,14 @@ pub(super) fn condition_source_solver_inertia(
         &avian3d::prelude::ComputedCenterOfMass,
         &SourceInertiaConditioningSettings,
         Option<&SourceBodyDof>,
+        Option<&RigidBodyColliders>,
         &SolverBodyIndex,
     )>,
-    colliders: Query<(
-        &Collider,
-        &avian3d::prelude::ColliderOf,
-        &avian3d::prelude::ColliderTransform,
-    )>,
+    colliders: Query<(&Collider, &avian3d::prelude::ColliderTransform)>,
+    joint_graph: Res<JointGraph>,
     joints: Query<&SourcePhysicsJoint, Without<JointDisabled>>,
 ) {
-    for (entity, mode, rotation, mass, angular, com, settings, dof, index) in &bodies {
+    for (entity, mode, rotation, mass, angular, com, settings, dof, owned_colliders, index) in &bodies {
         if !mode.is_dynamic() {
             continue;
         }
@@ -433,10 +433,10 @@ pub(super) fn condition_source_solver_inertia(
         let local_basis = Mat3::from_quat(principal.local_frame.conjugate());
         let mut min = Vec3::splat(f32::INFINITY);
         let mut max = Vec3::splat(f32::NEG_INFINITY);
-        for (shape, owner, transform) in &colliders {
-            if owner.body != entity {
+        for collider in owned_colliders.into_iter().flatten() {
+            let Ok((shape, transform)) = colliders.get(collider) else {
                 continue;
-            }
+            };
             let pose =
                 avian3d::parry::math::Pose3::from_parts(transform.translation, transform.rotation);
             let bounds = shape.shape_scaled().compute_aabb(&pose);
@@ -447,7 +447,10 @@ pub(super) fn condition_source_solver_inertia(
         let mut extents = local_basis.x_axis.abs() * half.x
             + local_basis.y_axis.abs() * half.y
             + local_basis.z_axis.abs() * half.z;
-        for joint in &joints {
+        for edge in joint_graph.joints_of(entity) {
+            let Ok(joint) = joints.get(edge.entity) else {
+                continue;
+            };
             if settings.exclude_free_joints
                 && !joint.linear_locked
                 && !joint

@@ -31,6 +31,8 @@ pub enum CapsuleStanceResult {
     ExpandedApplied,
 }
 
+/// Standalone capsule stance helper for host controllers. ALS characters use
+/// [`crate::als::motion::AlsCrouchTransaction`] for the movement and animation lifecycle.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CapsuleStanceTransaction {
     pub desired: CapsuleStance,

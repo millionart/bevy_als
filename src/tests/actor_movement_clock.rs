@@ -84,7 +84,7 @@ fn playable_character_uses_zero_or_multiple_fixed_physics_steps_per_frame() {
 fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once_per_frame() {
     use bevy_als::extensions::{
         GlobalPoseInputNode,
-        post_physics_animation::{AnimationPoseUpdateGate, PhysicsAnimationPlayer},
+        post_physics_animation::{AnimationPoseUpdateGate, PhysicsAnimationPlayer, PostPhysicsAnimation},
     };
     use bevy_animation_graph::core::{
         animation_graph::AnimationGraph,
@@ -156,6 +156,7 @@ fn root_displacement_is_published_on_each_physics_step_and_the_visible_pose_once
             Children::default(),
             Transform::default(),
             make_player(),
+            PostPhysicsAnimation,
         ))
         .id();
     app.finish();

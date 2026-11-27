@@ -441,6 +441,30 @@ impl AlsAclAnimations {
             .insert(animation.into(), Arc::new(tracks));
     }
 
+    /// Samples the compressed source for a loaded clip. Pass the reference clip and
+    /// sample time to request a matching baked local additive pose.
+    pub fn sample_pose(
+        &self,
+        clip: &GraphClip,
+        skeleton: &Skeleton,
+        time: f32,
+        additive: Option<(&Handle<GraphClip>, f32)>,
+    ) -> Option<Pose> {
+        let animation = self.get(clip)?;
+        let matches = match additive {
+            Some((reference, time)) => animation.matches_additive_reference(reference, time),
+            None => !animation.is_local_additive(),
+        };
+        if !matches {
+            return None;
+        }
+        let mut pose = animation.pose(skeleton, clip, time, None).ok()?;
+        if additive.is_none() {
+            super::source_sequence_player::rebuild_virtual_bones(&mut pose, skeleton);
+        }
+        Some(pose)
+    }
+
     pub(crate) fn get(&self, clip: &GraphClip) -> Option<Arc<AlsAclAnimation>> {
         let GraphClipSource::GltfNamed {
             path,

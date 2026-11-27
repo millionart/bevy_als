@@ -84,15 +84,9 @@ impl Plugin for AlsSourceCameraPlugin {
         );
         let view = (remove_orphaned_views, publish_player_view_yaw)
             .chain()
-            .before(crate::als::view::AlsViewInputSet);
-        if crate::AlsPhysicsSchedule::uses_physics_steps(app) {
-            app.add_systems(
-                RunFixedMainLoop,
-                view.in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop),
-            );
-        } else {
-            app.add_systems(Update, view);
-        }
+            .before(crate::als::view::AlsViewInputSet)
+            .in_set(crate::playable_character::AlsFrameInputSet);
+        app.add_systems(crate::AlsPhysicsSchedule::frame_input(app), view);
     }
 }
 
@@ -1727,12 +1721,22 @@ fn publish_player_view_yaw(
     sources: Query<&AlsCharacterCamera, With<AlsSourceCameraComponent>>,
 ) {
     for (character, current, assembly, player, readiness) in &mut characters {
-        let view = views.iter().find_map(|(camera, transform, owner, source)| {
+        let sample_view = |(camera, transform, owner, source): (
+            &Camera,
+            Ref<GlobalTransform>,
+            &AlsCharacterCamera,
+            &crate::als_camera::AlsCameraViewSource,
+        )| {
             (owner.character == character && camera.is_active && !transform.is_added())
                 .then(|| transform.rotation().to_euler(EulerRot::YXZ).0)
                 .filter(|yaw| yaw.is_finite())
                 .map(|yaw| (yaw, source.0))
-        });
+        };
+        let view = assembly
+            .and_then(|assembly| assembly.camera)
+            .and_then(|camera| views.get(camera).ok())
+            .and_then(sample_view)
+            .or_else(|| views.iter().find_map(sample_view));
         let manager = assembly
             .filter(|_| player)
             .and_then(|assembly| assembly.camera)

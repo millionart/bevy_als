@@ -10,13 +10,15 @@
 
 The default character, camera, animation, and footprint assets are embedded by the plugin. Games can load a bundled asset with `als_asset_path` or use their own asset paths for custom content.
 
-ALS advances physics in Avian's default `FixedPostUpdate` schedule. Write input in `PreUpdate` and pulse `*_pressed` fields for one frame. ALS buffers presses until a physics step consumes them. The complete character graph, cosmetic layers, IK and camera update once per display frame in `PostUpdate`. A frame with several physics steps still evaluates one character pose. The roll slot samples the physical displacement on each step. Hosts can mark other dedicated physics input graphs with `extensions::post_physics_animation::PhysicsAnimationPlayer`.
+ALS advances physics in Avian's default `FixedPostUpdate` schedule. ALS buffers press pulses until a physics step consumes them. When the host runs physics in `PreUpdate`, order its input writers before `AlsFrameInputSet` in that schedule. The character graph, cosmetic layers, IK and camera update once per display frame in `PostUpdate`. The roll slot samples physical displacement on each physics step.
+
+Ordinary `AnimationGraphPlayer` entities sample on the configured physics schedule and write their display poses in `PostUpdate`. If the host installs `AnimationGraphPlugin` first, use matching schedules and the graph plugin's standard playback. Hosts can mark dedicated physics input graphs with `extensions::post_physics_animation::PhysicsAnimationPlayer` to sample inside each actual solver step.
 
 ALS enables Avian transform interpolation on characters when it installs the default fixed-step physics world. The solver owns `Position` and `Rotation`, and cameras and meshes consume the interpolated `Transform`. A host that installs Avian selects its own interpolation policy.
 
 To select a different physics schedule, insert `AlsPhysicsSchedule::new(schedule)` before adding `AlsPlugin`. If the host installs Avian itself, use `AlsPlugin::physics_plugins()` for the default or `AlsPlugin::physics_plugins_in(schedule)` for a custom schedule. Both install ALS's ragdoll collision hooks.
 
-Insert `AlsPhysicsSchedule::SourceFrameTiming` before adding `AlsPlugin` to opt in to the original Unreal-style frame timing and world timestep cap. This mode drives Avian in `PostUpdate`. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
+Insert `AlsPhysicsSchedule::SourceFrameTiming` before adding `AlsPlugin` to opt in to the original Unreal-style frame timing and world timestep cap in `PostUpdate`. An ALS-owned world also uses the source contact and substep settings. If the host installs Avian, its solver configuration and `SubstepCount` apply. Mark the local player with `character_assembly::AlsPlayerCharacter` when using ALS player diagnostics.
 
 Hosts with their own Avian contact rules can install `AlsPlugin::with_collision_hooks::<HostHooks>()`. Compose the host's filter with `bevy_als::extensions::RagdollCollisionHooks` to retain ALS ragdoll and pawn exclusions. If Avian is already installed, use the same hook type and schedule in both plugins.
 
@@ -27,6 +29,8 @@ Run `cargo run --example als_character` from the companion `bevy_als_playground`
 An animation `.anim.ron` file references its meshless GLB and skeleton. Character models use separate GLBs. Animation notifications and sync markers sit beside their sequences in `*.notify.json`. Montage settings and notifications live in `*.montage.json`. Regenerate the path index and event tracks after editing notifications. See [UEtoBevyWorkflow](https://github.com/millionart/UEtoBevyWorkflow) for conversion tools.
 
 Sequence sampling honors logical source frames for GLB `STEP` keys, including uniform timestamps derived from either frame rate or clip duration. Preserve the rich curve evaluation order, native CurveFloat precision, and get-up montage curve data when re-exporting. The installed high mantle montage retains the original curve data. The measured key differences from re-export were at most about 4.77 × 10⁻⁷ seconds and 3.95 × 10⁻⁹ in curve value.
+
+Use the animation graph library's `ConstF32` for new graphs. Bundled graphs retain `als_ext::ConstantF32Node` and its `value` output. Review time propagation and duration selection when migrating a graph that uses `als_ext::BlendSpace1DNode` to the built-in blend space.
 
 ## Project layout
 

@@ -13,8 +13,8 @@ pub use als::params::AlsMovementParams;
 pub use als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 pub use als::transition::AlsStateRequest;
 pub use playable_character::{
-    AlsCharacterBlueprint, AlsPhysicsPrepareSet, AlsPhysicsSchedule, AlsPlayableCharacterPlugin as AlsPlugin,
-    spawn_als_character,
+    AlsCharacterBlueprint, AlsFrameInputSet, AlsPhysicsPrepareSet, AlsPhysicsSchedule,
+    AlsPlayableCharacterPlugin as AlsPlugin, spawn_als_character,
 };
 
 #[path = "als/character/animation_instances/ab_als_provider.rs"]

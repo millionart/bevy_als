@@ -25,7 +25,10 @@ impl AssetLoader for CurveAssetLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let asset: CurveAsset = ron::de::from_bytes(&bytes)?;
-        Ok(asset)
+        if let Some(index) = asset.keys.iter().position(|key| !key.t.is_finite()) {
+            return Err(CurveLoadError::NonFiniteKeyTime(index));
+        }
+        Ok(CurveAsset::new(asset.mode, asset.keys))
     }
 
     fn extensions(&self) -> &[&str] {
@@ -37,6 +40,7 @@ impl AssetLoader for CurveAssetLoader {
 pub enum CurveLoadError {
     Io(std::io::Error),
     Ron(ron::de::SpannedError),
+    NonFiniteKeyTime(usize),
 }
 
 impl std::fmt::Display for CurveLoadError {
@@ -44,6 +48,7 @@ impl std::fmt::Display for CurveLoadError {
         match self {
             Self::Io(e) => write!(f, "io error reading curve asset: {e}"),
             Self::Ron(e) => write!(f, "failed to parse curve RON: {e}"),
+            Self::NonFiniteKeyTime(index) => write!(f, "non-finite key time at index {index}"),
         }
     }
 }
@@ -53,6 +58,7 @@ impl std::error::Error for CurveLoadError {
         match self {
             Self::Io(e) => Some(e),
             Self::Ron(e) => Some(e),
+            Self::NonFiniteKeyTime(_) => None,
         }
     }
 }

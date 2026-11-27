@@ -1,8 +1,17 @@
-use std::sync::Arc;
+use std::{cell::OnceCell, sync::Arc};
 
 use avian3d::prelude::*;
-use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
-use parry3d_f64::query::Ray;
+use bevy::{
+    ecs::entity::{EntityHashMap, EntityHashSet},
+    math::{DMat3, DVec3},
+    platform::collections::HashMap,
+    prelude::*,
+};
+use parry3d_f64::{
+    bounding_volume::Aabb,
+    partitioning::{Bvh, TraversalAction},
+    query::{Ray, RayCast},
+};
 
 use crate::extensions::{
     control_rig_hierarchy::RigTransform,
@@ -11,10 +20,87 @@ use crate::extensions::{
     shape_raycast::{nearer_hit, source_mesh_has_scale, trace_precise_shape},
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct RigQueryWorld {
     pub colliders: HashMap<Entity, (Position, Rotation, Collider, CollisionLayers)>,
     pub mesh_ray_data: HashMap<Entity, CookedMeshRayData>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct RigQueryIndex {
+    tree: Bvh,
+    entities: Vec<Entity>,
+    leaves: EntityHashMap<u32>,
+    unindexed: EntityHashSet,
+    pub(crate) complex: EntityHashSet,
+}
+
+impl RigQueryIndex {
+    pub(crate) fn update(&mut self, entity: Entity, bounds: Option<Aabb>) {
+        let Some(bounds) = bounds else {
+            self.remove(entity);
+            self.unindexed.insert(entity);
+            return;
+        };
+        self.unindexed.remove(&entity);
+        let leaf = *self.leaves.entry(entity).or_insert_with(|| {
+            let leaf = self.entities.len() as u32;
+            self.entities.push(entity);
+            leaf
+        });
+        self.tree.insert(bounds, leaf);
+    }
+
+    pub(crate) fn remove(&mut self, entity: Entity) {
+        self.unindexed.remove(&entity);
+        if let Some(leaf) = self.leaves.remove(&entity) {
+            self.tree.remove(leaf);
+            self.entities.swap_remove(leaf as usize);
+            let old_last = self.entities.len() as u32;
+            if leaf != old_last {
+                let moved = self.entities[leaf as usize];
+                let bounds = self.tree.leaf_node(old_last).unwrap().aabb();
+                self.tree.remove(old_last);
+                self.tree.insert(bounds, leaf);
+                self.leaves.insert(moved, leaf);
+            }
+        }
+    }
+}
+
+pub(crate) fn collider_trace_bounds(
+    position: Position,
+    rotation: Rotation,
+    collider: &Collider,
+) -> Option<Aabb> {
+    use avian3d::parry::shape::TypedShape;
+
+    // Shapes that use the single-precision fallback, or numerically approximate support maps,
+    // need their original cast to decide whether the ray hits.
+    let shape = collider.shape_scaled();
+    if !matches!(
+        shape.as_typed_shape(),
+        TypedShape::Cuboid(_) | TypedShape::Ball(_) | TypedShape::Capsule(_) | TypedShape::TriMesh(_)
+    ) {
+        return None;
+    }
+    let local = shape.compute_local_aabb();
+    let min = DVec3::from_array(local.mins.to_array().map(|v| f64::from(v.next_down())));
+    let max = DVec3::from_array(local.maxs.to_array().map(|v| f64::from(v.next_up())));
+    // The source rotation uses the stored quaternion, including any rounding in its length.
+    let inverse_rotation = rotation.0.as_dquat().conjugate();
+    let inverse_basis = DMat3::from_cols(
+        source_rotate_vector(inverse_rotation, DVec3::X),
+        source_rotate_vector(inverse_rotation, DVec3::Y),
+        source_rotate_vector(inverse_rotation, DVec3::Z),
+    );
+    let basis = inverse_basis.inverse();
+    let center = position.0.as_dvec3() + basis * ((min + max) * 0.5);
+    let half = (DMat3::from_cols(basis.x_axis.abs(), basis.y_axis.abs(), basis.z_axis.abs()))
+        * ((max - min) * 0.5);
+    let min = DVec3::from_array((center - half).to_array().map(f64::next_down));
+    let max = DVec3::from_array((center + half).to_array().map(f64::next_up));
+    (min.is_finite() && max.is_finite()).then(|| Aabb::new(min, max))
 }
 
 #[derive(Clone)]
@@ -23,6 +109,32 @@ pub struct RigQueryContext {
     pub to_world: RigTransform,
     pub channel: String,
     pub filter: SpatialQueryFilter,
+}
+
+#[derive(Clone)]
+pub(crate) struct IndexedRigQuery {
+    pub(crate) context: RigQueryContext,
+    pub(crate) index: Option<Arc<RigQueryIndex>>,
+}
+
+impl IndexedRigQuery {
+    pub(crate) fn trace_in_units(
+        &self,
+        start: DVec3,
+        end: DVec3,
+        channel: &str,
+        complex: bool,
+        meters_per_unit: f64,
+    ) -> Result<Option<(DVec3, DVec3)>, String> {
+        self.context.trace_with_index(
+            start,
+            end,
+            channel,
+            complex,
+            meters_per_unit,
+            self.index.as_deref(),
+        )
+    }
 }
 
 impl RigQueryContext {
@@ -44,6 +156,18 @@ impl RigQueryContext {
         complex: bool,
         meters_per_unit: f64,
     ) -> Result<Option<(DVec3, DVec3)>, String> {
+        self.trace_with_index(start, end, channel, complex, meters_per_unit, None)
+    }
+
+    fn trace_with_index(
+        &self,
+        start: DVec3,
+        end: DVec3,
+        channel: &str,
+        complex: bool,
+        meters_per_unit: f64,
+        index: Option<&RigQueryIndex>,
+    ) -> Result<Option<(DVec3, DVec3)>, String> {
         if channel != self.channel || !complex {
             return Err("rig collision query mode is unsupported".to_owned());
         }
@@ -53,25 +177,38 @@ impl RigQueryContext {
         }
         let delta_meters = delta * meters_per_unit;
         let start_meters = start * meters_per_unit;
-        let delta_f32 = delta_meters.as_vec3();
-        let fallback = Dir3::new(delta_f32)
-            .ok()
-            .map(|direction| (direction, delta_f32.length()));
-        let origin = start_meters.as_vec3();
-        let centimeters_per_unit = meters_per_unit * 100.0;
-        let start_cm = start * centimeters_per_unit;
-        let delta_cm = end * centimeters_per_unit - start_cm;
-        let length_cm = f64::from(mesh_vector_length(delta_cm) as f32);
+        let fallback_ray = OnceCell::new();
+        let cooked_ray = OnceCell::new();
         let mut nearest = 1.0;
         let mut hit = None;
-        for (entity, (position, rotation, collider, layers)) in &self.world.colliders {
-            if !self.filter.test(*entity, *layers) {
-                continue;
+        let mut tied = false;
+        // A tree with at most two leaves can only test bounds one collider at a time.
+        let index = index.filter(|index| {
+            index.entities.len() > 2 && start_meters.is_finite() && delta_meters.is_finite()
+        });
+        let mut cast = |entity: Entity,
+                        (position, rotation, collider, layers): &(Position, Rotation, Collider, CollisionLayers),
+                        nearest: &mut f64,
+                        hit: &mut Option<(DVec3, DVec3)>| {
+            if !self.filter.test(entity, *layers) {
+                return;
             }
+            let limit = if index.is_some() {
+                nearest.next_up().min(1.0)
+            } else {
+                *nearest
+            };
             let rotation_f64 = rotation.0.as_dquat();
-            let candidate = if let Some(mesh) = self.world.mesh_ray_data.get(entity) {
+            let candidate = if let Some(mesh) = self.world.mesh_ray_data.get(&entity) {
+                let &(start_cm, delta_cm, length_cm) = cooked_ray.get_or_init(|| {
+                    let centimeters_per_unit = meters_per_unit * 100.0;
+                    let start_cm = start * centimeters_per_unit;
+                    let delta_cm = end * centimeters_per_unit - start_cm;
+                    let length_cm = f64::from(mesh_vector_length(delta_cm) as f32);
+                    (start_cm, delta_cm, length_cm)
+                });
                 if !length_cm.is_finite() || length_cm <= f64::from(1e-4_f32) {
-                    continue;
+                    return;
                 }
                 let position_cm = position.0.as_dvec3() * 100.0;
                 let start = source_rotate_vector(rotation_f64.conjugate(), start_cm - position_cm);
@@ -83,7 +220,7 @@ impl RigQueryContext {
                     .trace(
                         start,
                         direction,
-                        length_cm * nearest,
+                        length_cm * limit,
                         scale,
                         mesh.cull_back_faces,
                     )
@@ -108,7 +245,7 @@ impl RigQueryContext {
                     &**collider.shape(),
                     collider.scale(),
                     &local,
-                    nearest,
+                    limit,
                 ) {
                     Ok(impact) => impact.map(|impact| {
                         (
@@ -117,37 +254,78 @@ impl RigQueryContext {
                             source_rotate_vector(rotation_f64, impact.normal),
                         )
                     }),
-                    Err(()) => fallback.and_then(|(direction, distance)| {
-                        collider
-                            .cast_ray(
-                                position.0,
-                                *rotation,
-                                origin,
-                                direction.as_vec3(),
-                                distance,
-                                true,
-                            )
-                            .map(|(length, normal)| {
-                                (
-                                    f64::from(length) / f64::from(distance),
-                                    (origin + direction.as_vec3() * length).as_dvec3()
-                                        / meters_per_unit,
-                                    normal.as_dvec3(),
+                    Err(()) => fallback_ray
+                        .get_or_init(|| {
+                            let delta = delta_meters.as_vec3();
+                            Dir3::new(delta)
+                                .ok()
+                                .map(|direction| (start_meters.as_vec3(), direction, delta.length()))
+                        })
+                        .and_then(|(origin, direction, distance)| {
+                            collider
+                                .cast_ray(
+                                    position.0,
+                                    *rotation,
+                                    origin,
+                                    direction.as_vec3(),
+                                    distance,
+                                    true,
                                 )
-                            })
-                    }),
+                                .map(|(length, normal)| {
+                                    (
+                                        f64::from(length) / f64::from(distance),
+                                        (origin + direction.as_vec3() * length).as_dvec3()
+                                            / meters_per_unit,
+                                        normal.as_dvec3(),
+                                    )
+                                })
+                        }),
                 }
             };
             let Some((fraction, point, normal)) = candidate else {
-                continue;
+                return;
             };
-            if nearer_hit(fraction, nearest, hit.is_some()) {
-                nearest = fraction;
-                hit = Some(if fraction == 0.0 {
+            let impact = || {
+                if fraction == 0.0 {
                     (start, (-delta).normalize_or_zero())
                 } else {
                     (point, normal)
-                });
+                }
+            };
+            if nearer_hit(fraction, *nearest, hit.is_some()) {
+                *nearest = fraction;
+                *hit = Some(impact());
+                tied = false;
+            } else if index.is_some() && fraction == *nearest && hit.is_some_and(|hit| hit != impact()) {
+                tied = true;
+            }
+        };
+        if let Some(index) = index {
+            let ray = Ray::new(start_meters, delta_meters);
+            let mut cast_indexed = |entity, nearest: &mut f64, hit: &mut Option<(DVec3, DVec3)>| {
+                if let Some(geometry) = self.world.colliders.get(&entity) {
+                    cast(entity, geometry, nearest, hit);
+                }
+            };
+            for &entity in &index.unindexed {
+                cast_indexed(entity, &mut nearest, &mut hit);
+            }
+            index.tree.traverse(|node| {
+                if node.aabb().cast_local_ray(&ray, nearest.next_up(), true).is_none() {
+                    return TraversalAction::Prune;
+                }
+                if let Some(leaf) = node.leaf_data() {
+                    cast_indexed(index.entities[leaf as usize], &mut nearest, &mut hit);
+                }
+                TraversalAction::Continue
+            });
+            if tied {
+                // Keep the snapshot's ordering when coincident surfaces supply different normals.
+                return self.trace_in_units(start, end, channel, complex, meters_per_unit);
+            }
+        } else {
+            for (&entity, geometry) in &self.world.colliders {
+                cast(entity, geometry, &mut nearest, &mut hit);
             }
         }
         Ok(hit)

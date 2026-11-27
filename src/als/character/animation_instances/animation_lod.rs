@@ -155,7 +155,8 @@ impl AlsAnimationLod {
             .and_then(|(asset, required)| (*asset == skeleton).then_some(required))
     }
 
-    pub(crate) fn compact_pose(&self, pose: &Pose) -> Option<Pose> {
+    /// Applies the current bone selection, returning a compact pose when channels are omitted.
+    pub fn compact_pose(&self, pose: &Pose) -> Option<Pose> {
         let omitted = self.omitted_bones(pose.skeleton.id())?;
         if pose.paths.keys().all(|bone| !omitted.contains(bone)) {
             return None;
@@ -188,8 +189,8 @@ pub(crate) struct AlsAnimationLodSet;
 
 impl Plugin for AlsAnimationLodPlugin {
     fn build(&self, app: &mut App) {
+        crate::extensions::post_physics_animation::require_animation_player_component::<AlsAnimationLod>(app);
         app.init_resource::<AlsAnimationLodSettings>()
-            .register_required_components::<AnimationGraphPlayer, AlsAnimationLod>()
             .add_observer(
                 |event: On<Discard<AnimationGraphPlayer>>, mut commands: Commands| {
                     commands

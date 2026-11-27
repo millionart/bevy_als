@@ -153,9 +153,9 @@ impl CookedMeshRay {
         let ray = BoundsRay::new(start, direction);
         let mut current_length = length as f32;
         let mut hit = None;
-        let mut nodes = Vec::with_capacity(16);
-        nodes.push(0);
-        while let Some(index) = nodes.pop() {
+        let mut nodes = Vec::new();
+        let mut index = 0;
+        loop {
             for child in self.nodes[index].iter().flatten() {
                 if !ray.intersects(&child.bounds_cm, current_length) {
                     continue;
@@ -184,6 +184,8 @@ impl CookedMeshRay {
                     }
                 }
             }
+            let Some(next) = nodes.pop() else { break };
+            index = next;
         }
         hit.filter(|impact| impact.time_cm <= length)
     }

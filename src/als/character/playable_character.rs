@@ -1,12 +1,16 @@
 use avian3d::prelude::{
-    Collider, CollisionHooks, NarrowPhasePlugin, PhysicsPlugins, PhysicsSchedule,
+    Collider, CollisionHooks, NarrowPhasePlugin, Physics, PhysicsPlugins, PhysicsSchedule,
     PhysicsSchedulePlugin, PhysicsStepSystems, PhysicsSystems,
 };
-use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
-use bevy::ecs::system::{SystemParam, SystemParamItem};
+use bevy::app::MainScheduleOrder;
+use bevy::ecs::schedule::{ConditionWithAccess, InternedScheduleLabel, ScheduleLabel};
+use bevy::ecs::system::{IntoSystem, System, SystemParam, SystemParamItem};
 use bevy::prelude::*;
-use bevy_animation_graph::{AnimationGraphPlugin, core::plugin::AnimationGraphSet};
-use bevy_tnua::TnuaControllerPlugin;
+use bevy_animation_graph::{
+    AnimationGraphPlugin,
+    core::plugin::{AnimationGraphCorePlugin, AnimationGraphSet},
+};
+use bevy_tnua::{TnuaControllerPlugin, TnuaPipelineSystems, TnuaSystems};
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use crate::als::aim::AlsAimPlugin;
@@ -75,6 +79,20 @@ impl AlsPhysicsSchedule {
         }
     }
 
+    pub(crate) fn frame_input(app: &App) -> InternedScheduleLabel {
+        if !Self::uses_physics_steps(app) {
+            return Update.intern();
+        }
+        let outer = Self::outer(app);
+        let fixed_loop = RunFixedMainLoop.intern();
+        let order = app.world().resource::<MainScheduleOrder>();
+        if order.labels.iter().take_while(|&&label| label != fixed_loop).any(|&label| label == outer) {
+            outer
+        } else {
+            fixed_loop
+        }
+    }
+
     pub(crate) fn controller(app: &App) -> InternedScheduleLabel {
         if Self::uses_physics_steps(app) {
             PhysicsSchedule.intern()
@@ -97,6 +115,13 @@ impl AlsPhysicsSchedule {
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsPhysicsPrepareSet;
 
+/// When running physics in `PreUpdate`, order host input writers before this set.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsFrameInputSet;
+
+#[derive(Resource)]
+pub(crate) struct AlsHostPhysicsWorld;
+
 #[derive(SystemParam)]
 pub(crate) struct AlsStepTime<'w> {
     time: Option<Res<'w, Time>>,
@@ -118,7 +143,43 @@ impl AlsStepTime<'_> {
     pub(crate) fn is_paused(&self) -> bool {
         self.virtual_time.is_paused()
     }
+}
 
+fn install_tnua(app: &mut App, schedule: InternedScheduleLabel) {
+    let host_backend = app.is_plugin_added::<TnuaAvian3dPlugin>();
+    let host_controller = app.is_plugin_added::<TnuaControllerPlugin<AlsControlScheme>>();
+    if !host_backend {
+        app.add_plugins(TnuaAvian3dPlugin::new(schedule));
+    }
+    if !host_controller {
+        app.add_plugins(TnuaControllerPlugin::<AlsControlScheme>::new(schedule));
+    }
+    assert!(app.get_schedule(schedule).is_some_and(|schedule| schedule.graph().system_sets.contains(TnuaPipelineSystems::Logic)),
+        "Install the ALS Tnua controller on {schedule:?}");
+
+    if schedule != PhysicsSchedule.intern() && !host_backend {
+        return;
+    }
+    // Identify the backend's own condition without replacing conditions added by the host.
+    let mut backend = App::new();
+    backend.add_plugins(TnuaAvian3dPlugin::new(schedule));
+    let sets = &backend.get_schedule(schedule).unwrap().graph().system_sets;
+    let key = sets.get_key(TnuaSystems.intern()).unwrap();
+    let [guard] = sets.get_conditions(key).unwrap() else {
+        panic!("Expected one run condition from the Tnua Avian backend");
+    };
+    let guard = guard.system_type();
+    let sets = &mut app.get_schedule_mut(schedule).unwrap().graph_mut().system_sets;
+    let condition = sets.get_key(TnuaSystems.intern())
+        .and_then(|key| sets.get_conditions_mut(key))
+        .and_then(|conditions| conditions.iter_mut().find(|condition| condition.system_type() == guard))
+        .unwrap_or_else(|| panic!("Install the Tnua Avian backend on {schedule:?} before ALS"));
+    if schedule == PhysicsSchedule.intern() {
+        // Avian only enters this schedule for a nonzero step, even when manually stepping a paused clock.
+        *condition = ConditionWithAccess::new(Box::new(IntoSystem::into_system(
+            |time: Res<Time<Physics>>| !time.delta().is_zero(),
+        )));
+    }
 }
 
 impl AlsPlayableCharacterPlugin {
@@ -156,6 +217,7 @@ impl AlsPlayableCharacterPlugin {
                         .contains(PhysicsSystems::StepSimulation)),
                 "Register Avian with the configured collision hooks and the schedule selected by AlsPhysicsSchedule ({schedule:?})"
             );
+            app.insert_resource(AlsHostPhysicsWorld);
         } else {
             app.add_plugins(PhysicsPlugins::new(schedule).with_collision_hooks::<H>());
             if schedule == FixedPostUpdate.intern() {
@@ -163,10 +225,17 @@ impl AlsPlayableCharacterPlugin {
             }
         }
         if AlsPhysicsSchedule::uses_physics_steps(app) {
+            let frame_input = AlsPhysicsSchedule::frame_input(app);
+            if frame_input == RunFixedMainLoop.intern() {
+                app.configure_sets(frame_input, AlsFrameInputSet.in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop));
+            }
+            if frame_input == schedule {
+                app.configure_sets(schedule, AlsFrameInputSet.before(crate::als::input::begin_input_step));
+            }
             app.configure_sets(
                 schedule,
                 AlsPhysicsPrepareSet
-                    .run_if(|time: Res<Time>, clock: Res<Time<avian3d::prelude::Physics>>| {
+                    .run_if(|time: Res<Time>, clock: Res<Time<Physics>>| {
                         crate::als::input::physics_step_due(&time, &clock)
                     })
                     .before(AnimationGraphSet::PrePhysics)
@@ -174,9 +243,8 @@ impl AlsPlayableCharacterPlugin {
             )
             .register_required_components::<crate::AlsCharacter, crate::als::input::AlsStepInput>()
             .add_systems(
-                RunFixedMainLoop,
-                crate::als::input::buffer_input
-                    .in_set(RunFixedMainLoopSystems::BeforeFixedMainLoop),
+                frame_input,
+                crate::als::input::buffer_input.in_set(AlsFrameInputSet),
             )
             .add_systems(
                 schedule,
@@ -197,10 +265,7 @@ impl AlsPlayableCharacterPlugin {
             );
         }
         let controller = AlsPhysicsSchedule::controller(app);
-        app.add_plugins((
-            TnuaAvian3dPlugin::new(controller),
-            TnuaControllerPlugin::<AlsControlScheme>::new(controller),
-        ));
+        install_tnua(app, controller);
         app.add_plugins((
             AlsInputRequestPlugin,
             AlsAimPlugin,
@@ -209,7 +274,14 @@ impl AlsPlayableCharacterPlugin {
             AlsMotionPlugin,
             crate::als::air::AlsAirPlugin,
             crate::extensions::post_physics_animation::PostPhysicsAnimationPlugin,
-            AnimationGraphPlugin::from_physics_schedule(schedule),
+        ));
+        if let Some(graph) = app.get_added_plugins::<AnimationGraphCorePlugin>().first() {
+            assert!(graph.physics_schedule == schedule && graph.final_schedule == PostUpdate.intern(),
+                "Install the animation graph plugin with physics on {schedule:?} and pose writeback on PostUpdate");
+        } else {
+            app.add_plugins(AnimationGraphPlugin::from_physics_schedule(schedule));
+        }
+        app.add_plugins((
             AlsExtPlugin,
             AlsCharacterRuntimePlugin,
             AlsCameraPlugin,

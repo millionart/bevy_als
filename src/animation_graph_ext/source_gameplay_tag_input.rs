@@ -25,7 +25,7 @@ use crate::extensions::{
 struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::extensions::animation_context::AnimationContextState>,
-    rig_query: Option<crate::control_rig_query::RigQueryContext>,
+    rig_query: Option<crate::control_rig_query::IndexedRigQuery>,
     rig_foot_locations_cm: Option<[Vec3; 2]>,
     foot_lock_distances_squared_cm: Option<[f64; 2]>,
     graphs: HashMap<String, LinkedGraphInput>,
@@ -145,11 +145,15 @@ impl SourceAnimationInputs {
         &mut self,
         context: Option<crate::control_rig_query::RigQueryContext>,
     ) {
-        Arc::make_mut(&mut self.0).rig_query = context;
+        self.set_indexed_rig_query(context.map(|context| crate::control_rig_query::IndexedRigQuery { context, index: None }));
+    }
+
+    pub(crate) fn set_indexed_rig_query(&mut self, query: Option<crate::control_rig_query::IndexedRigQuery>) {
+        Arc::make_mut(&mut self.0).rig_query = query;
     }
 
     pub fn rig_query_context(&self) -> Option<crate::control_rig_query::RigQueryContext> {
-        self.0.rig_query.clone()
+        self.0.rig_query.as_ref().map(|query| query.context.clone())
     }
 
     pub(crate) fn set_rig_foot_locations_cm(&mut self, locations: Option<[Vec3; 2]>) {
@@ -224,7 +228,6 @@ impl Plugin for SourceAnimationInputsPlugin {
             .init_resource::<AlsAnimationSharingSettings>()
             .init_resource::<AlsAclAnimations>()
             .init_resource::<crate::AlsPreRigSharingSettings>()
-            .register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
             .add_observer(
                 |event: On<Add<SourceAnimationInputs>>,
                  curves: Res<ClipCurves>,
@@ -242,6 +245,7 @@ impl Plugin for SourceAnimationInputsPlugin {
                     }
                 },
             );
+        super::post_physics_animation::require_animation_player_component::<SourceAnimationInputs>(app);
     }
 }
 
@@ -363,8 +367,8 @@ pub(crate) fn active_slot_input_context(
 
 pub(crate) fn active_rig_query_context(
     entity: Entity,
-) -> Option<crate::control_rig_query::RigQueryContext> {
-    current_inputs(entity)?.rig_query_context()
+) -> Option<crate::control_rig_query::IndexedRigQuery> {
+    current_inputs(entity)?.0.rig_query.clone()
 }
 
 pub(crate) fn active_rig_foot_locations_cm(entity: Entity) -> Option<[Vec3; 2]> {

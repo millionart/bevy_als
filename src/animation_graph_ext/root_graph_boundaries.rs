@@ -275,7 +275,7 @@ impl ControlRigBoundaryNode {
         game_world: bool,
         delta_seconds: f64,
         to_world: RigTransform,
-        query: Option<&crate::control_rig_query::RigQueryContext>,
+        query: Option<&crate::control_rig_query::IndexedRigQuery>,
         capture: bool,
     ) -> Result<(), String> {
         state.executed_steps = 0;
@@ -688,7 +688,7 @@ impl NodeLike for ControlRigBoundaryNode {
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let to_world = query
             .as_ref()
-            .map(|query| query.to_world)
+            .map(|query| query.context.to_world)
             .unwrap_or_else(|| {
                 ctx.graph_context
                     .resources

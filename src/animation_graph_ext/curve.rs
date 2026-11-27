@@ -53,6 +53,9 @@ pub fn sample_curve(mode: CurveSampleMode, keys: &[CurveKey], t: f32) -> f32 {
     let Some(&last) = keys.last() else {
         return 0.0;
     };
+    if t.is_nan() {
+        return t;
+    }
     if t <= first.t {
         return first.v;
     }

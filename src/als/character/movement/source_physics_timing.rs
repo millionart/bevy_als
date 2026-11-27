@@ -47,8 +47,12 @@ pub struct SourcePhysicsTimingPlugin;
 
 impl Plugin for SourcePhysicsTimingPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
-            .init_resource::<SourcePhysicsClockRestore>()
+        let host_physics = app.world().contains_resource::<crate::playable_character::AlsHostPhysicsWorld>();
+        if !host_physics {
+            app.insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
+                .add_systems(PhysicsSchedule, update_source_contact_limits.in_set(SolverSystems::PreSubstep));
+        }
+        app.init_resource::<SourcePhysicsClockRestore>()
             .configure_sets(
                 PostUpdate,
                 (
@@ -83,7 +87,6 @@ impl Plugin for SourcePhysicsTimingPlugin {
             .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement
                 .in_set(SolverSystems::PostSubstep)
                 .after(crate::extensions::source_physics_joint::project_source_joints))
-            .add_systems(PhysicsSchedule, update_source_contact_limits.in_set(SolverSystems::PreSubstep))
             .add_systems(
                 SubstepSchedule,
                 record_character_velocity
